@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "bun run src/ai/index.ts",
     "start": "bun run --hot src/app/index.tsx",
-    "build:win": "bun build --compile --target=bun-windows-x64-modern ./src/app/index.tsx --outfile ./standup-win --minify --external '@opentui/core'",
-    "build:linux": "bun build --compile ./src/app/index.tsx --outfile ./standup-linux --minify --external '@opentui/core'",
+    "build:win": "bun build --compile --target=bun-windows-x64-modern ./src/app/index.tsx --outfile ./standup-win --minify --format=esm",
+    "build:linux": "bun build --compile ./src/app/index.tsx --outfile ./standup-linux --minify --format=esm",
     "build": "bun build:win && bun build:linux",
     "check-types": "tsc -b",
     "dev:mastra": "bun run --bun mastra dev --dir ./src/ai/mastra"
