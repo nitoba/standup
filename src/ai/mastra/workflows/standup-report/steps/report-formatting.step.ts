@@ -2,22 +2,30 @@ import { createStep } from '@mastra/core/workflows'
 import z from 'zod'
 import { reportFormatterAgent } from '@/mastra/agents/report-formatter.agent'
 import { gitAnalysisStep } from './git-analysis.step'
-import {
-	statusDeterminationSchema,
-	statusDeterminationStep,
-} from './status-determination.step'
+import { statusDeterminationSchema } from './status-determination.step'
 
 // Step 5: Format the final report
+
+// Create a step to merge the reports from different paths
 export const reportFormattingStep = createStep({
 	id: 'report-formatting',
 	description: 'Format the final standup report',
-	inputSchema: statusDeterminationSchema,
+	inputSchema: z.union([
+		statusDeterminationSchema,
+		z.object({ report: z.string() }),
+	]),
 	outputSchema: z.object({
 		report: z.string(),
 	}),
-	execute: async ({ getStepResult }) => {
+	execute: async ({ inputData, getStepResult }) => {
+		// If the input already has a report (from noResultsHandlerStep), return it directly
+		if ('report' in inputData) {
+			return { report: inputData.report }
+		}
+
+		// Otherwise, format the report using the status determination data
 		const gitData = getStepResult(gitAnalysisStep)
-		const statusData = getStepResult(statusDeterminationStep)
+		const statusData = inputData
 
 		const currentDate = new Date()
 		const dayOfWeek = currentDate.toLocaleDateString('pt-BR', {
@@ -47,7 +55,7 @@ export const reportFormattingStep = createStep({
 
 ${consolidatedData}
 
-Use o formato especificado nas suas instruções.`
+Use o formato especificado nas suas instruções.`.trim()
 		)
 
 		return {

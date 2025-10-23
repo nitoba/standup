@@ -49,7 +49,7 @@ export const standupReportWorkflow = createWorkflow({
 			},
 			withResultsWorkflow,
 		],
-		// If no results, use the no results handler
+		// If no results, use the no results handler which already formats the report
 		[
 			async ({ getStepResult }) => {
 				const gitResults = getStepResult(gitAnalysisStep)
