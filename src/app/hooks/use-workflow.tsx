@@ -163,7 +163,7 @@ export function useWorkflow() {
 									// Directory might already exist, ignore error
 								}
 
-								const fileName = `./${STANDUP_GENERATED_FOLDER}/standup-${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.txt`
+								const fileName = `${STANDUP_GENERATED_FOLDER}/standup-${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.txt`
 								await Bun.write(fileName, report)
 
 								setWorkflowState((prev) => ({
