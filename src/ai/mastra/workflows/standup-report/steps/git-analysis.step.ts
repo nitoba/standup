@@ -84,8 +84,6 @@ export const gitAnalysisStep = createStep({
 				repositoryPath,
 			})
 
-			logger.info(JSON.stringify(branches, null, 2))
-
 			if (branchesError) {
 				logger.error(
 					`Failed to get worked branches for ${repositoryPath}: ${branchesError}`

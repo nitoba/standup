@@ -1,6 +1,5 @@
 import { createStep } from '@mastra/core/workflows'
 import z from 'zod'
-import { logger } from '@/lib/logger'
 import {
 	detectUserFromGitConfig,
 	discoverRepositories,
@@ -39,16 +38,16 @@ export const repositoryDiscoveryStep = createStep({
 			// )
 		} else {
 			repositories = [process.cwd()]
-			logger.info(`Using current directory: ${process.cwd()}`)
+			// logger.info(`Using current directory: ${process.cwd()}`)
 		}
 
 		if (!user) {
 			if (repositories.length === 0) {
 				throw new Error('No repositories found and no user specified')
 			}
-			logger.info('No user specified, attempting to detect from git config...')
+			// logger.info('No user specified, attempting to detect from git config...')
 			user = await detectUserFromGitConfig(repositories[0] as string)
-			logger.info(`Detected user: ${user.gitAuthorName || user.gitAuthorEmail}`)
+			// logger.info(`Detected user: ${user.gitAuthorName || user.gitAuthorEmail}`)
 		}
 
 		return {

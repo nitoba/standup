@@ -1,5 +1,3 @@
-import { logger } from '@/lib/logger'
-
 function parseCommand(cmd: string): string[] {
 	const args: string[] = []
 	let current = ''
@@ -33,7 +31,6 @@ export function executeCommand(cmd: string, cwd?: string) {
 	const needsShell = /[|&;<>()$`\\"]/.test(cmd)
 
 	if (needsShell) {
-		logger.info(JSON.stringify({ cwd }))
 		// Executa através do shell
 		return Bun.spawn(['bash', '-c', cmd], {
 			cwd: cwd,

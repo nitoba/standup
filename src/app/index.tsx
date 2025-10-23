@@ -842,16 +842,16 @@ function App() {
 				backgroundColor: colors.background,
 			}}
 		>
-			{/* <Header workflowState={workflowState} /> */}
+			<Header workflowState={workflowState} />
 			{workflowState.workflowResult && workflowState.status === 'completed' ? (
 				<ResultDisplay workflowState={workflowState} />
 			) : (
 				<>
-					{/* <StepsList workflowState={workflowState} /> */}
+					<StepsList workflowState={workflowState} />
 					<DetailPanel workflowState={workflowState} />
 				</>
 			)}
-			{/* <Footer workflowState={workflowState} /> */}
+			<Footer workflowState={workflowState} />
 		</box>
 	)
 }
