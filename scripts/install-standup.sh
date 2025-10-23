@@ -164,7 +164,6 @@ create_package_json
 create_env_file
 install_bun_if_needed
 create_alias
-reload_shell
 
 echo ""
 echo "🎉 Instalação concluída com sucesso!"
