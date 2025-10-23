@@ -19,12 +19,18 @@ Standup é uma ferramenta que ajuda a organizar e automatizar tarefas de desenvo
 
 ## Instalação
 
-### **Universal (Linux, macOS e Windows)**
+### **(Linux, macOS)**
 
-Execute o comando abaixo no terminal (Linux/macOS) ou no PowerShell (Windows):
+Execute o comando abaixo no terminal (Linux/macOS):
 
 ```bash
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/nitoba/standup/main/scripts/install.sh)"
+```
+
+### **(Windows)**
+
+```bash
+powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/nitoba/standup/main/scripts/install-standup.ps1 | iex"
 ```
 
 O script faz automaticamente:
