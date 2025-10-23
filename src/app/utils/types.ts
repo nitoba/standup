@@ -33,4 +33,4 @@ export const colors = {
 	},
 	border: '#44475A', // bordas suaves
 	highlight: '#BD93F9', // roxo icônico do tema
-}
+} as const
