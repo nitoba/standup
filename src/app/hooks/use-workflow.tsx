@@ -155,13 +155,15 @@ export function useWorkflow() {
 							if (report) {
 								// Create standups directory if it doesn't exist
 								const fs = await import('node:fs/promises')
+								const STANDUP_GENERATED_FOLDER =
+									Bun.env.STANDUP_GENERATED_FOLDER || './standups'
 								try {
-									await fs.mkdir('./standups', { recursive: true })
+									await fs.mkdir(STANDUP_GENERATED_FOLDER, { recursive: true })
 								} catch {
 									// Directory might already exist, ignore error
 								}
 
-								const fileName = `./standups/standup-${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.txt`
+								const fileName = `./${STANDUP_GENERATED_FOLDER}/standup-${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.txt`
 								await Bun.write(fileName, report)
 
 								setWorkflowState((prev) => ({
