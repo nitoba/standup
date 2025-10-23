@@ -7,6 +7,7 @@ import {
 	aggregatedGitAnalysisSchema,
 	gitAnalysisStep,
 } from './steps/git-analysis.step'
+import { mapperStep } from './steps/mapper.step'
 import { noResultsHandlerStep } from './steps/no-results-handler.step'
 import { reportFormattingStep } from './steps/report-formatting.step'
 import { repositoryDiscoveryStep } from './steps/repository-discovery.step'
@@ -18,7 +19,10 @@ import {
 // Create a workflow for the path with results
 const withResultsWorkflow = createWorkflow({
 	id: 'with-results-workflow',
-	inputSchema: aggregatedGitAnalysisSchema,
+	inputSchema: z.object({
+		gitResult: aggregatedGitAnalysisSchema,
+		user: userIdentifierSchema,
+	}),
 	outputSchema: statusDeterminationSchema,
 })
 	.then(azureDevOpsStep)
@@ -40,6 +44,7 @@ export const standupReportWorkflow = createWorkflow({
 })
 	.then(repositoryDiscoveryStep)
 	.then(gitAnalysisStep)
+	.then(mapperStep)
 	.branch([
 		// If git analysis returned results, continue with Azure DevOps and status determination
 		[

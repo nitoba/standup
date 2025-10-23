@@ -11,6 +11,7 @@ export async function getDetailsFromBranches({
 	repositoryPath,
 }: z.infer<typeof input>) {
 	const operations = branches.map(async (b) => {
+		executeCommand('git fetch origin', repositoryPath)
 		const command = `git log ${b} --since="16 hours ago" --pretty=format:"---%n[${b}]%n%s%n%b%n"`
 
 		const proc = executeCommand(command, repositoryPath)
@@ -28,3 +29,14 @@ export async function getDetailsFromBranches({
 
 	return result
 }
+
+// console.log(
+// 	await getDetailsFromBranches({
+// 		branches: [
+// 			'origin/fix/soft-delete-form-pergunta-item-lista',
+// 			'origin/refactor/registro-feat',
+// 			'origin/refactor/vertical-tabs-cadastro-propriedade',
+// 		],
+// 		repositoryPath: '/home/bruno-alves/Documents/projects/ibs/agrotrace-v3',
+// 	})
+// )

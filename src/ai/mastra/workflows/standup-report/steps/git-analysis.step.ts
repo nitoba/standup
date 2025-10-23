@@ -45,7 +45,7 @@ export const gitAnalysisStep = createStep({
 		user: userIdentifierSchema,
 	}),
 	outputSchema: aggregatedGitAnalysisSchema,
-	execute: async ({ inputData, bail }) => {
+	execute: async ({ inputData }) => {
 		const { repositories, user } = inputData
 
 		const allResults: Array<{
@@ -83,6 +83,8 @@ export const gitAnalysisStep = createStep({
 				authorName,
 				repositoryPath,
 			})
+
+			console.log(branches)
 
 			if (branchesError) {
 				logger.error(

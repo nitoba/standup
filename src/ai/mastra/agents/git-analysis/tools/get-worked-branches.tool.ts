@@ -25,12 +25,20 @@ export async function getWorkedBranches({
 		authorFilter = `--author="${authorName}"`
 	}
 
-	const command = `git log --all ${authorFilter} --since="16 hours ago" --format="%D" | sed 's/,.*//; s/HEAD -> //' | sort -u`
+	executeCommand('git fetch origin', repositoryPath)
 
+	const command = `git log --all ${authorFilter} --since="16 hours ago" --format="%D" \
+  | sed 's/,.*//; s/HEAD -> //' \
+  | grep -E '^(origin/|master|dev|sprint)' \
+  | sort -u`
+
+	console.log(command)
 	const proc = executeCommand(command, repositoryPath)
 
 	const output = await proc.stdout.text()
 	const error = await proc.stderr.text()
+
+	// console.log({ output, error })
 
 	return {
 		branches: output

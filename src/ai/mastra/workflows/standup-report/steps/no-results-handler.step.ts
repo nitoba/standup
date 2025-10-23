@@ -1,8 +1,8 @@
 import { createStep } from '@mastra/core/workflows'
 import z from 'zod'
+import { userIdentifierSchema } from '@/lib/user'
 import { reportFormatterAgent } from '@/mastra/agents/report-formatter.agent'
 import { aggregatedGitAnalysisSchema } from './git-analysis.step'
-import { repositoryDiscoveryStep } from './repository-discovery.step'
 
 // Schema for the no results handler output
 export const noResultsHandlerSchema = z.object({
@@ -14,11 +14,14 @@ export const noResultsHandlerStep = createStep({
 	id: 'no-results-handler',
 	description:
 		'Handle the case when no git results are found and format a report',
-	inputSchema: aggregatedGitAnalysisSchema,
+	inputSchema: z.object({
+		gitResult: aggregatedGitAnalysisSchema,
+		user: userIdentifierSchema,
+	}),
 	outputSchema: noResultsHandlerSchema,
-	execute: async ({ inputData, getStepResult }) => {
-		const discoveryData = getStepResult(repositoryDiscoveryStep)
-		const user = discoveryData.user
+	execute: async ({ inputData }) => {
+		const user = inputData.user
+		const repositories = inputData.gitResult.repositories
 
 		// Get date information
 		const currentDate = new Date()
@@ -29,7 +32,7 @@ export const noResultsHandlerStep = createStep({
 
 		// Get project names from repositories even if they have no branches
 		const projectNames =
-			inputData.repositories
+			repositories
 				.map((repo) => repo.projectName)
 				.filter((name, index, self) => self.indexOf(name) === index)
 				.join(', ') || 'Nenhum projeto'
