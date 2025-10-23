@@ -93,8 +93,9 @@ create_alias() {
       local FISH_CONFIG="$HOME/.config/fish/config.fish"
       local ALIAS_CMD="alias standup \"$EXEC_PATH\""
       mkdir -p "$(dirname "$FISH_CONFIG")"
+      # adiciona 2 linhas em branco antes do alias para evitar 'endalias'
       if ! grep -q "alias standup" "$FISH_CONFIG" 2>/dev/null; then
-        echo "$ALIAS_CMD" >> "$FISH_CONFIG"
+        echo -e "\n\n$ALIAS_CMD" >> "$FISH_CONFIG"
         echo "✅ Alias adicionado ao $FISH_CONFIG"
       else
         echo "⚙️ Alias já existe em $FISH_CONFIG"
@@ -122,6 +123,7 @@ create_alias() {
       ;;
   esac
 }
+
 
 reload_shell() {
   echo ""
@@ -164,6 +166,7 @@ create_package_json
 create_env_file
 install_bun_if_needed
 create_alias
+reload_shell
 
 echo ""
 echo "🎉 Instalação concluída com sucesso!"
