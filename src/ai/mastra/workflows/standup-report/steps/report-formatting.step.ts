@@ -25,6 +25,7 @@ export const reportFormattingStep = createStep({
 		})
 		const formattedDate = currentDate.toLocaleDateString('pt-BR')
 
+		// Use gitCheckData.repositories to handle both cases (with and without results)
 		const projectNames = gitData.repositories
 			.map((repo) => repo.projectName)
 			.filter((name, index, self) => self.indexOf(name) === index)
@@ -32,7 +33,7 @@ export const reportFormattingStep = createStep({
 
 		const consolidatedData = JSON.stringify(
 			{
-				projects: projectNames,
+				projects: projectNames || 'Nenhum projeto',
 				currentDate: formattedDate,
 				dayOfWeek,
 				tasks: statusData.tasks,

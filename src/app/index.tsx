@@ -8,6 +8,7 @@ interface WorkflowStep {
 	status: 'pending' | 'running' | 'success' | 'error'
 	startTime?: number
 	duration?: number
+	error?: string
 }
 
 interface WorkflowState {
@@ -428,13 +429,57 @@ function DetailPanel({ workflowState }: { workflowState: WorkflowState }) {
 				</box>
 
 				{selectedStep.duration ? (
-					<box style={{ flexDirection: 'row' }}>
+					<box style={{ flexDirection: 'row', marginBottom: 1 }}>
 						<text fg={colors.text.muted} style={{ width: 8 }}>
 							Duration:{' '}
 						</text>
 						<text fg={colors.warning}>
 							{formatDuration(selectedStep.duration)}
 						</text>
+					</box>
+				) : null}
+
+				{selectedStep.error && selectedStep.status === 'error' ? (
+					<box style={{ flexDirection: 'column', marginTop: 1 }}>
+						<box style={{ flexDirection: 'row', marginBottom: 1 }}>
+							<text fg={colors.error}>⚠ ERROR DETAILS</text>
+						</box>
+						<scrollbox
+							style={{
+								rootOptions: {
+									backgroundColor: colors.secondary,
+									height: 10,
+								},
+								wrapperOptions: {
+									backgroundColor: colors.secondary,
+								},
+								viewportOptions: {
+									backgroundColor: colors.secondary,
+								},
+								contentOptions: {
+									backgroundColor: colors.secondary,
+								},
+								scrollbarOptions: {
+									showArrows: true,
+									trackOptions: {
+										foregroundColor: colors.error,
+										backgroundColor: colors.background,
+									},
+								},
+							}}
+						>
+							<box
+								style={{
+									backgroundColor: colors.secondary,
+									padding: 1,
+									borderStyle: 'single',
+									borderColor: colors.error,
+									width: '100%',
+								}}
+							>
+								<text fg={colors.text.secondary}>{selectedStep.error}</text>
+							</box>
+						</scrollbox>
 					</box>
 				) : null}
 			</box>
@@ -685,6 +730,15 @@ function App() {
 								const status =
 									chunk.payload.status === 'success' ? 'success' : 'error'
 
+								// Capture error details if status is error
+								const error =
+									status === 'error'
+										? (chunk.payload as any).error?.message ||
+											(chunk.payload as any).error ||
+											chunk.payload.output?.error ||
+											JSON.stringify(chunk.payload, null, 2)
+										: undefined
+
 								setWorkflowState((prev) => {
 									const newSteps = [...prev.steps]
 									const stepIndex = newSteps.findIndex((s) => s.id === stepId)
@@ -695,6 +749,7 @@ function App() {
 											status,
 											duration,
 											startTime: newSteps[stepIndex].startTime,
+											error,
 										}
 									}
 
@@ -732,7 +787,7 @@ function App() {
 
 								if (report) {
 									// Create standups directory if it doesn't exist
-									const fs = await import('fs/promises')
+									const fs = await import('node:fs/promises')
 									try {
 										await fs.mkdir('./standups', { recursive: true })
 									} catch (error) {
@@ -787,16 +842,16 @@ function App() {
 				backgroundColor: colors.background,
 			}}
 		>
-			<Header workflowState={workflowState} />
-			{workflowState.workflowResult ? (
+			{/* <Header workflowState={workflowState} /> */}
+			{workflowState.workflowResult && workflowState.status === 'completed' ? (
 				<ResultDisplay workflowState={workflowState} />
 			) : (
 				<>
-					<StepsList workflowState={workflowState} />
+					{/* <StepsList workflowState={workflowState} /> */}
 					<DetailPanel workflowState={workflowState} />
 				</>
 			)}
-			<Footer workflowState={workflowState} />
+			{/* <Footer workflowState={workflowState} /> */}
 		</box>
 	)
 }

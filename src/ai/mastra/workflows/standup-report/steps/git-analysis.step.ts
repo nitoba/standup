@@ -45,7 +45,7 @@ export const gitAnalysisStep = createStep({
 		user: userIdentifierSchema,
 	}),
 	outputSchema: aggregatedGitAnalysisSchema,
-	execute: async ({ inputData }) => {
+	execute: async ({ inputData, bail }) => {
 		const { repositories, user } = inputData
 
 		const allResults: Array<{
@@ -83,6 +83,8 @@ export const gitAnalysisStep = createStep({
 				authorName,
 				repositoryPath,
 			})
+
+			logger.info(JSON.stringify(branches, null, 2))
 
 			if (branchesError) {
 				logger.error(
@@ -143,10 +145,6 @@ export const gitAnalysisStep = createStep({
 
 			allResults.push(result)
 		}
-
-		// logger.info(
-		// 	`Analysis complete. Found ${allResults.length} repositories with branches.`
-		// )
 
 		return {
 			repositories: allResults,
