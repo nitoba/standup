@@ -123,14 +123,20 @@ function Create-Alias {
         $IsLinux { "standup-linux" }
     }
 
-    $ExecPath = Join-Path $InstallDir $OSAlias
-    $AliasCommand = "Set-Alias standup `"$ExecPath`""
+    $FunctionCommand = @"
 
-    if (-not (Select-String -Path $AliasFile -Pattern "Set-Alias standup" -Quiet)) {
-        Add-Content -Path $AliasFile -Value "`n$AliasCommand"
-        Write-Host "✅ Alias adicionado ao perfil PowerShell ($AliasFile)" -ForegroundColor Green
+function standup {
+    Push-Location `"$InstallDir`"
+    & `".\$OSAlias`"
+    Pop-Location
+}
+"@
+
+    if (-not (Select-String -Path $AliasFile -Pattern "function standup" -Quiet)) {
+        Add-Content -Path $AliasFile -Value $FunctionCommand
+        Write-Host "✅ Função 'standup' adicionada ao perfil PowerShell ($AliasFile)" -ForegroundColor Green
     } else {
-        Write-Host "⚙️ Alias já existe no perfil ($AliasFile)" -ForegroundColor Yellow
+        Write-Host "⚙️ Função 'standup' já existe no perfil ($AliasFile)" -ForegroundColor Yellow
     }
 }
 

@@ -82,7 +82,7 @@ install_bun_if_needed() {
 
 create_alias() {
   echo "🔗 Criando alias 'standup'..."
-  local EXEC_PATH="$INSTALL_DIR/standup-$OS"
+  local EXEC_NAME="standup-$OS"
 
   # Detecta o shell em uso
   local SHELL_NAME
@@ -91,7 +91,7 @@ create_alias() {
   case "$SHELL_NAME" in
     fish)
       local FISH_CONFIG="$HOME/.config/fish/config.fish"
-      local ALIAS_CMD="alias standup \"$EXEC_PATH\""
+      local ALIAS_CMD="alias standup \"cd $INSTALL_DIR; ./$EXEC_NAME\""
       mkdir -p "$(dirname "$FISH_CONFIG")"
       # adiciona 2 linhas em branco antes do alias para evitar 'endalias'
       if ! grep -q "alias standup" "$FISH_CONFIG" 2>/dev/null; then
@@ -103,7 +103,7 @@ create_alias() {
       ;;
     zsh)
       local SHELL_RC="$HOME/.zshrc"
-      local ALIAS_CMD="alias standup='$EXEC_PATH'"
+      local ALIAS_CMD="alias standup='(cd $INSTALL_DIR && ./$EXEC_NAME)'"
       if ! grep -q "alias standup=" "$SHELL_RC" 2>/dev/null; then
         echo "$ALIAS_CMD" >> "$SHELL_RC"
         echo "✅ Alias adicionado ao $SHELL_RC"
@@ -113,7 +113,7 @@ create_alias() {
       ;;
     bash|*)
       local SHELL_RC="$HOME/.bashrc"
-      local ALIAS_CMD="alias standup='$EXEC_PATH'"
+      local ALIAS_CMD="alias standup='(cd $INSTALL_DIR && ./$EXEC_NAME)'"
       if ! grep -q "alias standup=" "$SHELL_RC" 2>/dev/null; then
         echo "$ALIAS_CMD" >> "$SHELL_RC"
         echo "✅ Alias adicionado ao $SHELL_RC"
