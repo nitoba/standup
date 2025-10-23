@@ -41,17 +41,31 @@ GOOGLE_GENERATIVE_AI_API_KEY=
 # FUNÇÕES AUXILIARES
 # ==========================
 function Detect-OS {
-    if ($IsWindows) {
+    if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)) {
+        Set-Variable -Name IsWindows -Value $true -Scope Global
+        Set-Variable -Name IsMacOS -Value $false -Scope Global
+        Set-Variable -Name IsLinux -Value $false -Scope Global
         return "win"
-    } elseif ($IsMacOS) {
+    }
+    elseif ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::OSX)) {
+        Set-Variable -Name IsWindows -Value $false -Scope Global
+        Set-Variable -Name IsMacOS -Value $true -Scope Global
+        Set-Variable -Name IsLinux -Value $false -Scope Global
         return "mac"
-    } elseif ($IsLinux) {
+    }
+    elseif ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Linux)) {
+        Set-Variable -Name IsWindows -Value $false -Scope Global
+        Set-Variable -Name IsMacOS -Value $false -Scope Global
+        Set-Variable -Name IsLinux -Value $true -Scope Global
         return "linux"
-    } else {
+    }
+    else {
         Write-Error "Sistema operacional não suportado."
         exit 1
     }
 }
+
+
 
 function Download-Executable {
     param($OS)
