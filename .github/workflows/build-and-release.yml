@@ -31,6 +31,9 @@ jobs:
       - name: Build for Linux
         run: bun run build:linux
 
+      - name: Build for MacOs
+        run: bun run build:mac
+
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
@@ -42,6 +45,12 @@ jobs:
         with:
           name: standup-linux
           path: ./standup-linux
+
+      - name: Upload MacOs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: standup-mac
+          path: ./standup-mac
 
   release:
     needs: build
@@ -67,6 +76,15 @@ jobs:
       - name: Make Linux executable
         run: chmod +x ./artifacts/standup-linux
 
+      - name: Download MacOs artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: standup-mac
+          path: ./artifacts
+
+      - name: Make MacOs executable
+        run: chmod +x ./artifacts/standup-mac
+
       - name: Extract version from tag
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
@@ -81,6 +99,7 @@ jobs:
             ### Binários:
 
             - **Windows**: `standup-win`
+            - **MacOs**: `standup-mac`
             - **Linux**: `standup-linux`
 
             ### Como usar:
@@ -93,6 +112,7 @@ jobs:
           files: |
             ./artifacts/standup-win.exe
             ./artifacts/standup-linux
+            ./artifacts/standup-mac
           draft: false
           prerelease: false
         env:

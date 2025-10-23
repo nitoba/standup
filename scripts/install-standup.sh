@@ -80,6 +80,12 @@ install_bun_if_needed() {
   fi
 }
 
+install_dependencies() {
+  echo "📦 Instalando dependências..."
+  cd "$INSTALL_DIR"
+  bun install
+}
+
 create_alias() {
   echo "🔗 Criando alias 'standup'..."
   local EXEC_NAME="standup-$OS"
@@ -165,6 +171,7 @@ download_executable
 create_package_json
 create_env_file
 install_bun_if_needed
+install_dependencies
 create_alias
 reload_shell
 
