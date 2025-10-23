@@ -52,7 +52,7 @@ jobs:
       - name: Download Windows artifact
         uses: actions/download-artifact@v5
         with:
-          name: standup-win
+          name: standup-win.exe
           path: ./artifacts
 
       - name: Download Linux artifact
