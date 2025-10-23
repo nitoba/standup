@@ -19,18 +19,18 @@ export interface WorkflowState {
 
 // Modern color palette
 export const colors = {
-	background: '#0A0E1A',
-	secondary: '#1A1F2E',
-	accent: '#00D9FF',
-	success: '#10B981',
-	warning: '#F59E0B',
-	error: '#EF4444',
+	background: '#282A36', // fundo principal Dracula
+	secondary: '#1E1F29', // fundo secundário levemente mais escuro
+	accent: '#8BE9FD', // ciano característico
+	success: '#50FA7B', // verde vibrante Dracula
+	warning: '#F1FA8C', // amarelo claro
+	error: '#FF5555', // vermelho rosado
 	text: {
-		primary: '#FFFFFF',
-		secondary: '#E5E7EB',
-		muted: '#9CA3AF',
-		inverse: '#000000',
+		primary: '#F8F8F2', // texto principal quase branco
+		secondary: '#E2E2DC', // texto secundário levemente acinzentado
+		muted: '#6272A4', // azul arroxeado para texto neutro
+		inverse: '#000000', // para uso em fundos claros
 	},
-	border: '#374151',
-	highlight: '#1E293B',
+	border: '#44475A', // bordas suaves
+	highlight: '#BD93F9', // roxo icônico do tema
 }
