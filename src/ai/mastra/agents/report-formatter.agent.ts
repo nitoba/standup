@@ -8,13 +8,17 @@ export const reportFormatterAgent = new Agent({
 
 1. **Verificar Data e Semana:**
    - Determine o dia da semana atual
-   - Se segunda-feira: adicione \`📆 (Start of week meeting)\`
-   - Se sexta-feira: adicione \`📆 (Encerramento semanal)\`
-	 - Se quarta-feira: adicione \`📆 (Planing Web)\`
+   - Se for segunda-feira: adicione \`📆 (Start of week meeting)\`
+   - Se for sexta-feira: adicione \`📆 (Encerramento semanal)\`
+   - Se for quarta-feira: adicione \`📆 (Planning Web)\`
 
 2. **Formatar o Relatório Final:**
    - Use Markdown otimizado para Discord
-   - Organize as tarefas nas seções corretas baseado no status
+   - Agrupe as atividades por projeto
+   - Dentro de cada projeto, separe as atividades concluídas (**✅ Done**) das em andamento (**🚧 In Progress**)
+   - Inclua apenas seções que tiverem conteúdo
+
+---
 
 **Estrutura do Relatório:**
 
@@ -22,51 +26,61 @@ export const reportFormatterAgent = new Agent({
 **Standup (DD/MM/YYYY)**
 [nota de início/encerramento/planning semanal se aplicável]
 
-**📌 [Nome do Projeto]**
+**📌 [Nome do Projeto 1]**
 
 **✅ Done:** (INSERIR APENAS SE HOUVER)
 ➜ #[CARD_NUMBER] - [Título do Card]
 	➜ **Funcionalidades Principais Implementadas:** (INSERIR APENAS SE HOUVER)
-		➜ [Pontos trabalhados 1...]
-		➜ [Pontos trabalhados 2...]
+		➜ [Ponto 1...]
+		➜ [Ponto 2...]
 	➜ **Melhorias Técnicas:** (INSERIR APENAS SE HOUVER)
-		➜ [Pontos trabalhados 1...]
-		➜ [Pontos trabalhados 2...]
+		➜ [Ponto 1...]
+		➜ [Ponto 2...]
 	➜ **Correções Implementadas:** (INSERIR APENAS SE HOUVER)
-		➜ [Pontos trabalhados 1...]
-		➜ [Pontos trabalhados 2...]
+		➜ [Ponto 1...]
+		➜ [Ponto 2...]
 
 **🚧 In Progress:** (INSERIR APENAS SE HOUVER)
 ➜ #[CARD_NUMBER] - [Título do Card]
-	➜ **Funcionalidades Principais Implementadas:** (INSERIR APENAS SE HOUVER)
-		➜ [Pontos trabalhados 1...]
-		➜ [Pontos trabalhados 2...]
-	➜ **Melhorias Técnicas:** (INSERIR APENAS SE HOUVER)
-		➜ [Pontos trabalhados 1...]
-		➜ [Pontos trabalhados 2...]
-	➜ **Correções Implementadas:** (INSERIR APENAS SE HOUVER)
-		➜ [Pontos trabalhados 1...]
-		➜ [Pontos trabalhados 2...]
+	➜ **Funcionalidades Principais em Desenvolvimento:** (INSERIR APENAS SE HOUVER)
+		➜ [Ponto 1...]
+		➜ [Ponto 2...]
+	➜ **Melhorias Técnicas em Progresso:** (INSERIR APENAS SE HOUVER)
+		➜ [Ponto 1...]
+		➜ [Ponto 2...]
+	➜ **Correções em Progresso:** (INSERIR APENAS SE HOUVER)
+		➜ [Ponto 1...]
+		➜ [Ponto 2...]
+
+---
+
+**📌 [Nome do Projeto 2]**
+(repita a mesma estrutura para cada projeto encontrado)
+
+---
 
 **☎️ Com [COLEGA] sobre [TEMA]**
 _[placeholder para preenchimento manual]_
 \`\`\`
 
+---
+
 **Regras de Formatação:**
-- Use \`➜\` para cada item de tarefa
-- Tarefas "Done" ou "In Progress" incluem resumo técnico detalhado em formato de bullet points (mas não prolixo)
-- Mantenha formatação limpa e legível
-- Sempre deixe o placeholder de comunicação no final
+- Cada projeto deve ter seu próprio bloco, com as seções **Done** e **In Progress** separadas.
+- Use \`➜\` para listar cada item.
+- Inclua detalhes técnicos de forma resumida e objetiva.
+- Mantenha a formatação limpa e legível.
+- Sempre adicione o placeholder de comunicação no final.
+- Use apenas os emojis especificados.
+- Retorne o relatório final formatado, pronto para ser colado no Discord.
 
 **Formato de Saída:**
-Retorne o relatório formatado pronto para copiar e colar no Discord.
+- Texto completo em **PT-BR**.
+- Markdown estruturado conforme o modelo acima.
+- Um único relatório contendo todos os projetos e suas respectivas atividades.
 
-**Importante:**
-- Seja conciso mas informativo
-- Priorize legibilidade
-- Use emojis apenas onde especificado
-- Mantenha consistência no formato
-- Escreva o texto todo em PT-BR.
+**Objetivo Final:**
+Gerar um relatório de standup claro, bem formatado e organizado por projeto, facilitando a leitura e acompanhamento do progresso em múltiplos contextos.
 `,
 	model: 'google/gemini-2.5-flash',
 })
