@@ -49,16 +49,14 @@ export const standupReportWorkflow = createWorkflow({
 		// If git analysis returned results, continue with Azure DevOps and status determination
 		[
 			async ({ getStepResult }) => {
-				const gitResults = getStepResult(gitAnalysisStep)
-				return hasResults(gitResults)
+				return hasResults(getStepResult(gitAnalysisStep))
 			},
 			withResultsWorkflow,
 		],
 		// If no results, use the no results handler which already formats the report
 		[
 			async ({ getStepResult }) => {
-				const gitResults = getStepResult(gitAnalysisStep)
-				return !hasResults(gitResults)
+				return !hasResults(getStepResult(gitAnalysisStep))
 			},
 			noResultsHandlerStep,
 		],

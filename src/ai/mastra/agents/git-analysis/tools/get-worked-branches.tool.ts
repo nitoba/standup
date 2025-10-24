@@ -32,14 +32,10 @@ export async function getWorkedBranches({
   | grep -E '^(origin/|master|dev|sprint)' \
   | sort -u`
 
-	console.log(command)
 	const proc = executeCommand(command, repositoryPath)
 
 	const output = await proc.stdout.text()
 	const error = await proc.stderr.text()
-
-	// console.log({ output, error })
-
 	return {
 		branches: output
 			.split('\n')

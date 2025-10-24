@@ -1,6 +1,5 @@
 import { createStep } from '@mastra/core/workflows'
 import z from 'zod'
-import { logger } from '@/lib/logger'
 import { statusDeterminationAgent } from '@/mastra/agents/status-determination.agent'
 import { azureDevOpsSchema } from './azure-devops.step'
 import { aggregatedGitAnalysisSchema } from './git-analysis.step'
@@ -26,6 +25,7 @@ const consolidatedDataSchema = z.object({
 export const statusDeterminationSchema = z.object({
 	tasks: z.array(
 		z.object({
+			projectName: z.string(),
 			cardNumber: z.string().nullable(),
 			title: z.string(),
 			finalStatus: z.enum(['Done', 'In Progress']),
@@ -49,8 +49,6 @@ export const statusDeterminationStep = createStep({
 		const gitData = inputData.gitResult
 		const azureData = inputData.azureData
 
-		logger.info(JSON.stringify({ gitData, azureData }))
-
 		const hasWorkItems = azureData.workItems && azureData.workItems.length > 0
 
 		// Extrai todos os cardNumbers unicos do Git para usar como fallback
@@ -58,15 +56,12 @@ export const statusDeterminationStep = createStep({
 			...new Set(
 				gitData.repositories
 					.flatMap((repo) => repo.branches.map((branch) => branch.cardNumber))
-					.filter((cn): cn is string => !!cn) // Filtra nulos ou vazios
+					.filter((cn) => !!cn) // Filtra nulos ou vazios
 			),
 		]
 
 		// Se não temos work items do Azure e nem cards mencionados no Git, não há o que fazer.
 		if (!hasWorkItems && cardNumbersFromGit.length === 0) {
-			logger.info(
-				'Nenhum work item do Azure ou card no Git para determinar status. Retornando vazio.'
-			)
 			return { tasks: [] }
 		}
 
@@ -75,12 +70,8 @@ export const statusDeterminationStep = createStep({
 
 		if (hasWorkItems) {
 			// Cenário 1 (Ideal): Temos Work Items do Azure. A tarefa é CORRELACIONAR.
-			logger.info(
-				`Determinando status para ${azureData.workItems.length} work items encontrados no Azure DevOps.`
-			)
 			consolidatedData = { gitData, azureData }
-			agentInstruction = `
-Você é um especialista em análise de fluxo de trabalho de desenvolvimento. Sua tarefa é determinar o status de cada work item do Azure DevOps (em 'azureData') usando a atividade do Git (em 'gitData') como evidência.
+			agentInstruction = `Sua tarefa é determinar o status de cada work item do Azure DevOps (em 'azureData') usando a atividade do Git (em 'gitData') como evidência.
 
 **Regras de Decisão:**
 1.  **Correlação:** Associe os branches e commits do 'gitData' aos 'workItems' usando o número do card.
@@ -90,18 +81,13 @@ Você é um especialista em análise de fluxo de trabalho de desenvolvimento. Su
 `
 		} else {
 			// Cenário 2 (Fallback): Não temos Work Items, mas temos atividade no Git com cardNumbers. A tarefa é INFERIR.
-			logger.info(
-				`Nenhum work item do Azure. Inferindo status para ${cardNumbersFromGit.length} cards a partir dos dados do Git.`
-			)
-
 			// Enviamos os dados do Git e PRs, e a lista de cards a serem analisados.
 			consolidatedData = {
 				tasksToAnalyze: cardNumbersFromGit,
 				gitActivity: gitData,
 				pullRequestData: azureData.pullRequests, // Os PRs são cruciais aqui
 			}
-			agentInstruction = `
-Você é um especialista em análise de fluxo de trabalho de desenvolvimento. Não foram encontrados work items no Azure DevOps. Sua tarefa é INFERIR o status do trabalho baseado puramente na atividade do Git.
+			agentInstruction = `Não foram encontrados work items no Azure DevOps. Sua tarefa é INFERIR o status do trabalho baseado puramente na atividade do Git.
 
 **Instruções:**
 1.  **Foco:** Analise cada card listado em 'tasksToAnalyze'.
@@ -119,18 +105,25 @@ Você é um especialista em análise de fluxo de trabalho de desenvolvimento. N�
 			2
 		)}\n\`\`\``
 
-		logger.debug(message)
+		const response = await statusDeterminationAgent.generate(message)
 
-		const response = await statusDeterminationAgent.generate(message, {
-			structuredOutput: { schema: statusDeterminationSchema },
-		})
+		// Try to extract JSON from text response
+		const textResponse = response.text || ''
+		const jsonMatch = textResponse.match(/```json\s*([\s\S]*?)\s*```/)
 
-		if (!response.object) {
-			throw new Error(
-				'Status Determination Agent did not return structured output'
-			)
+		if (jsonMatch?.[1]) {
+			try {
+				const parsedJson = JSON.parse(jsonMatch[1])
+				return parsedJson
+			} catch {
+				throw new Error(
+					'Status Determination Agent did not return valid structured output and JSON parsing failed'
+				)
+			}
 		}
 
-		return response.object
+		return {
+			tasks: [],
+		}
 	},
 })

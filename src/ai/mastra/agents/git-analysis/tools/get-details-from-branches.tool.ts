@@ -27,7 +27,10 @@ export async function getDetailsFromBranches({
 
 	const result = await Promise.all(operations)
 
-	return result
+	return result.map(({ error, output }) => ({
+		error,
+		detail: output,
+	}))
 }
 
 // console.log(

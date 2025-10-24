@@ -1,48 +1,53 @@
 import { createStep } from '@mastra/core/workflows'
 import z from 'zod'
+import { logger } from '@/lib/logger'
 import { reportFormatterAgent } from '@/mastra/agents/report-formatter.agent'
 import { gitAnalysisStep } from './git-analysis.step'
 import { statusDeterminationSchema } from './status-determination.step'
 
-type ConsolidateData = {
-	projects: string
-	currentDate: string
-	dayOfWeek: string
+type ProjectData = {
+	projectName: string
 	tasks?: z.infer<typeof statusDeterminationSchema>['tasks']
 	commitSummaries?: string[]
 }
+
+type ConsolidateData = {
+	currentDate: string
+	dayOfWeek: string
+	projects: ProjectData[]
+}
+// with-results-workflow
 // Step 5: Format the final report
 export const reportFormattingStep = createStep({
 	id: 'report-formatting',
 	description:
 		'Format the final standup report based on available data (tasks or commits)',
 	inputSchema: z.union([
-		statusDeterminationSchema,
-		z.object({ report: z.string() }),
+		z.object({ 'with-results-workflow': statusDeterminationSchema }),
+		z.object({ 'no-results-handler': z.object({ report: z.string() }) }),
 	]),
 	outputSchema: z.object({
 		report: z.string(),
 	}),
 	execute: async ({ inputData, getStepResult }) => {
 		// Se a entrada já é um relatório formatado (do noResultsHandlerStep), retorne diretamente.
-		if ('report' in inputData) {
-			return { report: inputData.report }
+		if ('no-results-handler' in inputData) {
+			if (inputData['no-results-handler'].report) {
+				return { report: inputData['no-results-handler'].report }
+			}
+
+			return { report: '' }
 		}
 
 		// Caso contrário, vamos formatar o relatório com base nos dados disponíveis.
 		const gitData = getStepResult(gitAnalysisStep)
-		const statusData = inputData // Vem do statusDeterminationStep
+		const statusData = inputData['with-results-workflow'] // Vem do statusDeterminationStep
 
 		const currentDate = new Date()
 		const dayOfWeek = currentDate.toLocaleDateString('pt-BR', {
 			weekday: 'long',
 		})
 		const formattedDate = currentDate.toLocaleDateString('pt-BR')
-
-		// Consolida os nomes dos projetos, removendo duplicatas.
-		const projectNames = [
-			...new Set(gitData.repositories.map((repo) => repo.projectName)),
-		].join(', ')
 
 		let consolidatedData: ConsolidateData
 		let agentInstruction = ''
@@ -52,33 +57,45 @@ export const reportFormattingStep = createStep({
 
 		if (hasTasks) {
 			// Cenário 1: Temos tarefas estruturadas do Azure DevOps. Esta é a fonte primária.
+			const projectsData: ProjectData[] = gitData.repositories.map((repo) => ({
+				projectName: repo.projectName,
+				tasks: statusData.tasks, // A lista de tarefas com status, PRs, etc.
+			}))
+
 			consolidatedData = {
-				projects: projectNames || 'Nenhum projeto',
 				currentDate: formattedDate,
 				dayOfWeek,
-				tasks: statusData.tasks, // A lista de tarefas com status, PRs, etc.
+				projects: projectsData,
 			}
 			agentInstruction =
-				"Use a seção 'tasks' como fonte principal para descrever o andamento do trabalho. Detalhe o status de cada item e seus Pull Requests associados."
+				"Use a seção 'tasks' de cada projeto como fonte principal para descrever o andamento do trabalho. Detalhe o status de cada item e seus Pull Requests associados, organizando por projeto."
 		} else {
 			// Cenário 2: Não temos tarefas, mas podemos ter commits. Usaremos os commits.
-			const allCommits = gitData.repositories.flatMap((repo) =>
-				repo.branches.flatMap((branch) =>
-					branch.commitMessages.map((commit) => commit)
-				)
-			)
-			const uniqueCommitMessages = [...new Set(allCommits)]
+			const projectsData: ProjectData[] = gitData.repositories
+				.map((repo) => {
+					const allCommits = repo.branches.flatMap((branch) =>
+						branch.commitMessages.map((commit) => commit)
+					)
+					const uniqueCommitMessages = [...new Set(allCommits)]
 
-			if (uniqueCommitMessages.length > 0) {
+					return {
+						projectName: repo.projectName,
+						commitSummaries: uniqueCommitMessages,
+					}
+				})
+				.filter(
+					(project) =>
+						project.commitSummaries && project.commitSummaries.length > 0
+				)
+
+			if (projectsData.length > 0) {
 				consolidatedData = {
-					projects: projectNames || 'Nenhum projeto',
 					currentDate: formattedDate,
 					dayOfWeek,
-					// Em vez de 'tasks', enviamos um resumo dos commits.
-					commitSummaries: uniqueCommitMessages,
+					projects: projectsData,
 				}
 				agentInstruction =
-					"Não foram encontradas tarefas formais. Sua tarefa é analisar a lista 'commitSummaries' e gerar um resumo das atividades realizadas, inferindo o trabalho a partir das mensagens de commit."
+					"Não foram encontradas tarefas formais. Sua tarefa é analisar a lista 'commitSummaries' de cada projeto e gerar um resumo das atividades realizadas, inferindo o trabalho a partir das mensagens de commit, organizando por projeto."
 			} else {
 				// Cenário 3: Não há tarefas nem commits. Isso significa que não houve atividade detectável.
 				// Podemos retornar um relatório padrão sem chamar o agente.
@@ -100,6 +117,8 @@ O relatório deve ser claro, conciso e usar markdown (negrito, listas).
 ${JSON.stringify(consolidatedData, null, 2)}
 \`\`\`
 `.trim()
+
+		logger.info(requestMessage)
 
 		const response = await reportFormatterAgent.generate(requestMessage)
 

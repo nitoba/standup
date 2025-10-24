@@ -66,16 +66,15 @@ export const gitAnalysisStep = createStep({
 			const authorEmail = user.gitAuthorEmail
 
 			// Get project name from repository URL
-			const repositoryUrlResponse = await getRepositoryName(repositoryPath)
+			const { projectName, error: projectNameError } =
+				await getRepositoryName(repositoryPath)
 
-			if (repositoryUrlResponse.error) {
+			if (projectNameError) {
 				logger.error(
-					`Failed to get repository URL for ${repositoryPath}: ${repositoryUrlResponse.error}`
+					`Failed to get repository URL for ${repositoryPath}: ${projectNameError}`
 				)
 				continue
 			}
-
-			const projectName = repositoryUrlResponse.projectName
 
 			// Get worked branches
 			const { branches, error: branchesError } = await getWorkedBranches({
@@ -83,8 +82,6 @@ export const gitAnalysisStep = createStep({
 				authorName,
 				repositoryPath,
 			})
-
-			console.log(branches)
 
 			if (branchesError) {
 				logger.error(
@@ -108,19 +105,19 @@ export const gitAnalysisStep = createStep({
 			const branchesDetailsMap = new Map<string, string>() // key: branch name - value: commits
 
 			for (let i = 0; i < branchesDetailsResults.length; i++) {
-				const detail = branchesDetailsResults[i]
+				const detailResponse = branchesDetailsResults[i]
 				const branchName = branches[i]
 
-				if (detail?.error) {
+				if (detailResponse?.error) {
 					logger.warn(
-						`Error getting details for branch ${branchName}: ${detail.error}`
+						`Error getting details for branch ${branchName}: ${detailResponse.error}`
 					)
 					continue
 				}
 
-				if (detail?.output.trim()) {
+				if (detailResponse?.detail) {
 					// biome-ignore lint/style/noNonNullAssertion: Branch name exists
-					branchesDetailsMap.set(branchName!, detail.output)
+					branchesDetailsMap.set(branchName!, detailResponse.detail.trim())
 				}
 			}
 

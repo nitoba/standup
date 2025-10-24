@@ -21,7 +21,6 @@ export const noResultsHandlerStep = createStep({
 	outputSchema: noResultsHandlerSchema,
 	execute: async ({ inputData }) => {
 		const user = inputData.user
-		const repositories = inputData.gitResult.repositories
 
 		// Get date information
 		const currentDate = new Date()
@@ -30,20 +29,12 @@ export const noResultsHandlerStep = createStep({
 		})
 		const formattedDate = currentDate.toLocaleDateString('pt-BR')
 
-		// Get project names from repositories even if they have no branches
-		const projectNames =
-			repositories
-				.map((repo) => repo.projectName)
-				.filter((name, index, self) => self.indexOf(name) === index)
-				.join(', ') || 'Nenhum projeto'
-
 		// Create a message for the report formatter agent
 		const message =
 			`Formate um relatório de standup para Discord com as seguintes informações:
 		
 Data: ${formattedDate}
 Dia da semana: ${dayOfWeek}
-Projetos: ${projectNames}
 Status: Nenhuma atividade de git encontrada para o usuário: ${user.gitAuthorName || user.gitAuthorEmail || 'usuário'}
 
 Use o formato especificado nas suas instruções, mas inclua uma mensagem informando que não há atividades para relatar no momento.`.trim()

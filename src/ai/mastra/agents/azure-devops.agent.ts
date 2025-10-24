@@ -55,7 +55,8 @@ Retorne um JSON estruturado com:
 - Não invente dados que não conseguir obter da API
 - Sua resposta final deve ser o JSON estruturado, enquanto isso não responda nada.
 - Quando um usuário for especificado, garanta que apenas items relevantes a esse usuário sejam retornados
+- Não resposta com nada além do json pedido, se não tiver nada apenas retorne o json com os dados vazios. EX: { workItems: [], pullRequests: [] }
 `,
-	model: 'google/gemini-2.5-flash',
+	model: 'google/gemini-2.5-pro',
 	tools,
 })

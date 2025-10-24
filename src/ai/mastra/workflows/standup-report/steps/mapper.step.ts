@@ -16,12 +16,12 @@ export const mapperStep = createStep({
 		gitResult: aggregatedGitAnalysisSchema,
 	}),
 	execute: async ({ getStepResult }) => {
-		const discover = getStepResult(repositoryDiscoveryStep)
+		const { user } = getStepResult(repositoryDiscoveryStep)
 		const gitResult = getStepResult(gitAnalysisStep)
 
 		return {
-			user: discover.user,
-			gitResult: gitResult,
+			user,
+			gitResult,
 		}
 	},
 })

@@ -31,7 +31,8 @@ Retorne um JSON estruturado com:
 {
   "tasks": [
     {
-      "cardNumber": "string",
+	    "projectName: "string" -> Nome do projeto/repositório
+      "cardNumber": "string" | null (quando não encontrado),
       "title": "string",
       "finalStatus": "Done" | "In Progress",
       "reasoning": "string explicando qual regra foi aplicada",

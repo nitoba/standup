@@ -68,7 +68,7 @@ export const azureDevOpsStep = createStep({
 				.map((b) => `refs/heads/${b.branchName.replace('origin/', '')}`)
 				.join(', ')
 			requestParts.push(
-				`- **Pull Requests**: Verifique a existência e o status de Pull Requests para as branches: ${branchNames} nos projetos: ${projectNames}.`
+				`- **Pull Requests**: Verifique a existência e o status de Pull Requests para as branches: ${branchNames} nos repositórios: ${projectNames}.`
 			)
 		}
 
@@ -83,7 +83,7 @@ export const azureDevOpsStep = createStep({
 		const userName =
 			user.azureDevOpsEmail || user.azureDevOpsDisplayName || user.azureDevOpsId
 		if (userName) {
-			userContext = `\n\nPara todas as buscas, aplique o seguinte filtro de usuário: "${userName}". Para Work Items, considere os itens atribuídos a ele. Para Pull Requests, considere os criados por ele.`
+			userContext = `\n\nPara Work Items, considere os itens atribuídos a "${userName}". Para Pull Requests, considere os criados por "${userName}".`
 		}
 
 		// 4. Monta a mensagem final para o agente
@@ -91,25 +91,32 @@ export const azureDevOpsStep = createStep({
 			'\n'
 		)}${userContext}\n\nRetorne os detalhes dos work items e o status dos Pull Requests encontrados.`
 
-		// logger.info(requestMessage)
-
 		const response = await azureDevOpsAgent.generate(requestMessage, {
-			structuredOutput: {
-				schema: azureDevOpsSchema,
-			},
 			maxSteps: 1000,
 		})
 
-		if (response.object) {
-			return {
-				azureData: response.object,
-				gitResult: gitResult,
+		// Try to extract JSON from text response
+		const textResponse = response.text || ''
+
+		const jsonMatch = textResponse.match(/```json\s*([\s\S]*?)\s*```/)
+
+		if (jsonMatch?.[1]) {
+			try {
+				const parsedJson = JSON.parse(jsonMatch[1])
+				return {
+					azureData: parsedJson,
+					gitResult,
+				}
+			} catch {
+				throw new Error(
+					'Status Determination Agent did not return valid structured output and JSON parsing failed'
+				)
 			}
 		}
 
 		return {
 			azureData: response.text as unknown as z.infer<typeof azureDevOpsSchema>,
-			gitResult: gitResult,
+			gitResult,
 		}
 	},
 })
