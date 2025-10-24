@@ -1,6 +1,5 @@
 import { createStep } from '@mastra/core/workflows'
 import z from 'zod'
-import { logger } from '@/lib/logger'
 import { reportFormatterAgent } from '@/mastra/agents/report-formatter.agent'
 import { gitAnalysisStep } from './git-analysis.step'
 import { statusDeterminationSchema } from './status-determination.step'
@@ -117,8 +116,6 @@ O relatório deve ser claro, conciso e usar markdown (negrito, listas).
 ${JSON.stringify(consolidatedData, null, 2)}
 \`\`\`
 `.trim()
-
-		logger.info(requestMessage)
 
 		const response = await reportFormatterAgent.generate(requestMessage)
 
