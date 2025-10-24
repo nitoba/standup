@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -e
 
 # ==========================
 # CORES ANSI PARA OUTPUT
@@ -98,9 +97,9 @@ create_env_file() {
      print_color $BLUE "🧩 Criando .env padrão..."
      echo "$ENV_CONTENT" > "$INSTALL_DIR/.env"
      print_color $GREEN "✅ .env criado em $INSTALL_DIR"
-     read -p "$(print_color $YELLOW "Deseja editar o .env agora? (y/N): " | tr -d '\n')" -n 1 -r
-     echo
-     if [[ $REPLY =~ ^[Yy]$ ]]; then
+			printf "${CYAN}Deseja editar o .env agora? ${NC} ${YELLOW}(y/N): ${NC}"
+			read -n 1 -r REPLY
+      if [[ $REPLY == "y" || $REPLY == "Y" ]]; then
          ${EDITOR:-nano} "$INSTALL_DIR/.env"
          print_color $CYAN "✅ .env editado."
      fi
@@ -228,12 +227,18 @@ next_step() {
 }
 
 # Confirmação inicial
-read -p "$(print_color $YELLOW "Deseja prosseguir com a instalação? (y/N): " | tr -d '\n')" -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+
+# imprime a pergunta colorida SEM pular linha
+printf "${CYAN}Deseja prosseguir com a instalação?${NC} ${YELLOW}(y/N): ${NC}"
+# lê a resposta na MESMA linha
+read -n 1 -r REPLY
+echo  # só pula linha depois da leitura
+
+if [[ $REPLY != "y" && $REPLY != "Y" ]]; then
     print_color $RED "Instalação cancelada pelo usuário."
     exit 1
 fi
+
 
 next_step "Detectando sistema operacional..."
 detect_os
