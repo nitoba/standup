@@ -1,0 +1,69 @@
+name: Publish Install Script to Gist
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  publish-gist:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Upload install script to Gist
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          GIST_ID: ${{ secrets.GIST_ID }}
+        run: |
+          FILE="scripts/install-standup.sh"
+          GIST_FILENAME="install-standup.sh"
+
+          if [ ! -f "$FILE" ]; then
+            echo "❌ Arquivo $FILE não encontrado."
+            exit 1
+          fi
+
+          echo "🚀 Publicando $FILE no Gist..."
+
+          # Sanitiza o conteúdo e prepara JSON
+          CONTENT=$(jq -Rs . < "$FILE")
+
+          if [ -z "$GIST_ID" ]; then
+            echo "⚙️ Nenhum GIST_ID configurado — criando novo Gist..."
+            RESPONSE=$(curl -s -H "Authorization: token ${GIST_TOKEN}" \
+              -X POST https://api.github.com/gists \
+              -d "{
+                \"description\": \"Install script for Standup (auto-updated on push to main)\",
+                \"public\": true,
+                \"files\": { \"$GIST_FILENAME\": { \"content\": $CONTENT } }
+              }")
+
+            echo "$RESPONSE" | jq -r '.html_url' > gist_url.txt
+            GIST_URL=$(cat gist_url.txt)
+
+            echo "✅ Gist criado: $GIST_URL"
+            echo ""
+            echo "👉 Para atualizar automaticamente o mesmo Gist no futuro,"
+            echo "adicione o seguinte secret no repositório:"
+            echo "Name: GIST_ID"
+            echo "Value: $(echo \"$RESPONSE\" | jq -r '.id')"
+
+          else
+            echo "♻️ Atualizando Gist existente (ID: $GIST_ID)..."
+            RESPONSE=$(curl -s -H "Authorization: token ${GIST_TOKEN}" \
+              -X PATCH "https://api.github.com/gists/${GIST_ID}" \
+              -d "{
+                \"files\": { \"$GIST_FILENAME\": { \"content\": $CONTENT } }
+              }")
+
+            GIST_URL=$(echo "$RESPONSE" | jq -r '.html_url')
+            echo "✅ Gist atualizado com sucesso!"
+            echo "🌐 URL: $GIST_URL"
+          fi
