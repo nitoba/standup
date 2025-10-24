@@ -6,6 +6,41 @@
 #>
 
 # ==========================
+# CORES E FUNÇÕES AUXILIARES
+# ==========================
+$Colors = @{
+    Red    = "Red"
+    Green  = "Green"
+    Yellow = "Yellow"
+    Blue   = "Blue"
+    Cyan   = "Cyan"
+    Magenta= "Magenta"
+}
+
+function Write-Color {
+    param($Text, $Color)
+    Write-Host $Text -ForegroundColor $Color
+}
+
+function Show-Progress {
+    param($Activity, $Status, $PercentComplete)
+    Write-Progress -Activity $Activity -Status $Status -PercentComplete $PercentComplete
+}
+
+# Variáveis para progresso
+$TotalSteps = 7
+$CurrentStep = 0
+
+function Next-Step {
+    param($Message)
+    $global:CurrentStep++
+    $Percent = [math]::Round(($global:CurrentStep / $TotalSteps) * 100)
+    Show-Progress -Activity "Instalando Standup" -Status "$Message (Passo $global:CurrentStep de $TotalSteps)" -PercentComplete $Percent
+}
+
+# ==========================
+# CONFIGURAÇÕES DO PROJETO
+# ==========================
 # CONFIGURAÇÕES DO PROJETO
 # ==========================
 $RepoOwner = "nitoba"
@@ -45,22 +80,25 @@ function Detect-OS {
         Set-Variable -Name IsWindows -Value $true -Scope Global
         Set-Variable -Name IsMacOS -Value $false -Scope Global
         Set-Variable -Name IsLinux -Value $false -Scope Global
+        Write-Color "✅ Sistema detectado: Windows" $Colors.Green
         return "win"
     }
     elseif ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::OSX)) {
         Set-Variable -Name IsWindows -Value $false -Scope Global
         Set-Variable -Name IsMacOS -Value $true -Scope Global
         Set-Variable -Name IsLinux -Value $false -Scope Global
+        Write-Color "✅ Sistema detectado: macOS" $Colors.Green
         return "mac"
     }
     elseif ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Linux)) {
         Set-Variable -Name IsWindows -Value $false -Scope Global
         Set-Variable -Name IsMacOS -Value $false -Scope Global
         Set-Variable -Name IsLinux -Value $true -Scope Global
+        Write-Color "✅ Sistema detectado: Linux" $Colors.Green
         return "linux"
     }
     else {
-        Write-Error "Sistema operacional não suportado."
+        Write-Color "❌ Sistema operacional não suportado." $Colors.Red
         exit 1
     }
 }
@@ -69,7 +107,7 @@ function Detect-OS {
 
 function Download-Executable {
     param($OS)
-    Write-Host "🔽 Baixando executável para $OS..." -ForegroundColor Cyan
+    Write-Color "🔽 Baixando executável para $OS..." $Colors.Blue
     New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
     switch ($OS) {
@@ -81,51 +119,82 @@ function Download-Executable {
     $DownloadUrl = "https://github.com/$RepoOwner/$RepoName/releases/latest/download/$FileName"
     $TargetFile = Join-Path $InstallDir $FileName
 
-    Invoke-WebRequest -Uri $DownloadUrl -OutFile $TargetFile -UseBasicParsing
-    if ($OS -ne "win") {
-        chmod +x $TargetFile
+    try {
+        Invoke-WebRequest -Uri $DownloadUrl -OutFile $TargetFile -UseBasicParsing
+        Write-Color "✅ Download concluído: $FileName" $Colors.Green
+        if ($OS -ne "win") {
+            & chmod +x $TargetFile
+        }
+    } catch {
+        Write-Color "❌ Falha no download." $Colors.Red
+        exit 1
     }
 }
 
 function Create-PackageJson {
-    Write-Host "📦 Criando package.json..." -ForegroundColor Cyan
+    Write-Color "📦 Criando package.json..." $Colors.Blue
     $PackageJson | Out-File -FilePath (Join-Path $InstallDir "package.json") -Encoding utf8
+    Write-Color "✅ package.json criado em $InstallDir" $Colors.Green
 }
 
 function Create-EnvFile {
     $EnvPath = Join-Path $InstallDir ".env"
     if (-Not (Test-Path $EnvPath)) {
-        Write-Host "🧩 Criando .env padrão..." -ForegroundColor Cyan
+        Write-Color "🧩 Criando .env padrão..." $Colors.Blue
         $EnvFile | Out-File -FilePath $EnvPath -Encoding utf8
+        Write-Color "✅ .env criado em $InstallDir" $Colors.Green
+        $EditEnv = Read-Host "Deseja editar o .env agora? (y/N)"
+        if ($EditEnv -match "^[Yy]$") {
+            if (Get-Command code -ErrorAction SilentlyContinue) {
+                code $EnvPath
+            } elseif (Get-Command notepad -ErrorAction SilentlyContinue) {
+                notepad $EnvPath
+            } else {
+                Write-Color "Editor não encontrado. Edite manualmente: $EnvPath" $Colors.Yellow
+            }
+            Write-Color "✅ .env editado." $Colors.Cyan
+        }
     } else {
-        Write-Host "⚙️  .env já existe — pulando criação." -ForegroundColor Yellow
+        Write-Color "⚙️  .env já existe — pulando criação." $Colors.Yellow
     }
 }
 
 function Install-BunIfNeeded {
     if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
-        Write-Host "🍞 Bun não encontrado, instalando..." -ForegroundColor Cyan
-        if ($IsWindows) {
-            irm bun.sh/install.ps1 | iex
-        } else {
-            curl -fsSL https://bun.sh/install | bash
-            $env:BUN_INSTALL = "$HOME/.bun"
-            $env:PATH = "$env:BUN_INSTALL/bin;$env:PATH"
+        Write-Color "🍞 Bun não encontrado, instalando..." $Colors.Blue
+        try {
+            if ($IsWindows) {
+                irm bun.sh/install.ps1 | iex
+            } else {
+                curl -fsSL https://bun.sh/install | bash
+                $env:BUN_INSTALL = "$HOME/.bun"
+                $env:PATH = "$env:BUN_INSTALL/bin;$env:PATH"
+            }
+            Write-Color "✅ Bun instalado com sucesso." $Colors.Green
+        } catch {
+            Write-Color "❌ Falha na instalação do Bun." $Colors.Red
+            exit 1
         }
     } else {
-        Write-Host "✅ Bun já instalado." -ForegroundColor Green
+        Write-Color "✅ Bun já instalado." $Colors.Green
     }
 }
 
 function Install-Dependencies {
-    Write-Host "📦 Instalando dependências..." -ForegroundColor Cyan
+    Write-Color "📦 Instalando dependências..." $Colors.Blue
     Push-Location $InstallDir
-    bun install
+    try {
+        bun install
+        Write-Color "✅ Dependências instaladas." $Colors.Green
+    } catch {
+        Write-Color "❌ Falha na instalação das dependências." $Colors.Red
+        exit 1
+    }
     Pop-Location
 }
 
 function Create-Alias {
-    Write-Host "🔗 Criando alias 'standup'..." -ForegroundColor Cyan
+    Write-Color "🔗 Criando alias 'standup'..." $Colors.Blue
     $AliasFile = "$PROFILE"
     if (-not (Test-Path $AliasFile)) {
         New-Item -Path $AliasFile -ItemType File -Force | Out-Null
@@ -148,25 +217,25 @@ function standup {
 
     if (-not (Select-String -Path $AliasFile -Pattern "function standup" -Quiet)) {
         Add-Content -Path $AliasFile -Value $FunctionCommand
-        Write-Host "✅ Função 'standup' adicionada ao perfil PowerShell ($AliasFile)" -ForegroundColor Green
+        Write-Color "✅ Função 'standup' adicionada ao perfil PowerShell ($AliasFile)" $Colors.Green
     } else {
-        Write-Host "⚙️ Função 'standup' já existe no perfil ($AliasFile)" -ForegroundColor Yellow
+        Write-Color "⚙️ Função 'standup' já existe no perfil ($AliasFile)" $Colors.Yellow
     }
 }
 
 function Reload-PowerShellProfile {
-    Write-Host "`n🔁 Recarregando perfil PowerShell..." -ForegroundColor Cyan
+    Write-Color "🔁 Recarregando perfil PowerShell..." $Colors.Blue
 
     try {
         if (Test-Path $PROFILE) {
             . $PROFILE
-            Write-Host "✅ Perfil recarregado — o comando 'standup' já está disponível imediatamente!" -ForegroundColor Green
+            Write-Color "✅ Perfil recarregado — o comando 'standup' já está disponível imediatamente!" $Colors.Green
         } else {
-            Write-Host "⚠️ Perfil PowerShell não encontrado. Reinicie o terminal para aplicar o alias." -ForegroundColor Yellow
+            Write-Color "⚠️ Perfil PowerShell não encontrado. Reinicie o terminal para aplicar o alias." $Colors.Yellow
         }
     }
     catch {
-        Write-Host "⚠️ Não foi possível recarregar o perfil automaticamente. Reinicie o PowerShell." -ForegroundColor Yellow
+        Write-Color "⚠️ Não foi possível recarregar o perfil automaticamente. Reinicie o PowerShell." $Colors.Yellow
     }
 }
 
@@ -174,16 +243,38 @@ function Reload-PowerShellProfile {
 # ==========================
 # EXECUÇÃO PRINCIPAL
 # ==========================
-Write-Host "🚀 Iniciando instalação do Standup..." -ForegroundColor Cyan
+Write-Color "🚀 Iniciando instalação do Standup..." $Colors.Cyan
+Write-Host ""
 
+# Confirmação inicial
+$Confirm = Read-Host "Deseja prosseguir com a instalação? (y/N)"
+if ($Confirm -notmatch "^[Yy]$") {
+    Write-Color "Instalação cancelada pelo usuário." $Colors.Red
+    exit 1
+}
+
+Next-Step "Detectando sistema operacional"
 $OS = Detect-OS
+
+Next-Step "Baixando executável"
 Download-Executable -OS $OS
+
+Next-Step "Criando package.json"
 Create-PackageJson
+
+Next-Step "Configurando .env"
 Create-EnvFile
+
+Next-Step "Verificando e instalando Bun"
 Install-BunIfNeeded
+
+Next-Step "Instalando dependências"
 Install-Dependencies
+
+Next-Step "Criando alias e recarregando perfil"
 Create-Alias
 Reload-PowerShellProfile
 
-Write-Host "`n🎉 Instalação concluída com sucesso!" -ForegroundColor Green
-Write-Host "➡️ Agora você pode executar: standup"
+Write-Host ""
+Write-Color "🎉 Instalação concluída com sucesso!" $Colors.Green
+Write-Color "➡️ Agora você pode executar: standup" $Colors.Cyan
