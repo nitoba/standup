@@ -50,7 +50,7 @@ export function Footer({ workflowState }: { workflowState: WorkflowState }) {
 				<text fg={colors.text.muted}>
 					{workflowState.resultSaved
 						? `Report saved to ${workflowState.resultPath}`
-						: 'Standup Workflow v1.0'}
+						: 'Standup Workflow v1.0.7'}
 				</text>
 			)}
 		</box>
