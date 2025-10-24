@@ -29,18 +29,21 @@ export const reportFormattingStep = createStep({
 		report: z.string(),
 	}),
 	execute: async ({ inputData, getStepResult }) => {
-		// Se a entrada já é um relatório formatado (do noResultsHandlerStep), retorne diretamente.
-		if ('no-results-handler' in inputData) {
-			if (inputData['no-results-handler'].report) {
-				return { report: inputData['no-results-handler'].report }
-			}
-
-			return { report: '' }
+		if (
+			'no-results-handler' in inputData &&
+			typeof inputData['no-results-handler'] === 'object' &&
+			inputData['no-results-handler'] !== null
+		) {
+			const report = inputData['no-results-handler']?.report ?? ''
+			return { report }
 		}
 
 		// Caso contrário, vamos formatar o relatório com base nos dados disponíveis.
 		const gitData = getStepResult(gitAnalysisStep)
-		const statusData = inputData['with-results-workflow'] // Vem do statusDeterminationStep
+		const withResultsData = inputData as {
+			'with-results-workflow': z.infer<typeof statusDeterminationSchema>
+		}
+		const statusData = withResultsData['with-results-workflow'] // Vem do statusDeterminationStep
 
 		const currentDate = new Date()
 		const dayOfWeek = currentDate.toLocaleDateString('pt-BR', {
