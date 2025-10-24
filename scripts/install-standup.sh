@@ -229,7 +229,7 @@ next_step() {
 
 # Confirmação inicial
 read -p "$(print_color $YELLOW "Deseja prosseguir com a instalação? (y/N): " | tr -d '\n')" -n 1 -r
-echo ""
+echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     print_color $RED "Instalação cancelada pelo usuário."
     exit 1
