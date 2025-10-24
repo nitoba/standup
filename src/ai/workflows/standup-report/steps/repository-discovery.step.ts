@@ -4,7 +4,7 @@ import {
 	detectUserFromGitConfig,
 	discoverRepositories,
 	userIdentifierSchema,
-} from '@/lib/user'
+} from '@/ai/lib/user'
 
 // Step 1: Repository Discovery
 export const repositoryDiscoveryStep = createStep({

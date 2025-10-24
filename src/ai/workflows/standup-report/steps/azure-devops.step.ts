@@ -1,7 +1,7 @@
 import { createStep } from '@mastra/core'
 import z from 'zod'
-import { userIdentifierSchema } from '@/lib/user'
-import { azureDevOpsAgent } from '@/mastra/agents/azure-devops.agent'
+import { azureDevOpsAgent } from '@/ai/agents/azure-devops.agent'
+import { userIdentifierSchema } from '@/ai/lib/user'
 import { aggregatedGitAnalysisSchema } from './git-analysis.step'
 
 // Schema for Azure DevOps output

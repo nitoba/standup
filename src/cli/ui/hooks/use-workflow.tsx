@@ -1,6 +1,6 @@
 import { useKeyboard } from '@opentui/react'
 import { useState } from 'react'
-import { mastra } from '@/mastra'
+import { mastra } from '@/ai'
 import type { WorkflowState } from '../utils/types'
 
 export function useWorkflow() {

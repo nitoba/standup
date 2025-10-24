@@ -1,7 +1,7 @@
 import { createStep } from '@mastra/core/workflows'
 import z from 'zod'
-import { userIdentifierSchema } from '@/lib/user'
-import { reportFormatterAgent } from '@/mastra/agents/report-formatter.agent'
+import { reportFormatterAgent } from '@/ai/agents/report-formatter.agent'
+import { userIdentifierSchema } from '@/ai/lib/user'
 import { aggregatedGitAnalysisSchema } from './git-analysis.step'
 
 // Schema for the no results handler output

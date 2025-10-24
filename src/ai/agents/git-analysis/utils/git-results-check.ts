@@ -1,5 +1,5 @@
 import type z from 'zod'
-import type { aggregatedGitAnalysisSchema } from '@/mastra/workflows/standup-report/steps/git-analysis.step'
+import type { aggregatedGitAnalysisSchema } from '@/ai/workflows/standup-report/steps/git-analysis.step'
 
 // Schema for the check results
 export function hasResults({

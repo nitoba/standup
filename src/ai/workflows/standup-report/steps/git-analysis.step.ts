@@ -1,11 +1,11 @@
 import { createStep } from '@mastra/core/workflows'
 import z from 'zod'
-import { logger } from '@/lib/logger'
-import { userIdentifierSchema } from '@/lib/user'
-import { getDetailsFromBranches } from '@/mastra/agents/git-analysis/tools/get-details-from-branches.tool'
-import { getRepositoryName } from '@/mastra/agents/git-analysis/tools/get-repository-name.tool'
-import { getWorkedBranches } from '@/mastra/agents/git-analysis/tools/get-worked-branches.tool'
-import { processBranchData } from '@/mastra/agents/git-analysis/tools/process-branch-data.tool'
+import { getDetailsFromBranches } from '@/ai/agents/git-analysis/tools/get-details-from-branches.tool'
+import { getRepositoryName } from '@/ai/agents/git-analysis/tools/get-repository-name.tool'
+import { getWorkedBranches } from '@/ai/agents/git-analysis/tools/get-worked-branches.tool'
+import { processBranchData } from '@/ai/agents/git-analysis/tools/process-branch-data.tool'
+import { logger } from '@/ai/lib/logger'
+import { userIdentifierSchema } from '@/ai/lib/user'
 
 // Schema for Git Analysis output (single repository)
 export const gitAnalysisSchema = z.object({

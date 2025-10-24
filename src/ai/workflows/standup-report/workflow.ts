@@ -1,7 +1,7 @@
 import { createWorkflow } from '@mastra/core/workflows'
 import { z } from 'zod'
-import { userIdentifierSchema } from '@/lib/user'
-import { hasResults } from '@/mastra/agents/git-analysis/utils/git-results-check'
+import { hasResults } from '@/ai/agents/git-analysis/utils/git-results-check'
+import { userIdentifierSchema } from '@/ai/lib/user'
 import { azureDevOpsStep } from './steps/azure-devops.step'
 import {
 	aggregatedGitAnalysisSchema,

@@ -1,6 +1,6 @@
 import { createStep } from '@mastra/core/workflows'
 import z from 'zod'
-import { reportFormatterAgent } from '@/mastra/agents/report-formatter.agent'
+import { reportFormatterAgent } from '@/ai/agents/report-formatter.agent'
 import { gitAnalysisStep } from './git-analysis.step'
 import { statusDeterminationSchema } from './status-determination.step'
 

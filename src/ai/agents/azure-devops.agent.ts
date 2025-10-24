@@ -1,5 +1,5 @@
 import { Agent } from '@mastra/core/agent'
-import { azureDevops } from '@/lib/mcp'
+import { azureDevops } from '@/ai/lib/mcp'
 
 // Get tools from Azure DevOps MCP server
 const tools = await azureDevops.getTools()

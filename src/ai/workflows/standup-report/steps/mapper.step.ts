@@ -1,6 +1,6 @@
 import { createStep } from '@mastra/core/workflows'
 import z from 'zod'
-import { userIdentifierSchema } from '@/lib/user'
+import { userIdentifierSchema } from '@/ai/lib/user'
 import {
 	aggregatedGitAnalysisSchema,
 	gitAnalysisStep,

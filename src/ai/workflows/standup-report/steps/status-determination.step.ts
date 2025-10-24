@@ -1,6 +1,6 @@
 import { createStep } from '@mastra/core/workflows'
 import z from 'zod'
-import { statusDeterminationAgent } from '@/mastra/agents/status-determination.agent'
+import { statusDeterminationAgent } from '@/ai/agents/status-determination.agent'
 import { azureDevOpsSchema } from './azure-devops.step'
 import { aggregatedGitAnalysisSchema } from './git-analysis.step'
 
