@@ -1,16 +1,15 @@
 {
   "mcpServers": {
+    "voltagent": {
+      "command": "npx",
+      "args": ["-y", "@voltagent/docs-mcp"]
+    },
     "context7": {
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp"],
       "env": {
-        "DEFAULT_MINIMUM_TOKENS": "8000"
+        "DEFAULT_MINIMUM_TOKENS": ""
       }
-    },
-    "mastra": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@mastra/mcp-docs-server"]
     }
   }
 }

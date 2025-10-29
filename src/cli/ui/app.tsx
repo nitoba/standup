@@ -1,38 +1,78 @@
 import { useEffect } from 'react'
-import { DetailPanel } from './components/details-panel.js'
-import { Footer } from './components/footer.js'
-import { Header } from './components/header.js'
-import { ResultDisplay } from './components/result-display.js'
-import { StepsList } from './components/steps/list.js'
-import { useWorkflow } from './hooks/use-workflow.js'
-import { colors } from './utils/types.js'
+import {
+	EventsLog,
+	Header,
+	Instructions,
+	ReportPreview,
+	StatusPanel,
+	StepsOverview,
+} from './components'
+import { COLORS } from './constants/colors'
+import { useKeyboardNavigation, useWorkflow } from './hooks'
+import { useWorkflowStore } from './store'
 
 export function App() {
-	const { runWorkflow, workflowState } = useWorkflow()
+	const {
+		events,
+		currentEvent,
+		isRunning,
+		finalResult,
+		savedFilePath,
+		steps,
+		selectedStepIndex,
+	} = useWorkflowStore()
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: run only once time
+	const { executeWorkflow } = useWorkflow()
+	useKeyboardNavigation()
+
+	// Calculate progress
+	const completedSteps = events.filter((e) => e.type === 'step-complete').length
+	const totalSteps = steps.length
+
+	// Start workflow on component mount
 	useEffect(() => {
-		runWorkflow()
-	}, [])
+		executeWorkflow()
+	}, [executeWorkflow])
 
 	return (
 		<box
+			flexDirection="column"
 			style={{
-				flexDirection: 'column',
-				flexGrow: 1,
-				backgroundColor: colors.background,
+				width: '100%',
+				height: '100%',
+				backgroundColor: COLORS.background,
+				padding: 1,
 			}}
 		>
-			<Header workflowState={workflowState} />
-			{workflowState.workflowResult && workflowState.status === 'completed' ? (
-				<ResultDisplay workflowState={workflowState} />
-			) : (
-				<>
-					<StepsList workflowState={workflowState} />
-					<DetailPanel workflowState={workflowState} />
-				</>
+			{/* Header */}
+			<Header isRunning={isRunning} />
+
+			{/* Status Panel */}
+			<StatusPanel
+				currentEvent={currentEvent}
+				totalSteps={totalSteps}
+				completedSteps={completedSteps}
+			/>
+
+			{/* Steps Overview */}
+			<StepsOverview
+				steps={steps}
+				selectedStepIndex={selectedStepIndex}
+				completedSteps={completedSteps}
+			/>
+
+			{/* Events Log */}
+			{!finalResult && !savedFilePath && (
+				<EventsLog events={events} currentEvent={currentEvent} />
 			)}
-			<Footer workflowState={workflowState} />
+
+			{/* Footer */}
+			{finalResult && savedFilePath && (
+				<ReportPreview report={finalResult} filePath={savedFilePath} />
+			)}
+
+			{/* Instructions */}
+			<Instructions />
 		</box>
 	)
 }

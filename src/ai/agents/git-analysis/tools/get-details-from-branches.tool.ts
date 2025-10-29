@@ -16,8 +16,8 @@ export async function getDetailsFromBranches({
 
 		const proc = executeCommand(command, repositoryPath)
 
-		const output = await proc.stdout.text()
-		const error = await proc.stderr.text()
+		const output = await new Response(proc.stdout).text()
+		const error = await new Response(proc.stderr).text()
 
 		return {
 			output,

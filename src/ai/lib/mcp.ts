@@ -1,8 +1,9 @@
-import { MCPClient } from '@mastra/mcp'
+import { MCPConfiguration } from '@voltagent/core'
 
-export const azureDevops = new MCPClient({
+export const mcpClient = new MCPConfiguration({
 	servers: {
 		azureDevops: {
+			type: 'stdio',
 			command: 'bunx',
 			args: ['-y', '@tiberriver256/mcp-server-azure-devops'],
 			env: {

@@ -33,8 +33,8 @@ export async function getWorkedBranches({
     | sort -u`
 
 	const proc = executeCommand(command, repositoryPath)
-	const output = await proc.stdout.text()
-	const error = await proc.stderr.text()
+	const output = await new Response(proc.stdout).text()
+	const error = await new Response(proc.stderr).text()
 
 	const allBranches = output
 		.split('\n')
@@ -68,3 +68,10 @@ export async function getWorkedBranches({
 		error: error.trim() || undefined,
 	}
 }
+
+// console.log(
+// 	await getWorkedBranches({
+// 		authorName: 'Bruno Alves',
+// 		repositoryPath: '/home/bruno-alves/Documents/projects/ibs/agrotrace-v3',
+// 	})
+// )

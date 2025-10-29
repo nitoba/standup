@@ -1,8 +1,8 @@
 import type z from 'zod'
-import type { aggregatedGitAnalysisSchema } from '@/ai/workflows/standup-report/steps/git-analysis.step'
+import type { aggregatedGitAnalysisSchema } from './schemas/aggregated-git-analysis-schema'
 
 // Schema for the check results
-export function hasResults({
+export function hasGitResults({
 	repositories,
 }: z.infer<typeof aggregatedGitAnalysisSchema>) {
 	const hasResults =

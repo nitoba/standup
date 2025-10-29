@@ -5,19 +5,13 @@ import { z } from 'zod'
 
 export const userIdentifierSchema = z
 	.object({
-		azureDevOpsId: z.string().optional(),
-		azureDevOpsEmail: z.email().optional(),
-		azureDevOpsDisplayName: z.string().optional(),
+		azureDevOpsEmail: z.string().email().optional(),
 		gitAuthorName: z.string().optional(),
-		gitAuthorEmail: z.email().optional(),
+		gitAuthorEmail: z.string().email().optional(),
 	})
 	.refine(
 		(data) =>
-			data.azureDevOpsId ||
-			data.azureDevOpsEmail ||
-			data.azureDevOpsDisplayName ||
-			data.gitAuthorName ||
-			data.gitAuthorEmail,
+			data.azureDevOpsEmail || data.gitAuthorName || data.gitAuthorEmail,
 		{
 			message: 'At least one user identifier must be provided',
 		}
@@ -31,15 +25,13 @@ export async function detectUserFromGitConfig(
 	try {
 		const proc = Bun.spawn(['git', 'config', 'user.name'], {
 			cwd: repositoryPath,
-			stdout: 'pipe',
 		})
-		const name = (await proc.stdout.text()).trim()
+		const name = (await new Response(proc.stdout).text()).trim()
 
 		const procEmail = Bun.spawn(['git', 'config', 'user.email'], {
 			cwd: repositoryPath,
-			stdout: 'pipe',
 		})
-		const email = (await procEmail.stdout.text()).trim()
+		const email = (await new Response(procEmail.stdout).text()).trim()
 
 		return {
 			gitAuthorName: name || undefined,
