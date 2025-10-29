@@ -1,5 +1,5 @@
-import { google } from '@ai-sdk/google'
 import { Agent } from '@voltagent/core'
+import { google } from '@/ai/lib/ai-providers/google'
 
 export const statusDeterminationAgent = new Agent({
 	name: 'Status Determination Agent',

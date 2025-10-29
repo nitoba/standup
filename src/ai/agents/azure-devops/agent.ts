@@ -1,5 +1,5 @@
-import { google } from '@ai-sdk/google'
 import { Agent } from '@voltagent/core'
+import { google } from '@/ai/lib/ai-providers/google'
 import { tools } from './tools/azure-devops.tools'
 import { reasoningToolkit } from './tools/reasoning.tool'
 

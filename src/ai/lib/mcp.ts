@@ -1,4 +1,5 @@
 import { MCPConfiguration } from '@voltagent/core'
+import { env } from '@/lib/env'
 
 export const mcpClient = new MCPConfiguration({
 	servers: {
@@ -9,8 +10,7 @@ export const mcpClient = new MCPConfiguration({
 			env: {
 				AZURE_DEVOPS_ORG_URL: 'https://dev.azure.com/ibsbiosistemico',
 				AZURE_DEVOPS_AUTH_METHOD: 'pat',
-				// biome-ignore lint/style/noNonNullAssertion: this envs exists
-				AZURE_DEVOPS_PAT: Bun.env.AZURE_DEVOPS_PAT!,
+				AZURE_DEVOPS_PAT: env.AZURE_DEVOPS_PAT,
 				AZURE_DEVOPS_DEFAULT_PROJECT: 'AGROTRACE',
 				LOG_LEVEL: 'error',
 			},

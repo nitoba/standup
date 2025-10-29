@@ -1,5 +1,5 @@
-import { google } from '@ai-sdk/google'
 import { Agent } from '@voltagent/core'
+import { google } from '@/ai/lib/ai-providers/google'
 
 export const summarizerAgent = new Agent({
 	name: 'SummarizerAgent',

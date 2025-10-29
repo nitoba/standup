@@ -1,3 +1,4 @@
+export { EnvSetup } from './EnvSetup'
 export { EventsLog } from './EventsLog'
 export { Header } from './Header'
 export { Instructions } from './Instructions'

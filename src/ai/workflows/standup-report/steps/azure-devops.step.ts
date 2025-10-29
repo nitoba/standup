@@ -65,25 +65,6 @@ export async function executeAzureDevopsAnalysis({ gitResult, user }: Input) {
 		azureDevOpsSchema
 	)
 
-	// // Try to extract JSON from text response
-	// const textResponse = response.text || ''
-
-	// const jsonMatch = textResponse.match(/```json\s*([\s\S]*?)\s*```/)
-
-	// if (jsonMatch?.[1]) {
-	// 	try {
-	// 		const parsedJson = JSON.parse(jsonMatch[1])
-	// 		return {
-	// 			azureData: parsedJson,
-	// 			gitResult,
-	// 		}
-	// 	} catch {
-	// 		throw new Error(
-	// 			'Status Determination Agent did not return valid structured output and JSON parsing failed'
-	// 		)
-	// 	}
-	// }
-
 	return {
 		azureData: response.object,
 		gitResult,

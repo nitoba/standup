@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { validateEnv } from '@/lib/validate'
 import {
 	EventsLog,
 	Header,
@@ -10,6 +11,8 @@ import {
 import { COLORS } from './constants/colors'
 import { useKeyboardNavigation, useWorkflow } from './hooks'
 import { useWorkflowStore } from './store'
+
+validateEnv()
 
 export function App() {
 	const {
@@ -29,7 +32,7 @@ export function App() {
 	const completedSteps = events.filter((e) => e.type === 'step-complete').length
 	const totalSteps = steps.length
 
-	// Start workflow on component mount
+	// Start workflow on component mount and when configured
 	useEffect(() => {
 		executeWorkflow()
 	}, [executeWorkflow])
