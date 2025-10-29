@@ -44,10 +44,6 @@ export function StatusPanel({
 							{getStepTypeIcon(currentEvent.stepType)} {currentEvent.stepType}
 						</text>
 					)}
-
-					<text fg={COLORS.dim}>
-						Execution ID: {currentEvent.executionId.slice(-8)}
-					</text>
 				</box>
 			) : (
 				<text fg={COLORS.dim}>Aguardando início do workflow...</text>

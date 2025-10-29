@@ -1,6 +1,6 @@
 import { COLORS } from '../constants/colors'
 
-interface HeaderProps {
+type HeaderProps = {
 	isRunning: boolean
 }
 
@@ -13,9 +13,14 @@ export function Header({ isRunning }: HeaderProps) {
 			border
 			borderStyle="double"
 		>
-			<text fg={COLORS.dim}>
-				Status: {isRunning ? '🟢 Running' : '⚪ Idle'}
-			</text>
+			<box flexDirection="row" gap={1}>
+				<text fg={COLORS.dim}>Status</text>
+				{isRunning ? (
+					<text fg={COLORS.success}>🟢 Running</text>
+				) : (
+					<text fg={COLORS.dim}>⚪ Idle</text>
+				)}
+			</box>
 		</box>
 	)
 }

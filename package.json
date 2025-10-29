@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev:volt": "bun run --hot ./src/index.ts",
-    "dev:ui": "bun run --hot ./src/index.ts",
+    "dev:ui": "bun run --hot ./src/cli/ui/index.tsx",
     "build:win": "bun build --compile --target=bun-windows-x64-modern src/cli/ui/index.tsx --outfile ./standup-win --minify  --format=esm --external '@opentui/core'",
     "build:linux": "bun build --compile --target=bun-linux-x64-modern src/cli/ui/index.tsx --outfile ./standup-linux --minify --format=esm",
     "build:mac": "bun build --compile --target=bun-darwin-arm64 src/cli/ui/index.tsx --outfile ./standup-mac --minify --format=esm --external '@opentui/core'",
-    "build": "bun build:win && bun build:linux",
+    "build": "bun build:win && bun build:linux && bun build:mac",
     "start": "node dist/index.js",
     "lint": "biome check ./src",
     "lint:fix": "biome check --write ./src",

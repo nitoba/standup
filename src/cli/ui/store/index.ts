@@ -52,7 +52,7 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>(
 
 		setCurrentEvent: (event) => set({ currentEvent: event }),
 
-		setIsRunning: (running) => set({ isRunning: running }),
+		setIsRunning: (running) => set(() => ({ isRunning: running })),
 
 		setFinalResult: (result) => set({ finalResult: result }),
 

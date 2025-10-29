@@ -1,5 +1,6 @@
 import { $ } from 'bun'
 import { useCallback, useRef } from 'react'
+import { mcpClient } from '@/ai/lib/mcp'
 import type { WorkflowStreamEvent } from '@/ai/lib/workflow-stream-event.type'
 import { standupReportWorkflow } from '@/ai/workflows/standup-report/workflow'
 import { useWorkflowStore } from '../store'
@@ -7,7 +8,6 @@ import { useWorkflowStore } from '../store'
 export function useWorkflow() {
 	const {
 		events,
-		setEvents,
 		addEvent,
 		setCurrentEvent,
 		setIsRunning,
@@ -21,9 +21,8 @@ export function useWorkflow() {
 
 	const executeWorkflow = useCallback(async () => {
 		try {
-			setIsRunning(true)
 			reset()
-			setEvents([])
+			setIsRunning(true)
 
 			streamRef.current = standupReportWorkflow.stream({
 				repositoriesFolder: Bun.env.REPOSITORIES_FOLDER,
@@ -92,7 +91,6 @@ export function useWorkflow() {
 			setCurrentEvent(errorEvent)
 		}
 	}, [
-		setEvents,
 		addEvent,
 		setCurrentEvent,
 		setIsRunning,
@@ -101,10 +99,11 @@ export function useWorkflow() {
 		reset,
 	])
 
-	const abortWorkflow = useCallback(() => {
+	const abortWorkflow = useCallback(async () => {
 		if (streamRef.current) {
 			try {
 				streamRef.current.abort()
+				await mcpClient.disconnect()
 			} catch (error) {
 				console.error('Failed to abort workflow:', error)
 			}
