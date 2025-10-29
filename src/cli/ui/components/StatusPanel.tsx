@@ -21,40 +21,43 @@ export function StatusPanel({
 			title="📊 Workflow Status"
 			border
 			borderStyle="single"
+			flexDirection="row"
+			justifyContent="space-between"
+			gap={1}
 			style={{
 				backgroundColor: COLORS.surface,
 				padding: 1,
 			}}
 		>
 			{currentEvent ? (
-				<box flexDirection="column">
-					<box flexDirection="row" justifyContent="space-between">
+				<box flexDirection="row" gap={2}>
+					{currentEvent.stepType && (
+						<box flexDirection="row" gap={1}>
+							<text fg={COLORS.dim}>
+								{getStepTypeIcon(currentEvent.stepType)}
+							</text>
+							<text fg={COLORS.dim}>{currentEvent.stepType}</text>
+						</box>
+					)}
+					<box flexDirection="row" gap={1} justifyContent="space-between">
 						<text fg={COLORS.text}>
-							<strong>
-								{getEventIcon(currentEvent.type)} {currentEvent.from}
-							</strong>
+							{getEventIcon(currentEvent.type)} {currentEvent.from}
 						</text>
 						<text fg={STATUS_COLORS[currentEvent.status]}>
 							{currentEvent.status.toUpperCase()}
 						</text>
 					</box>
-
-					{currentEvent.stepType && (
-						<text fg={COLORS.dim}>
-							{getStepTypeIcon(currentEvent.stepType)} {currentEvent.stepType}
-						</text>
-					)}
 				</box>
 			) : (
 				<text fg={COLORS.dim}>Aguardando início do workflow...</text>
 			)}
 
-			<box>
+			<box gap={2} flexDirection="row">
 				<text fg={COLORS.text}>Progress: </text>
 				<ProgressBar progress={progress} />
 			</box>
 
-			<box flexDirection="row" justifyContent="space-between">
+			<box flexDirection="row" justifyContent="space-between" gap={2}>
 				<text fg={COLORS.text}>
 					Steps: {completedSteps}/{totalSteps}
 				</text>
