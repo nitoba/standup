@@ -5,7 +5,7 @@ export const statusDeterminationSchema = z.object({
 		z.object({
 			projectName: z.string(),
 			cardNumber: z.string().nullable(),
-			title: z.string(),
+			cardTitle: z.string(),
 			finalStatus: z.enum(['Done', 'In Progress']),
 			reasoning: z.string(),
 			progressDetails: z.string().optional(),

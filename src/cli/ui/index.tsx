@@ -3,20 +3,24 @@ import { config } from 'dotenv'
 import { useEffect, useState } from 'react'
 import { validateEnv } from '@/lib/validate'
 import { EnvSetup } from './components/EnvSetup'
+import { LoadingSpinner } from './components/LoadingSpinner'
 
 function AppWrapper() {
-	const [isEnvValid, setIsEnvValid] = useState(false)
+	const [isEnvValid, setIsEnvValid] = useState<boolean | null>(null) // null = checking
 	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-	const [appComponent, setAppComponent] = useState<any>(null)
+	const [AppComponent, setAppComponent] = useState<any>(null)
 
 	useEffect(() => {
-		const checkEnv = () => {
+		const checkEnv = async () => {
 			const { success } = validateEnv()
-			setIsEnvValid(success)
 
-			// Se o ambiente já for válido, carrega o componente App
 			if (success) {
-				loadAppComponent()
+				// Se válido, carrega o App diretamente
+				await loadAppComponent()
+				setIsEnvValid(true)
+			} else {
+				// Se inválido, mostra o EnvSetup
+				setIsEnvValid(false)
 			}
 		}
 
@@ -29,20 +33,29 @@ function AppWrapper() {
 	}
 
 	const handleEnvComplete = async () => {
-		await Bun.sleep(500) // Mantém o delay existente
+		await Bun.sleep(500)
 		config()
 		await loadAppComponent()
 		setIsEnvValid(true)
 	}
 
-	// Se o ambiente é válido e o componente App foi carregado, renderiza o App
-	if (isEnvValid && appComponent) {
-		const App = appComponent
-		return <App />
+	// Enquanto está verificando, não renderiza nada (ou pode mostrar um loading)
+	if (isEnvValid === null) {
+		return <LoadingSpinner />
 	}
 
-	// Caso contrário, renderiza o EnvSetup
-	return <EnvSetup onComplete={handleEnvComplete} />
+	// Se o ambiente é válido e o App foi carregado, renderiza o App
+	if (isEnvValid && AppComponent) {
+		return <AppComponent />
+	}
+
+	// Apenas mostra EnvSetup se o ambiente for explicitamente inválido
+	if (!isEnvValid) {
+		return <EnvSetup onComplete={handleEnvComplete} />
+	}
+
+	// Fallback: esperando carregar o App
+	return null
 }
 
 // Carrega as configurações do dotenv antes de renderizar

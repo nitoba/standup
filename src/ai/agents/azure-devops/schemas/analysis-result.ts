@@ -4,7 +4,7 @@ export const azureDevOpsSchema = z.object({
 	workItems: z.array(
 		z.object({
 			cardNumber: z.string().nullable(),
-			title: z.string().nullable(),
+			cardTitle: z.string().nullable(),
 			status: z.string().nullable(),
 			type: z.string().nullable(),
 		})
