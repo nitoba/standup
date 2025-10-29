@@ -48,7 +48,22 @@ export const useWorkflowStore = create<WorkflowState & WorkflowActions>(
 
 		setEvents: (events) => set({ events }),
 
-		addEvent: (event) => set((state) => ({ events: [...state.events, event] })),
+		addEvent: (event) =>
+			set((state) => {
+				// Check if an event with the same executionId and from already exists
+				const existingEventIndex = state.events.findIndex(
+					(e) => e.executionId === event.executionId && e.from === event.from
+				)
+
+				if (existingEventIndex !== -1) {
+					// Update existing event
+					const updatedEvents = [...state.events]
+					updatedEvents[existingEventIndex] = event
+					return { events: updatedEvents }
+				}
+				// Add new event
+				return { events: [...state.events, event] }
+			}),
 
 		setCurrentEvent: (event) => set({ currentEvent: event }),
 

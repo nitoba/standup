@@ -1,3 +1,5 @@
+import type { ScrollBoxRenderable } from '@opentui/core'
+import { useEffect, useRef } from 'react'
 import type { WorkflowStreamEvent } from '@/ai/lib/workflow-stream-event.type'
 import { COLORS, STATUS_COLORS } from '../constants/colors'
 import {
@@ -19,13 +21,22 @@ const EventItem = ({ event, isActive }: EventItemProps) => {
 	const stepIcon = event.stepType ? getStepTypeIcon(event.stepType) : ''
 	const color = STATUS_COLORS[event.status] || COLORS.text
 
+	// Show status indicator for running events
+	const statusIndicator =
+		event.status === 'running'
+			? '⏳ '
+			: event.status === 'success'
+				? '✅ '
+				: event.status === 'error'
+					? '❌ '
+					: ''
+
 	return (
 		<box
 			flexDirection="column"
 			style={{
 				backgroundColor: isActive ? COLORS.surface : 'transparent',
 				padding: 1,
-				marginBottom: 1,
 			}}
 		>
 			<box flexDirection="row" justifyContent="space-between">
@@ -37,11 +48,16 @@ const EventItem = ({ event, isActive }: EventItemProps) => {
 						{!isActive && event.from}
 					</text>
 					{stepIcon && <text> {stepIcon}</text>}
+					{statusIndicator && <text> {statusIndicator}</text>}
 				</box>
 				<text fg={COLORS.dim}>{time}</text>
 			</box>
 
 			{event.stepType && <text fg={COLORS.dim}>Type: {event.stepType}</text>}
+
+			{event.status === 'running' && (
+				<text fg={COLORS.info}>Executando...</text>
+			)}
 
 			{event.output && (
 				<box flexDirection="column">
@@ -77,6 +93,19 @@ interface EventsLogProps {
 }
 
 export function EventsLog({ events, currentEvent }: EventsLogProps) {
+	const scrollBoxRef = useRef<ScrollBoxRenderable | null>(null)
+
+	// Auto-scroll to bottom when new events are added
+	useEffect(() => {
+		if (scrollBoxRef.current && events.length > 0) {
+			// Scroll to bottom to show the latest event
+			scrollBoxRef.current.scrollTo({
+				y: scrollBoxRef.current.scrollHeight,
+				x: scrollBoxRef.current.x,
+			})
+		}
+	}, [events])
+
 	return (
 		<box
 			title="📋 Workflow Events"
@@ -90,6 +119,9 @@ export function EventsLog({ events, currentEvent }: EventsLogProps) {
 			}}
 		>
 			<scrollbox
+				ref={scrollBoxRef}
+				stickyScroll={true}
+				stickyStart="bottom"
 				style={{
 					width: '100%',
 					height: '100%',
