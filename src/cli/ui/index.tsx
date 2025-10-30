@@ -1,7 +1,7 @@
 import { render } from '@opentui/react'
 import { config } from 'dotenv'
 import { useEffect, useState } from 'react'
-import { validateEnv } from '@/lib/validate'
+import { validateEnv } from '@/lib/env/validate'
 import { EnvSetup } from './components/EnvSetup'
 import { LoadingSpinner } from './components/LoadingSpinner'
 

@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { validateEnv } from '@/lib/validate'
+import { validateEnv } from '@/lib/env/validate'
 import {
 	EventsLog,
 	Header,

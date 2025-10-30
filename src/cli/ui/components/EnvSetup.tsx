@@ -5,7 +5,7 @@ import {
 	getEnvDescriptions,
 	saveEnvFile,
 	validateEnv,
-} from '../../../lib/validate'
+} from '@/lib/env/validate'
 import { COLORS } from '../constants/colors'
 
 interface EnvSetupProps {

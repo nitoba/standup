@@ -2,7 +2,7 @@ import 'dotenv/config'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { z } from 'zod'
-import { envSchema } from './env/schema'
+import { envSchema } from './schema'
 
 // Type for the parsed environment variables
 export type EnvVars = z.infer<typeof envSchema>
