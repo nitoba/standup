@@ -1,6 +1,6 @@
 import { createServiceLogger } from '@standup/logger'
 import type { ChatInputCommandInteraction, Client } from 'discord.js'
-import type { handleStandupInteraction } from '../interaction-handler.js'
+import type { handleStandupInteraction } from '../handlers/interaction-handler.js'
 
 const logger = createServiceLogger({
   service: 'discord-bot',

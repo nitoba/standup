@@ -9,7 +9,7 @@ import {
 } from '@standup/domain'
 import { createServiceLogger, withContext } from '@standup/logger'
 import type { Client } from 'discord.js'
-import { publishStandup } from './publish-standup.js'
+import { publishStandup } from '../notifications/publish-standup.js'
 
 const logger = createServiceLogger({
   service: 'discord-bot',

@@ -22,7 +22,7 @@ vi.mock('./send-channel-notification.js', () => ({
   sendChannelNotification: mocks.sendChannelNotification,
 }))
 
-vi.mock('./embeds.js', () => ({
+vi.mock('../embeds.js', () => ({
   buildPublishedEmbed: mocks.buildPublishedEmbed,
 }))
 

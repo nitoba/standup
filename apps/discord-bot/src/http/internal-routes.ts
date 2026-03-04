@@ -6,8 +6,8 @@ import type { Client } from 'discord.js'
 import { Hono } from 'hono'
 import * as z from 'zod'
 import { buildJobFailedEmbed } from '../discord/embeds.js'
-import { sendChannelNotification } from '../discord/send-channel-notification.js'
-import { sendReviewDm } from '../discord/send-review-dm.js'
+import { sendChannelNotification } from '../discord/notifications/send-channel-notification.js'
+import { sendReviewDm } from '../discord/notifications/send-review-dm.js'
 
 const logger = createServiceLogger({
   service: 'discord-bot',

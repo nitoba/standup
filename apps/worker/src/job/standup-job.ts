@@ -7,8 +7,8 @@ import {
   determineMeetingType,
   generateStandup,
 } from '@standup/standup-generator'
-import { notifyJobFailed } from './notify-job-failed.js'
-import { notifyStandupReady } from './notify-standup-ready.js'
+import { notifyJobFailed } from '../notifications/notify-job-failed.js'
+import { notifyStandupReady } from '../notifications/notify-standup-ready.js'
 
 const logger = createServiceLogger({
   service: 'worker',

@@ -1,6 +1,6 @@
 import type { GenerateStandupInput } from '@standup/domain'
+import type { EnrichedGitActivity, EnrichedWorkItem } from '../types.js'
 import { determineMeetingType } from './meeting-type.js'
-import type { EnrichedGitActivity, EnrichedWorkItem } from './types.js'
 import { determineWorkItemStatus } from './work-item-status.js'
 
 export function buildSystemPrompt(): string {

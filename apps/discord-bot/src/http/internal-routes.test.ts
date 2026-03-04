@@ -28,11 +28,11 @@ vi.mock('@standup/db', () => {
   return { getDb: mocks.getDb, StandupRepository }
 })
 
-vi.mock('../discord/send-review-dm.js', () => ({
+vi.mock('../discord/notifications/send-review-dm.js', () => ({
   sendReviewDm: mocks.sendReviewDm,
 }))
 
-vi.mock('../discord/send-channel-notification.js', () => ({
+vi.mock('../discord/notifications/send-channel-notification.js', () => ({
   sendChannelNotification: mocks.sendChannelNotification,
 }))
 

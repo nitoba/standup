@@ -1,4 +1,4 @@
-import type { EnrichedWorkItem, PullRequestDetail } from './types.js'
+import type { EnrichedWorkItem, PullRequestDetail } from '../types.js'
 
 /**
  * Determines if a work item is "Done" or "In Progress".

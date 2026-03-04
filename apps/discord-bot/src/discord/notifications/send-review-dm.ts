@@ -7,7 +7,7 @@ import {
   ButtonStyle,
   type Client,
 } from 'discord.js'
-import { buildReviewEmbed } from './embeds.js'
+import { buildReviewEmbed } from '../embeds.js'
 
 const logger = createServiceLogger({
   service: 'discord-bot',

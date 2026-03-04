@@ -6,7 +6,7 @@ import type {
   AzureMcpConfig,
   PullRequestDetail,
   WorkItemDetail,
-} from './types.js'
+} from '../types.js'
 
 const logger = createServiceLogger({
   service: 'standup-generator',

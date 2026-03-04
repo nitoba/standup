@@ -37,11 +37,11 @@ vi.mock('@standup/db', () => {
   return { getDb: mocks.getDb, StandupRepository }
 })
 
-vi.mock('./notify-standup-ready.js', () => ({
+vi.mock('../notifications/notify-standup-ready.js', () => ({
   notifyStandupReady: mocks.notifyStandupReady,
 }))
 
-vi.mock('./notify-job-failed.js', () => ({
+vi.mock('../notifications/notify-job-failed.js', () => ({
   notifyJobFailed: mocks.notifyJobFailed,
 }))
 

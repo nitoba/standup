@@ -82,30 +82,136 @@ worker ──POST /internal/notify/standup-ready──► discord-bot (porta BOT
 - Arquivos: kebab-case (ex: standup-generator.ts, discord-publisher.ts)
 - Testes: co-locados (standup-generator.test.ts ao lado de standup-generator.ts)
 
+## Principios de Organizacao de Arquivos
+
+### Uma funcao/responsabilidade por arquivo
+
+Cada arquivo exporta **uma unica funcao principal**. Nunca agrupar funcoes nao relacionadas
+num mesmo arquivo so porque "sao do mesmo modulo".
+
+```
+# ERRADO — duas responsabilidades no mesmo arquivo
+notify-standup-ready.ts  ← exporta notifyStandupReady() E notifyJobFailed()
+
+# CORRETO — um arquivo por responsabilidade
+notifications/
+  notify-standup-ready.ts   ← exporta so notifyStandupReady()
+  notify-job-failed.ts      ← exporta so notifyJobFailed()
+```
+
+### Agrupamento por contexto, nao por tipo
+
+Pastas agrupam arquivos pelo **que fazem juntos**, nao pelo que sao tecnicamente.
+So crie uma pasta quando houver 2+ arquivos do mesmo contexto.
+
+```
+# ERRADO — agrupa por tipo tecnico
+handlers/
+  button-handler.ts
+  slash-command-handler.ts
+  interaction-handler.ts
+notifications/
+  send-review-dm.ts
+  send-channel-notification.ts
+  publish-standup.ts
+
+# CORRETO — mesmo resultado, mas o criterio e correto
+# (neste caso coincide, mas o raciocinio importa)
+```
+
+### index.ts e entrypoint puro
+
+O `index.ts` de cada app so contem: carregar env, instanciar dependencias, conectar servicos.
+**Nenhuma logica de negocio ou handler inline**.
+
+```ts
+// CORRETO — index.ts como bootstrap puro
+client.on(Events.InteractionCreate, async (interaction) => {
+  if (interaction.isChatInputCommand()) {
+    await handleSlashCommand(interaction, client, env)  // delega
+    return
+  }
+  if (interaction.isButton()) {
+    await handleButtonInteraction(interaction, client, env)  // delega
+  }
+})
+```
+
+### Arquivo utilitario fica proximo de quem o usa
+
+`embeds.ts` fica em `discord/` (raiz do contexto Discord), nao dentro de `notifications/`,
+porque e usado tanto por `notifications/` quanto potencialmente por `handlers/`.
+
 ## Estrutura de Pastas
 
 ```
 standup/
   apps/
-    api/              # Hono API (health, busca, filtros, triggers manuais)
-    discord-bot/      # Bot Discord (DM, botoes de revisao, comandos)
+    api/                    # Hono API (health, busca, filtros, triggers manuais)
       src/
-        discord/      # Logica Discord: send-review-dm, handlers de botao
-        http/         # Rotas Hono internas: internal-routes.ts
-        index.ts      # Entrypoint: sobe Hono + gateway Discord
-    worker/           # Scheduler e orquestracao de jobs
+        index.ts            # Entrypoint + rotas
+
+    discord-bot/            # Bot Discord (DM, botoes de revisao, comandos slash)
       src/
-        standup-job.ts        # Pipeline collect→generate→persist→notify
-        standup-notifier.ts   # POST /internal/notify/standup-ready
-        index.ts              # Scheduler (croner)
-        vitest.setup.ts       # Shim Bun globals para Vitest
-      vitest.config.ts        # Config Vitest local (aponta setupFiles)
+        discord/
+          commands/         # Slash commands (/standup subcommands)
+            register.ts         # buildStandupCommand + registerApplicationCommands
+            register.test.ts
+            trigger.ts          # /standup trigger handler
+            list.ts             # /standup list handler
+            approve.ts          # /standup approve handler
+            handlers.test.ts    # testes dos 3 subcommands
+          handlers/         # Processamento de interacoes Discord
+            button-handler.ts       # parse customId → defer → handleStandupInteraction → reply
+            slash-command-handler.ts # roteamento /standup subcommands
+            interaction-handler.ts  # logica approve/reject/regenerate + transicoes de estado
+            interaction-handler.test.ts
+          notifications/    # Envio de mensagens Discord
+            send-review-dm.ts           # DM com embed azul + botoes ao usuario
+            send-review-dm.test.ts
+            send-channel-notification.ts # helper: fetch canal → guard → send embed
+            publish-standup.ts          # publica embed verde no canal
+            publish-standup.test.ts
+          embeds.ts         # builders de embed (review, published, job-failed)
+        http/
+          internal-routes.ts      # POST /internal/notify/* (auth + DB + DM)
+          internal-routes.test.ts
+        index.ts            # Entrypoint: env + Client + HTTP server + event listeners
+
+    worker/                 # Scheduler e orquestracao de jobs
+      src/
+        job/                # Pipeline de geracao de standup
+          standup-job.ts        # collect → generate → persist → notify
+          standup-job.test.ts
+        notifications/      # Notificacoes HTTP para o discord-bot
+          notify-standup-ready.ts     # POST /internal/notify/standup-ready
+          notify-standup-ready.test.ts
+          notify-job-failed.ts        # POST /internal/notify/job-failed
+          notify-job-failed.test.ts
+        scheduler.ts        # startScheduler() — setup de cron jobs
+        index.ts            # Entrypoint: loadEnv → startScheduler
+        vitest.setup.ts     # Shim Bun.randomUUIDv7 para Vitest
+      vitest.config.ts      # Config Vitest local (aponta setupFiles)
+
   packages/
-    config/           # Env vars e configuracao tipada
+    config/           # Env vars e configuracao tipada (loadEnv, AppEnv)
     domain/           # Types, schemas, errors, state machine
-    db/               # Drizzle schema, conexao, repositories
+    db/               # Drizzle schema, conexao, StandupRepository
     git-collector/    # Coleta de commits dos repositorios
-    standup-generator/# Geracao de standup via AI SDK + MCP enrichments
+    standup-generator/
+      src/
+        azure/
+          azure-mcp-client.ts   # Client MCP: connect/disconnect/getMe/getWorkItem/listPRs
+          enrich.ts             # enrichGitActivity — busca work items + PRs por repo
+        prompt/
+          meeting-type.ts       # determineMeetingType — segunda/quarta/sexta tem reunioes
+          work-item-status.ts   # determineWorkItemStatus — done vs in_progress
+          prompt.ts             # buildSystemPrompt + buildUserMessage
+        generator.ts            # generateStandup — orquestra azure → enrich → LLM
+        generator.test.ts
+        types.ts                # tipos internos (usado por azure/ e prompt/)
+        index.ts                # barrel de exports publicos
+
   data/               # SQLite files (gitignored)
   drizzle/            # Migration files gerados
   turbo.json          # Pipeline monorepo
@@ -135,6 +241,7 @@ standup/
 DISCORD_BOT_TOKEN=
 DISCORD_CHANNEL_ID=       # Canal onde publica standups
 DISCORD_USER_ID=          # Seu user ID para DMs
+DISCORD_GUILD_ID=         # Opcional: guild commands (dev) vs global (prod)
 
 # LLM
 ANTHROPIC_API_KEY=
@@ -163,7 +270,7 @@ INTERNAL_SECRET=change-me-in-production
 
 - discord.js com Bun: funciona nativamente desde Bun 1.1+
 - SQLite WAL mode: necessario para leitura concorrente (bot + scheduler + API)
-- AI SDK: usar `@ai-sdk/anthropic` com `generateText` para geracao de standups
+- AI SDK: usar `@ai-sdk/anthropic` com `generateObject` para geracao de standups
 - croner: alternativa leve ao node-cron, funciona bem com Bun
 
 ### Vitest + Bun globals (oven-sh/bun#4145)
@@ -232,7 +339,7 @@ const mocks = vi.hoisted(() => ({
   collect: vi.fn(),
   notifyStandupReady: vi.fn(),
 }));
-vi.mock("./standup-notifier.js", () => ({
+vi.mock("../notifications/notify-standup-ready.js", () => ({
   notifyStandupReady: mocks.notifyStandupReady,
 }));
 ```
@@ -281,15 +388,14 @@ await interaction.editReply({           // atualiza a mensagem original
 `deferUpdate()` edita a mensagem original (botoes permanecem desabilitados).
 `editReply()` com `components: []` remove os botoes para evitar cliques duplicados.
 
-### Mock de discord.js Client para testes de publishStandup
+### Mock de discord.js Client para testes
 
-O Client real conecta ao Discord. Para testes unitarios, criar um fake client simples:
+O Client real conecta ao Discord. Para testes unitarios, passar um fake client tipado:
 
 ```ts
-// fake client — apenas o que a funcao usa
-const fakeClient = {} as unknown as Client  // publishStandup e mockado mesmo
+const fakeClient = {} as unknown as Client
 
-// Para testar publishStandup diretamente (sem mock):
+// Para testar funcoes que usam channels.fetch:
 function makeClient(channelResult: unknown) {
   const fetchChannel = vi.fn().mockResolvedValue(channelResult)
   return {
@@ -320,12 +426,37 @@ app.use("/internal/*", async (c, next) => {
 });
 ```
 
+### Padroes do Akita (Discord como Admin Panel)
+
+**Padrao 2 — Reacoes como Status:** Emojis no `editReply` como feedback visual apos botao.
+- `approve` → `✅`, `reject` → `❌`, `regenerate` → `🔄`
+- Implementado em `discord/handlers/button-handler.ts`
+
+**Padrao 3 — Embeds Ricos:**
+- DM de revisao: embed **azul** (`0x3498DB`) — `buildReviewEmbed`
+- Publicacao no canal: embed **verde** (`0x2ECC71`) — `buildPublishedEmbed`
+- Notificacao de falha: embed **vermelho** (`0xE74C3C`) — `buildJobFailedEmbed`
+- Limites Discord: title=256, description=4096, field_value=1024 — sempre truncar
+- Todos os builders em `discord/embeds.ts`
+
+**Padrao 8 — Notificacoes de Status em Producao:**
+- `POST /internal/notify/job-failed` no bot (body: `{ error, context? }`)
+- `notifyJobFailed()` no worker quando o pipeline falha
+- Bot publica embed vermelho no canal para visibilidade imediata
+- Non-fatal em dois niveis: falha na notificacao e logada mas nao propaga
+
+**Padrao 13 — Application Commands:**
+- `SlashCommandBuilder` com `/standup` e 3 subcommands: `trigger`, `list`, `approve <id>`
+- `registerApplicationCommands()` chamado no `ClientReady` — idempotente, safe on reconnect
+- Guild commands (propagacao instantanea) quando `DISCORD_GUILD_ID` presente, global caso contrario
+- Implementado em `discord/commands/register.ts`
+
 ## Estado Atual (o que esta completo)
 
 ### Pacotes completos (com testes)
 
 - `packages/domain` — types, schemas Zod, state machine, TaggedErrors
-- `packages/config` — `loadEnv()` com todas as env vars
+- `packages/config` — `loadEnv()` com todas as env vars (incluindo `DISCORD_GUILD_ID` opcional)
 - `packages/logger` — Winston estruturado
 - `packages/git-collector` — 29 testes (bun test)
 - `packages/db` — StandupRepository completo, 18 testes (bun test)
@@ -333,15 +464,24 @@ app.use("/internal/*", async (c, next) => {
 
 ### Apps completos
 
-- `apps/worker` — scheduler + pipeline completo + notifier HTTP, 10 testes (vitest)
-  - `standup-job.ts`: collect → generate → persist → notify
-  - `standup-notifier.ts`: POST /internal/notify/standup-ready
-- `apps/discord-bot` — handlers completos, 20 testes (vitest)
-  - `src/http/internal-routes.ts`: POST /internal/notify/standup-ready (auth + DB lookup + DM + transicao draft→pending_review)
-  - `src/discord/send-review-dm.ts`: envia DM com botoes Aprovar/Rejeitar/Regenerar
-  - `src/discord/interaction-handler.ts`: logica de approve/reject/regenerate (Slice 5)
-  - `src/discord/publish-standup.ts`: publica standup aprovado no canal Discord (Slice 5)
-  - `src/index.ts`: sobe Hono (BOT_INTERNAL_PORT) + gateway Discord + handler de interacoes real
+- `apps/worker` — 15 testes (vitest)
+  - `job/standup-job.ts`: pipeline collect→generate→persist→notify
+  - `notifications/notify-standup-ready.ts`: POST /internal/notify/standup-ready
+  - `notifications/notify-job-failed.ts`: POST /internal/notify/job-failed (Padrao 8)
+  - `scheduler.ts`: startScheduler() com croner
+  - `index.ts`: entrypoint puro
+
+- `apps/discord-bot` — 44 testes (vitest)
+  - `http/internal-routes.ts`: POST /internal/notify/standup-ready + job-failed
+  - `discord/notifications/send-review-dm.ts`: DM com embed azul + botoes
+  - `discord/notifications/send-channel-notification.ts`: helper generico de canal
+  - `discord/notifications/publish-standup.ts`: publica embed verde no canal
+  - `discord/handlers/interaction-handler.ts`: logica approve/reject/regenerate
+  - `discord/handlers/button-handler.ts`: handler de botoes com emojis (Padrao 2)
+  - `discord/handlers/slash-command-handler.ts`: roteador de slash commands
+  - `discord/commands/`: register + trigger + list + approve (Padrao 13)
+  - `discord/embeds.ts`: builders de embed (Padrao 3)
+  - `index.ts`: entrypoint puro — env + Client + HTTP + event listeners
 
 ### CI
 
@@ -352,7 +492,7 @@ app.use("/internal/*", async (c, next) => {
 1. **Slice 6 — apps/api rotas reais**
    - `GET /standups` — lista com filtros (status, date)
    - `GET /standups/:id` — detalhe
-   - `POST /standups/trigger` — trigger manual do job (chama worker via HTTP ou importa diretamente)
+   - `POST /standups/trigger` — trigger manual do job
    - `PATCH /standups/:id/status` — aprovacao manual sem Discord
 
 2. **Docker + docker-compose**

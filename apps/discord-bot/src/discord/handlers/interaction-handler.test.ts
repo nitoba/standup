@@ -32,7 +32,7 @@ vi.mock('@standup/db', () => {
   return { getDb: mocks.getDb, StandupRepository }
 })
 
-vi.mock('./publish-standup.js', () => ({
+vi.mock('../notifications/publish-standup.js', () => ({
   publishStandup: mocks.publishStandup,
 }))
 

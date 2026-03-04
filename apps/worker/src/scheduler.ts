@@ -1,7 +1,7 @@
 import type { AppEnv } from '@standup/config'
 import { createServiceLogger } from '@standup/logger'
 import { Cron } from 'croner'
-import { runStandupJob } from './standup-job.js'
+import { runStandupJob } from './job/standup-job.js'
 
 const logger = createServiceLogger({
   service: 'worker',

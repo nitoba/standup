@@ -5,7 +5,7 @@ import type {
 } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import type { Client } from 'discord.js'
-import { buildPublishedEmbed } from './embeds.js'
+import { buildPublishedEmbed } from '../embeds.js'
 import { sendChannelNotification } from './send-channel-notification.js'
 
 const logger = createServiceLogger({
