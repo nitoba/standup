@@ -42,3 +42,49 @@ export class ExternalServiceError extends TaggedError('ExternalServiceError')<{
   service: string
   message: string
 }>() {}
+
+// ---------------------------------------------------------------------------
+// Transient errors — safe to retry with backoff
+// ---------------------------------------------------------------------------
+
+export class LlmTemporaryError extends TaggedError('LlmTemporaryError')<{
+  message: string
+  attempt: number
+}>() {}
+
+export class McpConnectionError extends TaggedError('McpConnectionError')<{
+  message: string
+  attempt: number
+}>() {}
+
+// ---------------------------------------------------------------------------
+// Job execution errors
+// ---------------------------------------------------------------------------
+
+export class LockAlreadyHeldError extends TaggedError('LockAlreadyHeldError')<{
+  jobName: string
+  date: string
+  message: string
+}>() {
+  constructor(args: { jobName: string; date: string }) {
+    super({
+      ...args,
+      message: `Lock already held for ${args.jobName} on ${args.date}`,
+    })
+  }
+}
+
+export class JobAlreadyCompletedError extends TaggedError(
+  'JobAlreadyCompletedError',
+)<{
+  jobName: string
+  date: string
+  message: string
+}>() {
+  constructor(args: { jobName: string; date: string }) {
+    super({
+      ...args,
+      message: `Job ${args.jobName} already completed for ${args.date}`,
+    })
+  }
+}

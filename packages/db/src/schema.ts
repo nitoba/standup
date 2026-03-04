@@ -29,6 +29,7 @@ export type NewStandupRow = typeof standups.$inferInsert
 export const jobRuns = sqliteTable('job_runs', {
   id: text('id').primaryKey(),
   jobName: text('job_name').notNull(),
+  date: text('date').notNull(), // YYYY-MM-DD — scope do lock/idempotencia
   status: text('status', {
     enum: ['running', 'success', 'failed'],
   }).notNull(),

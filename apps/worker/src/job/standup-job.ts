@@ -1,6 +1,10 @@
 import type { AppEnv } from '@standup/config'
-import { getDb, StandupRepository } from '@standup/db'
-import { Result } from '@standup/domain'
+import { getDb, JobRunRepository, StandupRepository } from '@standup/db'
+import {
+  JobAlreadyCompletedError,
+  LockAlreadyHeldError,
+  Result,
+} from '@standup/domain'
 import { collectGitActivity } from '@standup/git-collector'
 import { createServiceLogger, withContext } from '@standup/logger'
 import {
@@ -15,12 +19,98 @@ const logger = createServiceLogger({
   component: 'standup-job',
 })
 
+// ---------------------------------------------------------------------------
+// Retry config — Padrão 1 do Akita
+// ---------------------------------------------------------------------------
+
+const RETRY_ATTEMPTS = 3
+const RETRY_BASE_DELAY_MS = 5_000 // 5s, 10s, 20s (backoff exponencial)
+
+/**
+ * Executa com retry e backoff exponencial para erros transitorios.
+ * Se esgotar as tentativas, retorna o ultimo Err.
+ */
+async function withRetry<T, E>(
+  fn: (attempt: number) => Promise<Result<T, E>>,
+  isRetryable: (error: E) => boolean,
+  jobLogger: ReturnType<typeof withContext>,
+): Promise<Result<T, E>> {
+  let lastResult: Result<T, E> = await fn(1)
+
+  if (lastResult.isOk()) return lastResult
+  if (!isRetryable(lastResult.error)) return lastResult
+
+  for (let attempt = 2; attempt <= RETRY_ATTEMPTS; attempt++) {
+    const delayMs = RETRY_BASE_DELAY_MS * 2 ** (attempt - 2)
+    jobLogger.warn('Transient error — retrying with backoff', {
+      attempt,
+      maxAttempts: RETRY_ATTEMPTS,
+      delayMs,
+      error: (lastResult.error as { message?: string }).message,
+    })
+    await Bun.sleep(delayMs)
+
+    lastResult = await fn(attempt)
+
+    if (lastResult.isOk()) return lastResult
+    if (!isRetryable(lastResult.error)) return lastResult
+  }
+
+  return lastResult
+}
+
+// ---------------------------------------------------------------------------
+// Main job
+// ---------------------------------------------------------------------------
+
 export async function runStandupJob(env: AppEnv): Promise<void> {
+  const runId = Bun.randomUUIDv7()
+  const today = new Date().toISOString().slice(0, 10)
+
   const jobLogger = withContext(logger, {
     job: 'standup',
-    run: Bun.randomUUIDv7(),
+    run: runId,
+    date: today,
   })
+
   jobLogger.info('Standup job started')
+
+  // ---------------------------------------------------------------------------
+  // Padrão 2 (Akita): Lock distribuído — evita execução concorrente.
+  // Padrão 3 (Akita): Idempotência — se já rodou com sucesso hoje, no-op.
+  // ---------------------------------------------------------------------------
+
+  const db = getDb(env.DATABASE_URL)
+  const jobRunRepo = new JobRunRepository(db)
+  const standupRepo = new StandupRepository(db)
+
+  const lockResult = await jobRunRepo.acquireLock({
+    id: runId,
+    jobName: 'standup',
+    date: today,
+  })
+
+  if (lockResult.isErr()) {
+    if (LockAlreadyHeldError.is(lockResult.error)) {
+      jobLogger.warn(
+        'Job already running — skipping (lock held by another instance)',
+      )
+      return
+    }
+    if (JobAlreadyCompletedError.is(lockResult.error)) {
+      jobLogger.info('Job already completed for today — no-op (idempotent)')
+      return
+    }
+    // DbError ao tentar adquirir lock: logar e abortar sem notificar (infra issue)
+    jobLogger.error('Failed to acquire job lock', {
+      error: lockResult.error.message,
+    })
+    return
+  }
+
+  // ---------------------------------------------------------------------------
+  // Pipeline: collect → generate (com retry + degradação graciosa) → persist → notify
+  // ---------------------------------------------------------------------------
 
   const result = await Result.gen(async function* () {
     // Step 1: Collect git activity
@@ -41,35 +131,44 @@ export async function runStandupJob(env: AppEnv): Promise<void> {
       return Result.ok(null)
     }
 
-    // Step 2: Generate standup via LLM + MCP enrichment
-    const today = new Date().toISOString().slice(0, 10)
     const meetingType = determineMeetingType(today)
 
+    // Step 2: Generate standup — com retry para erros transitorios de LLM/MCP.
+    // Padrão 1 (Akita): retry_on com exceções específicas.
+    // Degradação graciosa: se MCP falhar após todos os retries, geramos sem enrichment.
+    const generatorConfig = {
+      anthropicAuthToken: env.ANTHROPIC_AUTH_TOKEN,
+      anthropicApiKey: env.ANTHROPIC_API_KEY,
+      azure: {
+        orgUrl:
+          env.AZURE_DEVOPS_ORG_URL ??
+          `https://dev.azure.com/${env.AZURE_DEVOPS_ORG}`,
+        defaultProject: env.AZURE_DEVOPS_DEFAULT_PROJECT,
+        pat: env.AZURE_DEVOPS_PAT,
+      },
+    }
+
     const generated = yield* Result.await(
-      generateStandup(
-        { date: today, meetingType, gitActivity },
-        {
-          anthropicAuthToken: env.ANTHROPIC_AUTH_TOKEN,
-          anthropicApiKey: env.ANTHROPIC_API_KEY,
-          azure: {
-            orgUrl:
-              env.AZURE_DEVOPS_ORG_URL ??
-              `https://dev.azure.com/${env.AZURE_DEVOPS_ORG}`,
-            defaultProject: env.AZURE_DEVOPS_DEFAULT_PROJECT,
-            pat: env.AZURE_DEVOPS_PAT,
-          },
+      withRetry(
+        () =>
+          generateStandup(
+            { date: today, meetingType, gitActivity },
+            generatorConfig,
+          ),
+        (err) => {
+          // Erros transitorios: LlmTemporaryError e McpConnectionError
+          const tag = (err as { _tag?: string })._tag
+          return tag === 'LlmTemporaryError' || tag === 'McpConnectionError'
         },
+        jobLogger,
       ),
     )
 
     jobLogger.info('Standup generated', { summary: generated.summary })
 
     // Step 3: Persist as draft
-    const db = getDb(env.DATABASE_URL)
-    const repo = new StandupRepository(db)
-
     const record = yield* Result.await(
-      repo.create({
+      standupRepo.create({
         id: Bun.randomUUIDv7(),
         date: today,
         meetingType,
@@ -80,9 +179,9 @@ export async function runStandupJob(env: AppEnv): Promise<void> {
 
     jobLogger.info('Standup draft saved', { standupId: record.id })
 
-    // Step 4: Notify discord-bot via internal HTTP — failure is non-fatal.
-    // Worker não sabe nada sobre Discord. Apenas dispara uma notificação genérica.
-    // O standup está salvo; o bot decide como apresentar ao usuário.
+    // Step 4: Notify discord-bot — non-fatal.
+    // Worker não sabe nada sobre Discord. O standup está salvo;
+    // o bot decide como apresentar ao usuário.
     const notifyResult = await notifyStandupReady({
       botInternalUrl: env.BOT_INTERNAL_URL,
       standupId: record.id,
@@ -101,8 +200,14 @@ export async function runStandupJob(env: AppEnv): Promise<void> {
     return Result.ok(record.id)
   })
 
+  // ---------------------------------------------------------------------------
+  // Finalização: libera lock + notifica falha (Padrão 6 do Akita)
+  // ---------------------------------------------------------------------------
+
   if (result.isErr()) {
     jobLogger.error('Standup job failed', { error: result.error.message })
+
+    await jobRunRepo.releaseLock(runId, 'failed', result.error.message)
 
     // Padrão 8 do Akita: notificar falha no canal Discord para visibilidade imediata.
     // Non-fatal: se o bot não estiver disponível, o erro já foi logado acima.
@@ -119,7 +224,16 @@ export async function runStandupJob(env: AppEnv): Promise<void> {
         { error: failNotifyResult.error.message },
       )
     }
-  } else if (result.value !== null) {
-    jobLogger.info('Standup job completed', { standupId: result.value })
+  } else {
+    const standupId = result.value
+    await jobRunRepo.releaseLock(runId, 'success')
+
+    if (standupId !== null) {
+      jobLogger.info('Standup job completed', { standupId })
+    } else {
+      jobLogger.info(
+        'Standup job completed — no standup generated (no commits or skipped)',
+      )
+    }
   }
 }

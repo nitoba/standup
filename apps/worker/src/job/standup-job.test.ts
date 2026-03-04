@@ -1,5 +1,11 @@
 import type { AppEnv } from '@standup/config'
-import { ExternalServiceError, Result } from '@standup/domain'
+import {
+  ExternalServiceError,
+  JobAlreadyCompletedError,
+  LlmTemporaryError,
+  LockAlreadyHeldError,
+  Result,
+} from '@standup/domain'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
@@ -12,12 +18,15 @@ const mocks = vi.hoisted(() => ({
   determineMeetingType: vi.fn().mockReturnValue(''),
   repoCreate: vi.fn(),
   getDb: vi.fn().mockReturnValue({}),
+  acquireLock: vi.fn(),
+  releaseLock: vi.fn(), // valor configurado no beforeEach (Result nao disponivel aqui)
   notifyStandupReady: vi.fn(),
   notifyJobFailed: vi.fn(),
+  sleep: vi.fn().mockResolvedValue(undefined),
 }))
 
 // ---------------------------------------------------------------------------
-// Mocks de módulos — usam referências de mocks (já inicializadas via hoisted)
+// Mocks de módulos
 // ---------------------------------------------------------------------------
 
 vi.mock('@standup/git-collector', () => ({
@@ -30,11 +39,14 @@ vi.mock('@standup/standup-generator', () => ({
 }))
 
 vi.mock('@standup/db', () => {
-  // StandupRepository é instanciado com `new` — precisa ser função construtora real
+  // StandupRepository e JobRunRepository são instanciados com `new`
   function StandupRepository() {
     return { create: mocks.repoCreate }
   }
-  return { getDb: mocks.getDb, StandupRepository }
+  function JobRunRepository() {
+    return { acquireLock: mocks.acquireLock, releaseLock: mocks.releaseLock }
+  }
+  return { getDb: mocks.getDb, StandupRepository, JobRunRepository }
 })
 
 vi.mock('../notifications/notify-standup-ready.js', () => ({
@@ -44,6 +56,12 @@ vi.mock('../notifications/notify-standup-ready.js', () => ({
 vi.mock('../notifications/notify-job-failed.js', () => ({
   notifyJobFailed: mocks.notifyJobFailed,
 }))
+
+// Mock Bun.sleep para evitar delays reais nos testes de retry
+vi.stubGlobal('Bun', {
+  randomUUIDv7: () => 'uuid-test',
+  sleep: mocks.sleep,
+})
 
 // ---------------------------------------------------------------------------
 // Import do módulo sob teste — após todos os vi.mock
@@ -62,6 +80,7 @@ const baseEnv: AppEnv = {
   TIMEZONE: 'America/Sao_Paulo',
   STANDUP_CRON: '30 17 * * 1-5',
   STANDUP_REMINDER_CRON: '20 17 * * 1-5',
+  STANDUP_RECOVERY_CRON: '0 18 * * 1-5',
   DISCORD_BOT_TOKEN: 'tok-bot',
   DISCORD_CHANNEL_ID: 'ch-123',
   DISCORD_USER_ID: 'usr-456',
@@ -121,6 +140,16 @@ const savedRecord = {
   updatedAt: 1000,
 }
 
+const lockRecord = {
+  id: 'uuid-test',
+  jobName: 'standup',
+  date: '2026-03-04',
+  status: 'running',
+  startedAt: Date.now(),
+  finishedAt: null,
+  error: null,
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -129,152 +158,287 @@ describe('runStandupJob', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.determineMeetingType.mockReturnValue('')
+    mocks.acquireLock.mockResolvedValue(Result.ok(lockRecord))
+    mocks.releaseLock.mockResolvedValue(Result.ok(undefined)) // configurado aqui onde Result ja esta disponivel
+    mocks.sleep.mockResolvedValue(undefined)
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('retorna sem gerar standup quando não há commits hoje', async () => {
-    mocks.collect.mockResolvedValue(Result.ok(emptyGitActivity))
+  // -------------------------------------------------------------------------
+  // Padrão 2+3: Lock e Idempotência
+  // -------------------------------------------------------------------------
 
-    await runStandupJob(baseEnv)
+  describe('Padrão 2+3: Lock e Idempotência', () => {
+    it('aborta silenciosamente quando o lock já está held (outra instância rodando)', async () => {
+      mocks.acquireLock.mockResolvedValue(
+        Result.err(
+          new LockAlreadyHeldError({ jobName: 'standup', date: '2026-03-04' }),
+        ),
+      )
 
-    expect(mocks.collect).toHaveBeenCalledOnce()
-    expect(mocks.generate).not.toHaveBeenCalled()
-    expect(mocks.repoCreate).not.toHaveBeenCalled()
-    expect(mocks.notifyStandupReady).not.toHaveBeenCalled()
-  })
+      await runStandupJob(baseEnv)
 
-  it('coleta, gera, persiste e notifica o bot quando há commits', async () => {
-    mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
-    mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
-    mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
-    mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
+      expect(mocks.collect).not.toHaveBeenCalled()
+      expect(mocks.generate).not.toHaveBeenCalled()
+      expect(mocks.releaseLock).not.toHaveBeenCalled()
+    })
 
-    await runStandupJob(baseEnv)
+    it('aborta silenciosamente quando job já completou hoje (idempotente)', async () => {
+      mocks.acquireLock.mockResolvedValue(
+        Result.err(
+          new JobAlreadyCompletedError({
+            jobName: 'standup',
+            date: '2026-03-04',
+          }),
+        ),
+      )
 
-    expect(mocks.collect).toHaveBeenCalledOnce()
-    expect(mocks.generate).toHaveBeenCalledOnce()
-    expect(mocks.repoCreate).toHaveBeenCalledOnce()
-    expect(mocks.notifyStandupReady).toHaveBeenCalledWith({
-      botInternalUrl: baseEnv.BOT_INTERNAL_URL,
-      standupId: savedRecord.id,
-      secret: baseEnv.INTERNAL_SECRET,
+      await runStandupJob(baseEnv)
+
+      expect(mocks.collect).not.toHaveBeenCalled()
+      expect(mocks.generate).not.toHaveBeenCalled()
+      expect(mocks.releaseLock).not.toHaveBeenCalled()
+    })
+
+    it('libera o lock com success ao finalizar com sucesso', async () => {
+      mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
+      mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
+      mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
+      mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
+
+      await runStandupJob(baseEnv)
+
+      expect(mocks.releaseLock).toHaveBeenCalledWith('uuid-test', 'success')
+    })
+
+    it('libera o lock com failed quando o pipeline falha', async () => {
+      mocks.collect.mockResolvedValue(
+        Result.err(
+          new ExternalServiceError({ service: 'git', message: 'git failed' }),
+        ),
+      )
+      mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
+
+      await runStandupJob(baseEnv)
+
+      expect(mocks.releaseLock).toHaveBeenCalledWith(
+        'uuid-test',
+        'failed',
+        expect.stringContaining('git failed'),
+      )
+    })
+
+    it('libera lock com success quando não há commits (no-op legítimo)', async () => {
+      mocks.collect.mockResolvedValue(Result.ok(emptyGitActivity))
+
+      await runStandupJob(baseEnv)
+
+      expect(mocks.releaseLock).toHaveBeenCalledWith('uuid-test', 'success')
     })
   })
 
-  it('gera e persiste sem notificar quando BOT_INTERNAL_URL não está configurado', async () => {
-    const envWithoutBot: AppEnv = {
-      ...baseEnv,
-      BOT_INTERNAL_URL: '',
-    }
-    mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
-    mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
-    mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
-    mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
+  // -------------------------------------------------------------------------
+  // Padrão 1: Retry com backoff para erros transitorios
+  // -------------------------------------------------------------------------
 
-    await runStandupJob(envWithoutBot)
+  describe('Padrão 1: Retry com backoff', () => {
+    it('retenta generateStandup até 3x em LlmTemporaryError e falha no final', async () => {
+      mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
+      mocks.generate.mockResolvedValue(
+        Result.err(
+          new LlmTemporaryError({ message: 'Rate limited', attempt: 1 }),
+        ),
+      )
+      mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
 
-    expect(mocks.repoCreate).toHaveBeenCalledOnce()
-    // notifyStandupReady ainda é chamado — BOT_INTERNAL_URL vazio causará erro de rede (non-fatal)
-    // O comportamento esperado é que o standup seja salvo independentemente
-  })
+      await runStandupJob(baseEnv)
 
-  it('aborta pipeline e notifica falha no canal quando collectGitActivity falha', async () => {
-    mocks.collect.mockResolvedValue(
-      Result.err(
-        new ExternalServiceError({ service: 'git', message: 'git failed' }),
-      ),
-    )
-    mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
+      // 3 tentativas
+      expect(mocks.generate).toHaveBeenCalledTimes(3)
+      // Backoff: 2 sleeps entre as 3 tentativas
+      expect(mocks.sleep).toHaveBeenCalledTimes(2)
+      // Falha notificada
+      expect(mocks.notifyJobFailed).toHaveBeenCalledOnce()
+      expect(mocks.releaseLock).toHaveBeenCalledWith(
+        'uuid-test',
+        'failed',
+        expect.any(String),
+      )
+    })
 
-    await runStandupJob(baseEnv)
+    it('retenta e tem sucesso na segunda tentativa', async () => {
+      mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
+      mocks.generate
+        .mockResolvedValueOnce(
+          Result.err(
+            new LlmTemporaryError({ message: 'Rate limited', attempt: 1 }),
+          ),
+        )
+        .mockResolvedValueOnce(Result.ok(generatedStandup))
+      mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
+      mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
 
-    expect(mocks.generate).not.toHaveBeenCalled()
-    expect(mocks.repoCreate).not.toHaveBeenCalled()
-    expect(mocks.notifyStandupReady).not.toHaveBeenCalled()
-    // Padrão 8: notifica falha no canal
-    expect(mocks.notifyJobFailed).toHaveBeenCalledWith({
-      botInternalUrl: baseEnv.BOT_INTERNAL_URL,
-      secret: baseEnv.INTERNAL_SECRET,
-      error: expect.stringContaining('git failed'),
-      context: 'standup-job',
+      await runStandupJob(baseEnv)
+
+      expect(mocks.generate).toHaveBeenCalledTimes(2)
+      expect(mocks.sleep).toHaveBeenCalledTimes(1)
+      expect(mocks.repoCreate).toHaveBeenCalledOnce()
+      expect(mocks.releaseLock).toHaveBeenCalledWith('uuid-test', 'success')
+    })
+
+    it('não retenta erros não-transitorios (ExternalServiceError de git)', async () => {
+      mocks.collect.mockResolvedValue(
+        Result.err(
+          new ExternalServiceError({ service: 'git', message: 'git failed' }),
+        ),
+      )
+      mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
+
+      await runStandupJob(baseEnv)
+
+      expect(mocks.collect).toHaveBeenCalledTimes(1)
+      expect(mocks.sleep).not.toHaveBeenCalled()
     })
   })
 
-  it('aborta pipeline e notifica falha quando generateStandup falha', async () => {
-    mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
-    mocks.generate.mockResolvedValue(
-      Result.err(
-        new ExternalServiceError({
-          service: 'anthropic',
-          message: 'LLM failed',
-        }),
-      ),
-    )
-    mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
+  // -------------------------------------------------------------------------
+  // Pipeline happy path
+  // -------------------------------------------------------------------------
 
-    await runStandupJob(baseEnv)
+  describe('Pipeline happy path', () => {
+    it('retorna sem gerar standup quando não há commits hoje', async () => {
+      mocks.collect.mockResolvedValue(Result.ok(emptyGitActivity))
 
-    expect(mocks.repoCreate).not.toHaveBeenCalled()
-    expect(mocks.notifyStandupReady).not.toHaveBeenCalled()
-    expect(mocks.notifyJobFailed).toHaveBeenCalledOnce()
+      await runStandupJob(baseEnv)
+
+      expect(mocks.collect).toHaveBeenCalledOnce()
+      expect(mocks.generate).not.toHaveBeenCalled()
+      expect(mocks.repoCreate).not.toHaveBeenCalled()
+      expect(mocks.notifyStandupReady).not.toHaveBeenCalled()
+    })
+
+    it('coleta, gera, persiste e notifica o bot quando há commits', async () => {
+      mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
+      mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
+      mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
+      mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
+
+      await runStandupJob(baseEnv)
+
+      expect(mocks.collect).toHaveBeenCalledOnce()
+      expect(mocks.generate).toHaveBeenCalledOnce()
+      expect(mocks.repoCreate).toHaveBeenCalledOnce()
+      expect(mocks.notifyStandupReady).toHaveBeenCalledWith({
+        botInternalUrl: baseEnv.BOT_INTERNAL_URL,
+        standupId: savedRecord.id,
+        secret: baseEnv.INTERNAL_SECRET,
+      })
+    })
   })
 
-  it('aborta pipeline e notifica falha quando repo.create falha', async () => {
-    mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
-    mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
-    mocks.repoCreate.mockResolvedValue(
-      Result.err(
-        new ExternalServiceError({ service: 'db', message: 'db error' }),
-      ),
-    )
-    mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
+  // -------------------------------------------------------------------------
+  // Falhas do pipeline
+  // -------------------------------------------------------------------------
 
-    await runStandupJob(baseEnv)
+  describe('Falhas do pipeline', () => {
+    it('aborta pipeline e notifica falha no canal quando collectGitActivity falha', async () => {
+      mocks.collect.mockResolvedValue(
+        Result.err(
+          new ExternalServiceError({ service: 'git', message: 'git failed' }),
+        ),
+      )
+      mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
 
-    expect(mocks.notifyStandupReady).not.toHaveBeenCalled()
-    expect(mocks.notifyJobFailed).toHaveBeenCalledOnce()
-  })
+      await runStandupJob(baseEnv)
 
-  it('não lança exceção quando notifyJobFailed falha (double non-fatal)', async () => {
-    mocks.collect.mockResolvedValue(
-      Result.err(
-        new ExternalServiceError({ service: 'git', message: 'git failed' }),
-      ),
-    )
-    mocks.notifyJobFailed.mockResolvedValue(
-      Result.err(
-        new ExternalServiceError({
-          service: 'discord-bot',
-          message: 'Bot unavailable',
-        }),
-      ),
-    )
+      expect(mocks.generate).not.toHaveBeenCalled()
+      expect(mocks.repoCreate).not.toHaveBeenCalled()
+      expect(mocks.notifyStandupReady).not.toHaveBeenCalled()
+      expect(mocks.notifyJobFailed).toHaveBeenCalledWith({
+        botInternalUrl: baseEnv.BOT_INTERNAL_URL,
+        secret: baseEnv.INTERNAL_SECRET,
+        error: expect.stringContaining('git failed'),
+        context: 'standup-job',
+      })
+    })
 
-    await expect(runStandupJob(baseEnv)).resolves.toBeUndefined()
-  })
+    it('aborta pipeline e notifica falha quando generateStandup falha (non-retryable)', async () => {
+      mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
+      mocks.generate.mockResolvedValue(
+        Result.err(
+          new ExternalServiceError({
+            service: 'anthropic',
+            message: 'LLM permanent error',
+          }),
+        ),
+      )
+      mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
 
-  it('mantém standup salvo e loga erro quando notificação falha (non-fatal)', async () => {
-    mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
-    mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
-    mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
-    mocks.notifyStandupReady.mockResolvedValue(
-      Result.err(
-        new ExternalServiceError({
-          service: 'discord-bot',
-          message: 'Notification failed',
-        }),
-      ),
-    )
+      await runStandupJob(baseEnv)
 
-    // Não deve lançar exceção — notificação é non-fatal
-    await expect(runStandupJob(baseEnv)).resolves.toBeUndefined()
+      expect(mocks.generate).toHaveBeenCalledTimes(1) // sem retry para non-retryable
+      expect(mocks.repoCreate).not.toHaveBeenCalled()
+      expect(mocks.notifyStandupReady).not.toHaveBeenCalled()
+      expect(mocks.notifyJobFailed).toHaveBeenCalledOnce()
+    })
 
-    // Standup foi persistido
-    expect(mocks.repoCreate).toHaveBeenCalledOnce()
-    // Notificação foi tentada
-    expect(mocks.notifyStandupReady).toHaveBeenCalledOnce()
+    it('aborta pipeline e notifica falha quando repo.create falha', async () => {
+      mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
+      mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
+      mocks.repoCreate.mockResolvedValue(
+        Result.err(
+          new ExternalServiceError({ service: 'db', message: 'db error' }),
+        ),
+      )
+      mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
+
+      await runStandupJob(baseEnv)
+
+      expect(mocks.notifyStandupReady).not.toHaveBeenCalled()
+      expect(mocks.notifyJobFailed).toHaveBeenCalledOnce()
+    })
+
+    it('não lança exceção quando notifyJobFailed falha (double non-fatal)', async () => {
+      mocks.collect.mockResolvedValue(
+        Result.err(
+          new ExternalServiceError({ service: 'git', message: 'git failed' }),
+        ),
+      )
+      mocks.notifyJobFailed.mockResolvedValue(
+        Result.err(
+          new ExternalServiceError({
+            service: 'discord-bot',
+            message: 'Bot unavailable',
+          }),
+        ),
+      )
+
+      await expect(runStandupJob(baseEnv)).resolves.toBeUndefined()
+    })
+
+    it('mantém standup salvo e loga erro quando notificação falha (non-fatal)', async () => {
+      mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
+      mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
+      mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
+      mocks.notifyStandupReady.mockResolvedValue(
+        Result.err(
+          new ExternalServiceError({
+            service: 'discord-bot',
+            message: 'Notification failed',
+          }),
+        ),
+      )
+
+      // Não deve lançar exceção — notificação é non-fatal
+      await expect(runStandupJob(baseEnv)).resolves.toBeUndefined()
+
+      // Standup foi persistido e lock liberado com sucesso
+      expect(mocks.repoCreate).toHaveBeenCalledOnce()
+      expect(mocks.notifyStandupReady).toHaveBeenCalledOnce()
+      expect(mocks.releaseLock).toHaveBeenCalledWith('uuid-test', 'success')
+    })
   })
 })

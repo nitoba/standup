@@ -451,24 +451,67 @@ app.use("/internal/*", async (c, next) => {
 - Guild commands (propagacao instantanea) quando `DISCORD_GUILD_ID` presente, global caso contrario
 - Implementado em `discord/commands/register.ts`
 
+## Padroes de Jobs Resilientes (Akita)
+
+Implementados em `apps/worker/src/job/standup-job.ts` e `packages/db`:
+
+**Padrao 1 — Retry com Backoff Exponencial:**
+- `withRetry()` helper: 3 tentativas, delays 5s→10s→20s
+- So retenta `LlmTemporaryError` e `McpConnectionError` (erros transitorios)
+- Erros nao-retentaveis retornam imediatamente sem esperar
+
+**Padrao 2 — Lock Distribuido via `job_runs`:**
+- `JobRunRepository.acquireLock(jobName, date)`:
+  - `running` existente → `LockAlreadyHeldError`
+  - `success` existente → `JobAlreadyCompletedError`
+  - `failed` existente → deleta e permite nova tentativa
+- `releaseLock(id, 'success'|'failed', error?)` no `finally` do job
+- Lock scoped por `(jobName, date)` — previne execucao concorrente e duplicate runs
+
+**Padrao 3 — Idempotencia:**
+- `JobAlreadyCompletedError` torna o job no-op se ja teve `success` no dia
+
+**Padrao 5 — Recovery Cron:**
+- `recoveryCron` em `scheduler.ts` — executado 30 min apos cron principal (`STANDUP_RECOVERY_CRON`)
+- Busca runs em `running` com mais de 1h → marca como `failed`
+- Verifica se existe `success` para hoje → se nao, re-executa o job
+
+**Padrao 6 — Notificacoes (ja existia):**
+- `notifyStandupReady()` e `notifyJobFailed()` em `apps/worker/src/notifications/`
+
+### Novos TaggedErrors (packages/domain)
+
+```ts
+LlmTemporaryError    // erro transitorio de LLM (safe to retry)
+McpConnectionError   // falha de conexao MCP (safe to retry)
+LockAlreadyHeldError // job ja esta rodando para (jobName, date)
+JobAlreadyCompletedError // job ja completou com sucesso para (jobName, date)
+```
+
+### JobRunRepository (packages/db)
+
+`acquireLock(jobName, date)`, `releaseLock(id, status, error?)`, `findStaleRuns(maxAgeMs)`, `findByJobAndDate(jobName, date)` — 13 testes unitarios.
+
+Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock por dia.
+
 ## Estado Atual (o que esta completo)
 
 ### Pacotes completos (com testes)
 
-- `packages/domain` — types, schemas Zod, state machine, TaggedErrors
-- `packages/config` — `loadEnv()` com todas as env vars (incluindo `DISCORD_GUILD_ID` opcional)
+- `packages/domain` — types, schemas Zod, state machine, TaggedErrors (incl. 4 novos erros de job)
+- `packages/config` — `loadEnv()` com todas as env vars (incl. `DISCORD_GUILD_ID` e `STANDUP_RECOVERY_CRON`)
 - `packages/logger` — Winston estruturado
 - `packages/git-collector` — 29 testes (bun test)
-- `packages/db` — StandupRepository completo, 18 testes (bun test)
+- `packages/db` — StandupRepository + JobRunRepository, 31 testes (bun test)
 - `packages/standup-generator` — generateStandup + MCP enrichment, 18 testes (vitest)
 
 ### Apps completos
 
-- `apps/worker` — 15 testes (vitest)
-  - `job/standup-job.ts`: pipeline collect→generate→persist→notify
+- `apps/worker` — 22 testes (vitest)
+  - `job/standup-job.ts`: pipeline com lock + retry + idempotencia + notify
   - `notifications/notify-standup-ready.ts`: POST /internal/notify/standup-ready
-  - `notifications/notify-job-failed.ts`: POST /internal/notify/job-failed (Padrao 8)
-  - `scheduler.ts`: startScheduler() com croner
+  - `notifications/notify-job-failed.ts`: POST /internal/notify/job-failed
+  - `scheduler.ts`: startScheduler() + recoveryCron (Padrao 5)
   - `index.ts`: entrypoint puro
 
 - `apps/discord-bot` — 44 testes (vitest)

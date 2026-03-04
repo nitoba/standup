@@ -10,6 +10,9 @@ const envSchema = z.object({
   TIMEZONE: z.string().default('America/Sao_Paulo'),
   STANDUP_CRON: z.string().default('30 17 * * 1-5'),
   STANDUP_REMINDER_CRON: z.string().default('20 17 * * 1-5'),
+  // Recovery cron — roda X minutos após o principal como safety net (Padrão 5 do Akita)
+  // Default: 18:00 nos dias úteis (30 min após o cron principal das 17:30)
+  STANDUP_RECOVERY_CRON: z.string().default('0 18 * * 1-5'),
   DISCORD_BOT_TOKEN: z.string().min(1),
   DISCORD_CHANNEL_ID: z.string().min(1),
   DISCORD_USER_ID: z.string().min(1),
