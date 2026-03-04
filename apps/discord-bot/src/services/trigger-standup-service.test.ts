@@ -1,0 +1,88 @@
+import { ExternalServiceError } from '@standup/domain'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { triggerStandup } from './trigger-standup-service.js'
+
+const mockFetch = vi.fn()
+vi.stubGlobal('fetch', mockFetch)
+
+function response(status: number): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+  } as Response
+}
+
+describe('triggerStandup', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('retorna accepted=true quando API responde 202', async () => {
+    mockFetch.mockResolvedValue(response(202))
+
+    const result = await triggerStandup('user-123', {
+      apiBaseUrl: 'http://localhost:3333',
+    })
+
+    expect(result.isOk()).toBe(true)
+    if (result.isOk()) {
+      expect(result.value).toEqual({ accepted: true })
+    }
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:3333/standups/trigger',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ discordUserId: 'user-123' }),
+      },
+    )
+  })
+
+  it('retorna forbidden quando API responde 403', async () => {
+    mockFetch.mockResolvedValue(response(403))
+
+    const result = await triggerStandup('user-123', {
+      apiBaseUrl: 'http://localhost:3333',
+    })
+
+    expect(result.isOk()).toBe(true)
+    if (result.isOk()) {
+      expect(result.value).toEqual({ accepted: false, reason: 'forbidden' })
+    }
+  })
+
+  it('retorna ExternalServiceError quando API responde erro inesperado', async () => {
+    mockFetch.mockResolvedValue(response(500))
+
+    const result = await triggerStandup('user-123', {
+      apiBaseUrl: 'http://localhost:3333',
+    })
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(ExternalServiceError.is(result.error)).toBe(true)
+      expect(result.error.service).toBe('api')
+      expect(result.error.message).toContain('HTTP 500')
+    }
+  })
+
+  it('retorna ExternalServiceError quando fetch falha', async () => {
+    mockFetch.mockRejectedValue(new Error('network down'))
+
+    const result = await triggerStandup('user-123', {
+      apiBaseUrl: 'http://localhost:3333',
+    })
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(ExternalServiceError.is(result.error)).toBe(true)
+      expect(result.error.service).toBe('api')
+      expect(result.error.message).toContain('network down')
+    }
+  })
+})

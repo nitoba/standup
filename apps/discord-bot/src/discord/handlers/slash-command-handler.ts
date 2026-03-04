@@ -19,7 +19,7 @@ const logger = createServiceLogger({
 export async function handleSlashCommand(
   interaction: ChatInputCommandInteraction,
   client: Client,
-  env: Pick<AppEnv, 'DATABASE_URL' | 'DISCORD_CHANNEL_ID'>,
+  env: Pick<AppEnv, 'DATABASE_URL' | 'DISCORD_CHANNEL_ID' | 'API_BASE_URL'>,
 ): Promise<void> {
   if (interaction.commandName !== 'standup') return
 
@@ -31,7 +31,7 @@ export async function handleSlashCommand(
   }).info('Received slash command')
 
   if (sub === 'trigger') {
-    await handleTrigger(interaction)
+    await handleTrigger(interaction, { apiBaseUrl: env.API_BASE_URL })
   } else if (sub === 'list') {
     await handleList(interaction, { databaseUrl: env.DATABASE_URL })
   } else if (sub === 'approve') {

@@ -20,6 +20,9 @@ import { createStandupRouter } from './router.js'
 // ---------------------------------------------------------------------------
 
 const DATABASE_URL = ':memory:'
+const ALLOWED_DISCORD_USER_ID = 'discord-user-123'
+const WORKER_INTERNAL_URL = 'http://localhost:3335'
+const INTERNAL_SECRET = 'internal-secret'
 
 const standupRecord = {
   id: 'standup-abc',
@@ -45,7 +48,12 @@ describe('GET /standups', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    app = createStandupRouter({ databaseUrl: DATABASE_URL })
+    app = createStandupRouter({
+      databaseUrl: DATABASE_URL,
+      allowedDiscordUserId: ALLOWED_DISCORD_USER_ID,
+      workerInternalUrl: WORKER_INTERNAL_URL,
+      internalSecret: INTERNAL_SECRET,
+    })
   })
 
   afterEach(() => {

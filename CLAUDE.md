@@ -64,15 +64,22 @@ worker ──POST /internal/notify/standup-ready──► discord-bot (porta BOT
          header: x-internal-secret                   │
                                                      ├─ busca standup no DB
                                                      └─ envia DM ao usuario (non-fatal)
+
+api ──POST /internal/trigger/standup──────────────► worker (porta WORKER_INTERNAL_PORT)
+      header: x-internal-secret                        │
+                                                      └─ dispara runStandupJob em background
 ```
 
 - Worker nao sabe que Discord existe — apenas faz POST HTTP generico
+- API nao executa job inline — apenas encaminha trigger manual para o worker
+- `POST /standups/trigger` no API valida `discordUserId === DISCORD_USER_ID`
 - discord-bot sobe **dois servidores** na mesma instancia:
   - Hono na `BOT_INTERNAL_PORT` (3334) para rotas internas
   - Gateway Discord (discord.js) para interacoes com botoes
+- worker sobe scheduler + Hono interno na `WORKER_INTERNAL_PORT` (3335)
 - Autenticacao interna: header `x-internal-secret` com `INTERNAL_SECRET`
 - Falha no DM e **non-fatal**: standup ja esta salvo no DB, usuario pode aprovar via API
-- Cada app na sua porta: `api=3333`, `discord-bot=3334` (`BOT_INTERNAL_PORT`)
+- Cada app na sua porta: `api=3333`, `discord-bot=3334`, `worker=3335`
 
 ## Convencoes de Codigo
 
@@ -163,6 +170,7 @@ standup/
             handlers.test.ts    # testes dos 3 subcommands
           handlers/         # Processamento de interacoes Discord
             button-handler.ts       # parse customId → defer → handleStandupInteraction → reply
+            button-handler.test.ts
             slash-command-handler.ts # roteamento /standup subcommands
             interaction-handler.ts  # logica approve/reject/regenerate + transicoes de estado
             interaction-handler.test.ts
@@ -190,13 +198,20 @@ standup/
         job/                # Pipeline de geracao de standup
           standup-job.ts        # collect → generate → persist → notify
           standup-job.test.ts
+        http/
+          middleware/
+            auth.ts             # internalAuthMiddleware(secret) para /internal/*
+          trigger/
+            standup.ts          # handler POST /internal/trigger/standup
+          router.ts             # monta Hono + auth middleware + handler trigger
+          router.test.ts
         notifications/      # Notificacoes HTTP para o discord-bot
           notify-standup-ready.ts     # POST /internal/notify/standup-ready
           notify-standup-ready.test.ts
           notify-job-failed.ts        # POST /internal/notify/job-failed
           notify-job-failed.test.ts
         scheduler.ts        # startScheduler() — setup de cron jobs
-        index.ts            # Entrypoint: loadEnv → startScheduler
+        index.ts            # Entrypoint: loadEnv → startScheduler + HTTP interno
         vitest.setup.ts     # Shim Bun.randomUUIDv7 para Vitest
       vitest.config.ts      # Config Vitest local (aponta setupFiles)
 
@@ -270,6 +285,15 @@ NODE_ENV=development
 # Comunicacao interna worker→bot
 BOT_INTERNAL_URL=http://localhost:3334
 BOT_INTERNAL_PORT=3334
+
+# Comunicacao interna api→worker
+WORKER_INTERNAL_URL=http://localhost:3335
+WORKER_INTERNAL_PORT=3335
+
+# URL publica/interna do API (usada pelo discord-bot em /standup trigger)
+API_BASE_URL=http://localhost:3333
+
+# Segredo compartilhado para rotas internas
 INTERNAL_SECRET=change-me-in-production
 ```
 
@@ -350,6 +374,17 @@ vi.mock("../notifications/notify-standup-ready.js", () => ({
   notifyStandupReady: mocks.notifyStandupReady,
 }));
 ```
+
+### Vitest + import transitive de router (bun:sqlite)
+
+Quando um teste importa `router.ts`, ele carrega handlers e services transitivamente.
+Se algum service importa `@standup/db`, o Vitest (Node) tenta resolver `bun:sqlite` e falha.
+
+Padrao para testes de router: mockar **todos** os services importados pelo router,
+mesmo os nao usados diretamente no teste.
+
+Exemplo (`apps/api/src/standup/trigger.test.ts`): ao testar apenas `/standups/trigger`,
+foi necessario mockar tambem `listStandups/getStandupById/updateStandupStatus`.
 
 ### discord.js: race condition no ClientReady
 
@@ -454,6 +489,7 @@ app.use("/internal/*", async (c, next) => {
 
 **Padrao 13 — Application Commands:**
 - `SlashCommandBuilder` com `/standup` e 3 subcommands: `trigger`, `list`, `approve <id>`
+- `trigger` chama `POST /standups/trigger` no API com `discordUserId = interaction.user.id`
 - `registerApplicationCommands()` chamado no `ClientReady` — idempotente, safe on reconnect
 - Guild commands (propagacao instantanea) quando `DISCORD_GUILD_ID` presente, global caso contrario
 - Implementado em `discord/commands/register.ts`
@@ -506,7 +542,7 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 ### Pacotes completos (com testes)
 
 - `packages/domain` — types, schemas Zod, state machine, TaggedErrors (incl. 4 novos erros de job)
-- `packages/config` — `loadEnv()` com todas as env vars (incl. `DISCORD_GUILD_ID` e `STANDUP_RECOVERY_CRON`)
+- `packages/config` — `loadEnv()` com todas as env vars (incl. `WORKER_INTERNAL_URL`, `WORKER_INTERNAL_PORT` e `API_BASE_URL`)
 - `packages/logger` — Winston estruturado
 - `packages/git-collector` — 29 testes (bun test)
 - `packages/db` — StandupRepository + JobRunRepository, 31 testes (bun test)
@@ -514,33 +550,40 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 
 ### Apps completos
 
-- `apps/api` — 16 testes (vitest)
-  - `standup/router.ts`: `createStandupRouter(opts)` — 3 rotas
+- `apps/api` — 23 testes (vitest)
+  - `standup/router.ts`: `createStandupRouter(opts)` — 4 rotas
     - `GET /standups` — lista com filtros opcionais `?status=&date=`
     - `GET /standups/:id` — detalhe por ID
     - `PATCH /standups/:id/status` — atualiza status (state machine valida transições)
+    - `POST /standups/trigger` — trigger manual validando `discordUserId === DISCORD_USER_ID`
   - handlers por responsabilidade: `standup/list.ts`, `standup/get-by-id.ts`, `standup/update-status.ts`
+  - handler de trigger: `standup/trigger.ts`
   - service isolado: `services/standup-service.ts`
+  - service de trigger interno: `services/standup-trigger-service.ts`
   - middleware HTTP extraido: `http/middleware.ts`
   - `index.ts`: entrypoint — middleware logging, health, monta standup router
 
-- `apps/worker` — 22 testes (vitest)
+- `apps/worker` — 26 testes (vitest)
   - `job/standup-job.ts`: pipeline com lock + retry + idempotencia + notify
+  - `http/router.ts`: auth middleware + POST /internal/trigger/standup
+  - handler por responsabilidade: `http/trigger/standup.ts`
+  - middleware extraido: `http/middleware/auth.ts`
   - `notifications/notify-standup-ready.ts`: POST /internal/notify/standup-ready
   - `notifications/notify-job-failed.ts`: POST /internal/notify/job-failed
   - `scheduler.ts`: startScheduler() + recoveryCron (Padrao 5)
-  - `index.ts`: entrypoint puro
+  - `index.ts`: entrypoint puro (scheduler + HTTP interno)
 
-- `apps/discord-bot` — 46 testes (vitest)
+- `apps/discord-bot` — 55 testes (vitest)
   - `http/router.ts`: auth middleware + POST /internal/notify/standup-ready + /job-failed
   - handlers por responsabilidade: `http/notify/standup-ready.ts` e `http/notify/job-failed.ts`
   - middleware extraido: `http/middleware/auth.ts`
-  - services isolados: `services/standup-notification-service.ts` e `services/job-notification-service.ts`
+  - services isolados: `services/standup-notification-service.ts`, `services/job-notification-service.ts` e `services/trigger-standup-service.ts`
   - `discord/notifications/send-review-dm.ts`: DM com embed azul + botoes
   - `discord/notifications/send-channel-notification.ts`: helper generico de canal
   - `discord/notifications/publish-standup.ts`: publica embed verde no canal
   - `discord/handlers/interaction-handler.ts`: logica approve/reject/regenerate
   - `discord/handlers/button-handler.ts`: handler de botoes com emojis (Padrao 2)
+  - `/standup trigger`: integrado ao API (`POST /standups/trigger`) com feedback ephemeral
   - `discord/handlers/slash-command-handler.ts`: roteador de slash commands
   - `discord/commands/`: register + trigger + list + approve (Padrao 13)
   - `discord/embeds.ts`: builders de embed (Padrao 3)
@@ -552,12 +595,11 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 
 ## Proximos Passos
 
-1. **Slice 7 — `POST /standups/trigger`** (trigger manual do job via API)
-   - Decidir arquitetura: worker ganha endpoint HTTP `/trigger` (novo Hono server)?
-   - Ou API executa o job inline (importando as dependencias do worker)?
-
-2. **Docker + docker-compose**
+1. **Docker + docker-compose**
    - Dockerfile multi-stage para cada app
    - `docker-compose.yml` orquestrando api + discord-bot + worker
 
-3. **`.env.example`** na raiz do monorepo
+2. **`.env.example`** na raiz do monorepo
+
+3. **Regenerate com trigger automatico (opcional)**
+   - Ao clicar `regenerate`, rejeitar o atual e chamar trigger manual via API

@@ -47,7 +47,15 @@ app.get('/ready', (c) => {
 // Domain routes
 // ---------------------------------------------------------------------------
 
-app.route('/', createStandupRouter({ databaseUrl: env.DATABASE_URL }))
+app.route(
+  '/',
+  createStandupRouter({
+    databaseUrl: env.DATABASE_URL,
+    allowedDiscordUserId: env.DISCORD_USER_ID,
+    workerInternalUrl: env.WORKER_INTERNAL_URL,
+    internalSecret: env.INTERNAL_SECRET,
+  }),
+)
 
 // ---------------------------------------------------------------------------
 // Error handler — catch-all para erros não tratados pelos handlers

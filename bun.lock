@@ -52,6 +52,7 @@
         "@standup/logger": "workspace:*",
         "@standup/standup-generator": "workspace:*",
         "croner": "^10.0.1",
+        "hono": "^4.12.5",
       },
     },
     "packages/config": {

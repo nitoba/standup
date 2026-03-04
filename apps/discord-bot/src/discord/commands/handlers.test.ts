@@ -1,4 +1,4 @@
-import { NotFoundError, Result } from '@standup/domain'
+import { ExternalServiceError, NotFoundError, Result } from '@standup/domain'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   repoList: vi.fn(),
   getDb: vi.fn().mockReturnValue({}),
+  triggerStandup: vi.fn(),
   handleInteraction: vi.fn(),
   loggerInfo: vi.fn(),
   loggerError: vi.fn(),
@@ -34,6 +35,10 @@ vi.mock('@standup/db', () => {
   return { getDb: mocks.getDb, StandupRepository }
 })
 
+vi.mock('../../services/trigger-standup-service.js', () => ({
+  triggerStandup: mocks.triggerStandup,
+}))
+
 // ---------------------------------------------------------------------------
 // Import após mocks
 // ---------------------------------------------------------------------------
@@ -49,6 +54,7 @@ import { handleTrigger } from './trigger.js'
 
 const DATABASE_URL = ':memory:'
 const CHANNEL_ID = 'channel-123'
+const API_BASE_URL = 'http://localhost:3333'
 
 function makeInteraction(
   overrides: Partial<{
@@ -102,23 +108,61 @@ describe('handleTrigger', () => {
   beforeEach(() => vi.clearAllMocks())
   afterEach(() => vi.restoreAllMocks())
 
-  it('responde com mensagem ephemeral informando disponibilidade futura', async () => {
+  it('responde com sucesso quando API aceita trigger manual', async () => {
+    mocks.triggerStandup.mockResolvedValue(Result.ok({ accepted: true }))
     const interaction = makeInteraction()
 
-    await handleTrigger(interaction)
+    await handleTrigger(interaction, { apiBaseUrl: API_BASE_URL })
 
     expect(mocks.interactionReply).toHaveBeenCalledTimes(1)
     const [replyArg] = mocks.interactionReply.mock.calls[0] as [
       { content: string; ephemeral: boolean },
     ]
     expect(replyArg.ephemeral).toBe(true)
-    expect(replyArg.content).toMatch(/trigger/i)
+    expect(replyArg.content).toMatch(/sucesso/i)
+    expect(mocks.triggerStandup).toHaveBeenCalledWith('user-abc', {
+      apiBaseUrl: API_BASE_URL,
+    })
   })
 
-  it('loga o userId do usuário que disparou o comando', async () => {
+  it('responde com mensagem de autorizado quando API retorna forbidden', async () => {
+    mocks.triggerStandup.mockResolvedValue(
+      Result.ok({ accepted: false, reason: 'forbidden' }),
+    )
+    const interaction = makeInteraction()
+
+    await handleTrigger(interaction, { apiBaseUrl: API_BASE_URL })
+
+    const [replyArg] = mocks.interactionReply.mock.calls[0] as [
+      { content: string; ephemeral: boolean },
+    ]
+    expect(replyArg.content).toMatch(/nao esta autorizado/i)
+  })
+
+  it('responde com erro quando chamada ao API falha', async () => {
+    mocks.triggerStandup.mockResolvedValue(
+      Result.err(
+        new ExternalServiceError({
+          service: 'api',
+          message: 'HTTP 503',
+        }),
+      ),
+    )
+    const interaction = makeInteraction()
+
+    await handleTrigger(interaction, { apiBaseUrl: API_BASE_URL })
+
+    const [replyArg] = mocks.interactionReply.mock.calls[0] as [
+      { content: string; ephemeral: boolean },
+    ]
+    expect(replyArg.content).toMatch(/falha ao disparar/i)
+  })
+
+  it('loga o userId do usuario que disparou o comando', async () => {
+    mocks.triggerStandup.mockResolvedValue(Result.ok({ accepted: true }))
     const interaction = makeInteraction({ userId: 'user-xyz' })
 
-    await handleTrigger(interaction)
+    await handleTrigger(interaction, { apiBaseUrl: API_BASE_URL })
 
     expect(mocks.loggerInfo).toHaveBeenCalledWith(
       expect.stringContaining('trigger'),

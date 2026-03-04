@@ -95,6 +95,9 @@ const baseEnv: AppEnv = {
   GIT_SINCE_PERIOD: '16 hours ago',
   BOT_INTERNAL_URL: 'http://localhost:3334',
   BOT_INTERNAL_PORT: 3334,
+  WORKER_INTERNAL_URL: 'http://localhost:3335',
+  WORKER_INTERNAL_PORT: 3335,
+  API_BASE_URL: 'http://localhost:3333',
   INTERNAL_SECRET: 'test-secret',
 }
 

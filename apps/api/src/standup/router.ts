@@ -2,6 +2,7 @@ import { sValidator } from '@hono/standard-validator'
 import { Hono } from 'hono'
 import { handleGetStandupById } from './get-by-id.js'
 import { handleListStandups, listQuerySchema } from './list.js'
+import { handleTriggerStandup, triggerBodySchema } from './trigger.js'
 import {
   handleUpdateStandupStatus,
   updateStatusBodySchema,
@@ -9,6 +10,9 @@ import {
 
 export interface StandupRouterDeps {
   databaseUrl: string
+  allowedDiscordUserId: string
+  workerInternalUrl: string
+  internalSecret: string
 }
 
 /**
@@ -42,6 +46,15 @@ export function createStandupRouter(deps: StandupRouterDeps): Hono {
       )
     },
   )
+
+  // POST /standups/trigger — trigger manual autenticado por discordUserId
+  app.post('/standups/trigger', sValidator('json', triggerBodySchema), (c) => {
+    return handleTriggerStandup(c, c.req.valid('json'), {
+      allowedDiscordUserId: deps.allowedDiscordUserId,
+      workerInternalUrl: deps.workerInternalUrl,
+      internalSecret: deps.internalSecret,
+    })
+  })
 
   return app
 }

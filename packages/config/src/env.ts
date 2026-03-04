@@ -28,6 +28,9 @@ const envSchema = z.object({
   GIT_SINCE_PERIOD: z.string().default('16 hours ago'),
   BOT_INTERNAL_URL: z.string().default('http://localhost:3334'),
   BOT_INTERNAL_PORT: z.coerce.number().int().positive().default(3334),
+  WORKER_INTERNAL_URL: z.string().default('http://localhost:3335'),
+  WORKER_INTERNAL_PORT: z.coerce.number().int().positive().default(3335),
+  API_BASE_URL: z.string().default('http://localhost:3333'),
   INTERNAL_SECRET: z.string().default('change-me-in-production'),
 })
 

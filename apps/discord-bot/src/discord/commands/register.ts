@@ -27,9 +27,7 @@ export function buildStandupCommand(): SlashCommandBuilder {
     .setName('standup')
     .setDescription('Gerenciar standups diários')
     .addSubcommand((sub) =>
-      sub
-        .setName('trigger')
-        .setDescription('Gerar standup agora (disponível via API em breve)'),
+      sub.setName('trigger').setDescription('Gerar standup agora'),
     )
     .addSubcommand((sub) =>
       sub
