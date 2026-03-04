@@ -55,7 +55,7 @@ export async function runStandupJob(env: AppEnv): Promise<void> {
               env.AZURE_DEVOPS_ORG_URL ??
               `https://dev.azure.com/${env.AZURE_DEVOPS_ORG}`,
             defaultProject: env.AZURE_DEVOPS_DEFAULT_PROJECT,
-            pat: env.AZURE_DEVOPS_PAT ?? '',
+            pat: env.AZURE_DEVOPS_PAT,
           },
         },
       ),

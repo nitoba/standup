@@ -2,6 +2,8 @@ import { loadEnv } from '@standup/config'
 import { Result } from '@standup/domain'
 import { createServiceLogger, withContext } from '@standup/logger'
 import { Client, Events, GatewayIntentBits } from 'discord.js'
+import type { StandupAction } from './discord/interaction-handler.js'
+import { handleStandupInteraction } from './discord/interaction-handler.js'
 import { createInternalRouter } from './http/internal-routes.js'
 
 export async function startDiscordBot(): Promise<void> {
@@ -16,9 +18,6 @@ export async function startDiscordBot(): Promise<void> {
   }
 
   const env = envResult.value
-  if (!env.DISCORD_BOT_TOKEN) {
-    throw new Error('Missing DISCORD_BOT_TOKEN')
-  }
 
   // ---------------------------------------------------------------------------
   // HTTP server for internal routes (worker → bot notifications)
@@ -70,17 +69,43 @@ export async function startDiscordBot(): Promise<void> {
     })
     interactionLogger.info('Received standup action from button')
 
-    // TODO Slice 5: implement real approve/reject/regenerate handlers
-    await interaction.reply({
-      content: `[${action}] recebido para standup ${standupId}.`,
-      ephemeral: true,
-    })
+    // Defer update immediately to avoid Discord's 3s interaction timeout.
+    // We'll edit the reply after async operations complete.
+    await interaction.deferUpdate()
+
+    const result = await handleStandupInteraction(
+      action as StandupAction,
+      standupId,
+      {
+        databaseUrl: env.DATABASE_URL,
+        discordChannelId: env.DISCORD_CHANNEL_ID,
+      },
+      client,
+    )
+
+    if (result.status === 'ok') {
+      interactionLogger.info('Standup interaction handled', {
+        outcome: result.value.action,
+      })
+      await interaction.editReply({
+        content: result.value.message,
+        components: [], // remove buttons after action
+      })
+    } else {
+      interactionLogger.error('Standup interaction failed', {
+        error: result.error.message,
+      })
+      await interaction.editReply({
+        content: `Erro ao processar ação: ${result.error.message}`,
+        components: [],
+      })
+    }
   })
 
   await new Promise<void>((resolve, reject) => {
     client.once(Events.ClientReady, () => resolve())
     client.once(Events.Error, reject)
-    client.login(env.DISCORD_BOT_TOKEN as string).catch(reject)
+    client.login(env.DISCORD_BOT_TOKEN).catch(reject)
   })
 }
 

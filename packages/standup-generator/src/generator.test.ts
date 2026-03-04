@@ -387,7 +387,7 @@ describe('generateStandup', () => {
     })
 
     expect(result.status).toBe('error')
-    if (result.status === 'error') {
+    if (result.isErr()) {
       expect(result.error.message).toContain('No authentication configured')
     }
   })
@@ -409,7 +409,7 @@ describe('generateStandup', () => {
     const result = await generateStandup(makeInput(), baseConfig)
 
     expect(result.status).toBe('error')
-    if (result.status === 'error') {
+    if (result.isErr()) {
       expect(result.error.message).toContain('rate limit')
     }
   })

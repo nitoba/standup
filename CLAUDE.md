@@ -61,7 +61,7 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 
 ```
 worker ──POST /internal/notify/standup-ready──► discord-bot (porta BOT_INTERNAL_PORT)
-         header: x-internal-secret                  │
+         header: x-internal-secret                   │
                                                      ├─ busca standup no DB
                                                      └─ envia DM ao usuario (non-fatal)
 ```
@@ -173,16 +173,21 @@ nao existem no ambiente de teste. Solucao adotada: shim em `vitest.setup.ts`:
 
 ```ts
 // apps/worker/src/vitest.setup.ts
-import { randomUUID } from 'node:crypto'
-if (typeof globalThis.Bun === 'undefined') {
-  Object.assign(globalThis, { Bun: { randomUUIDv7: (): string => randomUUID() } })
+import { randomUUID } from "node:crypto";
+if (typeof globalThis.Bun === "undefined") {
+  Object.assign(globalThis, {
+    Bun: { randomUUIDv7: (): string => randomUUID() },
+  });
 }
 ```
 
 Referenciar no `vitest.config.ts` local do pacote:
+
 ```ts
 // apps/worker/vitest.config.ts
-export default defineConfig({ test: { setupFiles: ['./src/vitest.setup.ts'] } })
+export default defineConfig({
+  test: { setupFiles: ["./src/vitest.setup.ts"] },
+});
 ```
 
 `bunx --bun vitest` nao funciona com monorepo ESM (imports SSR corrompidos). Manter
@@ -200,17 +205,20 @@ Se ocorrer, o shim em `vitest.setup.ts` resolve sem precisar reverter o codigo.
 Usar funcao construtora real:
 
 ```ts
-vi.mock('@standup/db', () => {
-  function StandupRepository() { return { create: mocks.repoCreate } }
-  return { getDb: mocks.getDb, StandupRepository }
-})
+vi.mock("@standup/db", () => {
+  function StandupRepository() {
+    return { create: mocks.repoCreate };
+  }
+  return { getDb: mocks.getDb, StandupRepository };
+});
 ```
 
 O mesmo padrao se aplica ao `discord.js Client`:
+
 ```ts
 function Client(this: Record<string, unknown>) {
-  this.login = mocks.login
-  this.once = mocks.once
+  this.login = mocks.login;
+  this.once = mocks.once;
 }
 ```
 
@@ -223,8 +231,10 @@ usar `vi.hoisted()` para evitar TDZ (Temporal Dead Zone):
 const mocks = vi.hoisted(() => ({
   collect: vi.fn(),
   notifyStandupReady: vi.fn(),
-}))
-vi.mock('./standup-notifier.js', () => ({ notifyStandupReady: mocks.notifyStandupReady }))
+}));
+vi.mock("./standup-notifier.js", () => ({
+  notifyStandupReady: mocks.notifyStandupReady,
+}));
 ```
 
 ### discord.js: race condition no ClientReady
@@ -234,31 +244,86 @@ Padrao correto para aguardar conexao:
 
 ```ts
 await new Promise<void>((resolve, reject) => {
-  client.once(Events.ClientReady, () => resolve())
-  client.once(Events.Error, reject)
-  client.login(token).catch(reject)
+  client.once(Events.ClientReady, () => resolve());
+  client.once(Events.Error, reject);
+  client.login(token).catch(reject);
+});
+```
+
+### discord.js isSendable() para channels com send()
+
+`channel.isTextBased()` retorna uma union que inclui `PartialGroupDMChannel` que nao tem `send()`.
+Usar `channel.isSendable()` para narrowing correto antes de enviar mensagem:
+
+```ts
+if (!channel.isTextBased() || !channel.isSendable()) {
+  throw new ExternalServiceError({ service: 'discord', message: 'Not a sendable channel' })
+}
+await channel.send({ content })
+```
+
+`SendableChannels` e exportado como tipo: `type SendableChannels = Extract<Channel, { send: (...args: any[]) => any }>`.
+
+### interaction.deferUpdate() para evitar timeout de 3s no Discord
+
+Operacoes de DB + publicacao podem demorar mais que 3s (limite do Discord para interacoes).
+Padrao correto:
+
+```ts
+await interaction.deferUpdate()         // avisa Discord que estamos processando
+// ... logica async ...
+await interaction.editReply({           // atualiza a mensagem original
+  content: result.message,
+  components: [],                        // remove os botoes apos a acao
 })
+```
+
+`deferUpdate()` edita a mensagem original (botoes permanecem desabilitados).
+`editReply()` com `components: []` remove os botoes para evitar cliques duplicados.
+
+### Mock de discord.js Client para testes de publishStandup
+
+O Client real conecta ao Discord. Para testes unitarios, criar um fake client simples:
+
+```ts
+// fake client — apenas o que a funcao usa
+const fakeClient = {} as unknown as Client  // publishStandup e mockado mesmo
+
+// Para testar publishStandup diretamente (sem mock):
+function makeClient(channelResult: unknown) {
+  const fetchChannel = vi.fn().mockResolvedValue(channelResult)
+  return {
+    client: { channels: { fetch: fetchChannel } } as unknown as Client,
+    fetchChannel,
+  }
+}
+// Canal mock precisa de isTextBased() + isSendable() + send():
+function makeChannel() {
+  const send = vi.fn()
+  return { channel: { isTextBased: () => true, isSendable: () => true, send }, send }
+}
 ```
 
 ### Hono middleware deve retornar `next()` explicitamente
 
 ```ts
 // ERRADO — causa "Not all code paths return a value"
-app.use('/internal/*', async (c, next) => {
-  if (!valid) return c.json({ error: 'Unauthorized' }, 401)
-  await next()  // nao retorna
-})
+app.use("/internal/*", async (c, next) => {
+  if (!valid) return c.json({ error: "Unauthorized" }, 401);
+  await next(); // nao retorna
+});
 
 // CORRETO
-app.use('/internal/*', async (c, next) => {
-  if (!valid) return c.json({ error: 'Unauthorized' }, 401)
-  return next()  // retorna a Promise
-})
+app.use("/internal/*", async (c, next) => {
+  if (!valid) return c.json({ error: "Unauthorized" }, 401);
+  return next(); // retorna a Promise
+});
 ```
 
 ## Estado Atual (o que esta completo)
 
 ### Pacotes completos (com testes)
+
 - `packages/domain` — types, schemas Zod, state machine, TaggedErrors
 - `packages/config` — `loadEnv()` com todas as env vars
 - `packages/logger` — Winston estruturado
@@ -267,38 +332,31 @@ app.use('/internal/*', async (c, next) => {
 - `packages/standup-generator` — generateStandup + MCP enrichment, 18 testes (vitest)
 
 ### Apps completos
+
 - `apps/worker` — scheduler + pipeline completo + notifier HTTP, 10 testes (vitest)
   - `standup-job.ts`: collect → generate → persist → notify
   - `standup-notifier.ts`: POST /internal/notify/standup-ready
-- `apps/discord-bot` — internal HTTP route + send-review-dm stub, 6 testes (vitest)
-  - `src/http/internal-routes.ts`: POST /internal/notify/standup-ready (auth + DB lookup + DM)
+- `apps/discord-bot` — handlers completos, 20 testes (vitest)
+  - `src/http/internal-routes.ts`: POST /internal/notify/standup-ready (auth + DB lookup + DM + transicao draft→pending_review)
   - `src/discord/send-review-dm.ts`: envia DM com botoes Aprovar/Rejeitar/Regenerar
-  - `src/index.ts`: sobe Hono (BOT_INTERNAL_PORT) + gateway Discord
+  - `src/discord/interaction-handler.ts`: logica de approve/reject/regenerate (Slice 5)
+  - `src/discord/publish-standup.ts`: publica standup aprovado no canal Discord (Slice 5)
+  - `src/index.ts`: sobe Hono (BOT_INTERNAL_PORT) + gateway Discord + handler de interacoes real
 
 ### CI
+
 - `bun run ci` — 33/33 tasks verde (lint + typecheck + test em todos os pacotes/apps)
 
 ## Proximos Passos
 
-1. **Slice 5 — Handlers de aprovacao/rejeicao no discord-bot**
-   - `src/discord/interaction-handler.ts` — logica de approve/reject/regenerate
-   - Ao aprovar: `repo.updateStatus(id, 'approved')` → publica no canal Discord
-   - Ao rejeitar: `repo.updateStatus(id, 'rejected')`
-   - Ao regenerar: chama worker via HTTP trigger → novo standup substitui o draft
-   - Responder ao botao com `interaction.update()` (edita a mensagem original)
-
-2. **Slice 6 — apps/api rotas reais**
+1. **Slice 6 — apps/api rotas reais**
    - `GET /standups` — lista com filtros (status, date)
    - `GET /standups/:id` — detalhe
    - `POST /standups/trigger` — trigger manual do job (chama worker via HTTP ou importa diretamente)
    - `PATCH /standups/:id/status` — aprovacao manual sem Discord
 
-3. **Publicacao no canal Discord**
-   - `src/discord/publish-standup.ts` — posta no `DISCORD_CHANNEL_ID`
-   - Chamado apos aprovacao (Slice 5)
-
-4. **Docker + docker-compose**
+2. **Docker + docker-compose**
    - Dockerfile multi-stage para cada app
    - `docker-compose.yml` orquestrando api + discord-bot + worker
 
-5. **`.env.example`** na raiz do monorepo
+3. **`.env.example`** na raiz do monorepo

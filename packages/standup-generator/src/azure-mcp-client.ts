@@ -98,7 +98,7 @@ export function createAzureMcpClient(config: AzureMcpConfig): AzureMcpClient {
 
   async function getMe(): Promise<Result<string, ExternalServiceError>> {
     const result = await callTool('get_me', {})
-    if (result.status === 'error') return result
+    if (result.isErr()) return result
 
     try {
       const content = result.value as Array<{ type: string; text: string }>
@@ -129,7 +129,7 @@ export function createAzureMcpClient(config: AzureMcpConfig): AzureMcpClient {
     id: string,
   ): Promise<Result<WorkItemDetail | null, ExternalServiceError>> {
     const result = await callTool('get_work_item', { workItemId: Number(id) })
-    if (result.status === 'error') return result
+    if (result.isErr()) return result
 
     try {
       const content = result.value as Array<{ type: string; text: string }>
@@ -175,7 +175,7 @@ export function createAzureMcpClient(config: AzureMcpConfig): AzureMcpClient {
       repositoryId: repoId,
       status: 'all',
     })
-    if (result.status === 'error') return result
+    if (result.isErr()) return result
 
     try {
       const content = result.value as Array<{ type: string; text: string }>

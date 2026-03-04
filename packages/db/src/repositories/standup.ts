@@ -175,10 +175,10 @@ export class StandupRepository {
   > {
     try {
       const found = await this.findById(id)
-      if (found.status === 'error') return found
+      if (found.isErr()) return found
 
       const transition = transitionStandupStatus(found.value.status, nextStatus)
-      if (transition.status === 'error') return transition
+      if (transition.isErr()) return transition
 
       const now = Date.now()
       await this.db
@@ -198,7 +198,7 @@ export class StandupRepository {
   ): Promise<Result<StandupRecord, NotFoundError | DbError>> {
     try {
       const found = await this.findById(id)
-      if (found.status === 'error') return found
+      if (found.isErr()) return found
 
       const now = Date.now()
       await this.db

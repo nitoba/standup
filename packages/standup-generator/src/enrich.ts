@@ -32,7 +32,7 @@ export async function enrichGitActivity(
 
   // Get the current user UUID (needed to filter PRs by creator)
   const meResult = await client.getMe()
-  if (meResult.status === 'error') {
+  if (meResult.isErr()) {
     logger.error('Failed to get current user from Azure DevOps', {
       error: meResult.error.message,
     })
@@ -61,7 +61,7 @@ export async function enrichGitActivity(
       })
 
       const workItemResult = await client.getWorkItem(cardNumber)
-      if (workItemResult.status === 'error') {
+      if (workItemResult.isErr()) {
         logger.warn('Failed to fetch work item, skipping', {
           cardNumber,
           error: workItemResult.error.message,

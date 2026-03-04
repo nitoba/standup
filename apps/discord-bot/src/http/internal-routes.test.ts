@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   repoFindById: vi.fn(),
+  repoUpdateStatus: vi.fn(),
   getDb: vi.fn().mockReturnValue({}),
   sendReviewDm: vi.fn(),
 }))
@@ -17,7 +18,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@standup/db', () => {
   function StandupRepository() {
-    return { findById: mocks.repoFindById }
+    return {
+      findById: mocks.repoFindById,
+      updateStatus: mocks.repoUpdateStatus,
+    }
   }
   return { getDb: mocks.getDb, StandupRepository }
 })
@@ -111,8 +115,21 @@ describe('POST /internal/notify/standup-ready', () => {
     const res = await app.fetch(req)
 
     expect(res.status).toBe(400)
-    const body = (await res.json()) as { error: string }
-    expect(body.error).toMatch(/standupId/i)
+    const body = (await res.json()) as { success: boolean; error: unknown[] }
+    expect(body.success).toBe(false)
+    expect(Array.isArray(body.error)).toBe(true)
+    expect(body.error.length).toBeGreaterThan(0)
+  })
+
+  it('retorna 400 quando standupId é string vazia', async () => {
+    const req = makeRequest({ standupId: '' })
+    const res = await app.fetch(req)
+
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as { success: boolean; error: unknown[] }
+    expect(body.success).toBe(false)
+    expect(Array.isArray(body.error)).toBe(true)
+    expect(body.error.length).toBeGreaterThan(0)
   })
 
   it('retorna 404 quando standup não existe no banco', async () => {
@@ -128,9 +145,12 @@ describe('POST /internal/notify/standup-ready', () => {
     expect(body.error).toMatch(/not found/i)
   })
 
-  it('retorna 200 e envia DM quando tudo está correto', async () => {
+  it('retorna 200, envia DM e transiciona para pending_review quando tudo está correto', async () => {
     mocks.repoFindById.mockResolvedValue(Result.ok(standupRecord))
     mocks.sendReviewDm.mockResolvedValue(Result.ok(undefined))
+    mocks.repoUpdateStatus.mockResolvedValue(
+      Result.ok({ ...standupRecord, status: 'pending_review' }),
+    )
 
     const req = makeRequest({ standupId: 'standup-abc' })
     const res = await app.fetch(req)
@@ -141,9 +161,13 @@ describe('POST /internal/notify/standup-ready', () => {
     expect(body.standupId).toBe('standup-abc')
     expect(mocks.repoFindById).toHaveBeenCalledWith('standup-abc')
     expect(mocks.sendReviewDm).toHaveBeenCalledWith(standupRecord)
+    expect(mocks.repoUpdateStatus).toHaveBeenCalledWith(
+      'standup-abc',
+      'pending_review',
+    )
   })
 
-  it('retorna 200 mesmo quando envio de DM falha (non-fatal)', async () => {
+  it('retorna 200 mas NÃO transiciona quando envio de DM falha (non-fatal)', async () => {
     mocks.repoFindById.mockResolvedValue(Result.ok(standupRecord))
     mocks.sendReviewDm.mockResolvedValue(
       Result.err(
@@ -158,5 +182,24 @@ describe('POST /internal/notify/standup-ready', () => {
     expect(res.status).toBe(200)
     expect(mocks.repoFindById).toHaveBeenCalledOnce()
     expect(mocks.sendReviewDm).toHaveBeenCalledOnce()
+    // Não deve tentar transicionar se a DM falhou
+    expect(mocks.repoUpdateStatus).not.toHaveBeenCalled()
+  })
+
+  it('retorna 200 mesmo quando transição para pending_review falha (non-fatal)', async () => {
+    mocks.repoFindById.mockResolvedValue(Result.ok(standupRecord))
+    mocks.sendReviewDm.mockResolvedValue(Result.ok(undefined))
+    mocks.repoUpdateStatus.mockResolvedValue(
+      Result.err(new NotFoundError({ resource: 'standup', id: 'standup-abc' })),
+    )
+
+    const req = makeRequest({ standupId: 'standup-abc' })
+    const res = await app.fetch(req)
+
+    expect(res.status).toBe(200)
+    expect(mocks.repoUpdateStatus).toHaveBeenCalledWith(
+      'standup-abc',
+      'pending_review',
+    )
   })
 })

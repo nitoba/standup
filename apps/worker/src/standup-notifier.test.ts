@@ -81,7 +81,7 @@ describe('notifyStandupReady', () => {
     })
 
     expect(result.status).toBe('error')
-    if (result.status === 'error') {
+    if (result.isErr()) {
       expect(ExternalServiceError.is(result.error)).toBe(true)
       expect(result.error.service).toBe('discord-bot')
       expect(result.error.message).toContain('503')
@@ -98,7 +98,7 @@ describe('notifyStandupReady', () => {
     })
 
     expect(result.status).toBe('error')
-    if (result.status === 'error') {
+    if (result.isErr()) {
       expect(ExternalServiceError.is(result.error)).toBe(true)
       expect(result.error.service).toBe('discord-bot')
       expect(result.error.message).toContain('ECONNREFUSED')
