@@ -19,11 +19,11 @@
     "@standup/domain": "workspace:*",
     "@standup/logger": "workspace:*",
     "ai": "^6.0.111",
-    "zod": "^4.3.6"
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "typescript": "^5.8.2",
-    "vitest": "^4.0.18"
+    "@types/bun": "catalog:tooling",
+    "typescript": "catalog:tooling",
+    "vitest": "catalog:tooling"
   }
 }
