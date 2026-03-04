@@ -1,12 +1,6 @@
 import { loadEnv } from '@standup/config'
 import { Result } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import { startScheduler } from './scheduler.js'
-
-const _logger = createServiceLogger({
-  service: 'worker',
-  component: 'bootstrap',
-})
 
 function bootstrap() {
   const envResult = loadEnv()
