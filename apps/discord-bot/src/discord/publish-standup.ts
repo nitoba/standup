@@ -1,7 +1,12 @@
-import type { StandupRecord } from '@standup/domain'
-import { ExternalServiceError, Result } from '@standup/domain'
+import type {
+  ExternalServiceError,
+  Result,
+  StandupRecord,
+} from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import type { Client } from 'discord.js'
+import { buildPublishedEmbed } from './embeds.js'
+import { sendChannelNotification } from './send-channel-notification.js'
 
 const logger = createServiceLogger({
   service: 'discord-bot',
@@ -9,10 +14,7 @@ const logger = createServiceLogger({
 })
 
 /**
- * Publica o standup aprovado no canal Discord configurado.
- * Retorna Result.ok(undefined) em caso de sucesso.
- * Retorna ExternalServiceError se o canal não for encontrado ou o envio falhar.
- *
+ * Publica o standup aprovado no canal Discord como embed rico verde (Padrão 3 do Akita).
  * Não altera o status do standup — quem chama é responsável por isso.
  */
 export async function publishStandup(
@@ -20,39 +22,16 @@ export async function publishStandup(
   client: Client,
   channelId: string,
 ): Promise<Result<void, ExternalServiceError>> {
-  return Result.tryPromise({
-    try: async () => {
-      const channel = await client.channels.fetch(channelId)
+  const embed = buildPublishedEmbed(record)
 
-      if (!channel) {
-        throw new ExternalServiceError({
-          service: 'discord',
-          message: `Channel not found: ${channelId}`,
-        })
-      }
+  const result = await sendChannelNotification(client, channelId, embed)
 
-      if (!channel.isTextBased() || !channel.isSendable()) {
-        throw new ExternalServiceError({
-          service: 'discord',
-          message: `Channel ${channelId} is not a sendable text channel`,
-        })
-      }
+  if (result.isOk()) {
+    logger.info('Standup published to channel', {
+      standupId: record.id,
+      channelId,
+    })
+  }
 
-      const content = `**Standup — ${record.date}**\n\n${record.content}`
-
-      await channel.send({ content })
-
-      logger.info('Standup published to channel', {
-        standupId: record.id,
-        channelId,
-      })
-    },
-    catch: (err) => {
-      if (err instanceof ExternalServiceError) return err
-      return new ExternalServiceError({
-        service: 'discord',
-        message: `Failed to publish standup: ${err instanceof Error ? err.message : String(err)}`,
-      })
-    },
-  })
+  return result
 }

@@ -3,10 +3,10 @@ import { createServiceLogger } from '@standup/logger'
 
 const logger = createServiceLogger({
   service: 'worker',
-  component: 'standup-notifier',
+  component: 'notify-standup-ready',
 })
 
-export interface NotifyOptions {
+export interface NotifyStandupReadyOptions {
   botInternalUrl: string
   standupId: string
   secret: string
@@ -18,7 +18,7 @@ export interface NotifyOptions {
  * Quem decide como apresentar ao usuário é o discord-bot.
  */
 export async function notifyStandupReady(
-  opts: NotifyOptions,
+  opts: NotifyStandupReadyOptions,
 ): Promise<Result<void, ExternalServiceError>> {
   return Result.tryPromise({
     try: async () => {

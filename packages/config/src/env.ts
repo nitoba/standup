@@ -13,6 +13,7 @@ const envSchema = z.object({
   DISCORD_BOT_TOKEN: z.string().min(1),
   DISCORD_CHANNEL_ID: z.string().min(1),
   DISCORD_USER_ID: z.string().min(1),
+  DISCORD_GUILD_ID: z.string().optional(), // Guild commands (dev) vs global (prod)
   ANTHROPIC_API_KEY: z.string().min(1),
   ANTHROPIC_AUTH_TOKEN: z.string().optional(),
   AZURE_DEVOPS_ORG: z.string().min(1),

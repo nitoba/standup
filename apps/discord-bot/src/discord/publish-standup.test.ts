@@ -1,10 +1,36 @@
-import { ExternalServiceError } from '@standup/domain'
+import { ExternalServiceError, Result } from '@standup/domain'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
-// Import
+// vi.hoisted
 // ---------------------------------------------------------------------------
 
+const mocks = vi.hoisted(() => ({
+  sendChannelNotification: vi.fn(),
+  buildPublishedEmbed: vi.fn().mockReturnValue({
+    title: 'Standup — 2026-03-04',
+    color: 0x2ecc71,
+    description: '## Standup\n\n- feat: add feature',
+  }),
+}))
+
+// ---------------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------------
+
+vi.mock('./send-channel-notification.js', () => ({
+  sendChannelNotification: mocks.sendChannelNotification,
+}))
+
+vi.mock('./embeds.js', () => ({
+  buildPublishedEmbed: mocks.buildPublishedEmbed,
+}))
+
+// ---------------------------------------------------------------------------
+// Import após mocks
+// ---------------------------------------------------------------------------
+
+import type { Client } from 'discord.js'
 import { publishStandup } from './publish-standup.js'
 
 // ---------------------------------------------------------------------------
@@ -24,32 +50,7 @@ const standupRecord = {
   updatedAt: 1000,
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makeChannel(overrides: Record<string, unknown> = {}) {
-  const channelSend = vi.fn()
-  return {
-    channel: {
-      isTextBased: () => true,
-      isSendable: () => true,
-      send: channelSend,
-      ...overrides,
-    },
-    channelSend,
-  }
-}
-
-function makeClient(channelResult: unknown) {
-  const fetchChannel = vi.fn().mockResolvedValue(channelResult)
-  return {
-    client: {
-      channels: { fetch: fetchChannel },
-    } as unknown as import('discord.js').Client,
-    fetchChannel,
-  }
-}
+const fakeClient = {} as unknown as Client
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -58,31 +59,42 @@ function makeClient(channelResult: unknown) {
 describe('publishStandup', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.buildPublishedEmbed.mockReturnValue({
+      title: 'Standup — 2026-03-04',
+      color: 0x2ecc71,
+      description: '## Standup\n\n- feat: add feature',
+    })
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('publica standup no canal e retorna ok', async () => {
-    const { channel, channelSend } = makeChannel()
-    const { client, fetchChannel } = makeClient(channel)
+  it('constrói embed verde e delega envio ao sendChannelNotification', async () => {
+    mocks.sendChannelNotification.mockResolvedValue(Result.ok(undefined))
 
-    const result = await publishStandup(standupRecord, client, CHANNEL_ID)
+    const result = await publishStandup(standupRecord, fakeClient, CHANNEL_ID)
 
     expect(result.status).toBe('ok')
-    expect(fetchChannel).toHaveBeenCalledWith(CHANNEL_ID)
-    expect(channelSend).toHaveBeenCalledOnce()
-    // Mensagem deve conter a data e o conteúdo
-    const [sentArg] = channelSend.mock.lastCall as [{ content: string }]
-    expect(sentArg.content).toContain('2026-03-04')
-    expect(sentArg.content).toContain('## Standup')
+    expect(mocks.buildPublishedEmbed).toHaveBeenCalledWith(standupRecord)
+    expect(mocks.sendChannelNotification).toHaveBeenCalledWith(
+      fakeClient,
+      CHANNEL_ID,
+      expect.objectContaining({ color: 0x2ecc71 }),
+    )
   })
 
-  it('retorna ExternalServiceError quando canal não é encontrado (fetch retorna null)', async () => {
-    const { client } = makeClient(null)
+  it('retorna ExternalServiceError quando sendChannelNotification falha', async () => {
+    mocks.sendChannelNotification.mockResolvedValue(
+      Result.err(
+        new ExternalServiceError({
+          service: 'discord',
+          message: 'Channel not found',
+        }),
+      ),
+    )
 
-    const result = await publishStandup(standupRecord, client, CHANNEL_ID)
+    const result = await publishStandup(standupRecord, fakeClient, CHANNEL_ID)
 
     expect(result.status).toBe('error')
     if (result.isErr()) {
@@ -91,32 +103,38 @@ describe('publishStandup', () => {
     }
   })
 
-  it('retorna ExternalServiceError quando canal não é baseado em texto', async () => {
-    const { channel } = makeChannel({
-      isTextBased: () => false,
-      isSendable: () => false,
-    })
-    const { client } = makeClient(channel)
+  it('propaga o erro de canal não-enviável', async () => {
+    mocks.sendChannelNotification.mockResolvedValue(
+      Result.err(
+        new ExternalServiceError({
+          service: 'discord',
+          message: 'Channel channel-123 is not a sendable text channel',
+        }),
+      ),
+    )
 
-    const result = await publishStandup(standupRecord, client, CHANNEL_ID)
+    const result = await publishStandup(standupRecord, fakeClient, CHANNEL_ID)
 
     expect(result.status).toBe('error')
     if (result.isErr()) {
-      expect(ExternalServiceError.is(result.error)).toBe(true)
+      expect(result.error.message).toMatch(/sendable/i)
     }
   })
 
-  it('retorna ExternalServiceError quando send lança exceção', async () => {
-    const { channel } = makeChannel({
-      send: vi.fn().mockRejectedValue(new Error('Discord API error')),
-    })
-    const { client } = makeClient(channel)
+  it('propaga ExternalServiceError quando sendChannelNotification lança', async () => {
+    mocks.sendChannelNotification.mockResolvedValue(
+      Result.err(
+        new ExternalServiceError({
+          service: 'discord',
+          message: 'Failed to send channel notification: Discord API error',
+        }),
+      ),
+    )
 
-    const result = await publishStandup(standupRecord, client, CHANNEL_ID)
+    const result = await publishStandup(standupRecord, fakeClient, CHANNEL_ID)
 
     expect(result.status).toBe('error')
     if (result.isErr()) {
-      expect(ExternalServiceError.is(result.error)).toBe(true)
       expect(result.error.message).toMatch(/Discord API error/i)
     }
   })

@@ -5,78 +5,36 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  Client,
-  Events,
-  GatewayIntentBits,
+  type Client,
 } from 'discord.js'
+import { buildReviewEmbed } from './embeds.js'
 
 const logger = createServiceLogger({
   service: 'discord-bot',
   component: 'send-review-dm',
 })
 
-let _client: Client | null = null
-
-/**
- * Retorna (e cacheia) um cliente Discord autenticado.
- * Em testes, o módulo inteiro é mockado portanto este código não é executado.
- */
-async function getClient(token: string): Promise<Client> {
-  if (_client) return _client
-
-  const client = new Client({
-    intents: [
-      GatewayIntentBits.Guilds,
-      GatewayIntentBits.GuildMessages,
-      GatewayIntentBits.DirectMessages,
-      GatewayIntentBits.MessageContent,
-    ],
-  })
-
-  await new Promise<void>((resolve, reject) => {
-    client.once(Events.ClientReady, () => resolve())
-    client.once(Events.Error, reject)
-    client.login(token).catch(reject)
-  })
-
-  _client = client
-  return client
-}
-
 export interface SendReviewDmDeps {
-  discordBotToken: string
+  client: Client
   discordUserId: string
 }
 
 /**
- * Envia uma DM ao usuário configurado com o preview do standup e
- * botões de Aprovar / Rejeitar / Regenerar.
+ * Envia uma DM ao usuário configurado com o preview do standup (embed rico azul)
+ * e botões de Aprovar / Rejeitar / Regenerar (Padrão 3 do Akita).
  *
- * Recebe um StandupRecord já persistido no DB.
- * Quem chama isso (internal-routes) não sabe nada sobre Discord.
+ * O Client Discord é injetado pelo caller (index.ts), garantindo
+ * uma única conexão WebSocket ativa no processo.
  */
 export async function sendReviewDm(
   record: StandupRecord,
-  deps?: SendReviewDmDeps,
-): Promise<Result<void, ExternalServiceError>> {
-  // deps pode ser injetado em testes; em produção lê do process.env
-  const token = deps?.discordBotToken ?? process.env.DISCORD_BOT_TOKEN
-  const userId = deps?.discordUserId ?? process.env.DISCORD_USER_ID
-
-  if (!token || !userId) {
-    logger.warn(
-      'sendReviewDm skipped — DISCORD_BOT_TOKEN or DISCORD_USER_ID not set',
-      {
-        standupId: record.id,
-      },
-    )
-    return Result.ok(undefined)
-  }
+  deps: SendReviewDmDeps,
+): Promise<Result<{ messageId: string }, ExternalServiceError>> {
+  const { client, discordUserId } = deps
 
   return Result.tryPromise({
     try: async () => {
-      const client = await getClient(token)
-      const user = await client.users.fetch(userId)
+      const user = await client.users.fetch(discordUserId)
 
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
@@ -93,12 +51,21 @@ export async function sendReviewDm(
           .setStyle(ButtonStyle.Secondary),
       )
 
-      await user.send({
-        content: `**Standup de ${record.date}** — por favor revise:\n\n${record.content}`,
+      // Padrão 3 do Akita: embed rico azul com campos formatados
+      const embed = buildReviewEmbed(record)
+
+      const message = await user.send({
+        embeds: [embed],
         components: [row],
       })
 
-      logger.info('Review DM sent', { standupId: record.id, userId })
+      logger.info('Review DM sent', {
+        standupId: record.id,
+        userId: discordUserId,
+        messageId: message.id,
+      })
+
+      return { messageId: message.id }
     },
     catch: (err) =>
       new ExternalServiceError({

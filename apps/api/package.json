@@ -10,9 +10,15 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@hono/standard-validator": "^0.2.2",
     "@standup/config": "workspace:*",
+    "@standup/db": "workspace:*",
     "@standup/domain": "workspace:*",
     "@standup/logger": "workspace:*",
-    "hono": "^4.12.5"
+    "hono": "^4.12.5",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
   }
 }

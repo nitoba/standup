@@ -1,52 +1,7 @@
 import type { GenerateStandupInput } from '@standup/domain'
-import type {
-  EnrichedGitActivity,
-  EnrichedWorkItem,
-  PullRequestDetail,
-} from './types.js'
-
-/**
- * Determines the meeting type label based on day of week.
- * Returns an empty string for days without special meetings.
- */
-export function determineMeetingType(dateStr: string): string {
-  // Parse as local date to avoid UTC midnight → previous day shifting in negative-offset timezones.
-  // dateStr is expected in YYYY-MM-DD format.
-  const [year, month, dayOfMonth] = dateStr.split('-').map(Number)
-  const date = new Date(year ?? 2000, (month ?? 1) - 1, dayOfMonth ?? 1)
-  const day = date.getDay() // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
-  if (day === 1) return '📆 (Start of week meeting)'
-  if (day === 3) return '📆 (Planing Web)'
-  if (day === 5) return '📆 (Encerramento semanal)'
-  return ''
-}
-
-/**
- * Determines if a work item is "Done" or "In Progress".
- *
- * Done if:
- *   - workItem.state === 'Done', OR
- *   - workItem.state === 'In Progress' AND all associated PRs are 'completed' or 'active'
- *
- * In Progress otherwise.
- */
-export function determineWorkItemStatus(
-  item: EnrichedWorkItem,
-): 'done' | 'in_progress' {
-  const state = item.workItem?.state ?? ''
-
-  if (state === 'Done') return 'done'
-
-  if (state === 'In Progress' && item.pullRequests.length > 0) {
-    const allDoneOrActive = item.pullRequests.every(
-      (pr: PullRequestDetail) =>
-        pr.status === 'completed' || pr.status === 'active',
-    )
-    if (allDoneOrActive) return 'done'
-  }
-
-  return 'in_progress'
-}
+import { determineMeetingType } from './meeting-type.js'
+import type { EnrichedGitActivity, EnrichedWorkItem } from './types.js'
+import { determineWorkItemStatus } from './work-item-status.js'
 
 export function buildSystemPrompt(): string {
   return `Você é um assistente especializado em gerar relatórios de standup diário para desenvolvedores.
@@ -145,7 +100,7 @@ export function buildUserMessage(
     if (repo.enrichedItems.length > 0) {
       sections.push('### Work Items enriquecidos:')
       for (const item of repo.enrichedItems) {
-        const status = determineWorkItemStatus(item)
+        const status = determineWorkItemStatus(item as EnrichedWorkItem)
         const workItemTitle = item.workItem?.title ?? '(título não encontrado)'
         const workItemState = item.workItem?.state ?? 'unknown'
 

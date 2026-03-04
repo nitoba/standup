@@ -2,8 +2,9 @@ import type { GatheredGitActivity, GenerateStandupInput } from '@standup/domain'
 import { ExternalServiceError, Result } from '@standup/domain'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AzureMcpClient } from './azure-mcp-client.js'
-import { determineMeetingType, determineWorkItemStatus } from './prompt.js'
+import { determineMeetingType } from './meeting-type.js'
 import type { EnrichedWorkItem } from './types.js'
+import { determineWorkItemStatus } from './work-item-status.js'
 
 // ---------------------------------------------------------------------------
 // Mocks

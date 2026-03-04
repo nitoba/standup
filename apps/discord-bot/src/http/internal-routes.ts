@@ -2,8 +2,11 @@ import { sValidator } from '@hono/standard-validator'
 import { getDb, StandupRepository } from '@standup/db'
 import { NotFoundError } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
+import type { Client } from 'discord.js'
 import { Hono } from 'hono'
 import * as z from 'zod'
+import { buildJobFailedEmbed } from '../discord/embeds.js'
+import { sendChannelNotification } from '../discord/send-channel-notification.js'
 import { sendReviewDm } from '../discord/send-review-dm.js'
 
 const logger = createServiceLogger({
@@ -14,10 +17,21 @@ const logger = createServiceLogger({
 export interface InternalRouterOptions {
   internalSecret: string
   databaseUrl: string
+  /** Cliente Discord unificado — mesmo Client do gateway (index.ts). */
+  client: Client
+  /** Discord User ID para DMs de revisão. */
+  discordUserId: string
+  /** Canal Discord onde publicar standups e notificações de falha. */
+  discordChannelId: string
 }
 
 const notifyBodySchema = z.object({
   standupId: z.string().min(1),
+})
+
+const jobFailedBodySchema = z.object({
+  error: z.string().min(1),
+  context: z.string().optional(),
 })
 
 /**
@@ -68,7 +82,10 @@ export function createInternalRouter(opts: InternalRouterOptions): Hono {
       const record = found.value
 
       // Send DM — non-fatal: standup is already persisted
-      const dmResult = await sendReviewDm(record)
+      const dmResult = await sendReviewDm(record, {
+        client: opts.client,
+        discordUserId: opts.discordUserId,
+      })
       if (dmResult.isErr()) {
         logger.warn(
           'Failed to send review DM — standup saved, approve manually',
@@ -80,7 +97,10 @@ export function createInternalRouter(opts: InternalRouterOptions): Hono {
         return c.json({ ok: true, standupId })
       }
 
-      logger.info('Review DM sent successfully', { standupId })
+      logger.info('Review DM sent successfully', {
+        standupId,
+        messageId: dmResult.value.messageId,
+      })
 
       // Transition draft → pending_review now that the user has received the DM
       const transitionResult = await repo.updateStatus(
@@ -97,6 +117,44 @@ export function createInternalRouter(opts: InternalRouterOptions): Hono {
       }
 
       return c.json({ ok: true, standupId })
+    },
+  )
+
+  /**
+   * POST /internal/notify/job-failed
+   * Body: { error: string, context?: string }
+   *
+   * Padrão 8 do Akita — Notificações de Status Em Produção.
+   * Disparado pelo worker quando o standup job falha.
+   * Publica embed vermelho no canal Discord para visibilidade imediata.
+   * Non-fatal: falha aqui retorna 200 com ok: false (standup-bot não deve derrubar worker).
+   */
+  app.post(
+    '/internal/notify/job-failed',
+    sValidator('json', jobFailedBodySchema),
+    async (c) => {
+      const { error, context } = c.req.valid('json')
+
+      logger.warn('Received job failure notification', { error, context })
+
+      const embed = buildJobFailedEmbed(error, context)
+      const notifyResult = await sendChannelNotification(
+        opts.client,
+        opts.discordChannelId,
+        embed,
+      )
+
+      if (notifyResult.isErr()) {
+        logger.error('Failed to send job-failed notification to channel', {
+          error: notifyResult.error.message,
+          originalError: error,
+        })
+        // Ainda retorna 200: o worker não deve re-tentar por causa de falha do Discord
+        return c.json({ ok: false, reason: 'channel notification failed' })
+      }
+
+      logger.info('Job failure notification sent to channel', { context })
+      return c.json({ ok: true })
     },
   )
 

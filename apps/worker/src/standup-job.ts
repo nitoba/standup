@@ -7,7 +7,8 @@ import {
   determineMeetingType,
   generateStandup,
 } from '@standup/standup-generator'
-import { notifyStandupReady } from './standup-notifier.js'
+import { notifyJobFailed } from './notify-job-failed.js'
+import { notifyStandupReady } from './notify-standup-ready.js'
 
 const logger = createServiceLogger({
   service: 'worker',
@@ -102,6 +103,22 @@ export async function runStandupJob(env: AppEnv): Promise<void> {
 
   if (result.isErr()) {
     jobLogger.error('Standup job failed', { error: result.error.message })
+
+    // Padrão 8 do Akita: notificar falha no canal Discord para visibilidade imediata.
+    // Non-fatal: se o bot não estiver disponível, o erro já foi logado acima.
+    const failNotifyResult = await notifyJobFailed({
+      botInternalUrl: env.BOT_INTERNAL_URL,
+      secret: env.INTERNAL_SECRET,
+      error: result.error.message,
+      context: 'standup-job',
+    })
+
+    if (failNotifyResult.isErr()) {
+      jobLogger.warn(
+        'Failed to notify bot about job failure — check logs manually',
+        { error: failNotifyResult.error.message },
+      )
+    }
   } else if (result.value !== null) {
     jobLogger.info('Standup job completed', { standupId: result.value })
   }
