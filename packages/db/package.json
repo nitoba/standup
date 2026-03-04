@@ -11,12 +11,19 @@
     "build": "bun build src/index.ts --outdir dist --target bun",
     "lint": "biome check src",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --passWithNoTests",
-    "db:generate": "bun run src/index.ts generate",
-    "db:migrate": "bun run src/index.ts migrate"
+    "test": "bun test src/",
+    "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts"
   },
   "dependencies": {
+    "@standup/config": "workspace:*",
     "@standup/domain": "workspace:*",
-    "@standup/logger": "workspace:*"
+    "@standup/logger": "workspace:*",
+    "drizzle-orm": "^0.43.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "drizzle-kit": "^0.31.9",
+    "typescript": "^5.8.2"
   }
 }

@@ -1,14 +1,18 @@
-import { createServiceLogger } from '@standup/logger'
+// Connection
 
-export function dbCommandStatus(command?: string): string {
-  const mode = command ?? 'status'
-  return `[db] command '${mode}' is intentionally stubbed in phase 1 (no modeling yet).`
-}
-
-if (import.meta.main) {
-  const command = process.argv[2]
-  const logger = createServiceLogger({ service: 'db', component: 'cli' })
-  logger.info(dbCommandStatus(command), {
-    command: command ?? 'status',
-  })
-}
+export type { Db } from './connection.js'
+export { createTestDb, getDb, resetDbSingleton } from './connection.js'
+export type {
+  CreateStandupInput,
+  ListStandupFilters,
+} from './repositories/standup.js'
+// Repositories
+export { StandupRepository } from './repositories/standup.js'
+export type {
+  JobRunRow,
+  NewJobRunRow,
+  NewStandupRow,
+  StandupRow,
+} from './schema.js'
+// Schema
+export { jobRuns, standups } from './schema.js'
