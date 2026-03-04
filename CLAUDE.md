@@ -507,6 +507,13 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 
 ### Apps completos
 
+- `apps/api` — 16 testes (vitest)
+  - `routes/standup-routes.ts`: `createStandupRouter(opts)` — 3 rotas
+    - `GET /standups` — lista com filtros opcionais `?status=&date=`
+    - `GET /standups/:id` — detalhe por ID
+    - `PATCH /standups/:id/status` — atualiza status (state machine valida transições)
+  - `index.ts`: entrypoint — middleware logging, health, monta standup router
+
 - `apps/worker` — 22 testes (vitest)
   - `job/standup-job.ts`: pipeline com lock + retry + idempotencia + notify
   - `notifications/notify-standup-ready.ts`: POST /internal/notify/standup-ready
@@ -532,11 +539,9 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 
 ## Proximos Passos
 
-1. **Slice 6 — apps/api rotas reais**
-   - `GET /standups` — lista com filtros (status, date)
-   - `GET /standups/:id` — detalhe
-   - `POST /standups/trigger` — trigger manual do job
-   - `PATCH /standups/:id/status` — aprovacao manual sem Discord
+1. **Slice 7 — `POST /standups/trigger`** (trigger manual do job via API)
+   - Decidir arquitetura: worker ganha endpoint HTTP `/trigger` (novo Hono server)?
+   - Ou API executa o job inline (importando as dependencias do worker)?
 
 2. **Docker + docker-compose**
    - Dockerfile multi-stage para cada app

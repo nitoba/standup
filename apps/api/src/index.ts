@@ -2,6 +2,8 @@ import { loadEnv } from '@standup/config'
 import { Result } from '@standup/domain'
 import { createServiceLogger, withContext } from '@standup/logger'
 import { Hono } from 'hono'
+import { requestLogger } from './http/middleware.js'
+import { createStandupRouter } from './standup/router.js'
 
 type AppContext = {
   Variables: {
@@ -15,75 +17,56 @@ if (Result.isError(envResult)) {
 }
 
 const env = envResult.value
-const app = new Hono<AppContext>()
 const logger = createServiceLogger({ service: 'api', component: 'http-server' })
 
-app.use('*', async (c, next) => {
-  const requestId = c.req.header('x-request-id') ?? crypto.randomUUID()
-  const startedAt = Date.now()
+// ---------------------------------------------------------------------------
+// Bootstrap
+// ---------------------------------------------------------------------------
 
-  c.set('requestId', requestId)
-  c.header('x-request-id', requestId)
+const app = new Hono<AppContext>()
 
-  const requestLogger = withContext(logger, {
-    requestId,
-    method: c.req.method,
-    path: c.req.path,
-  })
+app.use('*', requestLogger(logger))
 
-  requestLogger.info('Request started')
-
-  try {
-    await next()
-    requestLogger.info('Request completed', {
-      statusCode: c.res.status,
-      durationMs: Date.now() - startedAt,
-    })
-  } catch (error) {
-    requestLogger.error('Request failed before response', {
-      durationMs: Date.now() - startedAt,
-      error,
-    })
-    throw error
-  }
-})
+// ---------------------------------------------------------------------------
+// Health / readiness
+// ---------------------------------------------------------------------------
 
 app.get('/health', (c) => {
   return c.json({
     status: 'ok',
     service: 'standup-api',
-    phase: 'foundation',
     uptimeSeconds: Math.floor(process.uptime()),
   })
 })
 
 app.get('/ready', (c) => {
-  return c.json({
-    status: 'ready',
-    nextStep: 'phase-1-contracts',
-  })
+  return c.json({ status: 'ready' })
 })
+
+// ---------------------------------------------------------------------------
+// Domain routes
+// ---------------------------------------------------------------------------
+
+app.route('/', createStandupRouter({ databaseUrl: env.DATABASE_URL }))
+
+// ---------------------------------------------------------------------------
+// Error handler — catch-all para erros não tratados pelos handlers
+// ---------------------------------------------------------------------------
 
 app.onError((error, c) => {
   const requestId = c.get('requestId')
-  const errorLogger = withContext(logger, {
+  withContext(logger, {
     requestId,
     method: c.req.method,
     path: c.req.path,
-  })
+  }).error('Unhandled API error', { error })
 
-  errorLogger.error('Unhandled API error', {
-    error,
-  })
-
-  return c.json(
-    {
-      error: 'Internal server error',
-      requestId,
-    },
-    500,
-  )
+  return c.json({ error: 'Internal server error', requestId }, 500)
 })
+
+// ---------------------------------------------------------------------------
+// Start server
+// ---------------------------------------------------------------------------
 
 const server = Bun.serve({
   port: env.PORT,
