@@ -7,7 +7,12 @@ import { z } from 'zod'
 import type { AzureMcpClient } from './azure/azure-mcp-client.js'
 import { createAzureMcpClient } from './azure/azure-mcp-client.js'
 import { enrichGitActivity } from './azure/enrich.js'
-import { buildSystemPrompt, buildUserMessage } from './prompt/prompt.js'
+import {
+  buildRewriteUserMessage,
+  buildSystemPrompt,
+  buildUserMessage,
+  MAX_STANDUP_CONTENT_CHARS,
+} from './prompt/prompt.js'
 import type { EnrichedGitActivity, GeneratorConfig } from './types.js'
 
 const logger = createServiceLogger({
@@ -19,6 +24,8 @@ const standupOutputSchema = z.object({
   content: z.string().describe('Full standup markdown content in Portuguese'),
   summary: z.string().describe('One-line summary in Portuguese for logging'),
 })
+
+type StandupOutput = z.infer<typeof standupOutputSchema>
 
 export type { GeneratorConfig }
 
@@ -49,6 +56,36 @@ function runEnrichment(
     // yield* unwraps it: short-circuits on Err, returns the value on Ok
     return Result.ok(yield* enriched)
   }).finally(() => mcpClient.disconnect())
+}
+
+function countCharacters(text: string): number {
+  return Array.from(text).length
+}
+
+function runStandupGeneration(
+  anthropic: ReturnType<typeof createAnthropic>,
+  system: string,
+  prompt: string,
+  errorContext: string,
+): Promise<Result<StandupOutput, ExternalServiceError>> {
+  return Result.tryPromise({
+    try: async () => {
+      const { object } = await generateObject({
+        model: anthropic('claude-sonnet-4-6'),
+        schema: standupOutputSchema,
+        system,
+        prompt,
+        maxOutputTokens: 4096,
+      })
+
+      return object
+    },
+    catch: (err) =>
+      new ExternalServiceError({
+        service: 'anthropic',
+        message: `${errorContext}: ${err instanceof Error ? err.message : String(err)}`,
+      }),
+  })
 }
 
 export async function generateStandup(
@@ -98,28 +135,50 @@ export async function generateStandup(
         }
       : { apiKey: apiKey ?? '' }
     const anthropic = createAnthropic(anthropicOptions)
+    const systemPrompt = buildSystemPrompt()
 
     logger.info('Calling LLM to generate standup')
 
-    const { object } = yield* Result.await(
-      Result.tryPromise({
-        try: () =>
-          generateObject({
-            model: anthropic('claude-sonnet-4-6'),
-            schema: standupOutputSchema,
-            system: buildSystemPrompt(),
-            prompt: buildUserMessage(input, enrichedActivity),
-            maxOutputTokens: 4096,
-          }),
-        catch: (err) =>
-          new ExternalServiceError({
-            service: 'anthropic',
-            message: `LLM generation failed: ${err instanceof Error ? err.message : String(err)}`,
-          }),
-      }),
+    let standup = yield* Result.await(
+      runStandupGeneration(
+        anthropic,
+        systemPrompt,
+        buildUserMessage(input, enrichedActivity),
+        'LLM generation failed',
+      ),
     )
+    let contentLength = countCharacters(standup.content)
 
-    logger.info('Standup generated successfully', { summary: object.summary })
-    return Result.ok({ content: object.content, summary: object.summary })
+    if (contentLength > MAX_STANDUP_CONTENT_CHARS) {
+      logger.warn('Generated standup exceeded max content size, rewriting', {
+        contentLength,
+        maxAllowed: MAX_STANDUP_CONTENT_CHARS,
+      })
+
+      standup = yield* Result.await(
+        runStandupGeneration(
+          anthropic,
+          systemPrompt,
+          buildRewriteUserMessage(standup.content, standup.summary),
+          'LLM rewrite failed',
+        ),
+      )
+      contentLength = countCharacters(standup.content)
+    }
+
+    if (contentLength > MAX_STANDUP_CONTENT_CHARS) {
+      yield* Result.err(
+        new ExternalServiceError({
+          service: 'anthropic',
+          message: `Generated standup content exceeds ${MAX_STANDUP_CONTENT_CHARS} characters after rewrite (${contentLength})`,
+        }),
+      )
+    }
+
+    logger.info('Standup generated successfully', {
+      summary: standup.summary,
+      contentLength,
+    })
+    return Result.ok({ content: standup.content, summary: standup.summary })
   })
 }

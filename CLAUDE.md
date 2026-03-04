@@ -66,7 +66,7 @@ worker ──POST /internal/notify/standup-ready──► discord-bot (porta BOT
                                                      └─ envia DM ao usuario (non-fatal)
 
 api ──POST /internal/trigger/standup──────────────► worker (porta WORKER_INTERNAL_PORT)
-      header: x-internal-secret                        │
+      header: x-internal-secret                       │
                                                       └─ dispara runStandupJob em background
 ```
 
@@ -135,13 +135,13 @@ O `index.ts` de cada app so contem: carregar env, instanciar dependencias, conec
 // CORRETO — index.ts como bootstrap puro
 client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.isChatInputCommand()) {
-    await handleSlashCommand(interaction, client, env)  // delega
-    return
+    await handleSlashCommand(interaction, client, env); // delega
+    return;
   }
   if (interaction.isButton()) {
-    await handleButtonInteraction(interaction, client, env)  // delega
+    await handleButtonInteraction(interaction, client, env); // delega
   }
-})
+});
 ```
 
 ### Arquivo utilitario fica proximo de quem o usa
@@ -406,9 +406,12 @@ Usar `channel.isSendable()` para narrowing correto antes de enviar mensagem:
 
 ```ts
 if (!channel.isTextBased() || !channel.isSendable()) {
-  throw new ExternalServiceError({ service: 'discord', message: 'Not a sendable channel' })
+  throw new ExternalServiceError({
+    service: "discord",
+    message: "Not a sendable channel",
+  });
 }
-await channel.send({ content })
+await channel.send({ content });
 ```
 
 `SendableChannels` e exportado como tipo: `type SendableChannels = Extract<Channel, { send: (...args: any[]) => any }>`.
@@ -419,12 +422,13 @@ Operacoes de DB + publicacao podem demorar mais que 3s (limite do Discord para i
 Padrao correto:
 
 ```ts
-await interaction.deferUpdate()         // avisa Discord que estamos processando
+await interaction.deferUpdate(); // avisa Discord que estamos processando
 // ... logica async ...
-await interaction.editReply({           // atualiza a mensagem original
+await interaction.editReply({
+  // atualiza a mensagem original
   content: result.message,
-  components: [],                        // remove os botoes apos a acao
-})
+  components: [], // remove os botoes apos a acao
+});
 ```
 
 `deferUpdate()` edita a mensagem original (botoes permanecem desabilitados).
@@ -435,20 +439,23 @@ await interaction.editReply({           // atualiza a mensagem original
 O Client real conecta ao Discord. Para testes unitarios, passar um fake client tipado:
 
 ```ts
-const fakeClient = {} as unknown as Client
+const fakeClient = {} as unknown as Client;
 
 // Para testar funcoes que usam channels.fetch:
 function makeClient(channelResult: unknown) {
-  const fetchChannel = vi.fn().mockResolvedValue(channelResult)
+  const fetchChannel = vi.fn().mockResolvedValue(channelResult);
   return {
     client: { channels: { fetch: fetchChannel } } as unknown as Client,
     fetchChannel,
-  }
+  };
 }
 // Canal mock precisa de isTextBased() + isSendable() + send():
 function makeChannel() {
-  const send = vi.fn()
-  return { channel: { isTextBased: () => true, isSendable: () => true, send }, send }
+  const send = vi.fn();
+  return {
+    channel: { isTextBased: () => true, isSendable: () => true, send },
+    send,
+  };
 }
 ```
 
@@ -471,10 +478,12 @@ app.use("/internal/*", async (c, next) => {
 ### Padroes do Akita (Discord como Admin Panel)
 
 **Padrao 2 — Reacoes como Status:** Emojis no `editReply` como feedback visual apos botao.
+
 - `approve` → `✅`, `reject` → `❌`, `regenerate` → `🔄`
 - Implementado em `discord/handlers/button-handler.ts`
 
 **Padrao 3 — Embeds Ricos:**
+
 - DM de revisao: embed **azul** (`0x3498DB`) — `buildReviewEmbed`
 - Publicacao no canal: embed **verde** (`0x2ECC71`) — `buildPublishedEmbed`
 - Notificacao de falha: embed **vermelho** (`0xE74C3C`) — `buildJobFailedEmbed`
@@ -482,12 +491,14 @@ app.use("/internal/*", async (c, next) => {
 - Todos os builders em `discord/embeds.ts`
 
 **Padrao 8 — Notificacoes de Status em Producao:**
+
 - `POST /internal/notify/job-failed` no bot (body: `{ error, context? }`)
 - `notifyJobFailed()` no worker quando o pipeline falha
 - Bot publica embed vermelho no canal para visibilidade imediata
 - Non-fatal em dois niveis: falha na notificacao e logada mas nao propaga
 
 **Padrao 13 — Application Commands:**
+
 - `SlashCommandBuilder` com `/standup` e 3 subcommands: `trigger`, `list`, `approve <id>`
 - `trigger` chama `POST /standups/trigger` no API com `discordUserId = interaction.user.id`
 - `registerApplicationCommands()` chamado no `ClientReady` — idempotente, safe on reconnect
@@ -499,11 +510,13 @@ app.use("/internal/*", async (c, next) => {
 Implementados em `apps/worker/src/job/standup-job.ts` e `packages/db`:
 
 **Padrao 1 — Retry com Backoff Exponencial:**
+
 - `withRetry()` helper: 3 tentativas, delays 5s→10s→20s
 - So retenta `LlmTemporaryError` e `McpConnectionError` (erros transitorios)
 - Erros nao-retentaveis retornam imediatamente sem esperar
 
 **Padrao 2 — Lock Distribuido via `job_runs`:**
+
 - `JobRunRepository.acquireLock(jobName, date)`:
   - `running` existente → `LockAlreadyHeldError`
   - `success` existente → `JobAlreadyCompletedError`
@@ -512,23 +525,26 @@ Implementados em `apps/worker/src/job/standup-job.ts` e `packages/db`:
 - Lock scoped por `(jobName, date)` — previne execucao concorrente e duplicate runs
 
 **Padrao 3 — Idempotencia:**
+
 - `JobAlreadyCompletedError` torna o job no-op se ja teve `success` no dia
 
 **Padrao 5 — Recovery Cron:**
+
 - `recoveryCron` em `scheduler.ts` — executado 30 min apos cron principal (`STANDUP_RECOVERY_CRON`)
 - Busca runs em `running` com mais de 1h → marca como `failed`
 - Verifica se existe `success` para hoje → se nao, re-executa o job
 
 **Padrao 6 — Notificacoes (ja existia):**
+
 - `notifyStandupReady()` e `notifyJobFailed()` em `apps/worker/src/notifications/`
 
 ### Novos TaggedErrors (packages/domain)
 
 ```ts
-LlmTemporaryError    // erro transitorio de LLM (safe to retry)
-McpConnectionError   // falha de conexao MCP (safe to retry)
-LockAlreadyHeldError // job ja esta rodando para (jobName, date)
-JobAlreadyCompletedError // job ja completou com sucesso para (jobName, date)
+LlmTemporaryError; // erro transitorio de LLM (safe to retry)
+McpConnectionError; // falha de conexao MCP (safe to retry)
+LockAlreadyHeldError; // job ja esta rodando para (jobName, date)
+JobAlreadyCompletedError; // job ja completou com sucesso para (jobName, date)
 ```
 
 ### JobRunRepository (packages/db)

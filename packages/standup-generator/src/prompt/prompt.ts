@@ -3,6 +3,8 @@ import type { EnrichedGitActivity, EnrichedWorkItem } from '../types.js'
 import { determineMeetingType } from './meeting-type.js'
 import { determineWorkItemStatus } from './work-item-status.js'
 
+export const MAX_STANDUP_CONTENT_CHARS = 2000
+
 export function buildSystemPrompt(): string {
   return `Você é um assistente especializado em gerar relatórios de standup diário para desenvolvedores.
 
@@ -53,6 +55,7 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
 - Se não houver itens Done, omitir a seção Done; idem para In Progress
 - Inclua apenas o trabalho do usuário atual — nunca de outros membros da equipe
 - O relatório deve ser conciso mas informativo
+- O campo \`content\` final deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres (incluindo espaços, quebras de linha e markdown)
 
 **summary:**
 - Uma frase curta em português resumindo o que foi feito no dia
@@ -136,8 +139,35 @@ export function buildUserMessage(
     'Gere o relatório de standup seguindo EXATAMENTE o formato especificado no system prompt.',
   )
   sections.push(
+    `Limite obrigatório: "content" deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres.`,
+  )
+  sections.push(
     'Retorne um objeto JSON com "content" (relatório completo em markdown) e "summary" (frase resumo).',
   )
 
   return sections.join('\n')
+}
+
+export function buildRewriteUserMessage(
+  generatedContent: string,
+  generatedSummary: string,
+): string {
+  return `O conteúdo gerado ultrapassou o limite de ${MAX_STANDUP_CONTENT_CHARS} caracteres.
+
+Reescreva o standup mantendo o mesmo idioma, formato e regras do system prompt.
+Priorize informações de maior impacto e remova redundâncias.
+
+Regras obrigatórias:
+- O campo "content" final deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres
+- Preserve a estrutura de seções por repositório e status (Done/In Progress), quando houver
+- Mantenha o texto em português
+- Retorne um objeto JSON com "content" e "summary"
+
+Resumo atual:
+${generatedSummary}
+
+Conteúdo atual para reescrever:
+\`\`\`markdown
+${generatedContent}
+\`\`\``
 }

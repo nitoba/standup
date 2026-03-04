@@ -3,6 +3,7 @@ import { ExternalServiceError, Result } from '@standup/domain'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AzureMcpClient } from './azure/azure-mcp-client.js'
 import { determineMeetingType } from './prompt/meeting-type.js'
+import { MAX_STANDUP_CONTENT_CHARS } from './prompt/prompt.js'
 import { determineWorkItemStatus } from './prompt/work-item-status.js'
 import type { EnrichedWorkItem } from './types.js'
 
@@ -332,6 +333,87 @@ describe('generateStandup', () => {
     if (result.status === 'ok') {
       expect(result.value.content).toContain('Standup')
       expect(result.value.summary).toBeTruthy()
+    }
+  })
+
+  it('rewrites standup when initial content exceeds max characters', async () => {
+    const { createAzureMcpClient, enrichGitActivity, generateStandup } =
+      await setup()
+    const { generateObject } = await import('ai')
+    const fakeMcp = makeFakeMcpClient()
+    vi.mocked(createAzureMcpClient).mockReturnValue(fakeMcp)
+    vi.mocked(enrichGitActivity).mockResolvedValue(
+      Result.ok(fakeEnrichedActivity) as never,
+    )
+
+    const oversizedContent =
+      '**Standup (04/03/2026)**\n\n' +
+      'A'.repeat(MAX_STANDUP_CONTENT_CHARS + 40)
+    const rewrittenContent =
+      '**Standup (04/03/2026)**\n\n**📌 agrotrace-web**\n\n**✅ Done:**\n➜ #1234 - Corrigir bug X\n'
+
+    vi.mocked(generateObject)
+      .mockResolvedValueOnce({
+        object: {
+          content: oversizedContent,
+          summary: 'Resumo longo',
+        },
+      } as never)
+      .mockResolvedValueOnce({
+        object: {
+          content: rewrittenContent,
+          summary: 'Resumo reescrito',
+        },
+      } as never)
+
+    const result = await generateStandup(makeInput(), baseConfig)
+
+    expect(result.status).toBe('ok')
+    expect(generateObject).toHaveBeenCalledTimes(2)
+    if (result.status === 'ok') {
+      expect(Array.from(result.value.content).length).toBeLessThanOrEqual(
+        MAX_STANDUP_CONTENT_CHARS,
+      )
+      expect(result.value.summary).toBe('Resumo reescrito')
+    }
+  })
+
+  it('returns Result.err when rewritten content still exceeds max characters', async () => {
+    const { createAzureMcpClient, enrichGitActivity, generateStandup } =
+      await setup()
+    const { generateObject } = await import('ai')
+    const fakeMcp = makeFakeMcpClient()
+    vi.mocked(createAzureMcpClient).mockReturnValue(fakeMcp)
+    vi.mocked(enrichGitActivity).mockResolvedValue(
+      Result.ok(fakeEnrichedActivity) as never,
+    )
+
+    const oversizedContent =
+      '**Standup (04/03/2026)**\n\n' +
+      'B'.repeat(MAX_STANDUP_CONTENT_CHARS + 80)
+
+    vi.mocked(generateObject)
+      .mockResolvedValueOnce({
+        object: {
+          content: oversizedContent,
+          summary: 'Resumo inicial',
+        },
+      } as never)
+      .mockResolvedValueOnce({
+        object: {
+          content: oversizedContent,
+          summary: 'Resumo ainda longo',
+        },
+      } as never)
+
+    const result = await generateStandup(makeInput(), baseConfig)
+
+    expect(result.status).toBe('error')
+    expect(generateObject).toHaveBeenCalledTimes(2)
+    if (result.isErr()) {
+      expect(result.error.message).toContain(
+        `exceeds ${MAX_STANDUP_CONTENT_CHARS} characters`,
+      )
     }
   })
 
