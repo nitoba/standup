@@ -174,8 +174,15 @@ standup/
             publish-standup.test.ts
           embeds.ts         # builders de embed (review, published, job-failed)
         http/
-          internal-routes.ts      # POST /internal/notify/* (auth + DB + DM)
-          internal-routes.test.ts
+          middleware/
+            auth.ts               # internalAuthMiddleware(secret) para /internal/*
+          notify/
+            standup-ready.ts      # handler POST /internal/notify/standup-ready
+            standup-ready.test.ts
+            job-failed.ts         # handler POST /internal/notify/job-failed
+            job-failed.test.ts
+          router.ts               # monta Hono + auth middleware + handlers notify
+          router.test.ts
         index.ts            # Entrypoint: env + Client + HTTP server + event listeners
 
     worker/                 # Scheduler e orquestracao de jobs
@@ -508,10 +515,13 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 ### Apps completos
 
 - `apps/api` — 16 testes (vitest)
-  - `routes/standup-routes.ts`: `createStandupRouter(opts)` — 3 rotas
+  - `standup/router.ts`: `createStandupRouter(opts)` — 3 rotas
     - `GET /standups` — lista com filtros opcionais `?status=&date=`
     - `GET /standups/:id` — detalhe por ID
     - `PATCH /standups/:id/status` — atualiza status (state machine valida transições)
+  - handlers por responsabilidade: `standup/list.ts`, `standup/get-by-id.ts`, `standup/update-status.ts`
+  - service isolado: `services/standup-service.ts`
+  - middleware HTTP extraido: `http/middleware.ts`
   - `index.ts`: entrypoint — middleware logging, health, monta standup router
 
 - `apps/worker` — 22 testes (vitest)
@@ -521,8 +531,11 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
   - `scheduler.ts`: startScheduler() + recoveryCron (Padrao 5)
   - `index.ts`: entrypoint puro
 
-- `apps/discord-bot` — 44 testes (vitest)
-  - `http/internal-routes.ts`: POST /internal/notify/standup-ready + job-failed
+- `apps/discord-bot` — 46 testes (vitest)
+  - `http/router.ts`: auth middleware + POST /internal/notify/standup-ready + /job-failed
+  - handlers por responsabilidade: `http/notify/standup-ready.ts` e `http/notify/job-failed.ts`
+  - middleware extraido: `http/middleware/auth.ts`
+  - services isolados: `services/standup-notification-service.ts` e `services/job-notification-service.ts`
   - `discord/notifications/send-review-dm.ts`: DM com embed azul + botoes
   - `discord/notifications/send-channel-notification.ts`: helper generico de canal
   - `discord/notifications/publish-standup.ts`: publica embed verde no canal
