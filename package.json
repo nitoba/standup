@@ -1,0 +1,29 @@
+{
+  "name": "standup-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.9",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "ci": "turbo run lint typecheck test",
+    "db:generate": "turbo run db:generate --filter=@standup/db",
+    "db:migrate": "turbo run db:migrate --filter=@standup/db"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.5",
+    "@types/bun": "^1.3.10",
+    "@vitest/coverage-v8": "^4.0.18",
+    "drizzle-kit": "^0.31.9",
+    "turbo": "^2.5.8",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}

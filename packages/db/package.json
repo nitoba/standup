@@ -1,0 +1,21 @@
+{
+  "name": "@standup/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "lint": "biome check src",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "db:generate": "bun run src/index.ts generate",
+    "db:migrate": "bun run src/index.ts migrate"
+  },
+  "dependencies": {
+    "@standup/domain": "workspace:*"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "NODE_ENV",
+    "PORT",
+    "DISCORD_BOT_TOKEN",
+    "DISCORD_CHANNEL_ID",
+    "DISCORD_USER_ID",
+    "ANTHROPIC_API_KEY",
+    "AZURE_DEVOPS_ORG",
+    "AZURE_DEVOPS_PAT",
+    "REPOS_BASE_PATH",
+    "GIT_AUTHOR",
+    "GIT_SINCE_PERIOD",
+    "DATABASE_URL"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": [
+        "^lint"
+      ]
+    },
+    "typecheck": {
+      "dependsOn": [
+        "^typecheck"
+      ]
+    },
+    "test": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "db:generate": {
+      "cache": false
+    },
+    "db:migrate": {
+      "cache": false
+    }
+  }
+}

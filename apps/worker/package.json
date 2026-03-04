@@ -1,0 +1,17 @@
+{
+  "name": "@standup/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "lint": "biome check src",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@standup/config": "workspace:*",
+    "@standup/domain": "workspace:*",
+    "croner": "^10.0.1"
+  }
+}
