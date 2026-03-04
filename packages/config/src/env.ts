@@ -22,6 +22,9 @@ const envSchema = z.object({
   REPOS_BASE_PATH: z.string().default('/home/nitoba/Documents/repos/ibs/repos'),
   GIT_AUTHOR: z.string().default('bruno.alves@biosistemico.com.br'),
   GIT_SINCE_PERIOD: z.string().default('16 hours ago'),
+  BOT_INTERNAL_URL: z.string().default('http://localhost:3334'),
+  BOT_INTERNAL_PORT: z.coerce.number().int().positive().default(3334),
+  INTERNAL_SECRET: z.string().default('change-me-in-production'),
 })
 
 export type AppEnv = z.infer<typeof envSchema>

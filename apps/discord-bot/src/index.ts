@@ -1,14 +1,8 @@
 import { loadEnv } from '@standup/config'
 import { Result } from '@standup/domain'
 import { createServiceLogger, withContext } from '@standup/logger'
-import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  Client,
-  Events,
-  GatewayIntentBits,
-} from 'discord.js'
+import { Client, Events, GatewayIntentBits } from 'discord.js'
+import { createInternalRouter } from './http/internal-routes.js'
 
 export async function startDiscordBot(): Promise<void> {
   const logger = createServiceLogger({
@@ -25,6 +19,26 @@ export async function startDiscordBot(): Promise<void> {
   if (!env.DISCORD_BOT_TOKEN) {
     throw new Error('Missing DISCORD_BOT_TOKEN')
   }
+
+  // ---------------------------------------------------------------------------
+  // HTTP server for internal routes (worker → bot notifications)
+  // ---------------------------------------------------------------------------
+
+  const internalApp = createInternalRouter({
+    internalSecret: env.INTERNAL_SECRET,
+    databaseUrl: env.DATABASE_URL,
+  })
+
+  Bun.serve({
+    port: env.BOT_INTERNAL_PORT,
+    fetch: internalApp.fetch,
+  })
+
+  logger.info('Internal HTTP server started', { port: env.BOT_INTERNAL_PORT })
+
+  // ---------------------------------------------------------------------------
+  // Discord gateway
+  // ---------------------------------------------------------------------------
 
   const client = new Client({
     intents: [
@@ -56,36 +70,18 @@ export async function startDiscordBot(): Promise<void> {
     })
     interactionLogger.info('Received standup action from button')
 
+    // TODO Slice 5: implement real approve/reject/regenerate handlers
     await interaction.reply({
       content: `[${action}] recebido para standup ${standupId}.`,
       ephemeral: true,
     })
   })
 
-  await client.login(env.DISCORD_BOT_TOKEN)
-
-  if (env.DISCORD_USER_ID) {
-    const user = await client.users.fetch(env.DISCORD_USER_ID)
-    const controls = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId('standup:approve:preview')
-        .setLabel('Aprovar')
-        .setStyle(ButtonStyle.Success),
-      new ButtonBuilder()
-        .setCustomId('standup:reject:preview')
-        .setLabel('Rejeitar')
-        .setStyle(ButtonStyle.Danger),
-      new ButtonBuilder()
-        .setCustomId('standup:regenerate:preview')
-        .setLabel('Regenerar')
-        .setStyle(ButtonStyle.Secondary),
-    )
-
-    await user.send({
-      content: 'Bot iniciado. Este e o preview dos botoes de revisao.',
-      components: [controls],
-    })
-  }
+  await new Promise<void>((resolve, reject) => {
+    client.once(Events.ClientReady, () => resolve())
+    client.once(Events.Error, reject)
+    client.login(env.DISCORD_BOT_TOKEN as string).catch(reject)
+  })
 }
 
 if (import.meta.main) {

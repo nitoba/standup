@@ -29,7 +29,7 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 
 - Runtime: Bun 1.x
 - Linguagem: TypeScript (strict mode)
-- Testes: Vitest
+- Testes: Vitest (pacotes com mocks complexos) + bun test (pacotes simples)
 - Linter/Formatter: Biome
 - ORM: Drizzle ORM + SQLite (WAL mode)
 - HTTP Server: Hono
@@ -57,6 +57,23 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 - Prefira composicao sobre heranca
 - Estado de standups via state machine simples: draft -> pending_review -> approved -> published (ou rejected -> draft)
 
+## Arquitetura de Comunicacao
+
+```
+worker ──POST /internal/notify/standup-ready──► discord-bot (porta BOT_INTERNAL_PORT)
+         header: x-internal-secret                  │
+                                                     ├─ busca standup no DB
+                                                     └─ envia DM ao usuario (non-fatal)
+```
+
+- Worker nao sabe que Discord existe — apenas faz POST HTTP generico
+- discord-bot sobe **dois servidores** na mesma instancia:
+  - Hono na `BOT_INTERNAL_PORT` (3334) para rotas internas
+  - Gateway Discord (discord.js) para interacoes com botoes
+- Autenticacao interna: header `x-internal-secret` com `INTERNAL_SECRET`
+- Falha no DM e **non-fatal**: standup ja esta salvo no DB, usuario pode aprovar via API
+- Cada app na sua porta: `api=3333`, `discord-bot=3334` (`BOT_INTERNAL_PORT`)
+
 ## Convencoes de Codigo
 
 - camelCase para variaveis e funcoes
@@ -72,7 +89,17 @@ standup/
   apps/
     api/              # Hono API (health, busca, filtros, triggers manuais)
     discord-bot/      # Bot Discord (DM, botoes de revisao, comandos)
+      src/
+        discord/      # Logica Discord: send-review-dm, handlers de botao
+        http/         # Rotas Hono internas: internal-routes.ts
+        index.ts      # Entrypoint: sobe Hono + gateway Discord
     worker/           # Scheduler e orquestracao de jobs
+      src/
+        standup-job.ts        # Pipeline collect→generate→persist→notify
+        standup-notifier.ts   # POST /internal/notify/standup-ready
+        index.ts              # Scheduler (croner)
+        vitest.setup.ts       # Shim Bun globals para Vitest
+      vitest.config.ts        # Config Vitest local (aponta setupFiles)
   packages/
     config/           # Env vars e configuracao tipada
     domain/           # Types, schemas, errors, state machine
@@ -99,6 +126,7 @@ standup/
 - Evitar logica de build no root `package.json`
 - Definir outputs de build para cache (`dist/**`)
 - Dependencias internas sempre via `workspace:*`
+- Cache stale apos mudancas de biome/lint: usar `--force` para invalidar
 
 ## Env Vars Necessarias
 
@@ -124,6 +152,11 @@ GIT_SINCE_PERIOD=16 hours ago
 DATABASE_URL=./data/standup.db
 PORT=3333
 NODE_ENV=development
+
+# Comunicacao interna worker→bot
+BOT_INTERNAL_URL=http://localhost:3334
+BOT_INTERNAL_PORT=3334
+INTERNAL_SECRET=change-me-in-production
 ```
 
 ## Hurdles (Barreiras Conhecidas)
@@ -132,3 +165,140 @@ NODE_ENV=development
 - SQLite WAL mode: necessario para leitura concorrente (bot + scheduler + API)
 - AI SDK: usar `@ai-sdk/anthropic` com `generateText` para geracao de standups
 - croner: alternativa leve ao node-cron, funciona bem com Bun
+
+### Vitest + Bun globals (oven-sh/bun#4145)
+
+Vitest roda seus workers em **Node**, nao no runtime Bun. Globais como `Bun.randomUUIDv7()`
+nao existem no ambiente de teste. Solucao adotada: shim em `vitest.setup.ts`:
+
+```ts
+// apps/worker/src/vitest.setup.ts
+import { randomUUID } from 'node:crypto'
+if (typeof globalThis.Bun === 'undefined') {
+  Object.assign(globalThis, { Bun: { randomUUIDv7: (): string => randomUUID() } })
+}
+```
+
+Referenciar no `vitest.config.ts` local do pacote:
+```ts
+// apps/worker/vitest.config.ts
+export default defineConfig({ test: { setupFiles: ['./src/vitest.setup.ts'] } })
+```
+
+`bunx --bun vitest` nao funciona com monorepo ESM (imports SSR corrompidos). Manter
+`vitest run` via `bun run test` e usar o shim acima.
+
+### Biome --unsafe pode trocar node:crypto por Bun globals
+
+`biome check --write --unsafe` pode substituir `crypto.randomUUID()` por `Bun.randomUUIDv7()`.
+Isso quebra testes Vitest (que rodam em Node). Sempre revisar o diff apos `--unsafe`.
+Se ocorrer, o shim em `vitest.setup.ts` resolve sem precisar reverter o codigo.
+
+### vi.mock com classes instanciadas com `new`
+
+`vi.fn().mockImplementation(() => ...)` cria arrow function — nao funciona com `new`.
+Usar funcao construtora real:
+
+```ts
+vi.mock('@standup/db', () => {
+  function StandupRepository() { return { create: mocks.repoCreate } }
+  return { getDb: mocks.getDb, StandupRepository }
+})
+```
+
+O mesmo padrao se aplica ao `discord.js Client`:
+```ts
+function Client(this: Record<string, unknown>) {
+  this.login = mocks.login
+  this.once = mocks.once
+}
+```
+
+### vi.hoisted() para evitar TDZ em vi.mock factories
+
+Quando factories de `vi.mock()` referenciam variaveis declaradas no mesmo escopo,
+usar `vi.hoisted()` para evitar TDZ (Temporal Dead Zone):
+
+```ts
+const mocks = vi.hoisted(() => ({
+  collect: vi.fn(),
+  notifyStandupReady: vi.fn(),
+}))
+vi.mock('./standup-notifier.js', () => ({ notifyStandupReady: mocks.notifyStandupReady }))
+```
+
+### discord.js: race condition no ClientReady
+
+`client.login()` e async mas o client so esta pronto no evento `ClientReady`.
+Padrao correto para aguardar conexao:
+
+```ts
+await new Promise<void>((resolve, reject) => {
+  client.once(Events.ClientReady, () => resolve())
+  client.once(Events.Error, reject)
+  client.login(token).catch(reject)
+})
+```
+
+### Hono middleware deve retornar `next()` explicitamente
+
+```ts
+// ERRADO — causa "Not all code paths return a value"
+app.use('/internal/*', async (c, next) => {
+  if (!valid) return c.json({ error: 'Unauthorized' }, 401)
+  await next()  // nao retorna
+})
+
+// CORRETO
+app.use('/internal/*', async (c, next) => {
+  if (!valid) return c.json({ error: 'Unauthorized' }, 401)
+  return next()  // retorna a Promise
+})
+```
+
+## Estado Atual (o que esta completo)
+
+### Pacotes completos (com testes)
+- `packages/domain` — types, schemas Zod, state machine, TaggedErrors
+- `packages/config` — `loadEnv()` com todas as env vars
+- `packages/logger` — Winston estruturado
+- `packages/git-collector` — 29 testes (bun test)
+- `packages/db` — StandupRepository completo, 18 testes (bun test)
+- `packages/standup-generator` — generateStandup + MCP enrichment, 18 testes (vitest)
+
+### Apps completos
+- `apps/worker` — scheduler + pipeline completo + notifier HTTP, 10 testes (vitest)
+  - `standup-job.ts`: collect → generate → persist → notify
+  - `standup-notifier.ts`: POST /internal/notify/standup-ready
+- `apps/discord-bot` — internal HTTP route + send-review-dm stub, 6 testes (vitest)
+  - `src/http/internal-routes.ts`: POST /internal/notify/standup-ready (auth + DB lookup + DM)
+  - `src/discord/send-review-dm.ts`: envia DM com botoes Aprovar/Rejeitar/Regenerar
+  - `src/index.ts`: sobe Hono (BOT_INTERNAL_PORT) + gateway Discord
+
+### CI
+- `bun run ci` — 33/33 tasks verde (lint + typecheck + test em todos os pacotes/apps)
+
+## Proximos Passos
+
+1. **Slice 5 — Handlers de aprovacao/rejeicao no discord-bot**
+   - `src/discord/interaction-handler.ts` — logica de approve/reject/regenerate
+   - Ao aprovar: `repo.updateStatus(id, 'approved')` → publica no canal Discord
+   - Ao rejeitar: `repo.updateStatus(id, 'rejected')`
+   - Ao regenerar: chama worker via HTTP trigger → novo standup substitui o draft
+   - Responder ao botao com `interaction.update()` (edita a mensagem original)
+
+2. **Slice 6 — apps/api rotas reais**
+   - `GET /standups` — lista com filtros (status, date)
+   - `GET /standups/:id` — detalhe
+   - `POST /standups/trigger` — trigger manual do job (chama worker via HTTP ou importa diretamente)
+   - `PATCH /standups/:id/status` — aprovacao manual sem Discord
+
+3. **Publicacao no canal Discord**
+   - `src/discord/publish-standup.ts` — posta no `DISCORD_CHANNEL_ID`
+   - Chamado apos aprovacao (Slice 5)
+
+4. **Docker + docker-compose**
+   - Dockerfile multi-stage para cada app
+   - `docker-compose.yml` orquestrando api + discord-bot + worker
+
+5. **`.env.example`** na raiz do monorepo

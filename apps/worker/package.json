@@ -11,8 +11,11 @@
   },
   "dependencies": {
     "@standup/config": "workspace:*",
+    "@standup/db": "workspace:*",
     "@standup/domain": "workspace:*",
+    "@standup/git-collector": "workspace:*",
     "@standup/logger": "workspace:*",
+    "@standup/standup-generator": "workspace:*",
     "croner": "^10.0.1"
   }
 }

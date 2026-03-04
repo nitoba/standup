@@ -1,21 +1,17 @@
+import type { AppEnv } from '@standup/config'
 import { loadEnv } from '@standup/config'
 import { Result } from '@standup/domain'
-import { createServiceLogger, withContext } from '@standup/logger'
+import { createServiceLogger } from '@standup/logger'
 import { Cron } from 'croner'
+import { runStandupJob } from './standup-job.js'
 
 const logger = createServiceLogger({
   service: 'worker',
   component: 'scheduler',
 })
 
-function executeStandupJob() {
-  const jobLogger = withContext(logger, { job: 'standup' })
-  jobLogger.info('Standup job tick (phase 1 stub)')
-}
-
-function scheduleReminderJob() {
-  const jobLogger = withContext(logger, { job: 'reminder' })
-  jobLogger.info('Reminder job tick (phase 1 stub)')
+async function executeStandupJob(env: AppEnv): Promise<void> {
+  await runStandupJob(env)
 }
 
 function bootstrapWorker() {
@@ -29,12 +25,21 @@ function bootstrapWorker() {
   const standupCron = new Cron(
     env.STANDUP_CRON,
     { timezone: env.TIMEZONE },
-    executeStandupJob,
+    () => {
+      executeStandupJob(env).catch((error: unknown) => {
+        logger.error('Standup job threw unexpectedly', { error })
+      })
+    },
   )
+
   const reminderCron = new Cron(
     env.STANDUP_REMINDER_CRON,
     { timezone: env.TIMEZONE },
-    scheduleReminderJob,
+    () => {
+      logger.info('Standup reminder — job will run soon', {
+        nextRun: standupCron.nextRun()?.toISOString() ?? 'n/a',
+      })
+    },
   )
 
   logger.info('Scheduler active', {
