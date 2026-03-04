@@ -1,0 +1,24 @@
+{
+  "name": "@standup/git-collector",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "lint": "biome check ./src",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test src/"
+  },
+  "dependencies": {
+    "@standup/domain": "workspace:*",
+    "@standup/logger": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.8"
+  }
+}
