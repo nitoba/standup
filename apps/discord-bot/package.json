@@ -12,6 +12,7 @@
   "dependencies": {
     "@standup/config": "workspace:*",
     "@standup/domain": "workspace:*",
+    "@standup/logger": "workspace:*",
     "discord.js": "^14.25.1"
   }
 }

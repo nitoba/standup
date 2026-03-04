@@ -1,13 +1,21 @@
 import { loadEnv } from '@standup/config'
 import { Result } from '@standup/domain'
+import { createServiceLogger, withContext } from '@standup/logger'
 import { Cron } from 'croner'
 
+const logger = createServiceLogger({
+  service: 'worker',
+  component: 'scheduler',
+})
+
 function executeStandupJob() {
-  console.log('[worker] standup job tick (phase 1 stub)')
+  const jobLogger = withContext(logger, { job: 'standup' })
+  jobLogger.info('Standup job tick (phase 1 stub)')
 }
 
 function scheduleReminderJob() {
-  console.log('[worker] reminder tick (phase 1 stub)')
+  const jobLogger = withContext(logger, { job: 'reminder' })
+  jobLogger.info('Reminder job tick (phase 1 stub)')
 }
 
 function bootstrapWorker() {
@@ -29,7 +37,7 @@ function bootstrapWorker() {
     scheduleReminderJob,
   )
 
-  console.log('[worker] scheduler active', {
+  logger.info('Scheduler active', {
     standupCron: standupCron.nextRun()?.toISOString() ?? 'n/a',
     reminderCron: reminderCron.nextRun()?.toISOString() ?? 'n/a',
   })

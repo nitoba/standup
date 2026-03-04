@@ -12,6 +12,7 @@
   "dependencies": {
     "@standup/config": "workspace:*",
     "@standup/domain": "workspace:*",
+    "@standup/logger": "workspace:*",
     "croner": "^10.0.1"
   }
 }

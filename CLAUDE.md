@@ -39,6 +39,7 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 - Azure DevOps: MCP client para work items e PRs
 - Discord: discord.js (bot com botoes + DM)
 - Scheduler: croner (cron expressions em Bun)
+- Logs: Winston (estruturado com contexto por servico)
 - Deploy: Docker + VPS
 
 ## Design Patterns
@@ -50,6 +51,7 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 - Schemas Zod para validacao de entrada e saida
 - Erros explicitos com better-result (Result + TaggedError, sem try/catch)
 - Jobs idempotentes
+- Logs estruturados; evitar `console.log` em apps/pacotes
 - Barrel exports apenas em modulos publicos
 - Nunca use `any` — prefira `unknown` + type guard
 - Prefira composicao sobre heranca

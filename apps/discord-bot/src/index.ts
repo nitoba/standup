@@ -1,5 +1,6 @@
 import { loadEnv } from '@standup/config'
 import { Result } from '@standup/domain'
+import { createServiceLogger, withContext } from '@standup/logger'
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -10,6 +11,11 @@ import {
 } from 'discord.js'
 
 export async function startDiscordBot(): Promise<void> {
+  const logger = createServiceLogger({
+    service: 'discord-bot',
+    component: 'gateway',
+  })
+
   const envResult = loadEnv()
   if (Result.isError(envResult)) {
     throw new Error(`Invalid environment: ${envResult.error.message}`)
@@ -30,7 +36,7 @@ export async function startDiscordBot(): Promise<void> {
   })
 
   client.once(Events.ClientReady, () => {
-    console.log('[discord-bot] connected and ready')
+    logger.info('Discord bot connected and ready')
   })
 
   client.on(Events.InteractionCreate, async (interaction) => {
@@ -42,6 +48,13 @@ export async function startDiscordBot(): Promise<void> {
     if (namespace !== 'standup' || !standupId) {
       return
     }
+
+    const interactionLogger = withContext(logger, {
+      action,
+      standupId,
+      userId: interaction.user.id,
+    })
+    interactionLogger.info('Received standup action from button')
 
     await interaction.reply({
       content: `[${action}] recebido para standup ${standupId}.`,
@@ -77,7 +90,11 @@ export async function startDiscordBot(): Promise<void> {
 
 if (import.meta.main) {
   startDiscordBot().catch((error: unknown) => {
-    console.error('[discord-bot] startup failed', error)
+    const logger = createServiceLogger({
+      service: 'discord-bot',
+      component: 'startup',
+    })
+    logger.error('Discord bot startup failed', { error })
     process.exit(1)
   })
 }

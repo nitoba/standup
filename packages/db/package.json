@@ -16,6 +16,7 @@
     "db:migrate": "bun run src/index.ts migrate"
   },
   "dependencies": {
-    "@standup/domain": "workspace:*"
+    "@standup/domain": "workspace:*",
+    "@standup/logger": "workspace:*"
   }
 }

@@ -1,18 +1,19 @@
 {
-  "name": "@standup/api",
+  "name": "@standup/logger",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
     "lint": "biome check src",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
   },
   "dependencies": {
-    "@standup/config": "workspace:*",
-    "@standup/domain": "workspace:*",
-    "@standup/logger": "workspace:*",
-    "hono": "^4.12.5"
+    "winston": "^3.18.3"
   }
 }
