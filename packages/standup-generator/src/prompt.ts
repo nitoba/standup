@@ -1,0 +1,188 @@
+import type { GenerateStandupInput } from '@standup/domain'
+import type {
+  EnrichedGitActivity,
+  EnrichedWorkItem,
+  PullRequestDetail,
+} from './types.js'
+
+/**
+ * Determines the meeting type label based on day of week.
+ * Returns an empty string for days without special meetings.
+ */
+export function determineMeetingType(dateStr: string): string {
+  // Parse as local date to avoid UTC midnight → previous day shifting in negative-offset timezones.
+  // dateStr is expected in YYYY-MM-DD format.
+  const [year, month, dayOfMonth] = dateStr.split('-').map(Number)
+  const date = new Date(year ?? 2000, (month ?? 1) - 1, dayOfMonth ?? 1)
+  const day = date.getDay() // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+  if (day === 1) return '📆 (Start of week meeting)'
+  if (day === 3) return '📆 (Planing Web)'
+  if (day === 5) return '📆 (Encerramento semanal)'
+  return ''
+}
+
+/**
+ * Determines if a work item is "Done" or "In Progress".
+ *
+ * Done if:
+ *   - workItem.state === 'Done', OR
+ *   - workItem.state === 'In Progress' AND all associated PRs are 'completed' or 'active'
+ *
+ * In Progress otherwise.
+ */
+export function determineWorkItemStatus(
+  item: EnrichedWorkItem,
+): 'done' | 'in_progress' {
+  const state = item.workItem?.state ?? ''
+
+  if (state === 'Done') return 'done'
+
+  if (state === 'In Progress' && item.pullRequests.length > 0) {
+    const allDoneOrActive = item.pullRequests.every(
+      (pr: PullRequestDetail) =>
+        pr.status === 'completed' || pr.status === 'active',
+    )
+    if (allDoneOrActive) return 'done'
+  }
+
+  return 'in_progress'
+}
+
+export function buildSystemPrompt(): string {
+  return `Você é um assistente especializado em gerar relatórios de standup diário para desenvolvedores.
+
+Você receberá dados estruturados de commits git e informações enriquecidas do Azure DevOps.
+Sua tarefa é gerar um relatório de standup em português, formatado conforme as regras abaixo.
+
+## Regras de Formatação
+
+**Header:**
+- Formato: \`**Standup (DD/MM/YYYY)**\`
+- Se houver tipo de reunião (meetingType), adicionar na linha seguinte
+- Tipos possíveis: "📆 (Start of week meeting)", "📆 (Planing Web)", "📆 (Encerramento semanal)"
+- Se meetingType estiver vazio, não incluir a linha
+
+**Body — por projeto/repositório:**
+\`\`\`
+**📌 <nome-do-repositório>**
+
+**✅ Done:**
+➜ #<número-card> - <título-do-card>
+\t➜ **Correções:**
+\t\t➜ <descrição da correção>
+\t➜ **Melhorias Técnicas:**
+\t\t➜ <descrição da melhoria>
+
+**🚧 (In Progress):**
+➜ #<número-card> - <título-do-card>
+\t➜ **Correções:**
+\t\t➜ <descrição>
+\t➜ **Melhorias Técnicas:**
+\t\t➜ <descrição>
+
+---
+\`\`\`
+
+**Categorias de conteúdo:**
+- **Correções**: Bugs, problemas resolvidos, fixes
+- **Melhorias Técnicas**: Refatoração, otimizações, novas utilidades, novos componentes
+
+**Regras importantes:**
+- Use \`➜\` para bullets aninhados (não use \`-\` ou \`*\`)
+- Títulos dos cards vêm do Azure DevOps, não dos commits
+- Se não houver título do Azure DevOps, crie um título descritivo baseado nos commits
+- Inclua caminhos de arquivo quando relevante (ex: \`src/services/geo.ts\`)
+- Liste migration files explicitamente quando presentes
+- Mencione novos componentes/serviços criados com seus caminhos
+- Apenas inclua seções **Correções** ou **Melhorias Técnicas** que tenham conteúdo
+- Se não houver itens Done, omitir a seção Done; idem para In Progress
+- Inclua apenas o trabalho do usuário atual — nunca de outros membros da equipe
+- O relatório deve ser conciso mas informativo
+
+**summary:**
+- Uma frase curta em português resumindo o que foi feito no dia
+- Ex: "Corrigi bugs no cadastro de propriedades e implementei filtro avançado na listagem de lotes"
+`
+}
+
+export function buildUserMessage(
+  input: GenerateStandupInput,
+  enriched: EnrichedGitActivity,
+): string {
+  const date = new Date(input.date)
+  const formattedDate = date.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+  const meetingType = input.meetingType || determineMeetingType(input.date)
+
+  const sections: string[] = [
+    `Data: ${formattedDate}`,
+    `Tipo de reunião: ${meetingType || '(nenhum)'}`,
+    '',
+  ]
+
+  for (const repo of enriched.repos) {
+    sections.push(`## Repositório: ${repo.repoName}`)
+    sections.push(`Branch atual: ${repo.currentBranch}`)
+    sections.push('')
+
+    if (repo.commits.length > 0) {
+      sections.push(`### Commits (${repo.commits.length}):`)
+      for (const commit of repo.commits) {
+        sections.push(`- [${commit.hash.slice(0, 8)}] ${commit.subject}`)
+        if (commit.body.trim()) {
+          sections.push(`  Body: ${commit.body.trim()}`)
+        }
+        if (commit.files.length > 0) {
+          sections.push(`  Arquivos alterados: ${commit.files.join(', ')}`)
+        }
+      }
+      sections.push('')
+    }
+
+    if (repo.enrichedItems.length > 0) {
+      sections.push('### Work Items enriquecidos:')
+      for (const item of repo.enrichedItems) {
+        const status = determineWorkItemStatus(item)
+        const workItemTitle = item.workItem?.title ?? '(título não encontrado)'
+        const workItemState = item.workItem?.state ?? 'unknown'
+
+        sections.push(`#### Card #${item.cardNumber}`)
+        sections.push(`- Título: ${workItemTitle}`)
+        sections.push(`- Estado Azure DevOps: ${workItemState}`)
+        sections.push(
+          `- Status calculado: ${status === 'done' ? 'Done ✅' : 'In Progress 🚧'}`,
+        )
+
+        if (item.pullRequests.length > 0) {
+          sections.push(`- Pull Requests (${item.pullRequests.length}):`)
+          for (const pr of item.pullRequests) {
+            sections.push(`  - PR #${pr.id}: "${pr.title}" [${pr.status}]`)
+          }
+        }
+        sections.push('')
+      }
+    } else {
+      sections.push('### Sem work items associados (commits diretos)')
+      sections.push('')
+    }
+  }
+
+  if (input.extraContext) {
+    sections.push('## Contexto adicional fornecido pelo usuário:')
+    sections.push(input.extraContext)
+    sections.push('')
+  }
+
+  sections.push('---')
+  sections.push(
+    'Gere o relatório de standup seguindo EXATAMENTE o formato especificado no system prompt.',
+  )
+  sections.push(
+    'Retorne um objeto JSON com "content" (relatório completo em markdown) e "summary" (frase resumo).',
+  )
+
+  return sections.join('\n')
+}
