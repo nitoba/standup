@@ -1,8 +1,20 @@
+name: standup
+
 services:
-  # Init service: runs database migrations before any app starts.
-  # Uses a dedicated Dockerfile that keeps the full Bun runtime (migrate.ts reads
-  # SQL files from disk via import.meta.url and cannot be compiled as a standalone binary).
+  # ---------------------------------------------------------------------------
+  # migrate — runs Drizzle migrations once before any app starts.
+  #
+  # Assigned to the "migrate" profile so it is excluded from `compose up`
+  # and never left as a stopped container cluttering `compose ps`.
+  #
+  # Deploy procedure:
+  #   1. podman compose run --rm migrate   ← runs migrations and auto-removes
+  #   2. podman compose up -d              ← starts api, discord-bot, worker
+  # ---------------------------------------------------------------------------
   migrate:
+    container_name: standup-migrate
+    profiles:
+      - migrate
     build:
       context: .
       dockerfile: Dockerfile.migrate
@@ -11,8 +23,15 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: /app/data/standup.db
+    networks:
+      - internal
+    restart: "no"
 
+  # ---------------------------------------------------------------------------
+  # api — Hono HTTP API (health, standup CRUD, manual trigger)
+  # ---------------------------------------------------------------------------
   api:
+    container_name: standup-api
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -24,14 +43,20 @@ services:
     environment:
       PORT: "3333"
       DATABASE_URL: /app/data/standup.db
-      BOT_INTERNAL_URL: http://discord-bot:3334
-      WORKER_INTERNAL_URL: http://worker:3335
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
+      BOT_INTERNAL_URL: http://standup-discord-bot:3334
+      WORKER_INTERNAL_URL: http://standup-worker:3335
+    networks:
+      - internal
     restart: unless-stopped
+    # Note: healthcheck via CMD-SHELL is not possible in distroless (no shell).
+    # Liveness is monitored via restart: unless-stopped + the /health endpoint
+    # exposed on PORT (accessible from the host or a reverse proxy).
 
+  # ---------------------------------------------------------------------------
+  # discord-bot — Discord gateway + internal HTTP server for worker notifications
+  # ---------------------------------------------------------------------------
   discord-bot:
+    container_name: standup-discord-bot
     build:
       context: .
       dockerfile: apps/discord-bot/Dockerfile
@@ -41,34 +66,51 @@ services:
     environment:
       BOT_INTERNAL_PORT: "3334"
       DATABASE_URL: /app/data/standup.db
-      API_BASE_URL: http://api:3333
-      WORKER_INTERNAL_URL: http://worker:3335
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
+      API_BASE_URL: http://standup-api:3333
+      WORKER_INTERNAL_URL: http://standup-worker:3335
+    networks:
+      - internal
     restart: unless-stopped
 
+  # ---------------------------------------------------------------------------
+  # worker — cron scheduler + standup job pipeline + internal HTTP trigger
+  # ---------------------------------------------------------------------------
   worker:
+    container_name: standup-worker
     build:
       context: .
       dockerfile: apps/worker/Dockerfile
     volumes:
       - standup-data:/app/data
-      # Git repositories: bind-mounted read-only from host
-      # REPOS_BASE_PATH in .env points to the host path; inside the container it becomes /repos
+      # Git repositories: bind-mounted read-only from host.
+      # REPOS_BASE_PATH in .env points to the host path; inside the container it becomes /repos.
       - ${REPOS_BASE_PATH:-/home/nitoba/Documents/repos/ibs/repos}:/repos:ro
     env_file: .env
     environment:
       WORKER_INTERNAL_PORT: "3335"
       DATABASE_URL: /app/data/standup.db
-      BOT_INTERNAL_URL: http://discord-bot:3334
+      BOT_INTERNAL_URL: http://standup-discord-bot:3334
       # Override REPOS_BASE_PATH to the in-container path
       REPOS_BASE_PATH: /repos
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
+    networks:
+      - internal
     restart: unless-stopped
 
+# ---------------------------------------------------------------------------
+# Volumes
+# ---------------------------------------------------------------------------
 volumes:
   # Shared persistent volume for SQLite database (WAL mode supports concurrent readers)
   standup-data:
+    name: standup-data
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  # Isolated bridge network — services are not reachable from the host except
+  # via the explicitly published port on `api`. The internal communication
+  # (api → worker, worker → discord-bot) stays off the public interface.
+  internal:
+    name: standup-internal
+    driver: bridge
