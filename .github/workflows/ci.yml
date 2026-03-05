@@ -67,12 +67,12 @@ jobs:
   # =========================================================================
   # Job 2: Build — Docker images → GHCR (arm64)
   # Only runs on push to main or manual dispatch, after quality passes.
-  # Uses QEMU to cross-compile arm64 images on the amd64 runner.
+  # Uses a native arm64 runner — no QEMU cross-compilation needed.
   # =========================================================================
   build:
     needs: quality
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
@@ -95,11 +95,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Set up QEMU (arm64 emulation)
-        uses: docker/setup-qemu-action@v4
-        with:
-          platforms: arm64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -127,7 +122,6 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          platforms: linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
