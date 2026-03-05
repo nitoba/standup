@@ -221,13 +221,13 @@ push/PR (qualquer branch)     push na main
 
 ### Tailscale + SSH
 
-| Secret               | Descricao                                                    |
-| -------------------- | ------------------------------------------------------------ |
-| `TS_OAUTH_CLIENT_ID` | OAuth client Tailscale (scope: Devices Write, tag: `tag:ci`) |
-| `TS_OAUTH_SECRET`    | OAuth client secret Tailscale                                |
-| `SSH_PRIVATE_KEY`    | Chave privada Ed25519 para SSH no MacBook                    |
-| `DEPLOY_HOST`        | `nitoba-mac.tail2ee1d6.ts.net`                               |
-| `DEPLOY_USER`        | `nitoba`                                                     |
+| Secret                   | Descricao                                                    |
+| ------------------------ | ------------------------------------------------------------ |
+| `TS_OAUTH_CLIENT_ID`     | OAuth client Tailscale (scope: Devices Write, tag: `tag:ci`) |
+| `TS_OAUTH_CLIENT_SECRET` | OAuth client secret Tailscale                                |
+| `SSH_PRIVATE_KEY`        | Chave privada Ed25519 para SSH no MacBook                    |
+| `DEPLOY_HOST`            | `nitoba-mac.tail2ee1d6.ts.net`                               |
+| `DEPLOY_USER`            | `nitoba`                                                     |
 
 ### App secrets
 
