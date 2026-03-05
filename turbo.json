@@ -6,10 +6,8 @@
     "DISCORD_BOT_TOKEN",
     "DISCORD_CHANNEL_ID",
     "DISCORD_USER_ID",
-    "ANTHROPIC_API_KEY",
     "ANTHROPIC_AUTH_TOKEN",
     "AZURE_DEVOPS_ORG",
-    "AZURE_DEVOPS_ORG_URL",
     "AZURE_DEVOPS_PAT",
     "AZURE_DEVOPS_DEFAULT_PROJECT",
     "REPOS_BASE_PATH",
@@ -19,31 +17,21 @@
   ],
   "tasks": {
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "dist/**"
-      ]
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
     },
     "dev": {
       "cache": false,
       "persistent": true
     },
     "lint": {
-      "dependsOn": [
-        "^lint"
-      ]
+      "dependsOn": ["^lint"]
     },
     "typecheck": {
-      "dependsOn": [
-        "^typecheck"
-      ]
+      "dependsOn": ["^typecheck"]
     },
     "test": {
-      "dependsOn": [
-        "^build"
-      ]
+      "dependsOn": ["^build"]
     },
     "db:generate": {
       "cache": false

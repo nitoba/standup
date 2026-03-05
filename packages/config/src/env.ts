@@ -17,10 +17,8 @@ const envSchema = z.object({
   DISCORD_CHANNEL_ID: z.string().min(1),
   DISCORD_USER_ID: z.string().min(1),
   DISCORD_GUILD_ID: z.string().optional(), // Guild commands (dev) vs global (prod)
-  ANTHROPIC_API_KEY: z.string().min(1),
-  ANTHROPIC_AUTH_TOKEN: z.string().optional(),
+  ANTHROPIC_AUTH_TOKEN: z.string().min(1),
   AZURE_DEVOPS_ORG: z.string().min(1),
-  AZURE_DEVOPS_ORG_URL: z.string().optional(),
   AZURE_DEVOPS_PAT: z.string().min(1),
   AZURE_DEVOPS_DEFAULT_PROJECT: z.string().default('AGROTRACE'),
   REPOS_BASE_PATH: z.string().default('/home/nitoba/Documents/repos/ibs/repos'),

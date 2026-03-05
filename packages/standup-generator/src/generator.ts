@@ -106,8 +106,7 @@ export async function generateStandup(
       yield* Result.err(
         new ExternalServiceError({
           service: 'anthropic',
-          message:
-            'No authentication configured: set ANTHROPIC_AUTH_TOKEN or ANTHROPIC_API_KEY',
+          message: 'No authentication configured: set ANTHROPIC_AUTH_TOKEN',
         }),
       )
     }

@@ -147,11 +147,8 @@ export async function runStandupJob(
     // Degradação graciosa: se MCP falhar após todos os retries, geramos sem enrichment.
     const generatorConfig = {
       anthropicAuthToken: env.ANTHROPIC_AUTH_TOKEN,
-      anthropicApiKey: env.ANTHROPIC_API_KEY,
       azure: {
-        orgUrl:
-          env.AZURE_DEVOPS_ORG_URL ??
-          `https://dev.azure.com/${env.AZURE_DEVOPS_ORG}`,
+        orgUrl: `https://dev.azure.com/${env.AZURE_DEVOPS_ORG}`,
         defaultProject: env.AZURE_DEVOPS_DEFAULT_PROJECT,
         pat: env.AZURE_DEVOPS_PAT,
       },

@@ -266,7 +266,8 @@ DISCORD_USER_ID=          # Seu user ID para DMs
 DISCORD_GUILD_ID=         # Opcional: guild commands (dev) vs global (prod)
 
 # LLM
-ANTHROPIC_API_KEY=
+ANTHROPIC_AUTH_TOKEN=
+
 
 # Azure DevOps (via MCP)
 AZURE_DEVOPS_ORG=
@@ -610,10 +611,3 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 - `bun run ci` — 33/33 tasks verde (lint + typecheck + test em todos os pacotes/apps)
 
 ## Proximos Passos
-
-1. **Docker + docker-compose**
-   - Dockerfile multi-stage para cada app
-   - `docker-compose.yml` orquestrando api + discord-bot + worker
-
-2. **Regenerate com trigger automatico (opcional)**
-   - Ao clicar `regenerate`, rejeitar o atual e chamar trigger manual via API
