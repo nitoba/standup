@@ -17,7 +17,7 @@ services:
       - migrate
     build:
       context: .
-      dockerfile: Dockerfile.migrate
+      dockerfile: packages/db/Dockerfile
     volumes:
       - standup-data:/app/data
     env_file: .env
