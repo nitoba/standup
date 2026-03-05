@@ -66,12 +66,12 @@ jobs:
 
   # =========================================================================
   # Job 2: Build — Docker images → GHCR (arm64)
-  # Only runs on push to main, after quality passes.
+  # Only runs on push to main or manual dispatch, after quality passes.
   # Uses QEMU to cross-compile arm64 images on the amd64 runner.
   # =========================================================================
   build:
     needs: quality
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -144,7 +144,7 @@ jobs:
   # =========================================================================
   deploy:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
