@@ -1,7 +1,8 @@
 import { createServiceLogger } from '@standup/logger'
-import type {
-  ChatInputCommandInteraction,
-  InteractionReplyOptions,
+import {
+  type ChatInputCommandInteraction,
+  type InteractionReplyOptions,
+  MessageFlags,
 } from 'discord.js'
 import { triggerStandup } from '../../services/trigger-standup-service.js'
 
@@ -11,7 +12,7 @@ const logger = createServiceLogger({
 })
 
 function ephemeral(content: string): InteractionReplyOptions {
-  return { content, ephemeral: true }
+  return { content, flags: MessageFlags.Ephemeral }
 }
 
 export interface TriggerCommandDeps {

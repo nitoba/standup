@@ -31,7 +31,10 @@ export function startScheduler(env: AppEnv): {
     { timezone: env.TIMEZONE },
     () => {
       runStandupJob(env).catch((error: unknown) => {
-        logger.error('Standup job threw unexpectedly', { error })
+        logger.error('Standup job threw unexpectedly', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        })
       })
     },
   )
@@ -100,7 +103,10 @@ export function startScheduler(env: AppEnv): {
         date: today,
       })
       runStandupJob(env).catch((error: unknown) => {
-        logger.error('Recovery job threw unexpectedly', { error })
+        logger.error('Recovery job threw unexpectedly', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        })
       })
     },
   )

@@ -1,5 +1,9 @@
 import { createServiceLogger } from '@standup/logger'
-import type { ChatInputCommandInteraction, Client } from 'discord.js'
+import {
+  type ChatInputCommandInteraction,
+  type Client,
+  MessageFlags,
+} from 'discord.js'
 import type { handleStandupInteraction } from '../handlers/interaction-handler.js'
 
 const logger = createServiceLogger({
@@ -30,7 +34,7 @@ export async function handleApproveCommand(
     standupId,
   })
 
-  await interaction.deferReply({ ephemeral: true })
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
   const result = await deps.handleInteraction(
     'approve',

@@ -43,7 +43,11 @@ vi.mock('../../services/trigger-standup-service.js', () => ({
 // Import após mocks
 // ---------------------------------------------------------------------------
 
-import type { ChatInputCommandInteraction, Client } from 'discord.js'
+import {
+  type ChatInputCommandInteraction,
+  type Client,
+  MessageFlags,
+} from 'discord.js'
 import { handleApproveCommand } from './approve.js'
 import { handleList } from './list.js'
 import { handleTrigger } from './trigger.js'
@@ -116,9 +120,9 @@ describe('handleTrigger', () => {
 
     expect(mocks.interactionReply).toHaveBeenCalledTimes(1)
     const [replyArg] = mocks.interactionReply.mock.calls[0] as [
-      { content: string; ephemeral: boolean },
+      { content: string; flags: number },
     ]
-    expect(replyArg.ephemeral).toBe(true)
+    expect(replyArg.flags).toBe(MessageFlags.Ephemeral)
     expect(replyArg.content).toMatch(/sucesso/i)
     expect(mocks.triggerStandup).toHaveBeenCalledWith('user-abc', {
       apiBaseUrl: API_BASE_URL,
@@ -134,7 +138,7 @@ describe('handleTrigger', () => {
     await handleTrigger(interaction, { apiBaseUrl: API_BASE_URL })
 
     const [replyArg] = mocks.interactionReply.mock.calls[0] as [
-      { content: string; ephemeral: boolean },
+      { content: string; flags: number },
     ]
     expect(replyArg.content).toMatch(/nao esta autorizado/i)
   })
@@ -153,7 +157,7 @@ describe('handleTrigger', () => {
     await handleTrigger(interaction, { apiBaseUrl: API_BASE_URL })
 
     const [replyArg] = mocks.interactionReply.mock.calls[0] as [
-      { content: string; ephemeral: boolean },
+      { content: string; flags: number },
     ]
     expect(replyArg.content).toMatch(/falha ao disparar/i)
   })
@@ -182,7 +186,7 @@ describe('handleList', () => {
     await handleList(interaction, { databaseUrl: DATABASE_URL })
 
     expect(mocks.interactionDeferReply).toHaveBeenCalledWith({
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     })
     expect(mocks.interactionEditReply).toHaveBeenCalledWith(
       expect.objectContaining({ embeds: expect.any(Array) }),
@@ -244,7 +248,7 @@ describe('handleApproveCommand', () => {
     await handleApproveCommand(interaction, fakeClient, deps)
 
     expect(mocks.interactionDeferReply).toHaveBeenCalledWith({
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     })
     expect(mocks.handleInteraction).toHaveBeenCalledWith(
       'approve',

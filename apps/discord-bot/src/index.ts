@@ -60,19 +60,37 @@ export async function startDiscordBot(): Promise<void> {
   })
 
   client.on(Events.InteractionCreate, async (interaction) => {
-    if (interaction.isChatInputCommand()) {
-      await handleSlashCommand(interaction, client, env)
-      return
-    }
+    try {
+      if (interaction.isChatInputCommand()) {
+        await handleSlashCommand(interaction, client, env)
+        return
+      }
 
-    if (interaction.isButton()) {
-      await handleButtonInteraction(interaction, client, env)
-      return
-    }
+      if (interaction.isButton()) {
+        await handleButtonInteraction(interaction, client, env)
+        return
+      }
 
-    if (interaction.isModalSubmit()) {
-      await handleRegenerateModal(interaction, client, env)
+      if (interaction.isModalSubmit()) {
+        await handleRegenerateModal(interaction, client, env)
+      }
+    } catch (error: unknown) {
+      logger.error('Unhandled error in interaction handler', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        interactionType: interaction.type,
+        interactionId: interaction.id,
+      })
     }
+  })
+
+  // Permanent error listener — prevents unhandled rejections from crashing the process
+  // after startup (e.g. reconnection failures, gateway errors).
+  client.on(Events.Error, (error) => {
+    logger.error('Discord client error', {
+      error: error.message,
+      stack: error.stack,
+    })
   })
 
   // Wait for the gateway to be ready before resolving
@@ -89,7 +107,10 @@ if (import.meta.main) {
       service: 'discord-bot',
       component: 'startup',
     })
-    logger.error('Discord bot startup failed', { error })
+    logger.error('Discord bot startup failed', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
     process.exit(1)
   })
 }

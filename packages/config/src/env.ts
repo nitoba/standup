@@ -40,10 +40,12 @@ export function loadEnv(
   const parsed = envSchema.safeParse(raw)
   if (!parsed.success) {
     const issue = parsed.error.issues[0]
+    const field = issue?.path.join('.') ?? 'env'
+    const detail = issue?.message ?? 'Invalid environment'
     return Result.err(
       new ValidationError({
-        field: issue?.path.join('.') ?? 'env',
-        message: issue?.message ?? 'Invalid environment',
+        field,
+        message: `${field}: ${detail}`,
       }),
     )
   }
