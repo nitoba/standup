@@ -41,10 +41,13 @@ function getKnownMigrationsCount(migrationsFolder: string): number {
 
     throw new Error('journal entries is not an array')
   } catch (error) {
-    logger.warn('Could not read Drizzle migration journal, falling back to .sql file count', {
-      error: getErrorMessage(error),
-      journalPath,
-    })
+    logger.warn(
+      'Could not read Drizzle migration journal, falling back to .sql file count',
+      {
+        error: getErrorMessage(error),
+        journalPath,
+      },
+    )
 
     return countSqlMigrationFiles(migrationsFolder)
   }
@@ -66,9 +69,7 @@ function getAppliedMigrationsCount(sqlite: Database): number {
   }
 
   const row = sqlite
-    .query(
-      `select count(*) as count from "${DRIZZLE_MIGRATIONS_TABLE}"`,
-    )
+    .query(`select count(*) as count from "${DRIZZLE_MIGRATIONS_TABLE}"`)
     .get() as { count: number } | null
 
   if (!row) {
