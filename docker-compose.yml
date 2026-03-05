@@ -1,10 +1,11 @@
 services:
-  # Init service: runs database migrations before any app starts
+  # Init service: runs database migrations before any app starts.
+  # Uses a dedicated Dockerfile that keeps the full Bun runtime (migrate.ts reads
+  # SQL files from disk via import.meta.url and cannot be compiled as a standalone binary).
   migrate:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
-    command: bun run packages/db/src/migrate.ts
+      dockerfile: Dockerfile.migrate
     volumes:
       - standup-data:/app/data
     env_file: .env
