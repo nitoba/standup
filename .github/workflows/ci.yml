@@ -68,6 +68,8 @@ jobs:
   # Job 2: Build — Docker images → GHCR (arm64)
   # Only runs on push to main or manual dispatch, after quality passes.
   # Uses a native arm64 runner — no QEMU cross-compilation needed.
+  # Builds all 4 images sequentially in a single job to avoid concurrency
+  # cancellations from the matrix spawning multiple parallel jobs.
   # =========================================================================
   build:
     needs: quality
@@ -76,22 +78,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - app: api
-            dockerfile: apps/api/Dockerfile
-            image: ghcr.io/nitoba/standup-api
-          - app: discord-bot
-            dockerfile: apps/discord-bot/Dockerfile
-            image: ghcr.io/nitoba/standup-bot
-          - app: worker
-            dockerfile: apps/worker/Dockerfile
-            image: ghcr.io/nitoba/standup-worker
-          - app: migrate
-            dockerfile: packages/db/Dockerfile
-            image: ghcr.io/nitoba/standup-migrate
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -106,27 +92,89 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker metadata (tags + labels)
-        id: meta
+      # --- API ---
+      - name: Meta (api)
+        id: meta-api
         uses: docker/metadata-action@v5
         with:
-          images: ${{ matrix.image }}
+          images: ghcr.io/nitoba/standup-api
           tags: |
-            # Git SHA (short) — used by Kamal to identify the version
             type=sha,format=long
-            # Latest — convenience tag for manual pulls
             type=raw,value=latest
 
-      - name: Build and push
+      - name: Build & push (api)
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ${{ matrix.dockerfile }}
+          file: apps/api/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.app }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      # --- Discord Bot ---
+      - name: Meta (discord-bot)
+        id: meta-bot
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/nitoba/standup-bot
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest
+
+      - name: Build & push (discord-bot)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/discord-bot/Dockerfile
+          push: true
+          tags: ${{ steps.meta-bot.outputs.tags }}
+          labels: ${{ steps.meta-bot.outputs.labels }}
+          cache-from: type=gha,scope=discord-bot
+          cache-to: type=gha,mode=max,scope=discord-bot
+
+      # --- Worker ---
+      - name: Meta (worker)
+        id: meta-worker
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/nitoba/standup-worker
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest
+
+      - name: Build & push (worker)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/worker/Dockerfile
+          push: true
+          tags: ${{ steps.meta-worker.outputs.tags }}
+          labels: ${{ steps.meta-worker.outputs.labels }}
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,mode=max,scope=worker
+
+      # --- Migrate ---
+      - name: Meta (migrate)
+        id: meta-migrate
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/nitoba/standup-migrate
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest
+
+      - name: Build & push (migrate)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/db/Dockerfile
+          push: true
+          tags: ${{ steps.meta-migrate.outputs.tags }}
+          labels: ${{ steps.meta-migrate.outputs.labels }}
+          cache-from: type=gha,scope=migrate
+          cache-to: type=gha,mode=max,scope=migrate
 
   # =========================================================================
   # Job 3: Deploy — Kamal over Tailscale SSH
