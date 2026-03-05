@@ -28,7 +28,7 @@ RUN bun build \
   --minify \
   --sourcemap \
   --bytecode \
-  --target=bun-linux-x64 \
+  --target=bun-linux-arm64 \
   --no-compile-autoload-dotenv \
   apps/discord-bot/src/index.ts \
   --outfile /app/bin/discord-bot

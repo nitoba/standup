@@ -17,3 +17,7 @@ logs
 .claude
 skills-lock.json
 *.env
+
+# Kamal secrets (contains passwords, tokens, SSH keys)
+.kamal/secrets
+.kamal/secrets-*

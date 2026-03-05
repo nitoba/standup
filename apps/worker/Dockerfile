@@ -32,18 +32,19 @@ RUN bun build \
   --minify \
   --sourcemap \
   --bytecode \
-  --target=bun-linux-x64-musl \
+  --target=bun-linux-arm64 \
   --no-compile-autoload-dotenv \
   apps/worker/src/index.ts \
   --outfile /app/bin/worker
 
-# Stage 2: minimal runtime — Alpine + git.
-# musl target is required for Alpine compatibility (Alpine uses musl libc, not glibc).
-# libstdc++ is needed by the Bun runtime embedded in the binary.
-# Alpine + git + libstdc++ + ca-certificates is ~40 MB vs debian-slim + git ~112 MB.
-FROM alpine:3.21 AS runtime
+# Stage 2: minimal runtime — debian-slim + git.
+# arm64 target requires glibc (Bun has no arm64-musl build), so Alpine is not an option.
+# debian-slim provides glibc + ca-certificates; git is needed by @standup/git-collector.
+FROM debian:12-slim AS runtime
 
-RUN apk add --no-cache git libstdc++ ca-certificates
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  git ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

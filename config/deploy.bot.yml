@@ -1,0 +1,63 @@
+# Kamal deploy config — standup-bot (Discord bot)
+#
+# Discord gateway + internal HTTP server for worker notifications.
+# No public proxy — port 3334 is published directly on the host for internal traffic only.
+# The Discord bot connects outbound to Discord's gateway (no inbound public traffic needed).
+#
+# Usage:
+#   kamal deploy -c config/deploy.bot.yml
+#   kamal app logs -c config/deploy.bot.yml
+
+service: standup-bot
+image: ghcr.io/nitoba/standup-bot
+
+servers:
+  web:
+    hosts:
+      # TODO: Replace with your MacBook's Tailscale hostname or IP
+      - TAILSCALE_HOST_PLACEHOLDER
+    options:
+      publish:
+        - "3334:3334"
+    proxy: false
+
+registry:
+  server: ghcr.io
+  username: nitoba
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  context: .
+  dockerfile: apps/discord-bot/Dockerfile
+  arch: arm64
+
+# No proxy — this service is internal only.
+# The readiness_delay gives the container time to boot and connect to Discord gateway.
+readiness_delay: 10
+
+ssh:
+  user: DEPLOY_USER_PLACEHOLDER
+  keys:
+    - ~/.ssh/deploy_key
+
+volumes:
+  - /opt/standup/data:/app/data
+
+env:
+  clear:
+    NODE_ENV: production
+    BOT_INTERNAL_PORT: "3334"
+    DATABASE_URL: /app/data/standup.db
+    # API is behind kamal-proxy. Use the public hostname so requests go through
+    # Cloudflare Tunnel -> kamal-proxy -> api container. Latency is minimal
+    # since everything resolves locally on the same host.
+    # TODO: If you prefer direct internal access, you can also use
+    # http://host.docker.internal:80 with proper Host header config.
+    API_BASE_URL: https://api.nitoba.com.br
+    WORKER_INTERNAL_URL: http://host.docker.internal:3335
+  secret:
+    - DISCORD_BOT_TOKEN
+    - DISCORD_CHANNEL_ID
+    - DISCORD_USER_ID
+    - INTERNAL_SECRET

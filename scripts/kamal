@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+docker run --rm -it \
+  -v $PWD:/app \
+  -v ~/.ssh:/root/.ssh \
+  ghcr.io/basecamp/kamal:latest kamal "$@"
