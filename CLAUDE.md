@@ -236,7 +236,7 @@ standup/
 
   data/               # SQLite files (gitignored)
   drizzle/            # Migration files gerados
-  turbo.json          # Pipeline monorepo
+  turbo.json          # Pipeline monorepos
 ```
 
 ## Ordem de Implementacao (Obrigatoria)
