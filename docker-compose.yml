@@ -1,0 +1,73 @@
+services:
+  # Init service: runs database migrations before any app starts
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    command: bun run packages/db/src/migrate.ts
+    volumes:
+      - standup-data:/app/data
+    env_file: .env
+    environment:
+      DATABASE_URL: /app/data/standup.db
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "${PORT:-3333}:3333"
+    volumes:
+      - standup-data:/app/data
+    env_file: .env
+    environment:
+      PORT: "3333"
+      DATABASE_URL: /app/data/standup.db
+      BOT_INTERNAL_URL: http://discord-bot:3334
+      WORKER_INTERNAL_URL: http://worker:3335
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  discord-bot:
+    build:
+      context: .
+      dockerfile: apps/discord-bot/Dockerfile
+    volumes:
+      - standup-data:/app/data
+    env_file: .env
+    environment:
+      BOT_INTERNAL_PORT: "3334"
+      DATABASE_URL: /app/data/standup.db
+      API_BASE_URL: http://api:3333
+      WORKER_INTERNAL_URL: http://worker:3335
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    volumes:
+      - standup-data:/app/data
+      # Git repositories: bind-mounted read-only from host
+      # REPOS_BASE_PATH in .env points to the host path; inside the container it becomes /repos
+      - ${REPOS_BASE_PATH:-/home/nitoba/Documents/repos/ibs/repos}:/repos:ro
+    env_file: .env
+    environment:
+      WORKER_INTERNAL_PORT: "3335"
+      DATABASE_URL: /app/data/standup.db
+      BOT_INTERNAL_URL: http://discord-bot:3334
+      # Override REPOS_BASE_PATH to the in-container path
+      REPOS_BASE_PATH: /repos
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  # Shared persistent volume for SQLite database (WAL mode supports concurrent readers)
+  standup-data:

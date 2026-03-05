@@ -615,7 +615,5 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
    - Dockerfile multi-stage para cada app
    - `docker-compose.yml` orquestrando api + discord-bot + worker
 
-2. **`.env.example`** na raiz do monorepo
-
-3. **Regenerate com trigger automatico (opcional)**
+2. **Regenerate com trigger automatico (opcional)**
    - Ao clicar `regenerate`, rejeitar o atual e chamar trigger manual via API

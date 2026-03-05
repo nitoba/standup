@@ -31,8 +31,8 @@ export function createAzureMcpClient(config: AzureMcpConfig): AzureMcpClient {
   async function connect(): Promise<Result<void, ExternalServiceError>> {
     try {
       const transport = new StdioClientTransport({
-        command: 'npx',
-        args: ['-y', '@tiberriver256/mcp-server-azure-devops'],
+        command: 'bunx',
+        args: ['@tiberriver256/mcp-server-azure-devops'],
         env: {
           ...process.env,
           AZURE_DEVOPS_ORG_URL: config.orgUrl,
