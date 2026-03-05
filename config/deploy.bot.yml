@@ -14,8 +14,7 @@ image: ghcr.io/nitoba/standup-bot
 servers:
   web:
     hosts:
-      # TODO: Replace with your MacBook's Tailscale hostname or IP
-      - TAILSCALE_HOST_PLACEHOLDER
+      - nitoba-mac.tail2ee1d6.ts.net
     options:
       publish:
         - "3334:3334"
@@ -37,7 +36,7 @@ builder:
 readiness_delay: 10
 
 ssh:
-  user: DEPLOY_USER_PLACEHOLDER
+  user: nitoba
   keys:
     - ~/.ssh/deploy_key
 

@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 # Cancel in-progress runs for the same branch/PR
 concurrency:
@@ -44,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -93,18 +94,18 @@ jobs:
             image: ghcr.io/nitoba/standup-migrate
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up QEMU (arm64 emulation)
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: arm64
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Login to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -156,10 +157,10 @@ jobs:
       DEPLOY_VERSION: ${{ github.sha }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Tailscale
-        uses: tailscale/github-action@v3
+        uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}

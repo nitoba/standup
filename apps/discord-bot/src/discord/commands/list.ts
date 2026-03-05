@@ -1,7 +1,7 @@
 import { getDb, StandupRepository } from '@standup/db'
 import type { StandupStatus } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
-import type { ChatInputCommandInteraction } from 'discord.js'
+import { type ChatInputCommandInteraction, MessageFlags } from 'discord.js'
 import { EMBED_COLORS } from '../embeds.js'
 
 const logger = createServiceLogger({
@@ -38,7 +38,7 @@ export async function handleList(
     statusFilter,
   })
 
-  await interaction.deferReply({ ephemeral: true })
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
   try {
     const db = getDb(deps.databaseUrl)
