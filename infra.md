@@ -1,18 +1,27 @@
-monorepo com **3 imagens separadas**:
+# Infraestrutura — Standup Bot
 
-✅ **Cloudflare (DNS + HTTPS na borda)**
-✅ **Cloudflare Tunnel (cloudflared) no MacBook** (sem abrir portas / sem depender de IP público)
-✅ **Kamal + kamal-proxy** (swap sem downtime)
-✅ **Tailscale** (admin/SSH/deploy seguro)
+Monorepo com **3 imagens Docker separadas** + 1 imagem de migracao.
 
 ---
 
-## Stack enxuto recomendado (o “bem amarrado”)
+## Stack
 
-### Fluxo de requisição pública (produção)
+- **Cloudflare** — DNS + HTTPS na borda + WAF
+- **Cloudflare Tunnel (cloudflared)** — acesso publico sem abrir portas / sem IP publico
+- **Kamal 2 + kamal-proxy** — deploy com swap sem downtime
+- **Tailscale** — rede privada para admin/SSH/deploy
+- **GitHub Actions** — CI/CD (lint, typecheck, test, build, deploy)
+- **GHCR (ghcr.io)** — container registry para as imagens Docker
+- **Docker Desktop** — runtime no MacBook (Apple Silicon / arm64)
+
+---
+
+## Arquitetura
+
+### Fluxo de requisicao publica (producao)
 
 ```
-[ Usuário/Internet ]
+[ Usuario/Internet ]
         |
       HTTPS :443
         |
@@ -27,190 +36,279 @@ monorepo com **3 imagens separadas**:
       HTTP localhost:80
         |
 [ kamal-proxy (swap + routing por Host) ]
-   |             |              |
-   |             |              |
- api (3333)   bot (3334)    workers (3335)
-```
-
-- **Cloudflare** entrega o HTTPS e manda o tráfego pelo tunnel.
-- **cloudflared** recebe e joga pro **kamal-proxy** local.
-- **kamal-proxy** é quem te dá o _pulo do gato_: **subir container novo e trocar sem downtime**.
-
----
-
-## Fluxo de deploy (Kamal)
-
-```
-[ Seu notebook / CI ]
         |
-     kamal deploy
-        |
-  SSH (recomendo via Tailscale)
-        |
-[ MacBook ]
-   |  build/pull imagem nova
-   |  sobe container novo
-   |  healthcheck OK
-   v
-[ kamal-proxy ]
-   -> troca tráfego pro novo
-   -> remove/aposenta o antigo
+      api (3333)   ← unico servico com proxy publico
 ```
 
-O Kamal usa o **kamal-proxy** justamente para “gapless deployments” (sem downtime).
+Bot (3334) e Worker (3335) nao passam pelo kamal-proxy.
+Suas portas sao publicadas diretamente no host para comunicacao interna.
 
----
-
-## Fluxo de admin (Tailscale)
+### Fluxo de deploy (CI → Kamal → MacBook)
 
 ```
-[ Seu celular/notebook (Tailscale) ]
+[ Push na main ]
+        |
+[ GitHub Actions ]
+   ├─ quality: lint + typecheck + test
+   ├─ build: Docker images arm64 → GHCR (via QEMU cross-compile)
+   └─ deploy:
+        ├─ Tailscale connect (OAuth, tag:ci, efemero)
+        ├─ SSH no MacBook via Tailscale
+        ├─ docker run migrate (one-shot)
+        └─ kamal deploy x3 (api, bot, worker) com --skip-push
+```
+
+### Fluxo de admin (Tailscale)
+
+```
+[ Celular/notebook (Tailscale) ]
                 |
            rede privada
                 |
-[ MacBook (Tailscale) ] ---- SSH / DB / observabilidade
+[ MacBook (Tailscale) ] ---- SSH / DB / logs / observabilidade
 ```
 
-Recomendação prática: **SSH e portas internas só via Tailscale**, e só as 3 APIs ficam públicas via Cloudflare.
+SSH e portas internas so acessiveis via Tailscale. Apenas a API fica publica via Cloudflare.
 
 ---
 
-# O que é redundante e o que não é
+## Servidor de deploy
 
-## Não redundante (mantém)
-
-- **Cloudflare Tunnel**: elimina abrir portas/CGNAT e cria acesso público estável.
-- **Kamal + kamal-proxy**: garante o **swap sem downtime**.
-- **Tailscale**: acesso admin e deploy via SSH de forma segura.
-
-## Redundante (neste setup)
-
-- **Caddy para certificados/HTTPS público**: se você já está usando Cloudflare na frente, o TLS público **já está resolvido na borda**.
-  Caddy só passa a valer a pena se você quiser uma “camada de app gateway” local (middlewares, auth, rate limit local, roteamentos complexos). Caso contrário, é peça a mais.
-
----
-
-# Como encaixar seus 3 serviços (monorepo, imagens separadas)
-
-### Subdomínios sugeridos no seu domínio
-
-- `api.nitoba.com.br` → Hono API (3333)
-- `bot.nitoba.com.br` → webhook/API do bot (3334)
-- `workers.nitoba.com.br` → API dos workers (3335)
+| Item | Valor |
+|------|-------|
+| Host | MacBook Apple Silicon (M1) |
+| Tailscale hostname | `nitoba-mac.tail2ee1d6.ts.net` |
+| Usuario SSH | `nitoba` |
+| Container runtime | Docker Desktop 29.x |
+| Arquitetura | `aarch64` (arm64) |
+| Diretorio de dados | `/opt/standup/data` (SQLite, compartilhado entre os 3 apps) |
+| Diretorio de repos | `/Users/nitoba/repos` (bind-mount read-only no worker) |
 
 ---
 
-## 1) Cloudflare Tunnel: 1 tunnel, 3 hostnames
+## Imagens Docker
 
-Você cria **um tunnel** e publica **3 DNS CNAMEs** apontando para o UUID do tunnel (`<UUID>.cfargotunnel.com`). A Cloudflare documenta isso tanto via dashboard quanto via CLI.
+Todas as imagens sao arm64, buildadas no GitHub Actions via QEMU e publicadas no GHCR.
 
-### `~/.cloudflared/config.yml` (modelo)
+| Imagem | Dockerfile | Base runtime | Porta |
+|--------|-----------|-------------|-------|
+| `ghcr.io/nitoba/standup-api` | `apps/api/Dockerfile` | `distroless/cc-debian12` | 3333 |
+| `ghcr.io/nitoba/standup-bot` | `apps/discord-bot/Dockerfile` | `distroless/cc-debian12` | 3334 |
+| `ghcr.io/nitoba/standup-worker` | `apps/worker/Dockerfile` | `debian:12-slim` + git | 3335 |
+| `ghcr.io/nitoba/standup-migrate` | `packages/db/Dockerfile` | `oven/bun:1.3.9` | - |
 
-A ideia aqui é: **todos os hostnames entregam no mesmo lugar (kamal-proxy)**, e ele decide o destino pelo `Host`.
+**Build strategy**: multi-stage com `bun build --compile --target=bun-linux-arm64`.
+O worker usa `debian:12-slim` (nao Alpine) porque Bun nao tem target arm64-musl.
+O migrate roda `bun` diretamente (nao compilado) porque precisa de `import.meta.url` para SQL files.
+
+Tags no GHCR:
+- `sha-<full-git-sha>` — usada pelo Kamal para identificar a versao
+- `latest` — conveniencia para pulls manuais
+
+---
+
+## Configuracao Kamal
+
+### Estrutura de arquivos
+
+```
+standup/
+  .kamal/
+    secrets              # Secrets do Kamal (gitignored) — usa $VAR substitution
+  config/
+    deploy.api.yml       # API — com kamal-proxy (api.nitoba.com.br)
+    deploy.bot.yml       # Discord bot — sem proxy, porta 3334 no host
+    deploy.worker.yml    # Worker — sem proxy, porta 3335 no host + volumes
+```
+
+### Servicos
+
+| App | Service name | Proxy | Porta no host | Hostname publico |
+|-----|-------------|-------|--------------|-----------------|
+| API | `standup-api` | kamal-proxy | via proxy (:80) | `api.nitoba.com.br` |
+| Bot | `standup-bot` | nenhum | 3334 | nenhum (interno) |
+| Worker | `standup-worker` | nenhum | 3335 | nenhum (interno) |
+
+### Comunicacao interna entre containers
+
+Os 3 containers rodam no mesmo host Docker. Bot e Worker publicam portas diretamente.
+Dentro de um container, `host.docker.internal` resolve para o host Docker (nativo no Docker Desktop macOS).
+
+| De | Para | URL |
+|----|------|-----|
+| API → Bot | `http://host.docker.internal:3334` | notificacoes, DMs |
+| API → Worker | `http://host.docker.internal:3335` | trigger manual |
+| Worker → Bot | `http://host.docker.internal:3334` | standup-ready, job-failed |
+| Bot → API | `https://api.nitoba.com.br` | slash commands (via Cloudflare → kamal-proxy) |
+
+### Volumes
+
+| Volume | Host path | Container path | Quem usa |
+|--------|----------|---------------|----------|
+| SQLite data | `/opt/standup/data` | `/app/data` | API, Bot, Worker |
+| Git repos | `/Users/nitoba/repos` | `/repos` (ro) | Worker |
+
+### Healthcheck
+
+Apenas a API tem healthcheck via kamal-proxy (`GET /health`, interval 3s).
+Bot e Worker usam `readiness_delay: 10` (tempo para boot antes de ser considerado pronto).
+
+### Deploy commands
+
+```bash
+# Deploy individual
+kamal deploy -c config/deploy.api.yml --skip-push --version "sha-<commit>"
+kamal deploy -c config/deploy.bot.yml --skip-push --version "sha-<commit>"
+kamal deploy -c config/deploy.worker.yml --skip-push --version "sha-<commit>"
+
+# Logs
+kamal app logs -c config/deploy.api.yml
+kamal app logs -c config/deploy.bot.yml
+kamal app logs -c config/deploy.worker.yml
+
+# First-time setup (bootstraps kamal-proxy + containers)
+kamal setup -c config/deploy.api.yml
+```
+
+---
+
+## Pipeline CI/CD
+
+### Workflow: `.github/workflows/ci.yml`
+
+```
+push/PR (qualquer branch)     push na main
+         |                         |
+      quality                   quality → build → deploy
+   (lint, typecheck, test)         |         |         |
+                                   |     4 imagens   Tailscale
+                                   |     arm64       + SSH
+                                   |     → GHCR      + kamal deploy x3
+```
+
+### Job: quality
+
+- Roda em **todo push e PR**
+- `bun install --frozen-lockfile` → `bun run lint` → `bun run typecheck` → `bun run test`
+
+### Job: build
+
+- Roda **apenas em push na main**, apos quality passar
+- Matrix strategy: `[api, discord-bot, worker, migrate]`
+- QEMU para emular arm64 no runner ubuntu (amd64)
+- Docker Buildx com cache GHA (scope por app)
+- Login no GHCR via `GITHUB_TOKEN` (permissao `packages: write`)
+- Push com tags `sha-<commit>` + `latest`
+
+### Job: deploy
+
+- Roda **apenas em push na main**, apos build
+- `tailscale/github-action@v3` com OAuth client (tag:ci, efemero)
+- SSH key setup (`~/.ssh/deploy_key`)
+- Instala Kamal via `gem install kamal`
+- Roda migracao via `docker run --rm` (SSH direto)
+- `kamal deploy --skip-push --version "sha-<commit>"` para cada app
+- Sequencial: API → Bot → Worker
+
+### Concurrency
+
+`cancel-in-progress: true` por branch — um novo push cancela o deploy anterior.
+
+---
+
+## GitHub Secrets
+
+### Tailscale + SSH
+
+| Secret | Descricao |
+|--------|-----------|
+| `TS_OAUTH_CLIENT_ID` | OAuth client Tailscale (scope: Devices Write, tag: `tag:ci`) |
+| `TS_OAUTH_SECRET` | OAuth client secret Tailscale |
+| `SSH_PRIVATE_KEY` | Chave privada Ed25519 para SSH no MacBook |
+| `DEPLOY_HOST` | `nitoba-mac.tail2ee1d6.ts.net` |
+| `DEPLOY_USER` | `nitoba` |
+
+### App secrets
+
+| Secret | Usado por |
+|--------|-----------|
+| `DISCORD_BOT_TOKEN` | Bot, Worker |
+| `DISCORD_CHANNEL_ID` | Bot, Worker |
+| `DISCORD_USER_ID` | API, Bot, Worker |
+| `ANTHROPIC_AUTH_TOKEN` | Worker |
+| `AZURE_DEVOPS_ORG` | Worker |
+| `AZURE_DEVOPS_PAT` | Worker |
+| `INTERNAL_SECRET` | API, Bot, Worker |
+
+O `KAMAL_REGISTRY_PASSWORD` usa o `GITHUB_TOKEN` automatico (nao precisa de secret manual).
+
+---
+
+## Cloudflare Tunnel
+
+Um tunnel, 1 hostname (apenas API e publica). Bot e Worker sao internos.
+
+### `~/.cloudflared/config.yml`
 
 ```yaml
 tunnel: <UUID_DO_TUNNEL>
-credentials-file: /Users/<seu-user>/.cloudflared/<UUID_DO_TUNNEL>.json
+credentials-file: /Users/nitoba/.cloudflared/<UUID_DO_TUNNEL>.json
 
 ingress:
   - hostname: api.nitoba.com.br
-    service: http://localhost:80
-  - hostname: bot.nitoba.com.br
-    service: http://localhost:80
-  - hostname: workers.nitoba.com.br
     service: http://localhost:80
 
   - service: http_status:404
 ```
 
-O uso de `ingress` por hostname é o caminho padrão pra múltiplos serviços.
-
-> Dica: rode o `cloudflared` como serviço (launchd no macOS) pra manter o tunnel sempre up.
+> Rode `cloudflared` como servico (launchd no macOS) para manter o tunnel sempre ativo.
 
 ---
 
-## 2) Kamal: 3 deploy configs (uma por serviço)
+## Tailscale ACLs
 
-O padrão pra “múltiplos apps no mesmo host” com Kamal 2 é ter **um `deploy.yml` por app/serviço**, cada um com seu `proxy.host`.
+A tag `tag:ci` deve existir nas ACLs antes de criar o OAuth client:
 
-Organização no monorepo (exemplo):
-
-```
-/services/api
-  Dockerfile
-  config/deploy.yml
-
-/services/bot
-  Dockerfile
-  config/deploy.yml
-
-/services/workers
-  Dockerfile
-  config/deploy.yml
+```json
+{
+  "tagOwners": {
+    "tag:ci": ["autogroup:admin"]
+  }
+}
 ```
 
-### O ponto-chave: `proxy.host` + `proxy.app_port`
-
-Como suas apps expõem 3333/3334/3335, cada deploy precisa dizer isso. O `proxy` é app-specific e não “global” quando você tem múltiplas apps.
-
-Exemplos (skeleton) — ajuste os campos de registry/builder conforme seu ambiente:
-
-**API (3333)**
-
-```yaml
-service: nitoba-api
-image: <seu-registry>/nitoba-api
-
-servers:
-  web:
-    - <IP-ou-host-do-macbook>
-
-proxy:
-  host: api.nitoba.com.br
-  app_port: 3333
-```
-
-**BOT (3334)**
-
-```yaml
-service: nitoba-bot
-image: <seu-registry>/nitoba-bot
-
-servers:
-  web:
-    - <IP-ou-host-do-macbook>
-
-proxy:
-  host: bot.nitoba.com.br
-  app_port: 3334
-```
-
-**WORKERS (3335)**
-
-```yaml
-service: nitoba-workers
-image: <seu-registry>/nitoba-workers
-
-servers:
-  web:
-    - <IP-ou-host-do-macbook>
-
-proxy:
-  host: workers.nitoba.com.br
-  app_port: 3335
-```
-
-> Isso te dá: `Host` → kamal-proxy → container ativo daquele serviço.
-> E cada serviço faz deploy independente.
+Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com/admin/acls/file)
 
 ---
 
-# Segurança recomendada (bem importante pro bot + workers)
+## Seguranca
 
-Como `bot.nitoba.com.br` e `workers.nitoba.com.br` são endpoints “sensíveis” (webhooks / execução de jobs), eu recomendo:
-
-- **Cloudflare WAF / rate limiting** no subdomínio
-- **Cloudflare Access** se esses endpoints não precisam ser públicos de verdade (ou deixar público só o endpoint de webhook e proteger o resto)
-- Autenticação por token/assinatura (Discord webhooks já ajudam, mas API extra deve ser protegida)
+- **API** (`api.nitoba.com.br`): unico servico publico. Protegido por Cloudflare WAF/rate limiting.
+- **Bot** (porta 3334): interno, acessivel apenas via `host.docker.internal` e Tailscale.
+- **Worker** (porta 3335): interno, acessivel apenas via `host.docker.internal` e Tailscale.
+- **SSH**: apenas via Tailscale (chave Ed25519, sem senha).
+- **Secrets**: nunca commitados. `.kamal/secrets` e `*.env` no `.gitignore`.
+- **GHCR**: autenticacao via `GITHUB_TOKEN` (automatico no CI).
+- **Comunicacao interna**: header `x-internal-secret` com `INTERNAL_SECRET` compartilhado.
 
 ---
+
+## Checklist de setup do servidor (MacBook)
+
+- [x] Docker Desktop instalado e rodando
+- [x] Tailscale instalado e conectado
+- [x] SSH habilitado (System Settings > General > Sharing > Remote Login)
+- [x] `/usr/local/bin` no PATH do shell nao-interativo (`~/.zshenv`)
+- [x] `/opt/standup/data` criado com owner `nitoba`
+- [x] Chave publica do deploy em `~/.ssh/authorized_keys`
+- [ ] Cloudflare Tunnel configurado (`cloudflared` como servico)
+- [ ] `kamal setup` executado para bootstrap do kamal-proxy
+- [ ] Primeiro deploy realizado com sucesso
+
+---
+
+## Redundancias eliminadas
+
+- **Caddy**: desnecessario — Cloudflare ja resolve TLS na borda.
+- **Subdominio publico para bot/worker**: desnecessario — comunicacao interna via `host.docker.internal`.
+- **Build no servidor**: desnecessario — imagens pre-buildadas no CI via QEMU arm64.
