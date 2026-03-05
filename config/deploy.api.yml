@@ -13,8 +13,7 @@ image: ghcr.io/nitoba/standup-api
 
 servers:
   web:
-    # TODO: Replace with your MacBook's Tailscale hostname or IP (e.g., macbook.tail12345.ts.net)
-    - TAILSCALE_HOST_PLACEHOLDER
+    - nitoba-mac.tail2ee1d6.ts.net
 
 registry:
   server: ghcr.io
@@ -36,8 +35,7 @@ proxy:
     interval: 3
 
 ssh:
-  # TODO: Replace with your macOS username (e.g., nitoba)
-  user: DEPLOY_USER_PLACEHOLDER
+  user: nitoba
   keys:
     - ~/.ssh/deploy_key
 
