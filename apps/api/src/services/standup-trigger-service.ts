@@ -5,22 +5,41 @@ export interface TriggerStandupJobDeps {
   internalSecret: string
 }
 
+export interface TriggerStandupJobOptions {
+  extraContext?: string
+  forceRegenerate?: boolean
+}
+
 /**
  * Solicita ao worker interno a execução do standup job.
  * A API apenas encaminha o trigger; a execução fica no worker.
  */
 export async function triggerStandupJob(
   deps: TriggerStandupJobDeps,
+  options?: TriggerStandupJobOptions,
 ): Promise<Result<void, ExternalServiceError>> {
   return Result.tryPromise({
     try: async () => {
+      const hasBody =
+        options?.extraContext !== undefined ||
+        options?.forceRegenerate !== undefined
+
       const response = await fetch(
         `${deps.workerInternalUrl}/internal/trigger/standup`,
         {
           method: 'POST',
           headers: {
             'x-internal-secret': deps.internalSecret,
+            ...(hasBody ? { 'content-type': 'application/json' } : {}),
           },
+          ...(hasBody
+            ? {
+                body: JSON.stringify({
+                  extraContext: options?.extraContext,
+                  forceRegenerate: options?.forceRegenerate,
+                }),
+              }
+            : {}),
         },
       )
 

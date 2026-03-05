@@ -63,7 +63,15 @@ async function withRetry<T, E>(
 // Main job
 // ---------------------------------------------------------------------------
 
-export async function runStandupJob(env: AppEnv): Promise<void> {
+export interface StandupJobOptions {
+  extraContext?: string
+  forceRegenerate?: boolean
+}
+
+export async function runStandupJob(
+  env: AppEnv,
+  options?: StandupJobOptions,
+): Promise<void> {
   const runId = Bun.randomUUIDv7()
   const today = new Date().toISOString().slice(0, 10)
 
@@ -88,6 +96,7 @@ export async function runStandupJob(env: AppEnv): Promise<void> {
     id: runId,
     jobName: 'standup',
     date: today,
+    forceRegenerate: options?.forceRegenerate,
   })
 
   if (lockResult.isErr()) {
@@ -152,7 +161,12 @@ export async function runStandupJob(env: AppEnv): Promise<void> {
       withRetry(
         () =>
           generateStandup(
-            { date: today, meetingType, gitActivity },
+            {
+              date: today,
+              meetingType,
+              gitActivity,
+              extraContext: options?.extraContext,
+            },
             generatorConfig,
           ),
         (err) => {

@@ -4,16 +4,23 @@ export interface TriggerStandupDeps {
   apiBaseUrl: string
 }
 
+export interface TriggerStandupOptions {
+  extraContext?: string
+  forceRegenerate?: boolean
+}
+
 export type TriggerStandupOutcome =
   | { accepted: true }
   | { accepted: false; reason: 'forbidden' }
 
 /**
  * Dispara trigger manual no API, autenticando por discordUserId.
+ * Opcionalmente envia extraContext e forceRegenerate para regeneracao.
  */
 export async function triggerStandup(
   discordUserId: string,
   deps: TriggerStandupDeps,
+  options?: TriggerStandupOptions,
 ): Promise<Result<TriggerStandupOutcome, ExternalServiceError>> {
   return Result.tryPromise({
     try: async () => {
@@ -22,7 +29,11 @@ export async function triggerStandup(
         headers: {
           'content-type': 'application/json',
         },
-        body: JSON.stringify({ discordUserId }),
+        body: JSON.stringify({
+          discordUserId,
+          extraContext: options?.extraContext,
+          forceRegenerate: options?.forceRegenerate,
+        }),
       })
 
       if (response.status === 202) {

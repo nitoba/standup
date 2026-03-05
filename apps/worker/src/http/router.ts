@@ -1,10 +1,11 @@
 import { Hono } from 'hono'
 import { internalAuthMiddleware } from './middleware/auth.js'
+import type { StandupJobOptions } from './trigger/standup.js'
 import { handleTriggerStandup } from './trigger/standup.js'
 
 export interface InternalRouterOptions {
   internalSecret: string
-  triggerStandupJob: () => Promise<void>
+  triggerStandupJob: (options?: StandupJobOptions) => Promise<void>
 }
 
 /**

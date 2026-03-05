@@ -422,6 +422,35 @@ describe('runStandupJob', () => {
       await expect(runStandupJob(baseEnv)).resolves.toBeUndefined()
     })
 
+    it('passa extraContext ao generateStandup quando fornecido nas opcoes', async () => {
+      mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
+      mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
+      mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
+      mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
+
+      await runStandupJob(baseEnv, {
+        extraContext: 'Focar no card #1234',
+      })
+
+      // Verifica que generateStandup recebeu extraContext no input
+      const generateCall = mocks.generate.mock.calls[0]
+      const input = generateCall?.[0] as { extraContext?: string }
+      expect(input.extraContext).toBe('Focar no card #1234')
+    })
+
+    it('passa forceRegenerate ao acquireLock quando fornecido nas opcoes', async () => {
+      mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
+      mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
+      mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
+      mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
+
+      await runStandupJob(baseEnv, { forceRegenerate: true })
+
+      expect(mocks.acquireLock).toHaveBeenCalledWith(
+        expect.objectContaining({ forceRegenerate: true }),
+      )
+    })
+
     it('mantém standup salvo e loga erro quando notificação falha (non-fatal)', async () => {
       mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
       mocks.generate.mockResolvedValue(Result.ok(generatedStandup))

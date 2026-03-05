@@ -58,10 +58,40 @@ describe('POST /standups/trigger', () => {
     const body = (await res.json()) as { ok: boolean; accepted: boolean }
     expect(body.ok).toBe(true)
     expect(body.accepted).toBe(true)
-    expect(mocks.triggerStandupJob).toHaveBeenCalledWith({
-      workerInternalUrl: deps.workerInternalUrl,
-      internalSecret: deps.internalSecret,
-    })
+    expect(mocks.triggerStandupJob).toHaveBeenCalledWith(
+      {
+        workerInternalUrl: deps.workerInternalUrl,
+        internalSecret: deps.internalSecret,
+      },
+      {
+        extraContext: undefined,
+        forceRegenerate: undefined,
+      },
+    )
+  })
+
+  it('propaga extraContext e forceRegenerate ao triggerStandupJob', async () => {
+    mocks.triggerStandupJob.mockResolvedValue(Result.ok(undefined))
+
+    const res = await app.fetch(
+      makePostRequest({
+        discordUserId: deps.allowedDiscordUserId,
+        extraContext: 'focar no card #1234',
+        forceRegenerate: true,
+      }),
+    )
+
+    expect(res.status).toBe(202)
+    expect(mocks.triggerStandupJob).toHaveBeenCalledWith(
+      {
+        workerInternalUrl: deps.workerInternalUrl,
+        internalSecret: deps.internalSecret,
+      },
+      {
+        extraContext: 'focar no card #1234',
+        forceRegenerate: true,
+      },
+    )
   })
 
   it('retorna 403 quando discordUserId não é autorizado', async () => {

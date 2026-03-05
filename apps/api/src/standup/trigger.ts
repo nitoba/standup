@@ -10,6 +10,8 @@ const logger = createServiceLogger({
 
 export const triggerBodySchema = z.object({
   discordUserId: z.string().min(1),
+  extraContext: z.string().optional(),
+  forceRegenerate: z.boolean().optional(),
 })
 
 export type TriggerBody = z.infer<typeof triggerBodySchema>
@@ -33,10 +35,16 @@ export async function handleTriggerStandup(
     return c.json({ error: 'Forbidden' }, 403)
   }
 
-  const result = await triggerStandupJob({
-    workerInternalUrl: deps.workerInternalUrl,
-    internalSecret: deps.internalSecret,
-  })
+  const result = await triggerStandupJob(
+    {
+      workerInternalUrl: deps.workerInternalUrl,
+      internalSecret: deps.internalSecret,
+    },
+    {
+      extraContext: body.extraContext,
+      forceRegenerate: body.forceRegenerate,
+    },
+  )
 
   if (result.isErr()) {
     logger.error('Failed to trigger standup job on worker', {

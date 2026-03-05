@@ -108,15 +108,14 @@ async function handleRegenerate(
   record: StandupRecord,
   repo: StandupRepository,
 ): Promise<Result<InteractionOutcome, InteractionError>> {
-  // Slice 5: sem trigger HTTP para o worker — apenas rejeita e instrui o usuário
+  // Rejeita o standup atual. O trigger de regeneracao e feito pelo modal-handler.
   const result = await repo.updateStatus(record.id, 'rejected')
   if (result.isErr()) return result
 
   return Result.ok({
     action: 'regenerate',
     standupId: record.id,
-    message:
-      'Standup rejeitado. Para regenerar, use o comando /standup ou aguarde o próximo cron automaticamente.',
+    message: 'Standup rejeitado para regeneracao.',
   })
 }
 

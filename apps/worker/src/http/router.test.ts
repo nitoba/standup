@@ -1,20 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInternalRouter } from './router.js'
+import type { StandupJobOptions } from './trigger/standup.js'
 
 const INTERNAL_SECRET = 'test-secret'
 
-function makeRequest(secret: string | null = INTERNAL_SECRET): Request {
+function makeRequest(
+  secret: string | null = INTERNAL_SECRET,
+  body?: Record<string, unknown>,
+): Request {
   const headers: Record<string, string> = {}
   if (secret !== null) headers['x-internal-secret'] = secret
+  if (body) headers['content-type'] = 'application/json'
 
   return new Request('http://localhost/internal/trigger/standup', {
     method: 'POST',
     headers,
+    body: body ? JSON.stringify(body) : undefined,
   })
 }
 
 describe('createInternalRouter', () => {
-  const triggerStandupJob = vi.fn<() => Promise<void>>()
+  const triggerStandupJob =
+    vi.fn<(options?: StandupJobOptions) => Promise<void>>()
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -25,7 +32,7 @@ describe('createInternalRouter', () => {
     vi.restoreAllMocks()
   })
 
-  it('retorna 401 quando secret está ausente', async () => {
+  it('retorna 401 quando secret esta ausente', async () => {
     const app = createInternalRouter({
       internalSecret: INTERNAL_SECRET,
       triggerStandupJob,
@@ -37,7 +44,7 @@ describe('createInternalRouter', () => {
     expect(triggerStandupJob).not.toHaveBeenCalled()
   })
 
-  it('retorna 401 quando secret está incorreto', async () => {
+  it('retorna 401 quando secret esta incorreto', async () => {
     const app = createInternalRouter({
       internalSecret: INTERNAL_SECRET,
       triggerStandupJob,
@@ -49,7 +56,7 @@ describe('createInternalRouter', () => {
     expect(triggerStandupJob).not.toHaveBeenCalled()
   })
 
-  it('retorna 202 e dispara runStandupJob quando secret está correto', async () => {
+  it('retorna 202 e dispara runStandupJob quando secret esta correto', async () => {
     const app = createInternalRouter({
       internalSecret: INTERNAL_SECRET,
       triggerStandupJob,
@@ -77,5 +84,37 @@ describe('createInternalRouter', () => {
     const res = await app.fetch(makeRequest())
 
     expect(res.status).toBe(500)
+  })
+
+  it('passa extraContext e forceRegenerate ao triggerStandupJob quando body presente', async () => {
+    const app = createInternalRouter({
+      internalSecret: INTERNAL_SECRET,
+      triggerStandupJob,
+    })
+
+    const res = await app.fetch(
+      makeRequest(INTERNAL_SECRET, {
+        extraContext: 'focar mais no card #123',
+        forceRegenerate: true,
+      }),
+    )
+
+    expect(res.status).toBe(202)
+    expect(triggerStandupJob).toHaveBeenCalledWith({
+      extraContext: 'focar mais no card #123',
+      forceRegenerate: true,
+    })
+  })
+
+  it('funciona sem body (backwards-compatible)', async () => {
+    const app = createInternalRouter({
+      internalSecret: INTERNAL_SECRET,
+      triggerStandupJob,
+    })
+
+    const res = await app.fetch(makeRequest())
+
+    expect(res.status).toBe(202)
+    expect(triggerStandupJob).toHaveBeenCalledWith(undefined)
   })
 })

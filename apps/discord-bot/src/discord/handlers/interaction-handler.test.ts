@@ -254,7 +254,7 @@ describe('handleStandupInteraction', () => {
   // -------------------------------------------------------------------------
 
   describe('regenerate', () => {
-    it('rejeita standup e retorna mensagem com instrução para regenerar', async () => {
+    it('rejeita standup e retorna mensagem indicando regeneracao', async () => {
       mocks.repoFindById.mockResolvedValue(Result.ok(pendingRecord))
       mocks.repoUpdateStatus.mockResolvedValue(Result.ok(rejectedRecord))
 
@@ -268,9 +268,8 @@ describe('handleStandupInteraction', () => {
       if (result.status === 'ok') {
         expect(result.value.action).toBe('regenerate')
         expect(result.value.standupId).toBe('standup-abc')
-        // Mensagem deve explicar que foi rejeitado e como regenerar
         expect(result.value.message).toMatch(/rejeitado/i)
-        expect(result.value.message).toMatch(/regenerar/i)
+        expect(result.value.message).toMatch(/regenera/i)
       }
       expect(mocks.repoUpdateStatus).toHaveBeenCalledWith(
         'standup-abc',

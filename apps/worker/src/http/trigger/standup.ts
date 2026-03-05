@@ -7,13 +7,19 @@ const logger = createServiceLogger({
   component: 'http-trigger-standup',
 })
 
+export interface StandupJobOptions {
+  extraContext?: string
+  forceRegenerate?: boolean
+}
+
 export interface TriggerStandupHandlerDeps {
-  triggerStandupJob: () => Promise<void>
+  triggerStandupJob: (options?: StandupJobOptions) => Promise<void>
 }
 
 /**
  * Handler para POST /internal/trigger/standup.
  * Dispara o job em background e retorna imediatamente (202 Accepted).
+ * Aceita body opcional com extraContext e forceRegenerate.
  */
 export async function handleTriggerStandup(
   c: Context,
@@ -21,8 +27,31 @@ export async function handleTriggerStandup(
 ): Promise<Response> {
   const startedAt = Date.now()
 
+  // Parse optional body — empty body is valid (backwards-compatible)
+  let jobOptions: StandupJobOptions | undefined
+  const contentType = c.req.header('content-type') ?? ''
+  if (contentType.includes('application/json')) {
+    try {
+      const body = (await c.req.json()) as Record<string, unknown>
+      if (body && typeof body === 'object') {
+        jobOptions = {
+          extraContext:
+            typeof body.extraContext === 'string'
+              ? body.extraContext
+              : undefined,
+          forceRegenerate:
+            typeof body.forceRegenerate === 'boolean'
+              ? body.forceRegenerate
+              : undefined,
+        }
+      }
+    } catch {
+      // Empty or malformed body — ignore, run without options
+    }
+  }
+
   const dispatchResult = await Result.tryPromise({
-    try: deps.triggerStandupJob,
+    try: () => deps.triggerStandupJob(jobOptions),
     catch: (error) =>
       new ExternalServiceError({
         service: 'worker',
@@ -39,6 +68,8 @@ export async function handleTriggerStandup(
 
   logger.info('Manual trigger accepted', {
     latencyMs: Date.now() - startedAt,
+    forceRegenerate: jobOptions?.forceRegenerate ?? false,
+    hasExtraContext: !!jobOptions?.extraContext,
   })
   return c.json({ ok: true, accepted: true }, 202)
 }

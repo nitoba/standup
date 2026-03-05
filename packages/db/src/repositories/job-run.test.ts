@@ -111,6 +111,34 @@ describe('JobRunRepository', () => {
       expect(result.status).toBe('ok')
     })
 
+    it('allows re-acquiring lock with forceRegenerate when success record exists', async () => {
+      await repo.acquireLock(makeInput({ id: 'run-1' }))
+      await repo.releaseLock('run-1', 'success')
+
+      const result = await repo.acquireLock({
+        ...makeInput({ id: 'run-2' }),
+        forceRegenerate: true,
+      })
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+      expect(result.value.id).toBe('run-2')
+      expect(result.value.status).toBe('running')
+    })
+
+    it('still blocks when running even with forceRegenerate', async () => {
+      await repo.acquireLock(makeInput({ id: 'run-1' }))
+
+      const result = await repo.acquireLock({
+        ...makeInput({ id: 'run-2' }),
+        forceRegenerate: true,
+      })
+
+      expect(result.status).toBe('error')
+      if (result.status !== 'error') return
+      expect(result.error._tag).toBe('LockAlreadyHeldError')
+    })
+
     it('different job names do not conflict with each other', async () => {
       await repo.acquireLock(makeInput({ id: 'run-1', jobName: 'standup' }))
 

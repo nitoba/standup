@@ -4,6 +4,7 @@ import { createServiceLogger } from '@standup/logger'
 import { Client, Events, GatewayIntentBits } from 'discord.js'
 import { registerApplicationCommands } from './discord/commands/register.js'
 import { handleButtonInteraction } from './discord/handlers/button-handler.js'
+import { handleRegenerateModal } from './discord/handlers/modal-handler.js'
 import { handleSlashCommand } from './discord/handlers/slash-command-handler.js'
 import { createInternalRouter } from './http/router.js'
 
@@ -66,6 +67,11 @@ export async function startDiscordBot(): Promise<void> {
 
     if (interaction.isButton()) {
       await handleButtonInteraction(interaction, client, env)
+      return
+    }
+
+    if (interaction.isModalSubmit()) {
+      await handleRegenerateModal(interaction, client, env)
     }
   })
 

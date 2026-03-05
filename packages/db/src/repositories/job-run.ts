@@ -23,6 +23,7 @@ export interface AcquireLockInput {
   id: string
   jobName: string
   date: string
+  forceRegenerate?: boolean
 }
 
 export type JobRunStatus = 'running' | 'success' | 'failed'
@@ -83,16 +84,25 @@ export class JobRunRepository {
         }
 
         if (existing.status === 'success') {
-          logger.info('Job already completed for today — no-op', {
-            jobName: input.jobName,
-            date: input.date,
-          })
-          return Result.err(
-            new JobAlreadyCompletedError({
+          if (input.forceRegenerate) {
+            logger.info('Force regenerate — deleting previous success', {
               jobName: input.jobName,
               date: input.date,
-            }),
-          )
+              existingId: existing.id,
+            })
+            await this.db.delete(jobRuns).where(eq(jobRuns.id, existing.id))
+          } else {
+            logger.info('Job already completed for today — no-op', {
+              jobName: input.jobName,
+              date: input.date,
+            })
+            return Result.err(
+              new JobAlreadyCompletedError({
+                jobName: input.jobName,
+                date: input.date,
+              }),
+            )
+          }
         }
 
         // status === 'failed': permite re-tentar — deleta o registro anterior

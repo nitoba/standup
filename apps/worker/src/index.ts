@@ -22,7 +22,7 @@ function bootstrap() {
 
   const internalApp = createInternalRouter({
     internalSecret: env.INTERNAL_SECRET,
-    triggerStandupJob: async () => runStandupJob(env),
+    triggerStandupJob: async (opts) => runStandupJob(env, opts),
   })
 
   const server = Bun.serve({

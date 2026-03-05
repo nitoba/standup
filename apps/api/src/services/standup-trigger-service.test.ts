@@ -21,7 +21,7 @@ describe('triggerStandupJob', () => {
     vi.restoreAllMocks()
   })
 
-  it('retorna Ok quando worker responde 202', async () => {
+  it('retorna Ok quando worker responde 202 (sem opcoes)', async () => {
     mockFetch.mockResolvedValue(response(202))
 
     const result = await triggerStandupJob({
@@ -35,6 +35,37 @@ describe('triggerStandupJob', () => {
       {
         method: 'POST',
         headers: { 'x-internal-secret': 'internal-secret' },
+      },
+    )
+  })
+
+  it('envia body com extraContext e forceRegenerate quando opcoes presentes', async () => {
+    mockFetch.mockResolvedValue(response(202))
+
+    const result = await triggerStandupJob(
+      {
+        workerInternalUrl: 'http://localhost:3335',
+        internalSecret: 'internal-secret',
+      },
+      {
+        extraContext: 'focar no card #123',
+        forceRegenerate: true,
+      },
+    )
+
+    expect(result.isOk()).toBe(true)
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:3335/internal/trigger/standup',
+      {
+        method: 'POST',
+        headers: {
+          'x-internal-secret': 'internal-secret',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          extraContext: 'focar no card #123',
+          forceRegenerate: true,
+        }),
       },
     )
   })
