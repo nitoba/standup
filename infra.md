@@ -74,15 +74,15 @@ SSH e portas internas so acessiveis via Tailscale. Apenas a API fica publica via
 
 ## Servidor de deploy
 
-| Item | Valor |
-|------|-------|
-| Host | MacBook Apple Silicon (M1) |
-| Tailscale hostname | `nitoba-mac.tail2ee1d6.ts.net` |
-| Usuario SSH | `nitoba` |
-| Container runtime | Docker Desktop 29.x |
-| Arquitetura | `aarch64` (arm64) |
+| Item               | Valor                                                       |
+| ------------------ | ----------------------------------------------------------- |
+| Host               | MacBook Apple Silicon (M1)                                  |
+| Tailscale hostname | `nitoba-mac.tail2ee1d6.ts.net`                              |
+| Usuario SSH        | `nitoba`                                                    |
+| Container runtime  | Docker Desktop 29.x                                         |
+| Arquitetura        | `aarch64` (arm64)                                           |
 | Diretorio de dados | `/opt/standup/data` (SQLite, compartilhado entre os 3 apps) |
-| Diretorio de repos | `/Users/nitoba/repos` (bind-mount read-only no worker) |
+| Diretorio de repos | `/Users/nitoba/repos` (bind-mount read-only no worker)      |
 
 ---
 
@@ -90,18 +90,19 @@ SSH e portas internas so acessiveis via Tailscale. Apenas a API fica publica via
 
 Todas as imagens sao arm64, buildadas no GitHub Actions via QEMU e publicadas no GHCR.
 
-| Imagem | Dockerfile | Base runtime | Porta |
-|--------|-----------|-------------|-------|
-| `ghcr.io/nitoba/standup-api` | `apps/api/Dockerfile` | `distroless/cc-debian12` | 3333 |
-| `ghcr.io/nitoba/standup-bot` | `apps/discord-bot/Dockerfile` | `distroless/cc-debian12` | 3334 |
-| `ghcr.io/nitoba/standup-worker` | `apps/worker/Dockerfile` | `debian:12-slim` + git | 3335 |
-| `ghcr.io/nitoba/standup-migrate` | `packages/db/Dockerfile` | `oven/bun:1.3.9` | - |
+| Imagem                           | Dockerfile                    | Base runtime             | Porta |
+| -------------------------------- | ----------------------------- | ------------------------ | ----- |
+| `ghcr.io/nitoba/standup-api`     | `apps/api/Dockerfile`         | `distroless/cc-debian12` | 3333  |
+| `ghcr.io/nitoba/standup-bot`     | `apps/discord-bot/Dockerfile` | `distroless/cc-debian12` | 3334  |
+| `ghcr.io/nitoba/standup-worker`  | `apps/worker/Dockerfile`      | `debian:12-slim` + git   | 3335  |
+| `ghcr.io/nitoba/standup-migrate` | `packages/db/Dockerfile`      | `oven/bun:1.3.9`         | -     |
 
 **Build strategy**: multi-stage com `bun build --compile --target=bun-linux-arm64`.
 O worker usa `debian:12-slim` (nao Alpine) porque Bun nao tem target arm64-musl.
 O migrate roda `bun` diretamente (nao compilado) porque precisa de `import.meta.url` para SQL files.
 
 Tags no GHCR:
+
 - `sha-<full-git-sha>` — usada pelo Kamal para identificar a versao
 - `latest` — conveniencia para pulls manuais
 
@@ -123,30 +124,30 @@ standup/
 
 ### Servicos
 
-| App | Service name | Proxy | Porta no host | Hostname publico |
-|-----|-------------|-------|--------------|-----------------|
-| API | `standup-api` | kamal-proxy | via proxy (:80) | `api.nitoba.com.br` |
-| Bot | `standup-bot` | nenhum | 3334 | nenhum (interno) |
-| Worker | `standup-worker` | nenhum | 3335 | nenhum (interno) |
+| App    | Service name     | Proxy       | Porta no host   | Hostname publico    |
+| ------ | ---------------- | ----------- | --------------- | ------------------- |
+| API    | `standup-api`    | kamal-proxy | via proxy (:80) | `api.nitoba.com.br` |
+| Bot    | `standup-bot`    | nenhum      | 3334            | nenhum (interno)    |
+| Worker | `standup-worker` | nenhum      | 3335            | nenhum (interno)    |
 
 ### Comunicacao interna entre containers
 
 Os 3 containers rodam no mesmo host Docker. Bot e Worker publicam portas diretamente.
 Dentro de um container, `host.docker.internal` resolve para o host Docker (nativo no Docker Desktop macOS).
 
-| De | Para | URL |
-|----|------|-----|
-| API → Bot | `http://host.docker.internal:3334` | notificacoes, DMs |
-| API → Worker | `http://host.docker.internal:3335` | trigger manual |
-| Worker → Bot | `http://host.docker.internal:3334` | standup-ready, job-failed |
-| Bot → API | `https://api.nitoba.com.br` | slash commands (via Cloudflare → kamal-proxy) |
+| De           | Para                               | URL                                           |
+| ------------ | ---------------------------------- | --------------------------------------------- |
+| API → Bot    | `http://host.docker.internal:3334` | notificacoes, DMs                             |
+| API → Worker | `http://host.docker.internal:3335` | trigger manual                                |
+| Worker → Bot | `http://host.docker.internal:3334` | standup-ready, job-failed                     |
+| Bot → API    | `https://api.nitoba.com.br`        | slash commands (via Cloudflare → kamal-proxy) |
 
 ### Volumes
 
-| Volume | Host path | Container path | Quem usa |
-|--------|----------|---------------|----------|
-| SQLite data | `/opt/standup/data` | `/app/data` | API, Bot, Worker |
-| Git repos | `/Users/nitoba/repos` | `/repos` (ro) | Worker |
+| Volume      | Host path             | Container path | Quem usa         |
+| ----------- | --------------------- | -------------- | ---------------- |
+| SQLite data | `/opt/standup/data`   | `/app/data`    | API, Bot, Worker |
+| Git repos   | `/Users/nitoba/repos` | `/repos` (ro)  | Worker           |
 
 ### Healthcheck
 
@@ -220,25 +221,25 @@ push/PR (qualquer branch)     push na main
 
 ### Tailscale + SSH
 
-| Secret | Descricao |
-|--------|-----------|
+| Secret               | Descricao                                                    |
+| -------------------- | ------------------------------------------------------------ |
 | `TS_OAUTH_CLIENT_ID` | OAuth client Tailscale (scope: Devices Write, tag: `tag:ci`) |
-| `TS_OAUTH_SECRET` | OAuth client secret Tailscale |
-| `SSH_PRIVATE_KEY` | Chave privada Ed25519 para SSH no MacBook |
-| `DEPLOY_HOST` | `nitoba-mac.tail2ee1d6.ts.net` |
-| `DEPLOY_USER` | `nitoba` |
+| `TS_OAUTH_SECRET`    | OAuth client secret Tailscale                                |
+| `SSH_PRIVATE_KEY`    | Chave privada Ed25519 para SSH no MacBook                    |
+| `DEPLOY_HOST`        | `nitoba-mac.tail2ee1d6.ts.net`                               |
+| `DEPLOY_USER`        | `nitoba`                                                     |
 
 ### App secrets
 
-| Secret | Usado por |
-|--------|-----------|
-| `DISCORD_BOT_TOKEN` | Bot, Worker |
-| `DISCORD_CHANNEL_ID` | Bot, Worker |
-| `DISCORD_USER_ID` | API, Bot, Worker |
-| `ANTHROPIC_AUTH_TOKEN` | Worker |
-| `AZURE_DEVOPS_ORG` | Worker |
-| `AZURE_DEVOPS_PAT` | Worker |
-| `INTERNAL_SECRET` | API, Bot, Worker |
+| Secret                 | Usado por        |
+| ---------------------- | ---------------- |
+| `DISCORD_BOT_TOKEN`    | Bot, Worker      |
+| `DISCORD_CHANNEL_ID`   | Bot, Worker      |
+| `DISCORD_USER_ID`      | API, Bot, Worker |
+| `ANTHROPIC_AUTH_TOKEN` | Worker           |
+| `AZURE_DEVOPS_ORG`     | Worker           |
+| `AZURE_DEVOPS_PAT`     | Worker           |
+| `INTERNAL_SECRET`      | API, Bot, Worker |
 
 O `KAMAL_REGISTRY_PASSWORD` usa o `GITHUB_TOKEN` automatico (nao precisa de secret manual).
 
@@ -301,9 +302,10 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 - [x] `/usr/local/bin` no PATH do shell nao-interativo (`~/.zshenv`)
 - [x] `/opt/standup/data` criado com owner `nitoba`
 - [x] Chave publica do deploy em `~/.ssh/authorized_keys`
-- [ ] Cloudflare Tunnel configurado (`cloudflared` como servico)
-- [ ] `kamal setup` executado para bootstrap do kamal-proxy
-- [ ] Primeiro deploy realizado com sucesso
+- [x] Azure DevOps SSH key (RSA 4096) configurada para clone de repos
+- [x] Repositorios clonados em `/Users/nitoba/repos`
+- [x] Cloudflare Tunnel configurado (`cloudflared` como servico)
+- [ ] Primeiro deploy realizado com sucesso (kamal-proxy bootstrapped automaticamente)
 
 ---
 
