@@ -18,6 +18,7 @@ const apiEnvSchema = baseEnvSchema.extend({
 const botEnvSchema = baseEnvSchema.extend({
   BOT_INTERNAL_PORT: z.coerce.number().int().positive().default(3334),
   API_BASE_URL: z.string().default('http://localhost:3333'),
+  WORKER_INTERNAL_URL: z.string().default('http://localhost:3335'),
   DISCORD_BOT_TOKEN: z.string().min(1),
   DISCORD_CHANNEL_ID: z.string().min(1),
   DISCORD_USER_ID: z.string().min(1),

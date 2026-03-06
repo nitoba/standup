@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   handleStandupInteraction: vi.fn(),
+  handleReminderInteraction: vi.fn(),
   loggerInfo: vi.fn(),
   loggerError: vi.fn(),
   withContextInfo: vi.fn(),
@@ -22,6 +23,10 @@ vi.mock('@standup/logger', () => ({
 
 vi.mock('./interaction-handler.js', () => ({
   handleStandupInteraction: mocks.handleStandupInteraction,
+}))
+
+vi.mock('./reminder-handler.js', () => ({
+  handleReminderInteraction: mocks.handleReminderInteraction,
 }))
 
 import type { ButtonInteraction, Client } from 'discord.js'
@@ -55,6 +60,10 @@ const fakeClient = {} as unknown as Client
 const env = {
   DATABASE_URL: ':memory:',
   DISCORD_CHANNEL_ID: 'channel-123',
+  INTERNAL_SECRET: 'test-secret',
+  DISCORD_USER_ID: 'user-123',
+  WORKER_INTERNAL_URL: 'http://localhost:3335',
+  API_BASE_URL: 'http://localhost:3333',
 }
 
 describe('handleButtonInteraction', () => {

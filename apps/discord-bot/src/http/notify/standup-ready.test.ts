@@ -8,10 +8,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   notifyStandupReady: vi.fn(),
+  sendReminderDm: vi.fn(),
 }))
 
 vi.mock('../../services/standup-notification-service.js', () => ({
   notifyStandupReady: mocks.notifyStandupReady,
+}))
+
+vi.mock('../../discord/notifications/send-reminder-dm.js', () => ({
+  sendReminderDm: mocks.sendReminderDm,
 }))
 
 import { createInternalRouter } from '../router.js'
@@ -54,6 +59,7 @@ describe('POST /internal/notify/standup-ready', () => {
       client: fakeClient,
       discordUserId: DISCORD_USER_ID,
       discordChannelId: DISCORD_CHANNEL_ID,
+      workerInternalUrl: 'http://localhost:3335',
     })
   })
 

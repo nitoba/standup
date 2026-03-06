@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   notifyJobFailed: vi.fn(),
   notifyStandupReady: vi.fn(),
+  sendReminderDm: vi.fn(),
 }))
 
 // Necessário pois router.ts importa standup-ready.ts que importa @standup/db (bun:sqlite)
@@ -18,6 +19,11 @@ vi.mock('../../services/standup-notification-service.js', () => ({
 
 vi.mock('../../services/job-notification-service.js', () => ({
   notifyJobFailed: mocks.notifyJobFailed,
+}))
+
+// Necessário pois router.ts importa standup-reminder.ts que importa send-reminder-dm.ts
+vi.mock('../../discord/notifications/send-reminder-dm.js', () => ({
+  sendReminderDm: mocks.sendReminderDm,
 }))
 
 import { createInternalRouter } from '../router.js'
@@ -60,6 +66,7 @@ describe('POST /internal/notify/job-failed', () => {
       client: fakeClient,
       discordUserId: DISCORD_USER_ID,
       discordChannelId: DISCORD_CHANNEL_ID,
+      workerInternalUrl: 'http://localhost:3335',
     })
   })
 

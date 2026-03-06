@@ -39,6 +39,7 @@ export async function startDiscordBot(): Promise<void> {
     client,
     discordUserId: env.DISCORD_USER_ID,
     discordChannelId: env.DISCORD_CHANNEL_ID,
+    workerInternalUrl: env.WORKER_INTERNAL_URL,
   })
 
   Bun.serve({ port: env.BOT_INTERNAL_PORT, fetch: internalApp.fetch })

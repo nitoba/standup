@@ -3,6 +3,7 @@ import { getDb, JobRunRepository } from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import { Cron } from 'croner'
 import { runStandupJob } from './job/standup-job.js'
+import { notifyStandupReminder } from './notifications/notify-standup-reminder.js'
 
 const logger = createServiceLogger({
   service: 'worker',
@@ -13,23 +14,72 @@ const logger = createServiceLogger({
 const STALE_RUN_MAX_AGE_MS = 30 * 60 * 1000
 
 /**
+ * Estado in-memory do lembrete de standup.
+ * Permite ao usuário adiar ou cancelar o standup via botões no Discord.
+ * Reseta naturalmente quando o processo reinicia ou a data muda.
+ */
+export interface ReminderState {
+  /** Se definido e no futuro, o standupCron pulará a execução desta vez. */
+  snoozedUntil: Date | null
+  /** Se igual à data de hoje ('YYYY-MM-DD'), o standupCron fará no-op. */
+  cancelledDate: string | null
+}
+
+/**
  * Starts the cron scheduler for standup generation, reminders and recovery.
  *
  * Padrão 5 (Akita): Safety Nets com Cron — o recovery cron verifica se o job
  * principal rodou com sucesso e re-executa caso não tenha. O job é idempotente:
  * se já rodou com sucesso hoje, retorna no-op via LockAlreadyHeldError/JobAlreadyCompletedError.
  *
- * Returns the three Cron instances so callers can inspect nextRun or stop them.
+ * Returns the three Cron instances and the mutable reminderState so the HTTP
+ * router can apply snooze/cancel actions from Discord button interactions.
  */
 export function startScheduler(env: WorkerEnv): {
   standupCron: Cron
   reminderCron: Cron
   recoveryCron: Cron
+  reminderState: ReminderState
 } {
+  const reminderState: ReminderState = {
+    snoozedUntil: null,
+    cancelledDate: null,
+  }
+
   const standupCron = new Cron(
     env.STANDUP_CRON,
     { timezone: env.TIMEZONE },
     () => {
+      const today = new Date().toISOString().slice(0, 10)
+
+      // Check cancel-today flag
+      if (reminderState.cancelledDate === today) {
+        logger.info(
+          'Standup cancelled for today via reminder button — skipping',
+          {
+            date: today,
+          },
+        )
+        return
+      }
+
+      // Check snooze flag
+      if (
+        reminderState.snoozedUntil &&
+        reminderState.snoozedUntil > new Date()
+      ) {
+        logger.info(
+          'Standup snoozed via reminder button — skipping this fire',
+          {
+            snoozedUntil: reminderState.snoozedUntil.toISOString(),
+          },
+        )
+        return
+      }
+
+      // Clear snooze once it fires (or if it already expired)
+      reminderState.snoozedUntil = null
+
       runStandupJob(env).catch((error: unknown) => {
         logger.error('Standup job threw unexpectedly', {
           error: error instanceof Error ? error.message : String(error),
@@ -43,9 +93,28 @@ export function startScheduler(env: WorkerEnv): {
     env.STANDUP_REMINDER_CRON,
     { timezone: env.TIMEZONE },
     () => {
-      logger.info('Standup reminder — job will run soon', {
-        nextRun: standupCron.nextRun()?.toISOString() ?? 'n/a',
+      const nextRunAt =
+        standupCron.nextRun()?.toISOString() ?? new Date().toISOString()
+
+      logger.info('Standup reminder triggered — notifying bot', { nextRunAt })
+
+      notifyStandupReminder({
+        botInternalUrl: env.BOT_INTERNAL_URL,
+        secret: env.INTERNAL_SECRET,
+        nextRunAt,
       })
+        .then((result) => {
+          if (result.isErr()) {
+            logger.warn('Failed to notify bot of standup reminder', {
+              error: result.error.message,
+            })
+          }
+        })
+        .catch((err: unknown) => {
+          logger.error('Unexpected error notifying bot of reminder', {
+            error: err instanceof Error ? err.message : String(err),
+          })
+        })
     },
   )
 
@@ -117,5 +186,5 @@ export function startScheduler(env: WorkerEnv): {
     recoveryCron: recoveryCron.nextRun()?.toISOString() ?? 'n/a',
   })
 
-  return { standupCron, reminderCron, recoveryCron }
+  return { standupCron, reminderCron, recoveryCron, reminderState }
 }

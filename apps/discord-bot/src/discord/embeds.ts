@@ -96,6 +96,52 @@ export function buildPublishedEmbed(record: StandupRecord): APIEmbed {
 }
 
 /**
+ * Embed âmbar para DM de lembrete de standup.
+ * Exibido X minutos antes do cron, dando ao usuário controle sobre o agendamento.
+ */
+export function buildReminderEmbed(nextRunAt: string): APIEmbed {
+  const runDate = new Date(nextRunAt)
+  const timeStr = runDate.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  })
+
+  return {
+    title: truncate('Lembrete de Standup', LIMITS.TITLE),
+    color: EMBED_COLORS.WARNING,
+    description: truncate(
+      `O standup será gerado às **${timeStr}**. O que deseja fazer?`,
+      LIMITS.DESCRIPTION,
+    ),
+    fields: [
+      {
+        name: 'Executar Agora',
+        value: 'Gera o standup imediatamente.',
+        inline: true,
+      },
+      {
+        name: 'Adiar 15min',
+        value: 'Adia a geração em 15 minutos.',
+        inline: true,
+      },
+      {
+        name: 'Cancelar Hoje',
+        value: 'Pula a geração de hoje.',
+        inline: true,
+      },
+    ],
+    footer: {
+      text: truncate(
+        'standup-bot | Use os botões abaixo para gerenciar',
+        LIMITS.FOOTER,
+      ),
+    },
+    timestamp: new Date().toISOString(),
+  }
+}
+
+/**
  * Embed vermelho para notificações de falha de job (Padrão 8 do Akita).
  * Enviado no canal Discord quando o worker falha.
  */

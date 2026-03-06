@@ -7,16 +7,22 @@ import {
   handleStandupReady,
   standupReadyBodySchema,
 } from './notify/standup-ready.js'
+import {
+  handleStandupReminder,
+  standupReminderBodySchema,
+} from './notify/standup-reminder.js'
 
 export interface InternalRouterOptions {
   internalSecret: string
   databaseUrl: string
   /** Cliente Discord unificado — mesmo Client do gateway (index.ts). */
   client: Client
-  /** Discord User ID para DMs de revisão. */
+  /** Discord User ID para DMs de revisão e lembretes. */
   discordUserId: string
   /** Canal Discord onde publicar standups e notificações de falha. */
   discordChannelId: string
+  /** URL interna do worker — usada pelo reminder-handler para snooze/cancel. */
+  workerInternalUrl: string
 }
 
 /**
@@ -50,6 +56,19 @@ export function createInternalRouter(opts: InternalRouterOptions): Hono {
       handleJobFailed(c, c.req.valid('json'), {
         client: opts.client,
         discordChannelId: opts.discordChannelId,
+      }),
+  )
+
+  // POST /internal/notify/standup-reminder
+  app.post(
+    '/internal/notify/standup-reminder',
+    sValidator('json', standupReminderBodySchema),
+    (c) =>
+      handleStandupReminder(c, c.req.valid('json'), {
+        client: opts.client,
+        discordUserId: opts.discordUserId,
+        workerInternalUrl: opts.workerInternalUrl,
+        internalSecret: opts.internalSecret,
       }),
   )
 

@@ -10,6 +10,8 @@ import {
 } from 'discord.js'
 import type { StandupAction } from './interaction-handler.js'
 import { handleStandupInteraction } from './interaction-handler.js'
+import type { ReminderAction } from './reminder-handler.js'
+import { handleReminderInteraction } from './reminder-handler.js'
 
 const logger = createServiceLogger({
   service: 'discord-bot',
@@ -65,9 +67,30 @@ async function showRegenerateModal(
 export async function handleButtonInteraction(
   interaction: ButtonInteraction,
   client: Client,
-  env: Pick<BotEnv, 'DATABASE_URL' | 'DISCORD_CHANNEL_ID'>,
+  env: Pick<
+    BotEnv,
+    | 'DATABASE_URL'
+    | 'DISCORD_CHANNEL_ID'
+    | 'WORKER_INTERNAL_URL'
+    | 'API_BASE_URL'
+    | 'INTERNAL_SECRET'
+    | 'DISCORD_USER_ID'
+  >,
 ): Promise<void> {
   const [namespace, action, standupId] = interaction.customId.split(':')
+
+  // Route standup-reminder:* to the reminder handler
+  if (namespace === 'standup-reminder') {
+    const reminderAction = action as ReminderAction
+    await handleReminderInteraction(interaction, reminderAction, {
+      workerInternalUrl: env.WORKER_INTERNAL_URL,
+      apiBaseUrl: env.API_BASE_URL,
+      internalSecret: env.INTERNAL_SECRET,
+      discordUserId: env.DISCORD_USER_ID,
+    })
+    return
+  }
+
   if (namespace !== 'standup' || !standupId) return
 
   const interactionLogger = withContext(logger, {
