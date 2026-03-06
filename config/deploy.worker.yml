@@ -11,6 +11,13 @@
 service: standup-worker
 image: ghcr.io/nitoba/standup-worker
 
+
+registry:
+  server: ghcr.io
+  username: nitoba
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
 servers:
   web:
     hosts:
