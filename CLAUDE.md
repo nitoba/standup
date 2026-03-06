@@ -57,6 +57,22 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 - Prefira composicao sobre heranca
 - Estado de standups via state machine simples: draft -> pending_review -> approved -> published (ou rejected -> draft)
 
+## Configuracao de Ambiente
+
+- `packages/config` nao usa mais um schema global unico para o monorepo
+- Sempre modelar env por contexto de app, com `baseEnvSchema` compartilhado
+- Loaders atuais:
+  - `loadApiEnv()`
+  - `loadBotEnv()`
+  - `loadWorkerEnv()`
+- Tipos atuais:
+  - `ApiEnv`
+  - `BotEnv`
+  - `WorkerEnv`
+- Cada entrypoint valida apenas as vars que o proprio processo usa
+- Nao reintroduzir `loadEnv()` global ou um `AppEnv` monolitico
+- Se uma nova env for necessaria, adicionar no schema do app correto; so promover para `baseEnvSchema` se for realmente compartilhada
+
 ## Arquitetura de Comunicacao
 
 ```
@@ -211,12 +227,12 @@ standup/
           notify-job-failed.ts        # POST /internal/notify/job-failed
           notify-job-failed.test.ts
         scheduler.ts        # startScheduler() — setup de cron jobs
-        index.ts            # Entrypoint: loadEnv → startScheduler + HTTP interno
+        index.ts            # Entrypoint: loadWorkerEnv → startScheduler + HTTP interno
         vitest.setup.ts     # Shim Bun.randomUUIDv7 para Vitest
       vitest.config.ts      # Config Vitest local (aponta setupFiles)
 
   packages/
-    config/           # Env vars e configuracao tipada (loadEnv, AppEnv)
+    config/           # Env vars e configuracao tipada (loadApiEnv/loadBotEnv/loadWorkerEnv)
     domain/           # Types, schemas, errors, state machine
     db/               # Drizzle schema, conexao, StandupRepository
     git-collector/    # Coleta de commits dos repositorios
@@ -259,44 +275,45 @@ standup/
 ## Env Vars Necessarias
 
 ```
-# Discord
+# Base (compartilhado entre apps quando aplicavel)
+NODE_ENV=development
+DATABASE_URL=./data/standup.db
+INTERNAL_SECRET=change-me-in-production
+
+# API (loadApiEnv)
+PORT=3333
+DISCORD_USER_ID=
+WORKER_INTERNAL_URL=http://localhost:3335
+
+# Discord Bot (loadBotEnv)
+BOT_INTERNAL_PORT=3334
+API_BASE_URL=http://localhost:3333
 DISCORD_BOT_TOKEN=
 DISCORD_CHANNEL_ID=       # Canal onde publica standups
 DISCORD_USER_ID=          # Seu user ID para DMs
 DISCORD_GUILD_ID=         # Opcional: guild commands (dev) vs global (prod)
 
-# LLM
-ANTHROPIC_AUTH_TOKEN=
-
-
-# Azure DevOps (via MCP)
-AZURE_DEVOPS_ORG=
-AZURE_DEVOPS_PAT=
-
-# Git
+# Worker (loadWorkerEnv)
+TIMEZONE=America/Sao_Paulo
+STANDUP_CRON=30 17 * * 1-5
+STANDUP_REMINDER_CRON=20 17 * * 1-5
+STANDUP_RECOVERY_CRON=0 18 * * 1-5
 REPOS_BASE_PATH=/home/nitoba/Documents/repos/ibs/repos
 GIT_AUTHOR=bruno.alves@biosistemico.com.br
 GIT_SINCE_PERIOD=16 hours ago
-
-# App
-DATABASE_URL=./data/standup.db
-PORT=3333
-NODE_ENV=development
-
-# Comunicacao interna worker→bot
-BOT_INTERNAL_URL=http://localhost:3334
-BOT_INTERNAL_PORT=3334
-
-# Comunicacao interna api→worker
-WORKER_INTERNAL_URL=http://localhost:3335
 WORKER_INTERNAL_PORT=3335
-
-# URL publica/interna do API (usada pelo discord-bot em /standup trigger)
-API_BASE_URL=http://localhost:3333
-
-# Segredo compartilhado para rotas internas
-INTERNAL_SECRET=change-me-in-production
+BOT_INTERNAL_URL=http://localhost:3334
+ANTHROPIC_AUTH_TOKEN=
+AZURE_DEVOPS_ORG=
+AZURE_DEVOPS_PAT=
+AZURE_DEVOPS_DEFAULT_PROJECT=AGROTRACE
 ```
+
+Cada processo deve chamar apenas seu loader:
+
+- API: `loadApiEnv()`
+- Bot: `loadBotEnv()`
+- Worker: `loadWorkerEnv()`
 
 ## Hurdles (Barreiras Conhecidas)
 
@@ -559,7 +576,7 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 ### Pacotes completos (com testes)
 
 - `packages/domain` — types, schemas Zod, state machine, TaggedErrors (incl. 4 novos erros de job)
-- `packages/config` — `loadEnv()` com todas as env vars (incl. `WORKER_INTERNAL_URL`, `WORKER_INTERNAL_PORT` e `API_BASE_URL`)
+- `packages/config` — `baseEnvSchema` + loaders por app (`loadApiEnv()`, `loadBotEnv()`, `loadWorkerEnv()`) e tipos dedicados (`ApiEnv`, `BotEnv`, `WorkerEnv`)
 - `packages/logger` — Winston estruturado
 - `packages/git-collector` — 29 testes (bun test)
 - `packages/db` — StandupRepository + JobRunRepository, 31 testes (bun test)

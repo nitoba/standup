@@ -12,7 +12,7 @@ Monorepo com **3 imagens Docker separadas** + 1 imagem de migracao.
 - **Tailscale** — rede privada para admin/SSH/deploy
 - **GitHub Actions** — CI/CD (lint, typecheck, test, build, deploy)
 - **GHCR (ghcr.io)** — container registry para as imagens Docker
-- **Docker Desktop** — runtime no MacBook (Apple Silicon / arm64)
+- **Colima** — runtime Docker em VM Linux no MacBook (Apple Silicon / arm64)
 
 ---
 
@@ -33,15 +33,15 @@ Monorepo com **3 imagens Docker separadas** + 1 imagem de migracao.
         |
 [ cloudflared no MacBook ]
         |
-      HTTP localhost:80
+  HTTP para a VM Linux do Colima
         |
-[ kamal-proxy (swap + routing por Host) ]
+[ kamal-proxy dentro do Colima (swap + routing por Host) ]
         |
       api (3333)   ← unico servico com proxy publico
 ```
 
 Bot (3334) e Worker (3335) nao passam pelo kamal-proxy.
-Suas portas sao publicadas diretamente no host para comunicacao interna.
+As aplicacoes rodam dentro da VM Linux do Colima, nao diretamente no macOS host.
 
 ### Fluxo de deploy (CI → Kamal → MacBook)
 
@@ -79,10 +79,12 @@ SSH e portas internas so acessiveis via Tailscale. Apenas a API fica publica via
 | Host               | MacBook Apple Silicon (M1)                                  |
 | Tailscale hostname | `nitoba-mac.tail2ee1d6.ts.net`                              |
 | Usuario SSH        | `nitoba`                                                    |
-| Container runtime  | Docker Desktop 29.x                                         |
+| Container runtime  | Colima (Docker engine em VM Linux)                          |
 | Arquitetura        | `aarch64` (arm64)                                           |
 | Diretorio de dados | `/opt/standup/data` (SQLite, compartilhado entre os 3 apps) |
 | Diretorio de repos | `/Users/nitoba/repos` (bind-mount read-only no worker)      |
+
+Observacao: o MacBook hospeda o Colima, mas API, Bot e Worker executam dentro da VM Linux do Colima.
 
 ---
 
@@ -132,14 +134,14 @@ standup/
 
 ### Comunicacao interna entre containers
 
-Os 3 containers rodam no mesmo host Docker. Bot e Worker publicam portas diretamente.
-Dentro de um container, `host.docker.internal` resolve para o host Docker (nativo no Docker Desktop macOS).
+Os 3 containers rodam na mesma VM Linux do Colima.
+As URLs internas (`BOT_INTERNAL_URL`, `WORKER_INTERNAL_URL`, `API_BASE_URL`) devem apontar para endpoints acessiveis dentro da rede/host exposto pelo Colima, nao para processos rodando diretamente no macOS.
 
 | De           | Para                               | URL                                           |
 | ------------ | ---------------------------------- | --------------------------------------------- |
-| API → Bot    | `http://host.docker.internal:3334` | notificacoes, DMs                             |
-| API → Worker | `http://host.docker.internal:3335` | trigger manual                                |
-| Worker → Bot | `http://host.docker.internal:3334` | standup-ready, job-failed                     |
+| API → Bot    | endpoint interno do Colima         | notificacoes, DMs                             |
+| API → Worker | endpoint interno do Colima         | trigger manual                                |
+| Worker → Bot | endpoint interno do Colima         | standup-ready, job-failed                     |
 | Bot → API    | `https://api.nitoba.com.br`        | slash commands (via Cloudflare → kamal-proxy) |
 
 ### Volumes
@@ -257,12 +259,12 @@ credentials-file: /Users/nitoba/.cloudflared/<UUID_DO_TUNNEL>.json
 
 ingress:
   - hostname: api.nitoba.com.br
-    service: http://localhost:80
+    service: http://<COLIMA_ENDPOINT>:80
 
   - service: http_status:404
 ```
 
-> Rode `cloudflared` como servico (launchd no macOS) para manter o tunnel sempre ativo.
+> `COLIMA_ENDPOINT` = IP/hostname exposto pela VM do Colima para alcancar o `kamal-proxy`.
 
 ---
 
@@ -285,8 +287,8 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 ## Seguranca
 
 - **API** (`api.nitoba.com.br`): unico servico publico. Protegido por Cloudflare WAF/rate limiting.
-- **Bot** (porta 3334): interno, acessivel apenas via `host.docker.internal` e Tailscale.
-- **Worker** (porta 3335): interno, acessivel apenas via `host.docker.internal` e Tailscale.
+- **Bot** (porta 3334): interno, acessivel apenas via rede/host do Colima e Tailscale.
+- **Worker** (porta 3335): interno, acessivel apenas via rede/host do Colima e Tailscale.
 - **SSH**: apenas via Tailscale (chave Ed25519, sem senha).
 - **Secrets**: nunca commitados. `.kamal/secrets` e `*.env` no `.gitignore`.
 - **GHCR**: autenticacao via `GITHUB_TOKEN` (automatico no CI).
@@ -296,7 +298,7 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 
 ## Checklist de setup do servidor (MacBook)
 
-- [x] Docker Desktop instalado e rodando
+- [x] Colima instalado e rodando
 - [x] Tailscale instalado e conectado
 - [x] SSH habilitado (System Settings > General > Sharing > Remote Login)
 - [x] `/usr/local/bin` no PATH do shell nao-interativo (`~/.zshenv`)
@@ -312,5 +314,5 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 ## Redundancias eliminadas
 
 - **Caddy**: desnecessario — Cloudflare ja resolve TLS na borda.
-- **Subdominio publico para bot/worker**: desnecessario — comunicacao interna via `host.docker.internal`.
+- **Subdominio publico para bot/worker**: desnecessario — comunicacao interna via rede privada do Colima.
 - **Build no servidor**: desnecessario — imagens pre-buildadas no CI via QEMU arm64.
