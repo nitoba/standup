@@ -236,24 +236,15 @@ jobs:
 
       - name: Run database migrations
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} '
-            set -e
-            TMP_DOCKER_CONFIG="$(mktemp -d)"
-            trap "rm -rf \"$TMP_DOCKER_CONFIG\"" EXIT
-
-            cat > "$TMP_DOCKER_CONFIG/config.json" <<'"'"'EOF'"'"'
-            {
-              "auths": {}
-            }
-            EOF
-
-            docker --config "$TMP_DOCKER_CONFIG" pull ghcr.io/nitoba/standup-migrate:sha-${{ env.DEPLOY_VERSION }}
-            docker --config "$TMP_DOCKER_CONFIG" run --rm \
-              -v /opt/standup/data:/app/data \
-              -e DATABASE_URL=/app/data/standup.db \
-              -e NODE_ENV=production \
-              ghcr.io/nitoba/standup-migrate:sha-${{ env.DEPLOY_VERSION }}
-          '
+          ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "set -e && \
+             echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u nitoba --password-stdin && \
+             docker pull ghcr.io/nitoba/standup-migrate:sha-${DEPLOY_VERSION} && \
+             docker run --rm \
+               -v /opt/standup/data:/app/data \
+               -e DATABASE_URL=/app/data/standup.db \
+               -e NODE_ENV=production \
+               ghcr.io/nitoba/standup-migrate:sha-${DEPLOY_VERSION}"
 
       - name: Create SSH config for deploy
         run: |
