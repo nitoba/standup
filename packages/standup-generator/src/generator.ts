@@ -6,7 +6,7 @@ import type {
 } from '@standup/domain'
 import { ExternalServiceError, Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
-import { generateObject } from 'ai'
+import { generateObject, generateText, Output } from 'ai'
 import * as z from 'zod'
 import type { AzureMcpClient } from './azure/azure-mcp-client.js'
 import { createAzureMcpClient } from './azure/azure-mcp-client.js'
@@ -184,9 +184,9 @@ function runStandupGeneration(
 ): Promise<Result<StandupOutput, ExternalServiceError>> {
   return Result.tryPromise({
     try: async () => {
-      const { object } = await generateObject({
+      const { output } = await generateText({
         model: provider('qwen/qwen3-32b'),
-        schema: standupOutputSchema,
+        output: Output.json(),
         system: `
 ${system}
 
@@ -208,10 +208,7 @@ Regras:
       `,
         prompt,
       })
-
-      const standup = standupOutputSchema.parse(object)
-
-      return standup
+      return standupOutputSchema.parse(output)
     },
     catch: (err) =>
       new ExternalServiceError({

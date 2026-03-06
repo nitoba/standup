@@ -8,6 +8,8 @@ import {
   TextInputBuilder,
   TextInputStyle,
 } from 'discord.js'
+import type { CopyAction } from './copy-handler.js'
+import { handleCopyButtonInteraction } from './copy-handler.js'
 import type { StandupAction } from './interaction-handler.js'
 import { handleStandupInteraction } from './interaction-handler.js'
 import type { ReminderAction } from './reminder-handler.js'
@@ -102,6 +104,16 @@ export async function handleButtonInteraction(
       standupId,
       { apiBaseUrl: env.API_BASE_URL },
     )
+    return
+  }
+
+  // Route standup-copy:* to copy handler (ephemeral plain-text response)
+  if (namespace === 'standup-copy') {
+    if (!standupId) return
+    const copyAction = action as CopyAction
+    await handleCopyButtonInteraction(interaction, copyAction, standupId, {
+      databaseUrl: env.DATABASE_URL,
+    })
     return
   }
 

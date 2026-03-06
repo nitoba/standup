@@ -1,6 +1,11 @@
 import { ExternalServiceError, Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
-import type { APIEmbed, Client } from 'discord.js'
+import type {
+  ActionRowBuilder,
+  APIEmbed,
+  ButtonBuilder,
+  Client,
+} from 'discord.js'
 
 const logger = createServiceLogger({
   service: 'discord-bot',
@@ -17,6 +22,7 @@ export async function sendChannelNotification(
   client: Client,
   channelId: string,
   embed: APIEmbed,
+  components?: ActionRowBuilder<ButtonBuilder>[],
 ): Promise<Result<void, ExternalServiceError>> {
   return Result.tryPromise({
     try: async () => {
@@ -36,7 +42,7 @@ export async function sendChannelNotification(
         })
       }
 
-      await channel.send({ embeds: [embed] })
+      await channel.send({ embeds: [embed], components: components ?? [] })
 
       logger.info('Channel notification sent', { channelId })
     },

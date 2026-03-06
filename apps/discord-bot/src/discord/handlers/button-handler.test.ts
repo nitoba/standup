@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   handleStandupInteraction: vi.fn(),
   handleReminderInteraction: vi.fn(),
   handleTriggerButtonInteraction: vi.fn(),
+  handleCopyButtonInteraction: vi.fn(),
   loggerInfo: vi.fn(),
   loggerError: vi.fn(),
   withContextInfo: vi.fn(),
@@ -32,6 +33,10 @@ vi.mock('./reminder-handler.js', () => ({
 
 vi.mock('./trigger-handler.js', () => ({
   handleTriggerButtonInteraction: mocks.handleTriggerButtonInteraction,
+}))
+
+vi.mock('./copy-handler.js', () => ({
+  handleCopyButtonInteraction: mocks.handleCopyButtonInteraction,
 }))
 
 import type { ButtonInteraction, Client } from 'discord.js'
@@ -108,6 +113,23 @@ describe('handleButtonInteraction', () => {
     expect(deferUpdate).not.toHaveBeenCalled()
     expect(editReply).not.toHaveBeenCalled()
     expect(mocks.handleStandupInteraction).not.toHaveBeenCalled()
+  })
+
+  it('delega standup-copy:* para copy-handler', async () => {
+    const { interaction, deferUpdate, editReply } = makeInteraction(
+      'standup-copy:content:standup-1',
+    )
+
+    await handleButtonInteraction(interaction, fakeClient, env)
+
+    expect(mocks.handleCopyButtonInteraction).toHaveBeenCalledWith(
+      interaction,
+      'content',
+      'standup-1',
+      { databaseUrl: ':memory:' },
+    )
+    expect(deferUpdate).not.toHaveBeenCalled()
+    expect(editReply).not.toHaveBeenCalled()
   })
 
   it('deferUpdate, delega interacao e responde com emoji de sucesso', async () => {

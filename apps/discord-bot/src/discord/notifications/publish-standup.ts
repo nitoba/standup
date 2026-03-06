@@ -4,7 +4,12 @@ import type {
   StandupRecord,
 } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
-import type { Client } from 'discord.js'
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  type Client,
+} from 'discord.js'
 import { buildPublishedEmbed } from '../embeds.js'
 import { sendChannelNotification } from './send-channel-notification.js'
 
@@ -23,8 +28,16 @@ export async function publishStandup(
   channelId: string,
 ): Promise<Result<void, ExternalServiceError>> {
   const embed = buildPublishedEmbed(record)
+  const copyRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`standup-copy:content:${record.id}`)
+      .setLabel('Copiar texto')
+      .setStyle(ButtonStyle.Secondary),
+  )
 
-  const result = await sendChannelNotification(client, channelId, embed)
+  const result = await sendChannelNotification(client, channelId, embed, [
+    copyRow,
+  ])
 
   if (result.isOk()) {
     logger.info('Standup published to channel', {

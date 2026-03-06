@@ -77,10 +77,20 @@ describe('publishStandup', () => {
 
     expect(result.status).toBe('ok')
     expect(mocks.buildPublishedEmbed).toHaveBeenCalledWith(standupRecord)
-    expect(mocks.sendChannelNotification).toHaveBeenCalledWith(
-      fakeClient,
-      CHANNEL_ID,
-      expect.objectContaining({ color: 0x2ecc71 }),
+    expect(mocks.sendChannelNotification).toHaveBeenCalledTimes(1)
+    const args = mocks.sendChannelNotification.mock.calls[0] as [
+      Client,
+      string,
+      { color: number },
+      Array<{ toJSON: () => { components: Array<{ custom_id?: string }> } }>,
+    ]
+    expect(args[0]).toBe(fakeClient)
+    expect(args[1]).toBe(CHANNEL_ID)
+    expect(args[2]).toEqual(expect.objectContaining({ color: 0x2ecc71 }))
+    expect(args[3]).toHaveLength(1)
+    const rowJson = args[3][0]?.toJSON()
+    expect(rowJson?.components[0]?.custom_id).toBe(
+      'standup-copy:content:standup-abc',
     )
   })
 
