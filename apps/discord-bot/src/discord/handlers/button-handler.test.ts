@@ -132,23 +132,58 @@ describe('handleButtonInteraction', () => {
     expect(editReply).not.toHaveBeenCalled()
   })
 
-  it('deferUpdate, delega interacao e responde com emoji de sucesso', async () => {
+  it('mostra modal de approve com campos de custom entries', async () => {
+    const { interaction, deferUpdate, showModal } = makeInteraction(
+      'standup:approve:standup-1',
+    )
+
+    await handleButtonInteraction(interaction, fakeClient, env)
+
+    // Modal must be shown immediately (no deferUpdate before it)
+    expect(deferUpdate).not.toHaveBeenCalled()
+    expect(mocks.handleStandupInteraction).not.toHaveBeenCalled()
+    expect(showModal).toHaveBeenCalledTimes(1)
+
+    const modalBuilder = showModal.mock.calls[0]?.[0] as {
+      toJSON: () => {
+        custom_id: string
+        title: string
+        components: Array<{
+          components: Array<{
+            custom_id: string
+            label: string
+          }>
+        }>
+      }
+    }
+    const json = modalBuilder.toJSON()
+
+    expect(json.custom_id).toBe('standup-approve-modal:standup-1')
+    expect(json.title).toBe('Aprovar Standup')
+    expect(json.components).toHaveLength(2)
+    expect(json.components[0]?.components[0]?.custom_id).toBe(
+      'scheduled-meetings',
+    )
+    expect(json.components[1]?.components[0]?.custom_id).toBe('direct-calls')
+  })
+
+  it('deferUpdate, delega reject e responde com emoji de sucesso', async () => {
     mocks.handleStandupInteraction.mockResolvedValue(
       Result.ok({
-        action: 'approve',
+        action: 'reject',
         standupId: 'standup-1',
-        message: 'Standup aprovado',
+        message: 'Standup rejeitado',
       }),
     )
     const { interaction, deferUpdate, editReply } = makeInteraction(
-      'standup:approve:standup-1',
+      'standup:reject:standup-1',
     )
 
     await handleButtonInteraction(interaction, fakeClient, env)
 
     expect(deferUpdate).toHaveBeenCalledTimes(1)
     expect(mocks.handleStandupInteraction).toHaveBeenCalledWith(
-      'approve',
+      'reject',
       'standup-1',
       {
         databaseUrl: ':memory:',
@@ -157,7 +192,7 @@ describe('handleButtonInteraction', () => {
       fakeClient,
     )
     expect(editReply).toHaveBeenCalledWith({
-      content: '\u{2705} Standup aprovado',
+      content: '\u{274C} Standup rejeitado',
       components: [],
     })
   })

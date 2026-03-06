@@ -61,6 +61,48 @@ async function showRegenerateModal(
 }
 
 /**
+ * Builds and shows the approve modal with optional fields for custom entries
+ * (extra scheduled meetings and direct calls).
+ * Must be the immediate response to the interaction (within 3s).
+ */
+async function showApproveModal(
+  interaction: ButtonInteraction,
+  standupId: string,
+): Promise<void> {
+  const meetingsInput = new TextInputBuilder()
+    .setCustomId('scheduled-meetings')
+    .setLabel('Reunioes extras (cada linha = 1 reuniao)')
+    .setPlaceholder('Planning Backend\nRefinamento mobile\nSync com time X')
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(false)
+    .setMaxLength(500)
+
+  const callsInput = new TextInputBuilder()
+    .setCustomId('direct-calls')
+    .setLabel('Calls diretas (cada linha = 1 call)')
+    .setPlaceholder(
+      'Call com Joao sobre deploy\nSync com time de QA\nPareamento com Maria',
+    )
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(false)
+    .setMaxLength(500)
+
+  const meetingsRow = new ActionRowBuilder<TextInputBuilder>().addComponents(
+    meetingsInput,
+  )
+  const callsRow = new ActionRowBuilder<TextInputBuilder>().addComponents(
+    callsInput,
+  )
+
+  const modal = new ModalBuilder()
+    .setCustomId(`standup-approve-modal:${standupId}`)
+    .setTitle('Aprovar Standup')
+    .addComponents(meetingsRow, callsRow)
+
+  await interaction.showModal(modal)
+}
+
+/**
  * Handles button interactions from standup review DMs.
  * Parses the customId (standup:<action>:<standupId>).
  *
@@ -133,7 +175,14 @@ export async function handleButtonInteraction(
     return
   }
 
-  // Defer update immediately to avoid Discord's 3s interaction timeout.
+  // Approve: show modal for optional custom entries (meetings/calls).
+  // showModal must be the immediate response (no deferUpdate before it).
+  if (action === 'approve') {
+    await showApproveModal(interaction, standupId)
+    return
+  }
+
+  // Remaining actions (reject): defer update and process immediately.
   await interaction.deferUpdate()
 
   const result = await handleStandupInteraction(

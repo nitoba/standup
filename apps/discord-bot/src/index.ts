@@ -3,6 +3,7 @@ import { Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import { Client, Events, GatewayIntentBits } from 'discord.js'
 import { registerApplicationCommands } from './discord/commands/register.js'
+import { handleApproveModal } from './discord/handlers/approve-modal-handler.js'
 import { handleButtonInteraction } from './discord/handlers/button-handler.js'
 import { handleRegenerateModal } from './discord/handlers/modal-handler.js'
 import { handleSlashCommand } from './discord/handlers/slash-command-handler.js'
@@ -73,6 +74,10 @@ export async function startDiscordBot(): Promise<void> {
       }
 
       if (interaction.isModalSubmit()) {
+        if (interaction.customId.startsWith('standup-approve-modal:')) {
+          await handleApproveModal(interaction, client, env)
+          return
+        }
         await handleRegenerateModal(interaction, client, env)
       }
     } catch (error: unknown) {

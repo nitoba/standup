@@ -16,6 +16,7 @@ async function setupTables(db: Db): Promise<void> {
       meeting_type TEXT NOT NULL,
       content     TEXT NOT NULL,
       source_data TEXT NOT NULL,
+      custom_entries TEXT,
       status      TEXT NOT NULL DEFAULT 'draft',
       created_at  INTEGER NOT NULL,
       updated_at  INTEGER NOT NULL
@@ -288,6 +289,81 @@ describe('StandupRepository', () => {
       if (result.status !== 'error') return
 
       expect(result.error._tag).toBe('NotFoundError')
+    })
+  })
+
+  describe('updateCustomEntries', () => {
+    it('saves and returns custom entries as structured object', async () => {
+      await repo.create(makeInput())
+
+      const entries = {
+        scheduledMeetings: ['Planning Backend', 'Refinamento mobile'],
+        directCalls: ['Call com Joao sobre deploy'],
+      }
+      const result = await repo.updateCustomEntries('test-id-1', entries)
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.customEntries).toEqual(entries)
+    })
+
+    it('persists custom entries and reads them back correctly', async () => {
+      await repo.create(makeInput())
+
+      const entries = {
+        scheduledMeetings: ['Planning Backend'],
+        directCalls: ['Call com QA'],
+      }
+      await repo.updateCustomEntries('test-id-1', entries)
+
+      const found = await repo.findById('test-id-1')
+      expect(found.status).toBe('ok')
+      if (found.status !== 'ok') return
+
+      expect(found.value.customEntries).toEqual(entries)
+    })
+
+    it('returns null customEntries when not set', async () => {
+      await repo.create(makeInput())
+
+      const found = await repo.findById('test-id-1')
+      expect(found.status).toBe('ok')
+      if (found.status !== 'ok') return
+
+      expect(found.value.customEntries).toBeNull()
+    })
+
+    it('returns NotFoundError when standup does not exist', async () => {
+      const entries = {
+        scheduledMeetings: [],
+        directCalls: ['Call'],
+      }
+      const result = await repo.updateCustomEntries('ghost-id', entries)
+
+      expect(result.status).toBe('error')
+      if (result.status !== 'error') return
+
+      expect(result.error._tag).toBe('NotFoundError')
+    })
+
+    it('updates updatedAt timestamp', async () => {
+      await repo.create(makeInput())
+      const before = await repo.findById('test-id-1')
+      if (before.status !== 'ok') return
+
+      await Bun.sleep(5)
+
+      const entries = {
+        scheduledMeetings: ['Meeting'],
+        directCalls: [],
+      }
+      const result = await repo.updateCustomEntries('test-id-1', entries)
+      if (result.status !== 'ok') return
+
+      expect(result.value.updatedAt).toBeGreaterThanOrEqual(
+        before.value.updatedAt,
+      )
     })
   })
 })

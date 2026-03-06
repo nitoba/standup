@@ -10,6 +10,7 @@ export const standups = sqliteTable('standups', {
   meetingType: text('meeting_type').notNull(),
   content: text('content').notNull(),
   sourceData: text('source_data').notNull(),
+  customEntries: text('custom_entries'), // JSON: { scheduledMeetings: string[], directCalls: string[] }
   status: text('status', {
     enum: ['draft', 'pending_review', 'approved', 'rejected', 'published'],
   })

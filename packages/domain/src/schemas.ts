@@ -8,12 +8,18 @@ export const StandupStatusSchema = z.enum([
   'published',
 ])
 
+export const CustomEntriesSchema = z.object({
+  scheduledMeetings: z.array(z.string()),
+  directCalls: z.array(z.string()),
+})
+
 export const StandupSchema = z.object({
   id: z.string().uuid(),
   date: z.string().min(10),
   meetingType: z.string().min(1),
   content: z.string().min(1),
   sourceData: z.string().min(2),
+  customEntries: CustomEntriesSchema.nullable().optional(),
   status: StandupStatusSchema,
   createdAt: z.number().int(),
   updatedAt: z.number().int(),

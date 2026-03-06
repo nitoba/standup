@@ -45,6 +45,7 @@ const standupRecord = {
   meetingType: 'daily',
   content: '## Standup\n\n- feat: add feature',
   sourceData: '{}',
+  customEntries: null,
   status: 'approved' as const,
   createdAt: 1000,
   updatedAt: 1000,

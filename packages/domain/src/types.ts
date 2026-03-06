@@ -41,12 +41,18 @@ export interface GeneratedStandup {
   summary: string
 }
 
+export interface CustomEntries {
+  scheduledMeetings: string[] // 📆 extras (e.g. "Planning Backend", "Refinamento mobile")
+  directCalls: string[] // ☎️ calls (e.g. "Call com João sobre deploy")
+}
+
 export interface StandupRecord {
   id: string
   date: string
   meetingType: string
   content: string
   sourceData: string
+  customEntries: CustomEntries | null
   status: StandupStatus
   createdAt: number
   updatedAt: number

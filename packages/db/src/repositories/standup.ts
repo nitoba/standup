@@ -1,4 +1,8 @@
-import type { StandupRecord, StandupStatus } from '@standup/domain'
+import type {
+  CustomEntries,
+  StandupRecord,
+  StandupStatus,
+} from '@standup/domain'
 import {
   DbError,
   InvalidStateTransitionError,
@@ -21,6 +25,22 @@ const logger = createServiceLogger({
 // Mappers
 // ---------------------------------------------------------------------------
 
+function parseCustomEntries(raw: string | null): CustomEntries | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as CustomEntries
+    if (
+      Array.isArray(parsed.scheduledMeetings) &&
+      Array.isArray(parsed.directCalls)
+    ) {
+      return parsed
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 function toRecord(row: typeof standups.$inferSelect): StandupRecord {
   return {
     id: row.id,
@@ -28,6 +48,7 @@ function toRecord(row: typeof standups.$inferSelect): StandupRecord {
     meetingType: row.meetingType,
     content: row.content,
     sourceData: row.sourceData,
+    customEntries: parseCustomEntries(row.customEntries),
     status: row.status as StandupStatus,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -209,6 +230,31 @@ export class StandupRepository {
       return Result.ok({ ...found.value, content, updatedAt: now })
     } catch (error) {
       return this.dbErr('updateContent', error)
+    }
+  }
+
+  async updateCustomEntries(
+    id: string,
+    entries: CustomEntries,
+  ): Promise<Result<StandupRecord, NotFoundError | DbError>> {
+    try {
+      const found = await this.findById(id)
+      if (found.isErr()) return found
+
+      const now = Date.now()
+      const serialized = JSON.stringify(entries)
+      await this.db
+        .update(standups)
+        .set({ customEntries: serialized, updatedAt: now })
+        .where(eq(standups.id, id))
+
+      return Result.ok({
+        ...found.value,
+        customEntries: entries,
+        updatedAt: now,
+      })
+    } catch (error) {
+      return this.dbErr('updateCustomEntries', error)
     }
   }
 
