@@ -15,6 +15,12 @@ servers:
   web:
     - nitoba-mac.tail2ee1d6.ts.net
 
+registry:
+  server: ghcr.io
+  username: nitoba
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
 builder:
   context: .
   dockerfile: apps/api/Dockerfile
