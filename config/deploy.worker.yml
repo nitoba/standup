@@ -20,12 +20,6 @@ servers:
         - "3335:3335"
     proxy: false
 
-registry:
-  server: ghcr.io
-  username: nitoba
-  password:
-    - KAMAL_REGISTRY_PASSWORD
-
 builder:
   context: .
   dockerfile: apps/worker/Dockerfile
