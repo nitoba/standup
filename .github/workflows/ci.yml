@@ -167,14 +167,39 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
           tags: tag:ci
 
-      - name: Set up SSH key
+      - name: Set up SSH key and known_hosts
         run: |
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
           cat > ~/.ssh/deploy_key <<'EOF'
           ${{ secrets.SSH_PRIVATE_KEY }}
           EOF
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+          # Resolve o IP atual do host Tailscale
+          DEPLOY_IP="$(getent ahostsv4 "${{ secrets.DEPLOY_HOST }}" | awk '{print $1; exit}')"
+          echo "Resolved deploy host IP: ${DEPLOY_IP}"
+
+          # Remove entradas antigas para evitar HostKeyMismatch
+          ssh-keygen -R "${{ secrets.DEPLOY_HOST }}" -f ~/.ssh/known_hosts || true
+          if [ -n "${DEPLOY_IP}" ]; then
+            ssh-keygen -R "${DEPLOY_IP}" -f ~/.ssh/known_hosts || true
+          fi
+
+          # Adiciona hostname e IP com os principais tipos de chave
+          ssh-keyscan -H -t ed25519,ecdsa,rsa "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          if [ -n "${DEPLOY_IP}" ]; then
+            ssh-keyscan -H -t ed25519,ecdsa,rsa "${DEPLOY_IP}" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+
+          chmod 600 ~/.ssh/known_hosts
+
+          echo "known_hosts atualizado:"
+          ssh-keygen -F "${{ secrets.DEPLOY_HOST }}" -f ~/.ssh/known_hosts || true
+          if [ -n "${DEPLOY_IP}" ]; then
+            ssh-keygen -F "${DEPLOY_IP}" -f ~/.ssh/known_hosts || true
+          fi
 
       - name: Install Kamal
         run: |
