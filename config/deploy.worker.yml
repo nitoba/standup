@@ -10,7 +10,7 @@
 
 # config/deploy.worker.yml
 service: standup-worker
-image: ghcr.io/nitoba/standup-worker
+image: nitoba/standup-worker
 
 registry:
   server: ghcr.io

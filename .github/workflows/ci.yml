@@ -71,7 +71,9 @@ jobs:
           file: apps/api/Dockerfile
           push: true
           tags: ${{ steps.meta-api.outputs.tags }}
-          labels: ${{ steps.meta-api.outputs.labels }}
+          labels: |
+            service=standup-api
+            ${{ steps.meta-api.outputs.labels }}
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
 
@@ -91,7 +93,9 @@ jobs:
           file: apps/discord-bot/Dockerfile
           push: true
           tags: ${{ steps.meta-bot.outputs.tags }}
-          labels: ${{ steps.meta-bot.outputs.labels }}
+          labels: |
+            service=standup-bot
+            ${{ steps.meta-bot.outputs.labels }}
           cache-from: type=gha,scope=discord-bot
           cache-to: type=gha,mode=max,scope=discord-bot
 
@@ -111,7 +115,9 @@ jobs:
           file: apps/worker/Dockerfile
           push: true
           tags: ${{ steps.meta-worker.outputs.tags }}
-          labels: ${{ steps.meta-worker.outputs.labels }}
+          labels: |
+            service=standup-worker
+            ${{ steps.meta-worker.outputs.labels }}
           cache-from: type=gha,scope=worker
           cache-to: type=gha,mode=max,scope=worker
 

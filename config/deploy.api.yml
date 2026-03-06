@@ -9,7 +9,7 @@
 #   kamal app logs -c config/deploy.api.yml
 
 service: standup-api
-image: ghcr.io/nitoba/standup-api
+image: nitoba/standup-api
 
 servers:
   web:

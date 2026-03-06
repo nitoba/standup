@@ -10,7 +10,7 @@
 
 # config/deploy.bot.yml
 service: standup-bot
-image: ghcr.io/nitoba/standup-bot
+image: nitoba/standup-bot
 
 registry:
   server: ghcr.io
