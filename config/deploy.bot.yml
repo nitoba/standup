@@ -8,6 +8,7 @@
 #   kamal deploy -c config/deploy.bot.yml
 #   kamal app logs -c config/deploy.bot.yml
 
+# config/deploy.bot.yml
 service: standup-bot
 image: ghcr.io/nitoba/standup-bot
 
@@ -23,16 +24,15 @@ servers:
       - colima.tail2ee1d6.ts.net
     options:
       publish:
-        - "3334:3334"
-    proxy: false
+        - "127.0.0.1:3334:3334"
+
+proxy: false
 
 builder:
   context: .
   dockerfile: apps/discord-bot/Dockerfile
   arch: arm64
 
-# No proxy — this service is internal only.
-# The readiness_delay gives the container time to boot and connect to Discord gateway.
 readiness_delay: 10
 
 ssh:
@@ -48,11 +48,6 @@ env:
     NODE_ENV: production
     BOT_INTERNAL_PORT: "3334"
     DATABASE_URL: /app/data/standup.db
-    # API is behind kamal-proxy. Use the public hostname so requests go through
-    # Cloudflare Tunnel -> kamal-proxy -> api container. Latency is minimal
-    # since everything resolves locally on the same host.
-    # TODO: If you prefer direct internal access, you can also use
-    # http://host.docker.internal:80 with proper Host header config.
     API_BASE_URL: https://api.nitoba.com.br
     WORKER_INTERNAL_URL: http://host.docker.internal:3335
   secret:

@@ -8,9 +8,9 @@
 #   kamal deploy -c config/deploy.worker.yml
 #   kamal app logs -c config/deploy.worker.yml
 
+# config/deploy.worker.yml
 service: standup-worker
 image: ghcr.io/nitoba/standup-worker
-
 
 registry:
   server: ghcr.io
@@ -24,8 +24,9 @@ servers:
       - colima.tail2ee1d6.ts.net
     options:
       publish:
-        - "3335:3335"
-    proxy: false
+        - "127.0.0.1:3335:3335"
+
+proxy: false
 
 builder:
   context: .
@@ -40,10 +41,7 @@ ssh:
     - ~/.ssh/deploy_key
 
 volumes:
-  # Shared SQLite data directory
   - /opt/standup/data:/app/data
-  # Git repositories: bind-mounted read-only from host.
-  # TODO: Adjust the host path to where your repos live on the MacBook.
   - /Users/nitoba/repos:/repos:ro
 
 env:
@@ -51,15 +49,11 @@ env:
     NODE_ENV: production
     WORKER_INTERNAL_PORT: "3335"
     DATABASE_URL: /app/data/standup.db
-    # Internal communication: bot publishes port 3334 directly on the host
     BOT_INTERNAL_URL: http://host.docker.internal:3334
-    # Git collector config
     REPOS_BASE_PATH: /repos
     GIT_AUTHOR: bruno.alves@biosistemico.com.br
     GIT_SINCE_PERIOD: "16 hours ago"
-    # Azure DevOps
     AZURE_DEVOPS_DEFAULT_PROJECT: AGROTRACE
-    # Scheduler
     TIMEZONE: America/Sao_Paulo
     STANDUP_CRON: "30 17 * * 1-5"
     STANDUP_REMINDER_CRON: "20 17 * * 1-5"
