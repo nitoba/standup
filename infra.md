@@ -242,6 +242,7 @@ push/PR (qualquer branch)     push na main
 | `DISCORD_BOT_TOKEN`    | Bot, Worker      |
 | `DISCORD_CHANNEL_ID`   | Bot, Worker      |
 | `DISCORD_USER_ID`      | API, Bot, Worker |
+| `DISCORD_DEPLOY_WEBHOOK_URL` | CI deploy notifications |
 | `AI_PROVIDER_API_KEY`  | Worker           |
 | `AZURE_DEVOPS_ORG`     | Worker           |
 | `AZURE_DEVOPS_PAT`     | Worker           |

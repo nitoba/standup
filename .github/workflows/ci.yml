@@ -284,3 +284,89 @@ jobs:
         if: always()
         run: |
           rm -f .kamal/secrets-common
+
+  notify-deploy:
+    needs: deploy
+    if: ${{ always() && needs.deploy.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify deploy success on Discord
+        if: ${{ needs.deploy.result == 'success' }}
+        continue-on-error: true
+        env:
+          DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_DEPLOY_WEBHOOK_URL" ]; then
+            echo "DISCORD_DEPLOY_WEBHOOK_URL not configured; skipping notification"
+            exit 0
+          fi
+
+          SHORT_SHA="${GITHUB_SHA::7}"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+
+          payload=$(cat <<EOF
+          {
+            "content": "✅ Deploy concluido com sucesso",
+            "embeds": [
+              {
+                "title": "Standup Deploy Success",
+                "color": 3066993,
+                "fields": [
+                  { "name": "Repository", "value": "${GITHUB_REPOSITORY}", "inline": true },
+                  { "name": "Branch", "value": "${GITHUB_REF_NAME}", "inline": true },
+                  { "name": "Commit", "value": "[${SHORT_SHA}](${COMMIT_URL})", "inline": true },
+                  { "name": "Actor", "value": "${GITHUB_ACTOR}", "inline": true },
+                  { "name": "Run", "value": "[View workflow run](${RUN_URL})", "inline": false }
+                ],
+                "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              }
+            ]
+          }
+          EOF
+          )
+
+          curl -fsS -X POST "$DISCORD_DEPLOY_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
+
+      - name: Notify deploy failure on Discord
+        if: ${{ needs.deploy.result != 'success' }}
+        continue-on-error: true
+        env:
+          DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_DEPLOY_WEBHOOK_URL" ]; then
+            echo "DISCORD_DEPLOY_WEBHOOK_URL not configured; skipping notification"
+            exit 0
+          fi
+
+          SHORT_SHA="${GITHUB_SHA::7}"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+
+          payload=$(cat <<EOF
+          {
+            "content": "❌ Deploy falhou",
+            "embeds": [
+              {
+                "title": "Standup Deploy Failure",
+                "color": 15158332,
+                "fields": [
+                  { "name": "Repository", "value": "${GITHUB_REPOSITORY}", "inline": true },
+                  { "name": "Branch", "value": "${GITHUB_REF_NAME}", "inline": true },
+                  { "name": "Commit", "value": "[${SHORT_SHA}](${COMMIT_URL})", "inline": true },
+                  { "name": "Actor", "value": "${GITHUB_ACTOR}", "inline": true },
+                  { "name": "Deploy result", "value": "${{ needs.deploy.result }}", "inline": true },
+                  { "name": "Run", "value": "[View workflow run](${RUN_URL})", "inline": false }
+                ],
+                "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              }
+            ]
+          }
+          EOF
+          )
+
+          curl -fsS -X POST "$DISCORD_DEPLOY_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
