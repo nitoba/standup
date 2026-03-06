@@ -179,33 +179,22 @@ jobs:
           EOF
           chmod 600 ~/.ssh/deploy_key
 
-          touch ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
+          # Fresh known_hosts — runner is ephemeral, no stale entries to worry about.
+          # Scan the deploy host by hostname and IP so that both "host" and "host,ip"
+          # formats are trusted (net-ssh/Kamal checks the combined format).
           DEPLOY_HOST="${{ secrets.DEPLOY_HOST }}"
           DEPLOY_IP="$(getent ahostsv4 "$DEPLOY_HOST" | awk '{print $1; exit}')"
-          echo "Resolved deploy host IP: ${DEPLOY_IP}"
+          echo "Resolved deploy host: ${DEPLOY_HOST} → ${DEPLOY_IP}"
 
-          # Remove entradas antigas
-          ssh-keygen -R "$DEPLOY_HOST" -f ~/.ssh/known_hosts || true
-          ssh-keygen -R "$DEPLOY_IP" -f ~/.ssh/known_hosts || true
-          ssh-keygen -R "[$DEPLOY_HOST]:22" -f ~/.ssh/known_hosts || true
-          ssh-keygen -R "[$DEPLOY_IP]:22" -f ~/.ssh/known_hosts || true
+          : > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
 
-          # Remove também entrada no formato host,ip
+          ssh-keyscan -H -t ed25519 "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
           if [ -n "$DEPLOY_IP" ]; then
-            grep -vE "^(\\|1\\|.*)?$" ~/.ssh/known_hosts > ~/.ssh/known_hosts.tmp || true
-            mv ~/.ssh/known_hosts.tmp ~/.ssh/known_hosts
+            ssh-keyscan -H -t ed25519 "$DEPLOY_IP" >> ~/.ssh/known_hosts 2>/dev/null
           fi
 
-          # Recria com host e IP atuais
-          ssh-keyscan -H -t ed25519,ecdsa,rsa "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          if [ -n "$DEPLOY_IP" ]; then
-            ssh-keyscan -H -t ed25519,ecdsa,rsa "$DEPLOY_IP" >> ~/.ssh/known_hosts 2>/dev/null
-          fi
-
-          echo "Known hosts:"
-          cat ~/.ssh/known_hosts
+          echo "Known hosts entries: $(wc -l < ~/.ssh/known_hosts)"
 
       - name: Check remote host
         run: |
@@ -272,7 +261,7 @@ jobs:
           Host *
             IdentityFile ~/.ssh/deploy_key
             UserKnownHostsFile ~/.ssh/known_hosts
-            StrictHostKeyChecking yes
+            StrictHostKeyChecking accept-new
           EOF
           chmod 600 ~/.ssh/config
 
