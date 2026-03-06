@@ -1,5 +1,9 @@
 import { createAnthropic } from '@ai-sdk/anthropic'
-import type { GeneratedStandup, GenerateStandupInput } from '@standup/domain'
+import type {
+  GatheredGitActivity,
+  GeneratedStandup,
+  GenerateStandupInput,
+} from '@standup/domain'
 import { ExternalServiceError, Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import { generateObject } from 'ai'
@@ -28,6 +32,54 @@ const standupOutputSchema = z.object({
 type StandupOutput = z.infer<typeof standupOutputSchema>
 
 export type { GeneratorConfig }
+
+// ---------------------------------------------------------------------------
+// Retry config
+// ---------------------------------------------------------------------------
+
+const ENRICHMENT_MAX_ATTEMPTS = 2
+const ENRICHMENT_RETRY_DELAY_MS = 3_000
+
+const LLM_MAX_ATTEMPTS = 3
+const LLM_RETRY_DELAY_MS = 2_000
+
+// ---------------------------------------------------------------------------
+// Generic retry helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Runs `fn` up to `maxAttempts` times with exponential backoff.
+ * Returns the first Ok result, or the last Err if all attempts fail.
+ */
+async function withRetry<T>(
+  fn: () => Promise<Result<T, ExternalServiceError>>,
+  opts: { label: string; maxAttempts: number; baseDelayMs: number },
+): Promise<Result<T, ExternalServiceError>> {
+  let lastResult: Result<T, ExternalServiceError> | undefined
+
+  for (let attempt = 1; attempt <= opts.maxAttempts; attempt++) {
+    lastResult = await fn()
+
+    if (lastResult.isOk()) return lastResult
+
+    logger.warn(`${opts.label} failed`, {
+      attempt,
+      maxAttempts: opts.maxAttempts,
+      error: lastResult.error.message,
+    })
+
+    if (attempt < opts.maxAttempts) {
+      const delayMs = opts.baseDelayMs * 2 ** (attempt - 1)
+      await new Promise((r) => setTimeout(r, delayMs))
+    }
+  }
+
+  return lastResult!
+}
+
+// ---------------------------------------------------------------------------
+// MCP enrichment helpers
+// ---------------------------------------------------------------------------
 
 /**
  * Connects to Azure MCP, runs enrichment, then always disconnects.
@@ -58,8 +110,70 @@ function runEnrichment(
   }).finally(() => mcpClient.disconnect())
 }
 
+/**
+ * Builds a fallback EnrichedGitActivity from raw git data when MCP is unavailable.
+ * enrichedItems is empty — the LLM will use only commit messages.
+ */
+function buildFallbackEnrichedActivity(
+  gitActivity: GatheredGitActivity,
+): EnrichedGitActivity {
+  return {
+    timestamp: gitActivity.timestamp,
+    userUuid: 'unknown',
+    repos: gitActivity.repos.map((repo) => ({
+      ...repo,
+      enrichedItems: [],
+    })),
+  }
+}
+
+/**
+ * Attempts enrichment up to ENRICHMENT_MAX_ATTEMPTS times.
+ * If all attempts fail, returns a fallback built from raw git data.
+ * Never throws — always returns a usable EnrichedGitActivity.
+ */
+async function withEnrichmentRetry(
+  input: GenerateStandupInput,
+  config: GeneratorConfig,
+): Promise<EnrichedGitActivity> {
+  const result = await withRetry(
+    () => {
+      // Create a fresh MCP client per attempt — previous connection may be broken.
+      const mcpClient = createAzureMcpClient(config.azure)
+      return runEnrichment(input, mcpClient)
+    },
+    {
+      label: 'MCP enrichment',
+      maxAttempts: ENRICHMENT_MAX_ATTEMPTS,
+      baseDelayMs: ENRICHMENT_RETRY_DELAY_MS,
+    },
+  )
+
+  if (result.isOk()) {
+    logger.info('Enrichment complete', {
+      repoCount: result.value.repos.length,
+      totalWorkItems: result.value.repos.reduce(
+        (sum: number, r: { enrichedItems: unknown[] }) =>
+          sum + r.enrichedItems.length,
+        0,
+      ),
+    })
+    return result.value
+  }
+
+  logger.warn(
+    'MCP enrichment failed after all retries — generating standup with git data only',
+    { error: result.error.message },
+  )
+  return buildFallbackEnrichedActivity(input.gitActivity)
+}
+
+// ---------------------------------------------------------------------------
+// LLM generation helper
+// ---------------------------------------------------------------------------
+
 function countCharacters(text: string): number {
-  return Array.from(text).length
+  return text.length
 }
 
 function runStandupGeneration(
@@ -88,6 +202,10 @@ function runStandupGeneration(
   })
 }
 
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 export async function generateStandup(
   input: GenerateStandupInput,
   config: GeneratorConfig,
@@ -111,22 +229,11 @@ export async function generateStandup(
       )
     }
 
-    // Stage 1: MCP enrichment (connect → enrich → disconnect always)
-    const mcpClient = createAzureMcpClient(config.azure)
-    const enrichedActivity = yield* Result.await(
-      runEnrichment(input, mcpClient),
-    )
+    // Stage 1: MCP enrichment with retry — falls back to git-only data on failure.
+    // Never short-circuits the pipeline: if MCP is unavailable the LLM still runs.
+    const enrichedActivity = await withEnrichmentRetry(input, config)
 
-    logger.info('Enrichment complete', {
-      repoCount: enrichedActivity.repos.length,
-      totalWorkItems: enrichedActivity.repos.reduce(
-        (sum: number, r: { enrichedItems: unknown[] }) =>
-          sum + r.enrichedItems.length,
-        0,
-      ),
-    })
-
-    // Stage 2: LLM generation
+    // Stage 2: LLM generation with retry
     const anthropicOptions = authToken
       ? {
           apiKey: 'sk-dummy',
@@ -139,11 +246,19 @@ export async function generateStandup(
     logger.info('Calling LLM to generate standup')
 
     let standup = yield* Result.await(
-      runStandupGeneration(
-        anthropic,
-        systemPrompt,
-        buildUserMessage(input, enrichedActivity),
-        'LLM generation failed',
+      withRetry(
+        () =>
+          runStandupGeneration(
+            anthropic,
+            systemPrompt,
+            buildUserMessage(input, enrichedActivity),
+            'LLM generation failed',
+          ),
+        {
+          label: 'LLM generation',
+          maxAttempts: LLM_MAX_ATTEMPTS,
+          baseDelayMs: LLM_RETRY_DELAY_MS,
+        },
       ),
     )
     let contentLength = countCharacters(standup.content)
@@ -155,11 +270,19 @@ export async function generateStandup(
       })
 
       standup = yield* Result.await(
-        runStandupGeneration(
-          anthropic,
-          systemPrompt,
-          buildRewriteUserMessage(standup.content, standup.summary),
-          'LLM rewrite failed',
+        withRetry(
+          () =>
+            runStandupGeneration(
+              anthropic,
+              systemPrompt,
+              buildRewriteUserMessage(standup.content, standup.summary),
+              'LLM rewrite failed',
+            ),
+          {
+            label: 'LLM rewrite',
+            maxAttempts: LLM_MAX_ATTEMPTS,
+            baseDelayMs: LLM_RETRY_DELAY_MS,
+          },
         ),
       )
       contentLength = countCharacters(standup.content)

@@ -237,11 +237,13 @@ describe('runStandupJob', () => {
   })
 
   // -------------------------------------------------------------------------
-  // Padrão 1: Retry com backoff para erros transitorios
+  // Comportamento quando generateStandup falha (retry e responsabilidade interna)
   // -------------------------------------------------------------------------
 
   describe('Padrão 1: Retry com backoff', () => {
-    it('retenta generateStandup até 3x em LlmTemporaryError e falha no final', async () => {
+    it('falha o job quando generateStandup retorna Err (retry e interno ao generator)', async () => {
+      // O retry de LLM/MCP agora ocorre dentro de generateStandup().
+      // O job apenas propaga o Err final se todas as tentativas internas falharem.
       mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
       mocks.generate.mockResolvedValue(
         Result.err(
@@ -252,10 +254,10 @@ describe('runStandupJob', () => {
 
       await runStandupJob(baseEnv)
 
-      // 3 tentativas
-      expect(mocks.generate).toHaveBeenCalledTimes(3)
-      // Backoff: 2 sleeps entre as 3 tentativas
-      expect(mocks.sleep).toHaveBeenCalledTimes(2)
+      // Job chama generateStandup uma unica vez — retry e interno ao generator
+      expect(mocks.generate).toHaveBeenCalledTimes(1)
+      // Nenhum Bun.sleep no job — delays sao do setTimeout interno ao generator
+      expect(mocks.sleep).not.toHaveBeenCalled()
       // Falha notificada
       expect(mocks.notifyJobFailed).toHaveBeenCalledOnce()
       expect(mocks.releaseLock).toHaveBeenCalledWith(
@@ -265,22 +267,16 @@ describe('runStandupJob', () => {
       )
     })
 
-    it('retenta e tem sucesso na segunda tentativa', async () => {
+    it('tem sucesso quando generateStandup retorna Ok', async () => {
       mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
-      mocks.generate
-        .mockResolvedValueOnce(
-          Result.err(
-            new LlmTemporaryError({ message: 'Rate limited', attempt: 1 }),
-          ),
-        )
-        .mockResolvedValueOnce(Result.ok(generatedStandup))
+      mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
       mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
       mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
 
       await runStandupJob(baseEnv)
 
-      expect(mocks.generate).toHaveBeenCalledTimes(2)
-      expect(mocks.sleep).toHaveBeenCalledTimes(1)
+      expect(mocks.generate).toHaveBeenCalledTimes(1)
+      expect(mocks.sleep).not.toHaveBeenCalled()
       expect(mocks.repoCreate).toHaveBeenCalledOnce()
       expect(mocks.releaseLock).toHaveBeenCalledWith('uuid-test', 'success')
     })

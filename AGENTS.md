@@ -628,3 +628,60 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 - `bun run ci` — 33/33 tasks verde (lint + typecheck + test em todos os pacotes/apps)
 
 ## Proximos Passos
+
+### Alta prioridade — Gaps entre spec e implementacao
+
+1. **Reminder DM com botoes interativos**
+   O spec descreve "5-10 min antes do cron, DM com opcao de adiar/cancelar" mas o `reminderCron`
+   em `scheduler.ts` apenas loga no Winston. Implementar:
+   - Worker envia `POST /internal/notify/standup-reminder` ao bot
+   - Bot envia DM com embed amarelo + botoes (Executar Agora / Adiar 15min / Cancelar Hoje)
+   - Botao "Executar Agora" dispara o job imediatamente
+   - Botao "Adiar" reagenda o cron para +15min (ou valor configuravel)
+   - Botao "Cancelar Hoje" marca o dia como skip (no-op quando o cron disparar)
+   - Arquivos: `worker/src/notifications/notify-standup-reminder.ts`,
+     `discord-bot/src/http/notify/standup-reminder.ts`,
+     `discord-bot/src/discord/notifications/send-reminder-dm.ts`,
+     `discord-bot/src/discord/handlers/reminder-handler.ts`
+
+2. ~~**Graceful degradation quando Azure DevOps MCP falha**~~
+   **CONCLUIDO.** `generateStandup()` agora tem retry interno (2 tentativas para MCP, 3 para LLM)
+   e fallback gracioso para dados git brutos quando MCP falha. O retry externo dead code foi
+   removido do `standup-job.ts`. Testes: 23 (standup-generator) + 30 (worker), todos verdes.
+
+### Media prioridade — Qualidade e resiliencia
+
+3. **Health endpoint no bot e worker**
+   Apenas a API tem `/health`. Adicionar nos routers Hono internos:
+   - `GET /health` retornando `{ status: "ok", service: "discord-bot"|"worker", uptime: ... }`
+   - Permite monitoramento real em vez de depender apenas de `readiness_delay`
+   - Futuramente: Kamal healthcheck pode usar esses endpoints em vez de `readiness_delay`
+
+4. **Refatorar `azure-mcp-client.ts` para usar Result pattern**
+   `connect()`, `callTool()` e `disconnect()` usam try/catch em vez de `Result.tryPromise`.
+   Quebra a convencao do projeto ("erros explicitos com better-result, sem try/catch").
+   Refatorar para retornar `Result<T, McpConnectionError>` em todos os metodos publicos.
+
+5. **Corrigir contagem de caracteres para limite do Discord**
+   Em `generator.ts`, `countCharacters()` usa `Array.from(text).length` (code points Unicode).
+   Discord limita por `string.length` (UTF-16 code units). Trocar para `text.length` para
+   garantir que o conteudo caiba no limite de 2000 chars do Discord.
+
+### Baixa prioridade — Polimento
+
+6. **Remover transicao dead code `approved -> draft` da state machine**
+   A state machine permite `approved -> draft` mas nenhum handler usa essa transicao.
+   Remover de `packages/domain` ou, se for intencional para futuro, documentar o caso de uso.
+
+7. **Usar `.is()` dos TaggedErrors no retry predicate**
+   Em `standup-job.ts`, o retry predicate usa cast unsafe `(err as { _tag?: string })._tag`.
+   Substituir por `LlmTemporaryError.is(err) || McpConnectionError.is(err)` que ja existe.
+
+8. **Testes de integracao entre servicos**
+   Todos os 104+ testes sao unitarios com mocks. Adicionar pelo menos um smoke test por
+   path de comunicacao HTTP:
+   - Worker -> Bot (`POST /internal/notify/standup-ready`)
+   - API -> Worker (`POST /internal/trigger/standup`)
+   - Worker -> Bot (`POST /internal/notify/job-failed`)
+   Podem ser testes que sobem os routers Hono reais (sem mocks de HTTP) e validam
+   request/response contracts.

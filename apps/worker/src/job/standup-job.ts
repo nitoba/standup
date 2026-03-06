@@ -20,46 +20,6 @@ const logger = createServiceLogger({
 })
 
 // ---------------------------------------------------------------------------
-// Retry config — Padrão 1 do Akita
-// ---------------------------------------------------------------------------
-
-const RETRY_ATTEMPTS = 3
-const RETRY_BASE_DELAY_MS = 5_000 // 5s, 10s, 20s (backoff exponencial)
-
-/**
- * Executa com retry e backoff exponencial para erros transitorios.
- * Se esgotar as tentativas, retorna o ultimo Err.
- */
-async function withRetry<T, E>(
-  fn: (attempt: number) => Promise<Result<T, E>>,
-  isRetryable: (error: E) => boolean,
-  jobLogger: ReturnType<typeof withContext>,
-): Promise<Result<T, E>> {
-  let lastResult: Result<T, E> = await fn(1)
-
-  if (lastResult.isOk()) return lastResult
-  if (!isRetryable(lastResult.error)) return lastResult
-
-  for (let attempt = 2; attempt <= RETRY_ATTEMPTS; attempt++) {
-    const delayMs = RETRY_BASE_DELAY_MS * 2 ** (attempt - 2)
-    jobLogger.warn('Transient error — retrying with backoff', {
-      attempt,
-      maxAttempts: RETRY_ATTEMPTS,
-      delayMs,
-      error: (lastResult.error as { message?: string }).message,
-    })
-    await Bun.sleep(delayMs)
-
-    lastResult = await fn(attempt)
-
-    if (lastResult.isOk()) return lastResult
-    if (!isRetryable(lastResult.error)) return lastResult
-  }
-
-  return lastResult
-}
-
-// ---------------------------------------------------------------------------
 // Main job
 // ---------------------------------------------------------------------------
 
@@ -142,9 +102,10 @@ export async function runStandupJob(
 
     const meetingType = determineMeetingType(today)
 
-    // Step 2: Generate standup — com retry para erros transitorios de LLM/MCP.
-    // Padrão 1 (Akita): retry_on com exceções específicas.
-    // Degradação graciosa: se MCP falhar após todos os retries, geramos sem enrichment.
+    // Step 2: Generate standup.
+    // Retry para erros de MCP e LLM e feito internamente por generateStandup().
+    // Degradacao graciosa: se MCP falhar apos todos os retries, o standup e gerado
+    // apenas com dados git (sem enrichment de work items).
     const generatorConfig = {
       anthropicAuthToken: env.ANTHROPIC_AUTH_TOKEN,
       azure: {
@@ -155,23 +116,14 @@ export async function runStandupJob(
     }
 
     const generated = yield* Result.await(
-      withRetry(
-        () =>
-          generateStandup(
-            {
-              date: today,
-              meetingType,
-              gitActivity,
-              extraContext: options?.extraContext,
-            },
-            generatorConfig,
-          ),
-        (err) => {
-          // Erros transitorios: LlmTemporaryError e McpConnectionError
-          const tag = (err as { _tag?: string })._tag
-          return tag === 'LlmTemporaryError' || tag === 'McpConnectionError'
+      generateStandup(
+        {
+          date: today,
+          meetingType,
+          gitActivity,
+          extraContext: options?.extraContext,
         },
-        jobLogger,
+        generatorConfig,
       ),
     )
 

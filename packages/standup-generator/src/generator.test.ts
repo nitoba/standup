@@ -33,6 +33,12 @@ vi.mock('./azure/enrich.js', () => ({
   enrichGitActivity: vi.fn(),
 }))
 
+// Mock setTimeout to avoid real delays during retry tests
+vi.stubGlobal('setTimeout', (fn: () => void) => {
+  fn()
+  return 0
+})
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -417,7 +423,7 @@ describe('generateStandup', () => {
     }
   })
 
-  it('returns Result.err when MCP connect fails', async () => {
+  it('generates standup with git data only when MCP connect fails (fallback)', async () => {
     const { createAzureMcpClient, generateStandup } = await setup()
     const { generateObject } = await import('ai')
 
@@ -434,11 +440,12 @@ describe('generateStandup', () => {
 
     const result = await generateStandup(makeInput(), baseConfig)
 
-    expect(result.status).toBe('error')
-    expect(generateObject).not.toHaveBeenCalled()
+    // Fallback: standup still generated with git data only
+    expect(result.status).toBe('ok')
+    expect(generateObject).toHaveBeenCalled()
   })
 
-  it('returns Result.err when enrichment fails', async () => {
+  it('generates standup with git data only when enrichGitActivity fails (fallback)', async () => {
     const { createAzureMcpClient, enrichGitActivity, generateStandup } =
       await setup()
     const { generateObject } = await import('ai')
@@ -456,9 +463,28 @@ describe('generateStandup', () => {
 
     const result = await generateStandup(makeInput(), baseConfig)
 
-    expect(result.status).toBe('error')
-    expect(generateObject).not.toHaveBeenCalled()
+    // Fallback: standup still generated with git data only
+    expect(result.status).toBe('ok')
+    expect(generateObject).toHaveBeenCalled()
     expect(fakeMcp.disconnect).toHaveBeenCalled()
+  })
+
+  it('disconnects MCP client even when enrichment throws unexpectedly', async () => {
+    const { createAzureMcpClient, enrichGitActivity, generateStandup } =
+      await setup()
+
+    const fakeMcp = makeFakeMcpClient()
+    vi.mocked(createAzureMcpClient).mockReturnValue(fakeMcp)
+    vi.mocked(enrichGitActivity).mockRejectedValueOnce(
+      new Error('Unexpected error'),
+    )
+
+    const result = await generateStandup(makeInput(), baseConfig)
+
+    // disconnect must have been called even on unexpected error
+    expect(fakeMcp.disconnect).toHaveBeenCalled()
+    // fallback activated — result is still ok
+    expect(result.status).toBe('ok')
   })
 
   it('returns Result.err when no auth is configured', async () => {
@@ -475,7 +501,7 @@ describe('generateStandup', () => {
     }
   })
 
-  it('returns Result.err when LLM throws', async () => {
+  it('returns Result.err when LLM throws on all retry attempts', async () => {
     const { createAzureMcpClient, enrichGitActivity, generateStandup } =
       await setup()
     const { generateObject } = await import('ai')
@@ -485,33 +511,114 @@ describe('generateStandup', () => {
     vi.mocked(enrichGitActivity).mockResolvedValue(
       Result.ok(fakeEnrichedActivity) as never,
     )
-    vi.mocked(generateObject).mockRejectedValueOnce(
-      new Error('API rate limit exceeded'),
-    )
+    // All 3 LLM attempts fail
+    vi.mocked(generateObject)
+      .mockRejectedValueOnce(new Error('API rate limit exceeded'))
+      .mockRejectedValueOnce(new Error('API rate limit exceeded'))
+      .mockRejectedValueOnce(new Error('API rate limit exceeded'))
 
     const result = await generateStandup(makeInput(), baseConfig)
 
     expect(result.status).toBe('error')
+    expect(generateObject).toHaveBeenCalledTimes(3)
     if (result.isErr()) {
       expect(result.error.message).toContain('rate limit')
     }
   })
 
-  it('disconnects MCP client even when enrichment fails', async () => {
+  it('succeeds when LLM recovers on a retry attempt', async () => {
     const { createAzureMcpClient, enrichGitActivity, generateStandup } =
       await setup()
+    const { generateObject } = await import('ai')
 
     const fakeMcp = makeFakeMcpClient()
     vi.mocked(createAzureMcpClient).mockReturnValue(fakeMcp)
-    vi.mocked(enrichGitActivity).mockRejectedValueOnce(
-      new Error('Unexpected error'),
+    vi.mocked(enrichGitActivity).mockResolvedValue(
+      Result.ok(fakeEnrichedActivity) as never,
     )
+
+    const successResponse = {
+      object: {
+        content:
+          '**Standup (04/03/2026)**\n\n**📌 agrotrace-web**\n\n**✅ Done:**\n➜ #1234 - Corrigir bug X\n',
+        summary: 'Corrigi bug X no agrotrace-web',
+      },
+    } as never
+
+    // First LLM call fails, second succeeds
+    vi.mocked(generateObject)
+      .mockRejectedValueOnce(new Error('Transient LLM error'))
+      .mockResolvedValue(successResponse)
 
     const result = await generateStandup(makeInput(), baseConfig)
 
-    // disconnect must have been called even on unexpected error
-    expect(fakeMcp.disconnect).toHaveBeenCalled()
-    // result must be an error since enrichment threw
-    expect(result.status).toBe('error')
+    expect(result.status).toBe('ok')
+    expect(generateObject).toHaveBeenCalledTimes(2)
+  })
+
+  it('retries enrichment and succeeds on second attempt', async () => {
+    const { createAzureMcpClient, enrichGitActivity, generateStandup } =
+      await setup()
+    const { generateObject } = await import('ai')
+
+    const fakeMcpFail = makeFakeMcpClient()
+    const fakeMcpOk = makeFakeMcpClient()
+
+    // First MCP client: connect fails → triggers retry with new client
+    vi.mocked(fakeMcpFail.connect).mockResolvedValue(
+      Result.err(
+        new ExternalServiceError({
+          service: 'azure-devops',
+          message: 'Timeout on first attempt',
+        }),
+      ) as never,
+    )
+
+    // Second MCP client: succeeds
+    vi.mocked(enrichGitActivity).mockResolvedValue(
+      Result.ok(fakeEnrichedActivity) as never,
+    )
+
+    // Return different clients on successive calls
+    vi.mocked(createAzureMcpClient)
+      .mockReturnValueOnce(fakeMcpFail)
+      .mockReturnValueOnce(fakeMcpOk)
+
+    const result = await generateStandup(makeInput(), baseConfig)
+
+    expect(result.status).toBe('ok')
+    // Two MCP clients were created (one per attempt)
+    expect(createAzureMcpClient).toHaveBeenCalledTimes(2)
+    expect(generateObject).toHaveBeenCalled()
+  })
+
+  it('activates fallback after all enrichment retries exhausted', async () => {
+    const { createAzureMcpClient, generateStandup } = await setup()
+    const { generateObject } = await import('ai')
+
+    // Both MCP clients fail to connect
+    const makeFailing = () => {
+      const mcp = makeFakeMcpClient()
+      vi.mocked(mcp.connect).mockResolvedValue(
+        Result.err(
+          new ExternalServiceError({
+            service: 'azure-devops',
+            message: 'Connection refused',
+          }),
+        ) as never,
+      )
+      return mcp
+    }
+
+    vi.mocked(createAzureMcpClient)
+      .mockReturnValueOnce(makeFailing())
+      .mockReturnValueOnce(makeFailing())
+
+    const result = await generateStandup(makeInput(), baseConfig)
+
+    // Fallback activated: standup generated with git data only
+    expect(result.status).toBe('ok')
+    expect(createAzureMcpClient).toHaveBeenCalledTimes(2)
+    expect(generateObject).toHaveBeenCalled()
   })
 })
