@@ -11,47 +11,57 @@ export function hasCustomEntries(
 }
 
 /**
- * Formats custom entries as lines to be inserted in the standup header.
- *
- * Scheduled meetings get the 📆 emoji prefix.
- * Direct calls get the ☎️ emoji prefix and are placed after scheduled meetings.
- *
- * @example
- * formatCustomEntries({
- *   scheduledMeetings: ['Planning Backend', 'Refinamento mobile'],
- *   directCalls: ['Call com Joao sobre deploy'],
- * })
- * // Returns:
- * // '📆 (Planning Backend)\n📆 (Refinamento mobile)\n☎️ Call com Joao sobre deploy'
+ * Formats scheduled meetings as lines with the 📆 emoji prefix.
+ * Each non-empty entry becomes `📆 (entry)`.
  */
-export function formatCustomEntries(entries: CustomEntries): string {
+export function formatScheduledMeetings(meetings: string[]): string[] {
   const lines: string[] = []
-
-  for (const meeting of entries.scheduledMeetings) {
+  for (const meeting of meetings) {
     const trimmed = meeting.trim()
     if (trimmed) lines.push(`\u{1F4C6} (${trimmed})`)
   }
-
-  for (const call of entries.directCalls) {
-    const trimmed = call.trim()
-    if (trimmed) lines.push(`\u{260E}\u{FE0F} ${trimmed}`)
-  }
-
-  return lines.join('\n')
+  return lines
 }
 
 /**
- * Merges custom entries into the standup content, placing them in the header
- * area right after the existing meetingType line (or after the standup title
- * if there is no meetingType).
+ * Formats direct calls as lines with the ☎️ emoji prefix.
+ * Each non-empty entry becomes `☎️ entry`.
+ */
+export function formatDirectCalls(calls: string[]): string[] {
+  const lines: string[] = []
+  for (const call of calls) {
+    const trimmed = call.trim()
+    if (trimmed) lines.push(`\u{260E}\u{FE0F} ${trimmed}`)
+  }
+  return lines
+}
+
+/**
+ * Merges custom entries into the standup content.
  *
- * The format places 📆 entries first (below the existing 📆 meetingType),
- * then ☎️ entries at the end of the header block.
+ * - 📆 scheduled meetings are placed in the **header**, right after the
+ *   existing meetingType line (or after the title if no meetingType).
+ * - ☎️ direct calls are appended at the **very end** of the content.
  *
- * @param content - The original LLM-generated standup content
- * @param meetingType - The existing meeting type (may be empty)
- * @param entries - The custom entries to merge
- * @returns The merged content string
+ * @example
+ * Input content:
+ *   **Standup (06/03/2026)**
+ *   📆 (Planing Web)
+ *
+ *   **📌 agrotrace-web**
+ *   ...
+ *   ---
+ *
+ * With entries { scheduledMeetings: ['Retro'], directCalls: ['Call com Joao'] }:
+ *
+ *   **Standup (06/03/2026)**
+ *   📆 (Planing Web)
+ *   📆 (Retro)
+ *
+ *   **📌 agrotrace-web**
+ *   ...
+ *   ---
+ *   ☎️ Call com Joao
  */
 export function mergeCustomEntries(
   content: string,
@@ -60,41 +70,54 @@ export function mergeCustomEntries(
 ): string {
   if (!hasCustomEntries(entries)) return content
 
-  const formatted = formatCustomEntries(entries)
-  if (!formatted) return content
+  const meetingLines = formatScheduledMeetings(entries.scheduledMeetings)
+  const callLines = formatDirectCalls(entries.directCalls)
 
-  const lines = content.split('\n')
+  // If nothing to insert after filtering blanks, return as-is
+  if (meetingLines.length === 0 && callLines.length === 0) return content
 
-  // Find the insertion point: after the meetingType line or after the title line
-  let insertIndex = -1
+  let result = content
 
-  if (meetingType) {
-    // Look for the existing meetingType line (📆 line in header)
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i]?.startsWith('\u{1F4C6}')) {
-        insertIndex = i + 1
-        break
+  // --- Insert 📆 meetings in the header ---
+  if (meetingLines.length > 0) {
+    const lines = result.split('\n')
+    let insertIndex = -1
+
+    if (meetingType) {
+      // Look for the existing meetingType line (📆 line in header)
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i]?.startsWith('\u{1F4C6}')) {
+          insertIndex = i + 1
+          break
+        }
       }
     }
-  }
 
-  // If no meetingType line found, insert after the title (**Standup (...)**)
-  if (insertIndex === -1) {
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i]?.startsWith('**Standup')) {
-        insertIndex = i + 1
-        break
+    // If no meetingType line found, insert after the title (**Standup (...)**)
+    if (insertIndex === -1) {
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i]?.startsWith('**Standup')) {
+          insertIndex = i + 1
+          break
+        }
       }
     }
+
+    // Fallback: insert at line 1 (after first line)
+    if (insertIndex === -1) {
+      insertIndex = 1
+    }
+
+    lines.splice(insertIndex, 0, ...meetingLines)
+    result = lines.join('\n')
   }
 
-  // Fallback: insert at line 1 (after first line)
-  if (insertIndex === -1) {
-    insertIndex = 1
+  // --- Append ☎️ calls at the very end ---
+  if (callLines.length > 0) {
+    // Ensure there's a newline separator before the calls
+    const trimmedEnd = result.trimEnd()
+    result = `${trimmedEnd}\n${callLines.join('\n')}`
   }
 
-  const formattedLines = formatted.split('\n')
-  lines.splice(insertIndex, 0, ...formattedLines)
-
-  return lines.join('\n')
+  return result
 }

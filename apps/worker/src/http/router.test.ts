@@ -154,6 +154,29 @@ describe('createInternalRouter', () => {
     })
   })
 
+  it('passa rewriteFromStandupId e rewriteInstruction ao triggerStandupJob quando fornecidos', async () => {
+    const app = createInternalRouter({
+      internalSecret: INTERNAL_SECRET,
+      triggerStandupJob,
+      reminderState: makeReminderState(),
+    })
+
+    const res = await app.fetch(
+      makeRequest('/internal/trigger/standup', INTERNAL_SECRET, {
+        forceRegenerate: true,
+        rewriteFromStandupId: 'standup-abc',
+        rewriteInstruction: 'Remover seção X e adicionar seção Y',
+      }),
+    )
+
+    expect(res.status).toBe(202)
+    expect(triggerStandupJob).toHaveBeenCalledWith({
+      forceRegenerate: true,
+      rewriteFromStandupId: 'standup-abc',
+      rewriteInstruction: 'Remover seção X e adicionar seção Y',
+    })
+  })
+
   it('funciona sem body (backwards-compatible)', async () => {
     const app = createInternalRouter({
       internalSecret: INTERNAL_SECRET,

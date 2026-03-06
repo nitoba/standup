@@ -8,6 +8,8 @@ export interface TriggerStandupJobDeps {
 export interface TriggerStandupJobOptions {
   extraContext?: string
   forceRegenerate?: boolean
+  rewriteFromStandupId?: string
+  rewriteInstruction?: string
 }
 
 /**
@@ -37,6 +39,8 @@ export async function triggerStandupJob(
                 body: JSON.stringify({
                   extraContext: options?.extraContext,
                   forceRegenerate: options?.forceRegenerate,
+                  rewriteFromStandupId: options?.rewriteFromStandupId,
+                  rewriteInstruction: options?.rewriteInstruction,
                 }),
               }
             : {}),

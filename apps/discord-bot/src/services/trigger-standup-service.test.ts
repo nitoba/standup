@@ -66,6 +66,38 @@ describe('triggerStandup', () => {
           discordUserId: 'user-123',
           extraContext: 'focar no card #123',
           forceRegenerate: true,
+          rewriteFromStandupId: undefined,
+          rewriteInstruction: undefined,
+        }),
+      },
+    )
+  })
+
+  it('envia rewriteFromStandupId e rewriteInstruction para ajuste baseado no texto anterior', async () => {
+    mockFetch.mockResolvedValue(response(202))
+
+    const result = await triggerStandup(
+      'user-123',
+      { apiBaseUrl: 'http://localhost:3333' },
+      {
+        forceRegenerate: true,
+        rewriteFromStandupId: 'standup-abc',
+        rewriteInstruction: 'Remover item X e adicionar item Y',
+      },
+    )
+
+    expect(result.isOk()).toBe(true)
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:3333/standups/trigger',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          discordUserId: 'user-123',
+          extraContext: undefined,
+          forceRegenerate: true,
+          rewriteFromStandupId: 'standup-abc',
+          rewriteInstruction: 'Remover item X e adicionar item Y',
         }),
       },
     )

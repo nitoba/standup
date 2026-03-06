@@ -66,6 +66,8 @@ describe('POST /standups/trigger', () => {
       {
         extraContext: undefined,
         forceRegenerate: undefined,
+        rewriteFromStandupId: undefined,
+        rewriteInstruction: undefined,
       },
     )
   })
@@ -90,6 +92,35 @@ describe('POST /standups/trigger', () => {
       {
         extraContext: 'focar no card #1234',
         forceRegenerate: true,
+        rewriteFromStandupId: undefined,
+        rewriteInstruction: undefined,
+      },
+    )
+  })
+
+  it('propaga rewriteFromStandupId e rewriteInstruction ao triggerStandupJob', async () => {
+    mocks.triggerStandupJob.mockResolvedValue(Result.ok(undefined))
+
+    const res = await app.fetch(
+      makePostRequest({
+        discordUserId: deps.allowedDiscordUserId,
+        forceRegenerate: true,
+        rewriteFromStandupId: 'standup-abc',
+        rewriteInstruction: 'Remover seção X e incluir seção Y',
+      }),
+    )
+
+    expect(res.status).toBe(202)
+    expect(mocks.triggerStandupJob).toHaveBeenCalledWith(
+      {
+        workerInternalUrl: deps.workerInternalUrl,
+        internalSecret: deps.internalSecret,
+      },
+      {
+        extraContext: undefined,
+        forceRegenerate: true,
+        rewriteFromStandupId: 'standup-abc',
+        rewriteInstruction: 'Remover seção X e incluir seção Y',
       },
     )
   })

@@ -7,6 +7,8 @@ export interface TriggerStandupDeps {
 export interface TriggerStandupOptions {
   extraContext?: string
   forceRegenerate?: boolean
+  rewriteFromStandupId?: string
+  rewriteInstruction?: string
 }
 
 export type TriggerStandupOutcome =
@@ -33,6 +35,8 @@ export async function triggerStandup(
           discordUserId,
           extraContext: options?.extraContext,
           forceRegenerate: options?.forceRegenerate,
+          rewriteFromStandupId: options?.rewriteFromStandupId,
+          rewriteInstruction: options?.rewriteInstruction,
         }),
       })
 

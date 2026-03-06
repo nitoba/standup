@@ -16,6 +16,7 @@ import type { ReminderAction } from './reminder-handler.js'
 import { handleReminderInteraction } from './reminder-handler.js'
 import type { TriggerAction } from './trigger-handler.js'
 import { handleTriggerButtonInteraction } from './trigger-handler.js'
+import { updateReviewMessage } from './update-review-message.js'
 
 const logger = createServiceLogger({
   service: 'discord-bot',
@@ -27,6 +28,10 @@ const STATUS_EMOJI: Record<string, string> = {
   approve: '\u{2705}', // checkmark
   reject: '\u{274C}', // red X
   regenerate: '\u{1F504}', // refresh arrows
+}
+
+const PROCESSING_MESSAGE: Record<string, string> = {
+  reject: '⏳ Rejeitando standup...',
 }
 
 /**
@@ -42,9 +47,9 @@ async function showRegenerateModal(
 ): Promise<void> {
   const textInput = new TextInputBuilder()
     .setCustomId('regenerate-context')
-    .setLabel('O que deseja alterar?')
+    .setLabel('Contexto adicional (opcional)')
     .setPlaceholder(
-      'Ex: Focar mais nas correcoes do card #1234, remover detalhes do repo X...',
+      'Ex: Foque mais nos cards de maior impacto e reduza detalhes tecnicos...',
     )
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(false)
@@ -55,6 +60,30 @@ async function showRegenerateModal(
   const modal = new ModalBuilder()
     .setCustomId(`standup-regenerate-modal:${standupId}`)
     .setTitle('Regenerar Standup')
+    .addComponents(row)
+
+  await interaction.showModal(modal)
+}
+
+async function showAdjustModal(
+  interaction: ButtonInteraction,
+  standupId: string,
+): Promise<void> {
+  const textInput = new TextInputBuilder()
+    .setCustomId('adjust-instruction')
+    .setLabel('Quais alteracoes voce quer no texto?')
+    .setPlaceholder(
+      'Ex: Remover item X, adicionar item Y, deixar mais objetivo e destacar correcoes.',
+    )
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true)
+    .setMaxLength(1000)
+
+  const row = new ActionRowBuilder<TextInputBuilder>().addComponents(textInput)
+
+  const modal = new ModalBuilder()
+    .setCustomId(`standup-adjust-modal:${standupId}`)
+    .setTitle('Ajustar Standup Atual')
     .addComponents(row)
 
   await interaction.showModal(modal)
@@ -106,7 +135,7 @@ async function showApproveModal(
  * Handles button interactions from standup review DMs.
  * Parses the customId (standup:<action>:<standupId>).
  *
- * For "regenerate": shows a modal to collect extra context (no deferUpdate).
+ * For "regenerate"/"adjust": shows a modal (no deferUpdate).
  * For "approve"/"reject": defers the update and delegates to handleStandupInteraction.
  */
 export async function handleButtonInteraction(
@@ -160,6 +189,7 @@ export async function handleButtonInteraction(
   }
 
   if (namespace !== 'standup' || !standupId) return
+  if (!action) return
 
   const interactionLogger = withContext(logger, {
     action,
@@ -168,8 +198,13 @@ export async function handleButtonInteraction(
   })
   interactionLogger.info('Received standup action from button')
 
-  // Regenerate: show modal instead of processing immediately.
+  // Regenerate/Adjust: show modal instead of processing immediately.
   // showModal must be the immediate response (no deferUpdate before it).
+  if (action === 'adjust') {
+    await showAdjustModal(interaction, standupId)
+    return
+  }
+
   if (action === 'regenerate') {
     await showRegenerateModal(interaction, standupId)
     return
@@ -184,6 +219,12 @@ export async function handleButtonInteraction(
 
   // Remaining actions (reject): defer update and process immediately.
   await interaction.deferUpdate()
+  await updateReviewMessage(interaction, {
+    content:
+      PROCESSING_MESSAGE[action] ??
+      '⏳ Processando acao solicitada no standup...',
+    components: [],
+  })
 
   const result = await handleStandupInteraction(
     action as StandupAction,
@@ -201,7 +242,7 @@ export async function handleButtonInteraction(
     })
     // Padrão 2 do Akita: emoji de status como feedback visual imediato
     const emoji = (action ? STATUS_EMOJI[action] : undefined) ?? '\u{2139}' // fallback
-    await interaction.editReply({
+    await updateReviewMessage(interaction, {
       content: `${emoji} ${result.value.message}`,
       components: [], // remove buttons after action
     })
@@ -209,7 +250,7 @@ export async function handleButtonInteraction(
     interactionLogger.error('Standup interaction failed', {
       error: result.error.message,
     })
-    await interaction.editReply({
+    await updateReviewMessage(interaction, {
       content: `\u{274C} Erro ao processar acao: ${result.error.message}`,
       components: [],
     })

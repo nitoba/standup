@@ -10,6 +10,8 @@ const logger = createServiceLogger({
 export interface StandupJobOptions {
   extraContext?: string
   forceRegenerate?: boolean
+  rewriteFromStandupId?: string
+  rewriteInstruction?: string
 }
 
 export interface TriggerStandupHandlerDeps {
@@ -34,15 +36,34 @@ export async function handleTriggerStandup(
     try {
       const body = (await c.req.json()) as Record<string, unknown>
       if (body && typeof body === 'object') {
+        const parsedExtraContext =
+          typeof body.extraContext === 'string' ? body.extraContext : undefined
+        const parsedForceRegenerate =
+          typeof body.forceRegenerate === 'boolean'
+            ? body.forceRegenerate
+            : undefined
+        const parsedRewriteFromStandupId =
+          typeof body.rewriteFromStandupId === 'string'
+            ? body.rewriteFromStandupId
+            : undefined
+        const parsedRewriteInstruction =
+          typeof body.rewriteInstruction === 'string'
+            ? body.rewriteInstruction
+            : undefined
+
         jobOptions = {
-          extraContext:
-            typeof body.extraContext === 'string'
-              ? body.extraContext
-              : undefined,
-          forceRegenerate:
-            typeof body.forceRegenerate === 'boolean'
-              ? body.forceRegenerate
-              : undefined,
+          ...(parsedExtraContext !== undefined
+            ? { extraContext: parsedExtraContext }
+            : {}),
+          ...(parsedForceRegenerate !== undefined
+            ? { forceRegenerate: parsedForceRegenerate }
+            : {}),
+          ...(parsedRewriteFromStandupId !== undefined
+            ? { rewriteFromStandupId: parsedRewriteFromStandupId }
+            : {}),
+          ...(parsedRewriteInstruction !== undefined
+            ? { rewriteInstruction: parsedRewriteInstruction }
+            : {}),
         }
       }
     } catch {

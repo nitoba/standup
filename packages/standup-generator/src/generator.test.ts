@@ -23,6 +23,16 @@ vi.mock('ai', () => ({
       summary: 'Corrigi bug X no agrotrace-web',
     },
   }),
+  generateText: vi.fn().mockResolvedValue({
+    output: {
+      content:
+        '**Standup (04/03/2026)**\n\n**📌 agrotrace-web**\n\n**✅ Done:**\n➜ #1234 - Corrigir bug X\n',
+      summary: 'Corrigi bug X no agrotrace-web',
+    },
+  }),
+  Output: {
+    json: vi.fn(() => ({})),
+  },
 }))
 
 vi.mock('./azure/azure-mcp-client.js', () => ({
@@ -259,11 +269,11 @@ describe('generateStandup', () => {
     const { createAzureMcpClient } = await import('./azure/azure-mcp-client.js')
     const { enrichGitActivity } = await import('./azure/enrich.js')
     const { generateStandup } = await import('./generator.js')
-    const { generateObject } = await import('ai')
+    const { generateText } = await import('ai')
 
-    // Restore default happy-path mock for generateObject after clearAllMocks
-    vi.mocked(generateObject).mockResolvedValue({
-      object: {
+    // Restore default happy-path mock for generateText after clearAllMocks
+    vi.mocked(generateText).mockResolvedValue({
+      output: {
         content:
           '**Standup (04/03/2026)**\n\n**📌 agrotrace-web**\n\n**✅ Done:**\n➜ #1234 - Corrigir bug X\n',
         summary: 'Corrigi bug X no agrotrace-web',
@@ -274,7 +284,7 @@ describe('generateStandup', () => {
       createAzureMcpClient,
       enrichGitActivity,
       generateStandup,
-      generateObject,
+      generateText,
     }
   }
 
@@ -345,7 +355,7 @@ describe('generateStandup', () => {
   it('rewrites standup when initial content exceeds max characters', async () => {
     const { createAzureMcpClient, enrichGitActivity, generateStandup } =
       await setup()
-    const { generateObject } = await import('ai')
+    const { generateText } = await import('ai')
     const fakeMcp = makeFakeMcpClient()
     vi.mocked(createAzureMcpClient).mockReturnValue(fakeMcp)
     vi.mocked(enrichGitActivity).mockResolvedValue(
@@ -358,15 +368,15 @@ describe('generateStandup', () => {
     const rewrittenContent =
       '**Standup (04/03/2026)**\n\n**📌 agrotrace-web**\n\n**✅ Done:**\n➜ #1234 - Corrigir bug X\n'
 
-    vi.mocked(generateObject)
+    vi.mocked(generateText)
       .mockResolvedValueOnce({
-        object: {
+        output: {
           content: oversizedContent,
           summary: 'Resumo longo',
         },
       } as never)
       .mockResolvedValueOnce({
-        object: {
+        output: {
           content: rewrittenContent,
           summary: 'Resumo reescrito',
         },
@@ -375,7 +385,7 @@ describe('generateStandup', () => {
     const result = await generateStandup(makeInput(), baseConfig)
 
     expect(result.status).toBe('ok')
-    expect(generateObject).toHaveBeenCalledTimes(2)
+    expect(generateText).toHaveBeenCalledTimes(2)
     if (result.status === 'ok') {
       expect(Array.from(result.value.content).length).toBeLessThanOrEqual(
         MAX_STANDUP_CONTENT_CHARS,
@@ -387,7 +397,7 @@ describe('generateStandup', () => {
   it('returns Result.err when rewritten content still exceeds max characters', async () => {
     const { createAzureMcpClient, enrichGitActivity, generateStandup } =
       await setup()
-    const { generateObject } = await import('ai')
+    const { generateText } = await import('ai')
     const fakeMcp = makeFakeMcpClient()
     vi.mocked(createAzureMcpClient).mockReturnValue(fakeMcp)
     vi.mocked(enrichGitActivity).mockResolvedValue(
@@ -398,15 +408,15 @@ describe('generateStandup', () => {
       '**Standup (04/03/2026)**\n\n' +
       'B'.repeat(MAX_STANDUP_CONTENT_CHARS + 80)
 
-    vi.mocked(generateObject)
+    vi.mocked(generateText)
       .mockResolvedValueOnce({
-        object: {
+        output: {
           content: oversizedContent,
           summary: 'Resumo inicial',
         },
       } as never)
       .mockResolvedValueOnce({
-        object: {
+        output: {
           content: oversizedContent,
           summary: 'Resumo ainda longo',
         },
@@ -415,7 +425,7 @@ describe('generateStandup', () => {
     const result = await generateStandup(makeInput(), baseConfig)
 
     expect(result.status).toBe('error')
-    expect(generateObject).toHaveBeenCalledTimes(2)
+    expect(generateText).toHaveBeenCalledTimes(2)
     if (result.isErr()) {
       expect(result.error.message).toContain(
         `exceeds ${MAX_STANDUP_CONTENT_CHARS} characters`,
@@ -425,7 +435,7 @@ describe('generateStandup', () => {
 
   it('generates standup with git data only when MCP connect fails (fallback)', async () => {
     const { createAzureMcpClient, generateStandup } = await setup()
-    const { generateObject } = await import('ai')
+    const { generateText } = await import('ai')
 
     const fakeMcp = makeFakeMcpClient()
     vi.mocked(fakeMcp.connect).mockResolvedValue(
@@ -442,13 +452,13 @@ describe('generateStandup', () => {
 
     // Fallback: standup still generated with git data only
     expect(result.status).toBe('ok')
-    expect(generateObject).toHaveBeenCalled()
+    expect(generateText).toHaveBeenCalled()
   })
 
   it('generates standup with git data only when enrichGitActivity fails (fallback)', async () => {
     const { createAzureMcpClient, enrichGitActivity, generateStandup } =
       await setup()
-    const { generateObject } = await import('ai')
+    const { generateText } = await import('ai')
 
     const fakeMcp = makeFakeMcpClient()
     vi.mocked(createAzureMcpClient).mockReturnValue(fakeMcp)
@@ -465,7 +475,7 @@ describe('generateStandup', () => {
 
     // Fallback: standup still generated with git data only
     expect(result.status).toBe('ok')
-    expect(generateObject).toHaveBeenCalled()
+    expect(generateText).toHaveBeenCalled()
     expect(fakeMcp.disconnect).toHaveBeenCalled()
   })
 
@@ -504,7 +514,7 @@ describe('generateStandup', () => {
   it('returns Result.err when LLM throws on all retry attempts', async () => {
     const { createAzureMcpClient, enrichGitActivity, generateStandup } =
       await setup()
-    const { generateObject } = await import('ai')
+    const { generateText } = await import('ai')
 
     const fakeMcp = makeFakeMcpClient()
     vi.mocked(createAzureMcpClient).mockReturnValue(fakeMcp)
@@ -512,7 +522,7 @@ describe('generateStandup', () => {
       Result.ok(fakeEnrichedActivity) as never,
     )
     // All 3 LLM attempts fail
-    vi.mocked(generateObject)
+    vi.mocked(generateText)
       .mockRejectedValueOnce(new Error('API rate limit exceeded'))
       .mockRejectedValueOnce(new Error('API rate limit exceeded'))
       .mockRejectedValueOnce(new Error('API rate limit exceeded'))
@@ -520,7 +530,7 @@ describe('generateStandup', () => {
     const result = await generateStandup(makeInput(), baseConfig)
 
     expect(result.status).toBe('error')
-    expect(generateObject).toHaveBeenCalledTimes(3)
+    expect(generateText).toHaveBeenCalledTimes(3)
     if (result.isErr()) {
       expect(result.error.message).toContain('rate limit')
     }
@@ -529,7 +539,7 @@ describe('generateStandup', () => {
   it('succeeds when LLM recovers on a retry attempt', async () => {
     const { createAzureMcpClient, enrichGitActivity, generateStandup } =
       await setup()
-    const { generateObject } = await import('ai')
+    const { generateText } = await import('ai')
 
     const fakeMcp = makeFakeMcpClient()
     vi.mocked(createAzureMcpClient).mockReturnValue(fakeMcp)
@@ -538,7 +548,7 @@ describe('generateStandup', () => {
     )
 
     const successResponse = {
-      object: {
+      output: {
         content:
           '**Standup (04/03/2026)**\n\n**📌 agrotrace-web**\n\n**✅ Done:**\n➜ #1234 - Corrigir bug X\n',
         summary: 'Corrigi bug X no agrotrace-web',
@@ -546,20 +556,20 @@ describe('generateStandup', () => {
     } as never
 
     // First LLM call fails, second succeeds
-    vi.mocked(generateObject)
+    vi.mocked(generateText)
       .mockRejectedValueOnce(new Error('Transient LLM error'))
       .mockResolvedValue(successResponse)
 
     const result = await generateStandup(makeInput(), baseConfig)
 
     expect(result.status).toBe('ok')
-    expect(generateObject).toHaveBeenCalledTimes(2)
+    expect(generateText).toHaveBeenCalledTimes(2)
   })
 
   it('retries enrichment and succeeds on second attempt', async () => {
     const { createAzureMcpClient, enrichGitActivity, generateStandup } =
       await setup()
-    const { generateObject } = await import('ai')
+    const { generateText } = await import('ai')
 
     const fakeMcpFail = makeFakeMcpClient()
     const fakeMcpOk = makeFakeMcpClient()
@@ -589,12 +599,12 @@ describe('generateStandup', () => {
     expect(result.status).toBe('ok')
     // Two MCP clients were created (one per attempt)
     expect(createAzureMcpClient).toHaveBeenCalledTimes(2)
-    expect(generateObject).toHaveBeenCalled()
+    expect(generateText).toHaveBeenCalled()
   })
 
   it('activates fallback after all enrichment retries exhausted', async () => {
     const { createAzureMcpClient, generateStandup } = await setup()
-    const { generateObject } = await import('ai')
+    const { generateText } = await import('ai')
 
     // Both MCP clients fail to connect
     const makeFailing = () => {
@@ -619,6 +629,6 @@ describe('generateStandup', () => {
     // Fallback activated: standup generated with git data only
     expect(result.status).toBe('ok')
     expect(createAzureMcpClient).toHaveBeenCalledTimes(2)
-    expect(generateObject).toHaveBeenCalled()
+    expect(generateText).toHaveBeenCalled()
   })
 })

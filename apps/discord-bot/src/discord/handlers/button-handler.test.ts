@@ -246,7 +246,42 @@ describe('handleButtonInteraction', () => {
       'regenerate-context',
     )
     expect(json.components[0]?.components[0]?.label).toBe(
-      'O que deseja alterar?',
+      'Contexto adicional (opcional)',
+    )
+  })
+
+  it('mostra modal de ajuste em cima do texto atual', async () => {
+    const { interaction, deferUpdate, showModal } = makeInteraction(
+      'standup:adjust:standup-1',
+    )
+
+    await handleButtonInteraction(interaction, fakeClient, env)
+
+    expect(deferUpdate).not.toHaveBeenCalled()
+    expect(mocks.handleStandupInteraction).not.toHaveBeenCalled()
+    expect(showModal).toHaveBeenCalledTimes(1)
+
+    const modalBuilder = showModal.mock.calls[0]?.[0] as {
+      toJSON: () => {
+        custom_id: string
+        title: string
+        components: Array<{
+          components: Array<{
+            custom_id: string
+            label: string
+          }>
+        }>
+      }
+    }
+    const json = modalBuilder.toJSON()
+
+    expect(json.custom_id).toBe('standup-adjust-modal:standup-1')
+    expect(json.title).toBe('Ajustar Standup Atual')
+    expect(json.components[0]?.components[0]?.custom_id).toBe(
+      'adjust-instruction',
+    )
+    expect(json.components[0]?.components[0]?.label).toBe(
+      'Quais alteracoes voce quer no texto?',
     )
   })
 })

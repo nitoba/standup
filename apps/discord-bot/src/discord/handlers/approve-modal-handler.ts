@@ -5,6 +5,7 @@ import { hasCustomEntries, mergeCustomEntries } from '@standup/domain'
 import { createServiceLogger, withContext } from '@standup/logger'
 import type { Client, ModalSubmitInteraction } from 'discord.js'
 import { handleStandupInteraction } from './interaction-handler.js'
+import { updateReviewMessage } from './update-review-message.js'
 
 const logger = createServiceLogger({
   service: 'discord-bot',
@@ -54,6 +55,10 @@ export async function handleApproveModal(
   modalLogger.info('Approve modal submitted')
 
   await interaction.deferUpdate()
+  await updateReviewMessage(interaction, {
+    content: '⏳ Processando aprovacao do standup...',
+    components: [],
+  })
 
   // Parse custom entries from modal fields
   const entries: CustomEntries = {
@@ -72,7 +77,7 @@ export async function handleApproveModal(
       modalLogger.error('Failed to save custom entries', {
         error: saveResult.error.message,
       })
-      await interaction.editReply({
+      await updateReviewMessage(interaction, {
         content: `\u{274C} Erro ao salvar entradas customizadas: ${saveResult.error.message}`,
         components: [],
       })
@@ -93,7 +98,7 @@ export async function handleApproveModal(
       modalLogger.error('Failed to update content with custom entries', {
         error: contentResult.error.message,
       })
-      await interaction.editReply({
+      await updateReviewMessage(interaction, {
         content: `\u{274C} Erro ao atualizar conteudo: ${contentResult.error.message}`,
         components: [],
       })
@@ -126,7 +131,7 @@ export async function handleApproveModal(
       ? '\nEntradas adicionadas ao standup.'
       : ''
 
-    await interaction.editReply({
+    await updateReviewMessage(interaction, {
       content: `\u{2705} ${result.value.message}${entriesMsg}`,
       components: [],
     })
@@ -134,7 +139,7 @@ export async function handleApproveModal(
     modalLogger.error('Approve failed', {
       error: result.error.message,
     })
-    await interaction.editReply({
+    await updateReviewMessage(interaction, {
       content: `\u{274C} Erro ao aprovar: ${result.error.message}`,
       components: [],
     })

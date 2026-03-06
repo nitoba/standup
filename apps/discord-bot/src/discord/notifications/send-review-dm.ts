@@ -21,7 +21,7 @@ export interface SendReviewDmDeps {
 
 /**
  * Envia uma DM ao usuário configurado com o preview do standup (embed rico azul)
- * e botões de Aprovar / Rejeitar / Regenerar (Padrão 3 do Akita).
+ * e botões de Aprovar / Rejeitar / Ajustar texto / Regenerar do zero.
  *
  * O Client Discord é injetado pelo caller (index.ts), garantindo
  * uma única conexão WebSocket ativa no processo.
@@ -46,8 +46,12 @@ export async function sendReviewDm(
           .setLabel('Rejeitar')
           .setStyle(ButtonStyle.Danger),
         new ButtonBuilder()
+          .setCustomId(`standup:adjust:${record.id}`)
+          .setLabel('Ajustar texto')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
           .setCustomId(`standup:regenerate:${record.id}`)
-          .setLabel('Regenerar')
+          .setLabel('Regenerar do zero')
           .setStyle(ButtonStyle.Secondary),
       )
 

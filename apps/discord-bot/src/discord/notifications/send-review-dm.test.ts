@@ -95,7 +95,7 @@ describe('sendReviewDm', () => {
     expect(callArgs.components).toHaveLength(1) // 1 ActionRow
   })
 
-  it('inclui botões Aprovar, Rejeitar e Regenerar com customIds corretos', async () => {
+  it('inclui botões Aprovar, Rejeitar, Ajustar texto e Regenerar do zero com customIds corretos', async () => {
     const message = makeMessage()
     const user = makeUser(message)
     const client = makeClient(user)
@@ -119,6 +119,7 @@ describe('sendReviewDm', () => {
 
     expect(customIds).toContain(`standup:approve:${standupRecord.id}`)
     expect(customIds).toContain(`standup:reject:${standupRecord.id}`)
+    expect(customIds).toContain(`standup:adjust:${standupRecord.id}`)
     expect(customIds).toContain(`standup:regenerate:${standupRecord.id}`)
   })
 

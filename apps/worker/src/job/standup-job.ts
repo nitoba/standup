@@ -1,9 +1,12 @@
 import type { WorkerEnv } from '@standup/config'
 import { getDb, JobRunRepository, StandupRepository } from '@standup/db'
 import {
+  DbError,
   JobAlreadyCompletedError,
   LockAlreadyHeldError,
+  NotFoundError,
   Result,
+  ValidationError,
 } from '@standup/domain'
 import { collectGitActivity } from '@standup/git-collector'
 import { createServiceLogger, withContext } from '@standup/logger'
@@ -26,6 +29,70 @@ const logger = createServiceLogger({
 export interface StandupJobOptions {
   extraContext?: string
   forceRegenerate?: boolean
+  rewriteFromStandupId?: string
+  rewriteInstruction?: string
+}
+
+type BuildExtraContextError = DbError | NotFoundError | ValidationError
+
+function buildRewriteExtraContext(
+  baseContent: string,
+  instruction: string,
+): string {
+  return [
+    '## Modo de ajuste solicitado',
+    'Use o standup anterior como base e aplique as alteracoes pedidas pelo usuario.',
+    'Mantenha o formato padrao do relatorio para Discord.',
+    '',
+    '### Alteracoes solicitadas:',
+    instruction,
+    '',
+    '### Standup anterior (base para ajuste):',
+    '```markdown',
+    baseContent,
+    '```',
+  ].join('\n')
+}
+
+async function buildGenerationExtraContext(
+  options: StandupJobOptions | undefined,
+  standupRepo: StandupRepository,
+): Promise<Result<string | undefined, BuildExtraContextError>> {
+  const sections: string[] = []
+
+  const extraContext = options?.extraContext?.trim()
+  if (extraContext) {
+    sections.push(extraContext)
+  }
+
+  const rewriteInstruction = options?.rewriteInstruction?.trim()
+  if (rewriteInstruction) {
+    const rewriteFromStandupId = options?.rewriteFromStandupId?.trim()
+    if (!rewriteFromStandupId) {
+      return Result.err(
+        new ValidationError({
+          field: 'rewriteFromStandupId',
+          message:
+            'rewriteFromStandupId is required when rewriteInstruction is provided',
+        }),
+      )
+    }
+
+    const baseStandup = await standupRepo.findById(rewriteFromStandupId)
+    if (baseStandup.isErr()) {
+      return baseStandup
+    }
+
+    sections.push(
+      buildRewriteExtraContext(baseStandup.value.content, rewriteInstruction),
+    )
+  }
+
+  if (sections.length === 0) {
+    return Result.ok(undefined)
+  }
+
+  return Result.ok(sections.join('\n\n'))
 }
 
 export async function runStandupJob(
@@ -101,6 +168,9 @@ export async function runStandupJob(
     }
 
     const meetingType = determineMeetingType(today)
+    const generationExtraContext = yield* Result.await(
+      buildGenerationExtraContext(options, standupRepo),
+    )
 
     // Step 2: Generate standup.
     // Retry para erros de MCP e LLM e feito internamente por generateStandup().
@@ -121,7 +191,7 @@ export async function runStandupJob(
           date: today,
           meetingType,
           gitActivity,
-          extraContext: options?.extraContext,
+          extraContext: generationExtraContext,
         },
         generatorConfig,
       ),

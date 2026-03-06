@@ -6,7 +6,7 @@ import type {
 } from '@standup/domain'
 import { ExternalServiceError, Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
-import { generateObject, generateText, Output } from 'ai'
+import { generateText, Output } from 'ai'
 import * as z from 'zod'
 import type { AzureMcpClient } from './azure/azure-mcp-client.js'
 import { createAzureMcpClient } from './azure/azure-mcp-client.js'
@@ -74,6 +74,7 @@ async function withRetry<T>(
     }
   }
 
+  // biome-ignore lint/style/noNonNullAssertion: always non null
   return lastResult!
 }
 

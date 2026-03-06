@@ -129,11 +129,13 @@ describe('handleRegenerateModal', () => {
     // Success message includes context
     expect(editReply).toHaveBeenCalledWith(
       expect.objectContaining({
-        content: expect.stringContaining('Regenerando standup'),
+        content: expect.stringContaining('Regenerando standup do zero'),
         components: [],
       }),
     )
-    const call = editReply.mock.calls[0] as [{ content: string }] | undefined
+    const call = editReply.mock.calls.at(-1) as
+      | [{ content: string }]
+      | undefined
     expect(call).toBeDefined()
     expect(call?.[0].content).toContain('Focar mais no card #1234')
   })

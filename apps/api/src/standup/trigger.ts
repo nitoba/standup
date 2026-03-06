@@ -12,6 +12,8 @@ export const triggerBodySchema = z.object({
   discordUserId: z.string().min(1),
   extraContext: z.string().optional(),
   forceRegenerate: z.boolean().optional(),
+  rewriteFromStandupId: z.string().optional(),
+  rewriteInstruction: z.string().optional(),
 })
 
 export type TriggerBody = z.infer<typeof triggerBodySchema>
@@ -43,6 +45,8 @@ export async function handleTriggerStandup(
     {
       extraContext: body.extraContext,
       forceRegenerate: body.forceRegenerate,
+      rewriteFromStandupId: body.rewriteFromStandupId,
+      rewriteInstruction: body.rewriteInstruction,
     },
   )
 
