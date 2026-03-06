@@ -11,6 +11,12 @@
 service: standup-bot
 image: ghcr.io/nitoba/standup-bot
 
+registry:
+  server: ghcr.io
+  username: nitoba
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
 servers:
   web:
     hosts:
