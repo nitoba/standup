@@ -81,6 +81,19 @@ worker ──POST /internal/notify/standup-ready──► discord-bot (porta BOT
                                                      ├─ busca standup no DB
                                                      └─ envia DM ao usuario (non-fatal)
 
+worker ──POST /internal/notify/standup-reminder──► discord-bot (porta BOT_INTERNAL_PORT)
+         header: x-internal-secret                    │
+                                                      └─ envia DM com embed ambar + 3 botoes
+
+discord-bot ──POST /internal/reminder/snooze──► worker (porta WORKER_INTERNAL_PORT)
+              ──POST /internal/reminder/cancel──► worker
+              header: x-internal-secret              │
+                                                     └─ muta ReminderState in-memory
+
+discord-bot (botao run-now) ──POST /standups/trigger──► api (porta PORT)
+              header: x-internal-secret                   │
+                                                          └─ encaminha trigger ao worker
+
 api ──POST /internal/trigger/standup──────────────► worker (porta WORKER_INTERNAL_PORT)
       header: x-internal-secret                       │
                                                       └─ dispara runStandupJob em background
@@ -95,6 +108,7 @@ api ──POST /internal/trigger/standup─────────────�
 - worker sobe scheduler + Hono interno na `WORKER_INTERNAL_PORT` (3335)
 - Autenticacao interna: header `x-internal-secret` com `INTERNAL_SECRET`
 - Falha no DM e **non-fatal**: standup ja esta salvo no DB, usuario pode aprovar via API
+- `ReminderState` e in-memory no worker (nao persiste no DB) — snooze/cancel afetam apenas o cron do dia corrente
 - Cada app na sua porta: `api=3333`, `discord-bot=3334`, `worker=3335`
 
 ## Convencoes de Codigo
@@ -185,18 +199,22 @@ standup/
             approve.ts          # /standup approve handler
             handlers.test.ts    # testes dos 3 subcommands
           handlers/         # Processamento de interacoes Discord
-            button-handler.ts       # parse customId → defer → handleStandupInteraction → reply
+            button-handler.ts       # parse customId → standup:* ou standup-reminder:* → delega
             button-handler.test.ts
             slash-command-handler.ts # roteamento /standup subcommands
             interaction-handler.ts  # logica approve/reject/regenerate + transicoes de estado
             interaction-handler.test.ts
+            reminder-handler.ts     # logica run-now/snooze/cancel-today via HTTP
+            reminder-handler.test.ts
           notifications/    # Envio de mensagens Discord
             send-review-dm.ts           # DM com embed azul + botoes ao usuario
             send-review-dm.test.ts
             send-channel-notification.ts # helper: fetch canal → guard → send embed
             publish-standup.ts          # publica embed verde no canal
             publish-standup.test.ts
-          embeds.ts         # builders de embed (review, published, job-failed)
+            send-reminder-dm.ts         # DM com embed ambar + botoes de agendamento
+            send-reminder-dm.test.ts
+          embeds.ts         # builders de embed (review, published, job-failed, reminder)
         http/
           middleware/
             auth.ts               # internalAuthMiddleware(secret) para /internal/*
@@ -205,6 +223,8 @@ standup/
             standup-ready.test.ts
             job-failed.ts         # handler POST /internal/notify/job-failed
             job-failed.test.ts
+            standup-reminder.ts   # handler POST /internal/notify/standup-reminder
+            standup-reminder.test.ts
           router.ts               # monta Hono + auth middleware + handlers notify
           router.test.ts
         index.ts            # Entrypoint: env + Client + HTTP server + event listeners
@@ -219,14 +239,19 @@ standup/
             auth.ts             # internalAuthMiddleware(secret) para /internal/*
           trigger/
             standup.ts          # handler POST /internal/trigger/standup
-          router.ts             # monta Hono + auth middleware + handler trigger
+          reminder/
+            snooze.ts           # handler POST /internal/reminder/snooze
+            cancel.ts           # handler POST /internal/reminder/cancel
+          router.ts             # monta Hono + auth middleware + handlers
           router.test.ts
         notifications/      # Notificacoes HTTP para o discord-bot
           notify-standup-ready.ts     # POST /internal/notify/standup-ready
           notify-standup-ready.test.ts
           notify-job-failed.ts        # POST /internal/notify/job-failed
           notify-job-failed.test.ts
-        scheduler.ts        # startScheduler() — setup de cron jobs
+          notify-standup-reminder.ts  # POST /internal/notify/standup-reminder
+          notify-standup-reminder.test.ts
+        scheduler.ts        # startScheduler() — ReminderState + standupCron + reminderCron + recoveryCron
         index.ts            # Entrypoint: loadWorkerEnv → startScheduler + HTTP interno
         vitest.setup.ts     # Shim Bun.randomUUIDv7 para Vitest
       vitest.config.ts      # Config Vitest local (aponta setupFiles)
@@ -288,6 +313,7 @@ WORKER_INTERNAL_URL=http://localhost:3335
 # Discord Bot (loadBotEnv)
 BOT_INTERNAL_PORT=3334
 API_BASE_URL=http://localhost:3333
+WORKER_INTERNAL_URL=http://localhost:3335
 DISCORD_BOT_TOKEN=
 DISCORD_CHANNEL_ID=       # Canal onde publica standups
 DISCORD_USER_ID=          # Seu user ID para DMs
@@ -505,6 +531,7 @@ app.use("/internal/*", async (c, next) => {
 - DM de revisao: embed **azul** (`0x3498DB`) — `buildReviewEmbed`
 - Publicacao no canal: embed **verde** (`0x2ECC71`) — `buildPublishedEmbed`
 - Notificacao de falha: embed **vermelho** (`0xE74C3C`) — `buildJobFailedEmbed`
+- Lembrete de standup: embed **ambar** (`0xF39C12`) — `buildReminderEmbed`
 - Limites Discord: title=256, description=4096, field_value=1024 — sempre truncar
 - Todos os builders em `discord/embeds.ts`
 
@@ -576,11 +603,11 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 ### Pacotes completos (com testes)
 
 - `packages/domain` — types, schemas Zod, state machine, TaggedErrors (incl. 4 novos erros de job)
-- `packages/config` — `baseEnvSchema` + loaders por app (`loadApiEnv()`, `loadBotEnv()`, `loadWorkerEnv()`) e tipos dedicados (`ApiEnv`, `BotEnv`, `WorkerEnv`)
+- `packages/config` — `baseEnvSchema` + loaders por app (`loadApiEnv()`, `loadBotEnv()`, `loadWorkerEnv()`) e tipos dedicados (`ApiEnv`, `BotEnv`, `WorkerEnv`); `BotEnv` inclui `WORKER_INTERNAL_URL`
 - `packages/logger` — Winston estruturado
-- `packages/git-collector` — 29 testes (bun test)
-- `packages/db` — StandupRepository + JobRunRepository, 31 testes (bun test)
-- `packages/standup-generator` — generateStandup + MCP enrichment, 18 testes (vitest)
+- `packages/git-collector` — 31 testes (bun test)
+- `packages/db` — StandupRepository + JobRunRepository, 33 testes (bun test)
+- `packages/standup-generator` — generateStandup + MCP enrichment + retry interno + fallback gracioso, 23 testes (vitest)
 
 ### Apps completos
 
@@ -597,30 +624,33 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
   - middleware HTTP extraido: `http/middleware.ts`
   - `index.ts`: entrypoint — middleware logging, health, monta standup router
 
-- `apps/worker` — 26 testes (vitest)
+- `apps/worker` — 37 testes (vitest)
   - `job/standup-job.ts`: pipeline com lock + retry + idempotencia + notify
-  - `http/router.ts`: auth middleware + POST /internal/trigger/standup
-  - handler por responsabilidade: `http/trigger/standup.ts`
+  - `http/router.ts`: auth middleware + POST /internal/trigger/standup + /reminder/snooze + /reminder/cancel
+  - handlers por responsabilidade: `http/trigger/standup.ts`, `http/reminder/snooze.ts`, `http/reminder/cancel.ts`
   - middleware extraido: `http/middleware/auth.ts`
   - `notifications/notify-standup-ready.ts`: POST /internal/notify/standup-ready
   - `notifications/notify-job-failed.ts`: POST /internal/notify/job-failed
-  - `scheduler.ts`: startScheduler() + recoveryCron (Padrao 5)
+  - `notifications/notify-standup-reminder.ts`: POST /internal/notify/standup-reminder
+  - `scheduler.ts`: startScheduler() — ReminderState + standupCron (checa snooze/cancel) + reminderCron (notifica bot) + recoveryCron (Padrao 5)
   - `index.ts`: entrypoint puro (scheduler + HTTP interno)
 
-- `apps/discord-bot` — 55 testes (vitest)
-  - `http/router.ts`: auth middleware + POST /internal/notify/standup-ready + /job-failed
-  - handlers por responsabilidade: `http/notify/standup-ready.ts` e `http/notify/job-failed.ts`
+- `apps/discord-bot` — 76 testes (vitest)
+  - `http/router.ts`: auth middleware + POST /internal/notify/standup-ready + /job-failed + /standup-reminder
+  - handlers por responsabilidade: `http/notify/standup-ready.ts`, `http/notify/job-failed.ts`, `http/notify/standup-reminder.ts`
   - middleware extraido: `http/middleware/auth.ts`
   - services isolados: `services/standup-notification-service.ts`, `services/job-notification-service.ts` e `services/trigger-standup-service.ts`
   - `discord/notifications/send-review-dm.ts`: DM com embed azul + botoes
   - `discord/notifications/send-channel-notification.ts`: helper generico de canal
   - `discord/notifications/publish-standup.ts`: publica embed verde no canal
+  - `discord/notifications/send-reminder-dm.ts`: DM com embed ambar + botoes de agendamento
   - `discord/handlers/interaction-handler.ts`: logica approve/reject/regenerate
-  - `discord/handlers/button-handler.ts`: handler de botoes com emojis (Padrao 2)
+  - `discord/handlers/button-handler.ts`: routing standup:* e standup-reminder:* com emojis (Padrao 2)
+  - `discord/handlers/reminder-handler.ts`: logica run-now (→ API) / snooze / cancel-today (→ worker)
   - `/standup trigger`: integrado ao API (`POST /standups/trigger`) com feedback ephemeral
   - `discord/handlers/slash-command-handler.ts`: roteador de slash commands
   - `discord/commands/`: register + trigger + list + approve (Padrao 13)
-  - `discord/embeds.ts`: builders de embed (Padrao 3)
+  - `discord/embeds.ts`: builders de embed (Padrao 3) — review, published, job-failed, reminder
   - `index.ts`: entrypoint puro — env + Client + HTTP + event listeners
 
 ### CI
@@ -631,57 +661,45 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 
 ### Alta prioridade — Gaps entre spec e implementacao
 
-1. **Reminder DM com botoes interativos**
-   O spec descreve "5-10 min antes do cron, DM com opcao de adiar/cancelar" mas o `reminderCron`
-   em `scheduler.ts` apenas loga no Winston. Implementar:
-   - Worker envia `POST /internal/notify/standup-reminder` ao bot
-   - Bot envia DM com embed amarelo + botoes (Executar Agora / Adiar 15min / Cancelar Hoje)
-   - Botao "Executar Agora" dispara o job imediatamente
-   - Botao "Adiar" reagenda o cron para +15min (ou valor configuravel)
-   - Botao "Cancelar Hoje" marca o dia como skip (no-op quando o cron disparar)
-   - Arquivos: `worker/src/notifications/notify-standup-reminder.ts`,
-     `discord-bot/src/http/notify/standup-reminder.ts`,
-     `discord-bot/src/discord/notifications/send-reminder-dm.ts`,
-     `discord-bot/src/discord/handlers/reminder-handler.ts`
+~~1. **Reminder DM com botoes interativos**~~
+**CONCLUIDO.** Worker notifica o bot via `POST /internal/notify/standup-reminder`.
+Bot envia DM com embed ambar + 3 botoes (`standup-reminder:run-now/snooze/cancel-today`).
+`run-now` dispara o job via API, `snooze`/`cancel-today` mutam `ReminderState` in-memory no worker.
+`standupCron` checa o estado antes de executar. Testes: 37 (worker) + 76 (discord-bot), todos verdes.
 
-2. ~~**Graceful degradation quando Azure DevOps MCP falha**~~
-   **CONCLUIDO.** `generateStandup()` agora tem retry interno (2 tentativas para MCP, 3 para LLM)
-   e fallback gracioso para dados git brutos quando MCP falha. O retry externo dead code foi
-   removido do `standup-job.ts`. Testes: 23 (standup-generator) + 30 (worker), todos verdes.
+~~2. **Graceful degradation quando Azure DevOps MCP falha**~~
+**CONCLUIDO.** `generateStandup()` agora tem retry interno (2 tentativas para MCP, 3 para LLM)
+e fallback gracioso para dados git brutos quando MCP falha. O retry externo dead code foi
+removido do `standup-job.ts`. Testes: 23 (standup-generator) + 37 (worker), todos verdes.
 
 ### Media prioridade — Qualidade e resiliencia
 
-3. **Health endpoint no bot e worker**
-   Apenas a API tem `/health`. Adicionar nos routers Hono internos:
-   - `GET /health` retornando `{ status: "ok", service: "discord-bot"|"worker", uptime: ... }`
-   - Permite monitoramento real em vez de depender apenas de `readiness_delay`
-   - Futuramente: Kamal healthcheck pode usar esses endpoints em vez de `readiness_delay`
+~~1. **Health endpoint no bot e worker**~~
+**CONCLUIDO.** `GET /health` adicionado nos routers Hono de `apps/worker` e `apps/discord-bot`,
+fora do scope `/internal/*` (sem auth), retornando `{ status: "ok", service: "worker"|"discord-bot", uptimeSeconds: number }`.
+Testes adicionados em ambos os `router.test.ts`. Contagens: worker=38, discord-bot=77, todos verdes.
 
-4. **Refatorar `azure-mcp-client.ts` para usar Result pattern**
-   `connect()`, `callTool()` e `disconnect()` usam try/catch em vez de `Result.tryPromise`.
-   Quebra a convencao do projeto ("erros explicitos com better-result, sem try/catch").
-   Refatorar para retornar `Result<T, McpConnectionError>` em todos os metodos publicos.
-
-5. **Corrigir contagem de caracteres para limite do Discord**
-   Em `generator.ts`, `countCharacters()` usa `Array.from(text).length` (code points Unicode).
-   Discord limita por `string.length` (UTF-16 code units). Trocar para `text.length` para
-   garantir que o conteudo caiba no limite de 2000 chars do Discord.
+~~2. **Refatorar `azure-mcp-client.ts` para usar Result pattern**~~
+**CONCLUIDO.** Todos os 5 metodos publicos (`connect`, `callTool`, `getMe`, `getWorkItem`, `listPullRequests`)
+refatorados para `Result.tryPromise`. O `disconnect()` manteve try/catch vazio intencional (best-effort teardown).
+`client!` non-null assertion eliminada via captura em variavel local `connectedClient`. CI: 33/33 verde.
 
 ### Baixa prioridade — Polimento
 
-6. **Remover transicao dead code `approved -> draft` da state machine**
+3. **Remover transicao dead code `approved -> draft` da state machine**
    A state machine permite `approved -> draft` mas nenhum handler usa essa transicao.
    Remover de `packages/domain` ou, se for intencional para futuro, documentar o caso de uso.
 
-7. **Usar `.is()` dos TaggedErrors no retry predicate**
+4. **Usar `.is()` dos TaggedErrors no retry predicate**
    Em `standup-job.ts`, o retry predicate usa cast unsafe `(err as { _tag?: string })._tag`.
    Substituir por `LlmTemporaryError.is(err) || McpConnectionError.is(err)` que ja existe.
 
-8. **Testes de integracao entre servicos**
-   Todos os 104+ testes sao unitarios com mocks. Adicionar pelo menos um smoke test por
+5. **Testes de integracao entre servicos**
+   Todos os 170+ testes sao unitarios com mocks. Adicionar pelo menos um smoke test por
    path de comunicacao HTTP:
    - Worker -> Bot (`POST /internal/notify/standup-ready`)
+   - Worker -> Bot (`POST /internal/notify/standup-reminder`)
    - API -> Worker (`POST /internal/trigger/standup`)
-   - Worker -> Bot (`POST /internal/notify/job-failed`)
+   - Bot -> Worker (`POST /internal/reminder/snooze` e `/cancel`)
    Podem ser testes que sobem os routers Hono reais (sem mocks de HTTP) e validam
    request/response contracts.

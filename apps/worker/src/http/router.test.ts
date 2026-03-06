@@ -39,6 +39,33 @@ describe('createInternalRouter', () => {
   })
 
   // ---------------------------------------------------------------------------
+  // GET /health
+  // ---------------------------------------------------------------------------
+
+  it('GET /health retorna 200 com status ok e service worker (sem autenticacao)', async () => {
+    const app = createInternalRouter({
+      internalSecret: INTERNAL_SECRET,
+      triggerStandupJob,
+      reminderState: makeReminderState(),
+    })
+
+    const res = await app.fetch(
+      new Request('http://localhost/health', { method: 'GET' }),
+    )
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as {
+      status: string
+      service: string
+      uptimeSeconds: number
+    }
+    expect(body.status).toBe('ok')
+    expect(body.service).toBe('worker')
+    expect(typeof body.uptimeSeconds).toBe('number')
+    expect(body.uptimeSeconds).toBeGreaterThanOrEqual(0)
+  })
+
+  // ---------------------------------------------------------------------------
   // Auth middleware
   // ---------------------------------------------------------------------------
 

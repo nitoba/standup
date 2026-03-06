@@ -33,6 +33,15 @@ export interface InternalRouterOptions {
 export function createInternalRouter(opts: InternalRouterOptions): Hono {
   const app = new Hono()
 
+  // Health — sem autenticação, acessível por Docker/Kamal healthcheck
+  app.get('/health', (c) =>
+    c.json({
+      status: 'ok',
+      service: 'discord-bot',
+      uptimeSeconds: Math.floor(process.uptime()),
+    }),
+  )
+
   // Auth middleware — todas as rotas /internal/* exigem o secret
   app.use('/internal/*', internalAuthMiddleware(opts.internalSecret))
 

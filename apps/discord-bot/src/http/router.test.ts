@@ -61,6 +61,27 @@ function makeRequest(
 // Tests: auth middleware (aplicado em todas as rotas /internal/*)
 // ---------------------------------------------------------------------------
 
+describe('createInternalRouter — GET /health', () => {
+  it('retorna 200 com status ok e service discord-bot (sem autenticacao)', async () => {
+    const app = makeRouter()
+
+    const res = await app.fetch(
+      new Request('http://localhost/health', { method: 'GET' }),
+    )
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as {
+      status: string
+      service: string
+      uptimeSeconds: number
+    }
+    expect(body.status).toBe('ok')
+    expect(body.service).toBe('discord-bot')
+    expect(typeof body.uptimeSeconds).toBe('number')
+    expect(body.uptimeSeconds).toBeGreaterThanOrEqual(0)
+  })
+})
+
 describe('createInternalRouter — auth middleware', () => {
   let app: ReturnType<typeof createInternalRouter>
 

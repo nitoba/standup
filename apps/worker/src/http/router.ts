@@ -20,6 +20,15 @@ export interface InternalRouterOptions {
 export function createInternalRouter(opts: InternalRouterOptions): Hono {
   const app = new Hono()
 
+  // Health — sem autenticação, acessível por Docker/Kamal healthcheck
+  app.get('/health', (c) =>
+    c.json({
+      status: 'ok',
+      service: 'worker',
+      uptimeSeconds: Math.floor(process.uptime()),
+    }),
+  )
+
   app.use('/internal/*', internalAuthMiddleware(opts.internalSecret))
 
   app.post('/internal/trigger/standup', (c) => {

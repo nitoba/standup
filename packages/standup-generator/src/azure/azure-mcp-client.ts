@@ -29,33 +29,35 @@ export function createAzureMcpClient(config: AzureMcpConfig): AzureMcpClient {
   let client: Client | null = null
 
   async function connect(): Promise<Result<void, ExternalServiceError>> {
-    try {
-      const transport = new StdioClientTransport({
-        command: 'bunx',
-        args: ['@tiberriver256/mcp-server-azure-devops'],
-        env: {
-          ...process.env,
-          AZURE_DEVOPS_ORG_URL: config.orgUrl,
-          AZURE_DEVOPS_AUTH_METHOD: 'pat',
-          AZURE_DEVOPS_PAT: config.pat,
-          AZURE_DEVOPS_DEFAULT_PROJECT: config.defaultProject,
-          LOG_LEVEL: 'error',
-        },
-      })
-      client = new Client({ name: 'standup-generator', version: '0.0.1' })
-      await client.connect(transport)
-      logger.info('Azure MCP client connected')
-      return Result.ok(undefined)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      logger.error('Failed to connect to Azure MCP server', { error: message })
-      return Result.err(
-        new ExternalServiceError({
+    return Result.tryPromise({
+      try: async () => {
+        const transport = new StdioClientTransport({
+          command: 'bunx',
+          args: ['@tiberriver256/mcp-server-azure-devops'],
+          env: {
+            ...process.env,
+            AZURE_DEVOPS_ORG_URL: config.orgUrl,
+            AZURE_DEVOPS_AUTH_METHOD: 'pat',
+            AZURE_DEVOPS_PAT: config.pat,
+            AZURE_DEVOPS_DEFAULT_PROJECT: config.defaultProject,
+            LOG_LEVEL: 'error',
+          },
+        })
+        client = new Client({ name: 'standup-generator', version: '0.0.1' })
+        await client.connect(transport)
+        logger.info('Azure MCP client connected')
+      },
+      catch: (err) => {
+        const message = err instanceof Error ? err.message : String(err)
+        logger.error('Failed to connect to Azure MCP server', {
+          error: message,
+        })
+        return new ExternalServiceError({
           service: 'azure-devops',
           message: `Connection failed: ${message}`,
-        }),
-      )
-    }
+        })
+      },
+    })
   }
 
   async function disconnect(): Promise<void> {
@@ -82,47 +84,49 @@ export function createAzureMcpClient(config: AzureMcpConfig): AzureMcpClient {
         }),
       )
     }
-    try {
-      const result = await client.callTool({ name, arguments: args })
-      return Result.ok(result.content)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      return Result.err(
-        new ExternalServiceError({
+    const connectedClient = client
+    return Result.tryPromise({
+      try: async () => {
+        const result = await connectedClient.callTool({ name, arguments: args })
+        return result.content
+      },
+      catch: (err) => {
+        const message = err instanceof Error ? err.message : String(err)
+        return new ExternalServiceError({
           service: 'azure-devops',
           message: `Tool call '${name}' failed: ${message}`,
-        }),
-      )
-    }
+        })
+      },
+    })
   }
 
   async function getMe(): Promise<Result<string, ExternalServiceError>> {
     const result = await callTool('get_me', {})
     if (result.isErr()) return result
 
-    try {
-      const content = result.value as Array<{ type: string; text: string }>
-      const text = content[0]?.text ?? '{}'
-      const parsed = JSON.parse(text) as { id?: string }
-      const uuid = parsed.id
-      if (!uuid) {
-        return Result.err(
-          new ExternalServiceError({
+    return Result.tryPromise({
+      try: async () => {
+        const content = result.value as Array<{ type: string; text: string }>
+        const text = content[0]?.text ?? '{}'
+        const parsed = JSON.parse(text) as { id?: string }
+        const uuid = parsed.id
+        if (!uuid) {
+          throw new ExternalServiceError({
             service: 'azure-devops',
             message: 'get_me returned no user ID',
-          }),
-        )
-      }
-      return Result.ok(uuid)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      return Result.err(
-        new ExternalServiceError({
+          })
+        }
+        return uuid
+      },
+      catch: (err) => {
+        if (err instanceof ExternalServiceError) return err
+        const message = err instanceof Error ? err.message : String(err)
+        return new ExternalServiceError({
           service: 'azure-devops',
           message: `Failed to parse get_me response: ${message}`,
-        }),
-      )
-    }
+        })
+      },
+    })
   }
 
   async function getWorkItem(
@@ -131,41 +135,42 @@ export function createAzureMcpClient(config: AzureMcpConfig): AzureMcpClient {
     const result = await callTool('get_work_item', { workItemId: Number(id) })
     if (result.isErr()) return result
 
-    try {
-      const content = result.value as Array<{ type: string; text: string }>
-      const text = content[0]?.text ?? '{}'
-      const parsed = JSON.parse(text) as {
-        id?: number
-        fields?: {
-          'System.Title'?: string
-          'System.State'?: string
-          'System.AssignedTo'?: { uniqueName?: string } | string
+    return Result.tryPromise({
+      try: async () => {
+        const content = result.value as Array<{ type: string; text: string }>
+        const text = content[0]?.text ?? '{}'
+        const parsed = JSON.parse(text) as {
+          id?: number
+          fields?: {
+            'System.Title'?: string
+            'System.State'?: string
+            'System.AssignedTo'?: { uniqueName?: string } | string
+          }
         }
-      }
 
-      if (!parsed.fields) return Result.ok(null)
+        if (!parsed.fields) return null
 
-      const assignedTo = parsed.fields['System.AssignedTo']
-      const assignedToEmail =
-        typeof assignedTo === 'object'
-          ? (assignedTo.uniqueName ?? '')
-          : (assignedTo ?? '')
+        const assignedTo = parsed.fields['System.AssignedTo']
+        const assignedToEmail =
+          typeof assignedTo === 'object'
+            ? (assignedTo.uniqueName ?? '')
+            : (assignedTo ?? '')
 
-      return Result.ok({
-        id: String(parsed.id ?? id),
-        title: parsed.fields['System.Title'] ?? '',
-        state: parsed.fields['System.State'] ?? '',
-        assignedTo: assignedToEmail,
-      })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      return Result.err(
-        new ExternalServiceError({
+        return {
+          id: String(parsed.id ?? id),
+          title: parsed.fields['System.Title'] ?? '',
+          state: parsed.fields['System.State'] ?? '',
+          assignedTo: assignedToEmail,
+        }
+      },
+      catch: (err) => {
+        const message = err instanceof Error ? err.message : String(err)
+        return new ExternalServiceError({
           service: 'azure-devops',
           message: `Failed to parse get_work_item response: ${message}`,
-        }),
-      )
-    }
+        })
+      },
+    })
   }
 
   async function listPullRequests(
@@ -177,37 +182,36 @@ export function createAzureMcpClient(config: AzureMcpConfig): AzureMcpClient {
     })
     if (result.isErr()) return result
 
-    try {
-      const content = result.value as Array<{ type: string; text: string }>
-      const text = content[0]?.text ?? '[]'
-      const parsed = JSON.parse(text) as Array<{
-        pullRequestId?: number
-        title?: string
-        status?: string
-        repository?: { id?: string }
-        createdBy?: { id?: string }
-      }>
+    return Result.tryPromise({
+      try: async () => {
+        const content = result.value as Array<{ type: string; text: string }>
+        const text = content[0]?.text ?? '[]'
+        const parsed = JSON.parse(text) as Array<{
+          pullRequestId?: number
+          title?: string
+          status?: string
+          repository?: { id?: string }
+          createdBy?: { id?: string }
+        }>
 
-      const prs: PullRequestDetail[] = parsed
-        .filter((pr) => typeof pr.pullRequestId === 'number')
-        .map((pr) => ({
-          id: pr.pullRequestId ?? 0,
-          title: pr.title ?? '',
-          status: normalizeStatus(pr.status),
-          repoId: pr.repository?.id ?? repoId,
-          creatorId: pr.createdBy?.id ?? '',
-        }))
-
-      return Result.ok(prs)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      return Result.err(
-        new ExternalServiceError({
+        return parsed
+          .filter((pr) => typeof pr.pullRequestId === 'number')
+          .map((pr) => ({
+            id: pr.pullRequestId ?? 0,
+            title: pr.title ?? '',
+            status: normalizeStatus(pr.status),
+            repoId: pr.repository?.id ?? repoId,
+            creatorId: pr.createdBy?.id ?? '',
+          })) satisfies PullRequestDetail[]
+      },
+      catch: (err) => {
+        const message = err instanceof Error ? err.message : String(err)
+        return new ExternalServiceError({
           service: 'azure-devops',
           message: `Failed to parse list_pull_requests response: ${message}`,
-        }),
-      )
-    }
+        })
+      },
+    })
   }
 
   function normalizeStatus(
