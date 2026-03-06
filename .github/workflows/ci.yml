@@ -146,7 +146,7 @@ jobs:
       DEPLOY_VERSION: ${{ github.sha }}
 
       # Registry auth for Kamal / GHCR
-      KAMAL_REGISTRY_PASSWORD: ${{ github.token }}
+      KAMAL_REGISTRY_PASSWORD: ${{ secrets.GHCR_PAT }}
 
       # App secrets used by Kamal
       DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
