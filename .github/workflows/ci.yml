@@ -6,41 +6,11 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Cancel in-progress runs for the same branch/PR
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# ---------------------------------------------------------------------------
-# Required GitHub Secrets (configure in Settings > Secrets and variables > Actions):
-#
-# Registry & Build:
-#   (none — uses the automatic GITHUB_TOKEN for GHCR)
-#
-# Tailscale (for deploy job to SSH into the server):
-#   TS_OAUTH_CLIENT_ID    — Tailscale OAuth client ID (tag: tag:ci)
-#   TS_OAUTH_CLIENT_SECRET       — Tailscale OAuth client secret
-#
-# SSH:
-#   SSH_PRIVATE_KEY       — Private key for SSH into the deploy host
-#   DEPLOY_HOST           — Tailscale hostname/IP of the MacBook
-#   DEPLOY_USER           — macOS username on the deploy host
-#
-# App secrets (injected into Kamal env):
-#   DISCORD_BOT_TOKEN
-#   DISCORD_CHANNEL_ID
-#   DISCORD_USER_ID
-#   ANTHROPIC_AUTH_TOKEN
-#   AZURE_DEVOPS_ORG
-#   AZURE_DEVOPS_PAT
-#   INTERNAL_SECRET
-# ---------------------------------------------------------------------------
-
 jobs:
-  # =========================================================================
-  # Job 1: Quality — lint, typecheck, test
-  # Runs on every push and every PR.
-  # =========================================================================
   quality:
     runs-on: ubuntu-latest
     steps:
@@ -64,13 +34,6 @@ jobs:
       - name: Test
         run: bun run test
 
-  # =========================================================================
-  # Job 2: Build — Docker images → GHCR (arm64)
-  # Only runs on push to main or manual dispatch, after quality passes.
-  # Uses a native arm64 runner — no QEMU cross-compilation needed.
-  # Builds all 4 images sequentially in a single job to avoid concurrency
-  # cancellations from the matrix spawning multiple parallel jobs.
-  # =========================================================================
   build:
     needs: quality
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
@@ -90,9 +53,8 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ github.token }}
 
-      # --- API ---
       - name: Meta (api)
         id: meta-api
         uses: docker/metadata-action@v5
@@ -113,7 +75,6 @@ jobs:
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
 
-      # --- Discord Bot ---
       - name: Meta (discord-bot)
         id: meta-bot
         uses: docker/metadata-action@v5
@@ -134,7 +95,6 @@ jobs:
           cache-from: type=gha,scope=discord-bot
           cache-to: type=gha,mode=max,scope=discord-bot
 
-      # --- Worker ---
       - name: Meta (worker)
         id: meta-worker
         uses: docker/metadata-action@v5
@@ -155,7 +115,6 @@ jobs:
           cache-from: type=gha,scope=worker
           cache-to: type=gha,mode=max,scope=worker
 
-      # --- Migrate ---
       - name: Meta (migrate)
         id: meta-migrate
         uses: docker/metadata-action@v5
@@ -176,14 +135,6 @@ jobs:
           cache-from: type=gha,scope=migrate
           cache-to: type=gha,mode=max,scope=migrate
 
-  # =========================================================================
-  # Job 3: Deploy — Kamal over Tailscale SSH
-  # Only runs after images are built and pushed.
-  # Connects to the MacBook via Tailscale and runs kamal deploy for each app.
-  #
-  # Uses --skip-push because images are already in GHCR from the build job.
-  # Uses --version to pin the exact git SHA that was built.
-  # =========================================================================
   deploy:
     needs: build
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
@@ -191,12 +142,20 @@ jobs:
     permissions:
       contents: read
       packages: read
-    # Uncomment to require manual approval before deploying:
-    # environment: production
     env:
-      # The git SHA tag format used by docker/metadata-action (type=sha,format=long)
-      # produces tags like "sha-abc123def456...". Kamal uses the full git SHA as version.
       DEPLOY_VERSION: ${{ github.sha }}
+
+      # Registry auth for Kamal / GHCR
+      KAMAL_REGISTRY_PASSWORD: ${{ github.token }}
+
+      # App secrets used by Kamal
+      DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+      DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+      DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
+      ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+      AZURE_DEVOPS_ORG: ${{ secrets.AZURE_DEVOPS_ORG }}
+      AZURE_DEVOPS_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
+      INTERNAL_SECRET: ${{ secrets.INTERNAL_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -211,32 +170,37 @@ jobs:
       - name: Set up SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          cat > ~/.ssh/deploy_key <<'EOF'
+          ${{ secrets.SSH_PRIVATE_KEY }}
+          EOF
           chmod 600 ~/.ssh/deploy_key
-          # Pre-trust the deploy host to skip interactive prompt
           ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Install Kamal
         run: |
           sudo gem install kamal --no-document
 
-      # ------------------------------------------------------------------
-      # Run migrations before deploying new app versions.
-      # The migrate container runs once and exits.
-      # ------------------------------------------------------------------
-      - name: Run database migrations
-        env:
-          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          # Secrets needed by loadEnv() in the migrate container
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
-          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
-          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
-          AZURE_DEVOPS_ORG: ${{ secrets.AZURE_DEVOPS_ORG }}
-          AZURE_DEVOPS_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
-          INTERNAL_SECRET: ${{ secrets.INTERNAL_SECRET }}
+      - name: Create Kamal secrets file
         run: |
-          # Pull and run the migrate image on the deploy host via SSH
+          mkdir -p .kamal
+          cat > .kamal/secrets-common <<'EOF'
+          KAMAL_REGISTRY_PASSWORD=$KAMAL_REGISTRY_PASSWORD
+          DISCORD_BOT_TOKEN=$DISCORD_BOT_TOKEN
+          DISCORD_CHANNEL_ID=$DISCORD_CHANNEL_ID
+          DISCORD_USER_ID=$DISCORD_USER_ID
+          ANTHROPIC_AUTH_TOKEN=$ANTHROPIC_AUTH_TOKEN
+          AZURE_DEVOPS_ORG=$AZURE_DEVOPS_ORG
+          AZURE_DEVOPS_PAT=$AZURE_DEVOPS_PAT
+          INTERNAL_SECRET=$INTERNAL_SECRET
+          EOF
+
+      - name: Debug Kamal config files
+        run: |
+          ls -la .kamal
+          test -f .kamal/secrets-common
+
+      - name: Run database migrations
+        run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
             "docker pull ghcr.io/nitoba/standup-migrate:sha-${DEPLOY_VERSION} && \
              docker run --rm \
@@ -245,17 +209,7 @@ jobs:
                -e NODE_ENV=production \
                ghcr.io/nitoba/standup-migrate:sha-${DEPLOY_VERSION}"
 
-      # ------------------------------------------------------------------
-      # Deploy each app sequentially via Kamal.
-      # --skip-push: images are already in GHCR from the build job.
-      # --version: pins the exact git SHA for the deploy.
-      # --skip-hooks: no hook scripts needed in CI.
-      # ------------------------------------------------------------------
       - name: Deploy API
-        env:
-          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
-          INTERNAL_SECRET: ${{ secrets.INTERNAL_SECRET }}
         run: |
           kamal deploy \
             -c config/deploy.api.yml \
@@ -264,12 +218,6 @@ jobs:
             --skip-hooks
 
       - name: Deploy Discord Bot
-        env:
-          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
-          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
-          INTERNAL_SECRET: ${{ secrets.INTERNAL_SECRET }}
         run: |
           kamal deploy \
             -c config/deploy.bot.yml \
@@ -278,18 +226,14 @@ jobs:
             --skip-hooks
 
       - name: Deploy Worker
-        env:
-          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
-          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
-          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
-          AZURE_DEVOPS_ORG: ${{ secrets.AZURE_DEVOPS_ORG }}
-          AZURE_DEVOPS_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
-          INTERNAL_SECRET: ${{ secrets.INTERNAL_SECRET }}
         run: |
           kamal deploy \
             -c config/deploy.worker.yml \
             --skip-push \
             --version "sha-${DEPLOY_VERSION}" \
             --skip-hooks
+
+      - name: Cleanup Kamal secrets file
+        if: always()
+        run: |
+          rm -f .kamal/secrets-common
