@@ -107,7 +107,7 @@ export async function runStandupJob(
     // Degradacao graciosa: se MCP falhar apos todos os retries, o standup e gerado
     // apenas com dados git (sem enrichment de work items).
     const generatorConfig = {
-      anthropicAuthToken: env.ANTHROPIC_AUTH_TOKEN,
+      aiProviderApiKey: env.AI_PROVIDER_API_KEY,
       azure: {
         orgUrl: `https://dev.azure.com/${env.AZURE_DEVOPS_ORG}`,
         defaultProject: env.AZURE_DEVOPS_DEFAULT_PROJECT,

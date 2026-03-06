@@ -11,8 +11,8 @@ import type { EnrichedWorkItem } from './types.js'
 // Mocks
 // ---------------------------------------------------------------------------
 
-vi.mock('@ai-sdk/anthropic', () => ({
-  createAnthropic: vi.fn(() => (_model: string) => ({ modelId: _model })),
+vi.mock('@ai-sdk/groq', () => ({
+  createGroq: vi.fn(() => (_model: string) => ({ modelId: _model })),
 }))
 
 vi.mock('ai', () => ({
@@ -279,7 +279,7 @@ describe('generateStandup', () => {
   }
 
   const baseConfig = {
-    anthropicAuthToken: 'test-token',
+    aiProviderApiKey: 'test-token',
     azure: {
       orgUrl: 'https://dev.azure.com/test',
       pat: 'test-pat',
@@ -492,7 +492,7 @@ describe('generateStandup', () => {
 
     const result = await generateStandup(makeInput(), {
       azure: baseConfig.azure,
-      // no anthropicAuthToken, no anthropicApiKey
+      // no aiProviderApiKey
     })
 
     expect(result.status).toBe('error')

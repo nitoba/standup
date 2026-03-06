@@ -13,7 +13,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.54",
+    "@ai-sdk/groq": "^3.0.29",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@standup/config": "workspace:*",
     "@standup/domain": "workspace:*",

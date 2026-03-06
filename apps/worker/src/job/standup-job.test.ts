@@ -82,7 +82,7 @@ const baseEnv: WorkerEnv = {
   STANDUP_CRON: '30 17 * * 1-5',
   STANDUP_REMINDER_CRON: '20 17 * * 1-5',
   STANDUP_RECOVERY_CRON: '0 18 * * 1-5',
-  ANTHROPIC_AUTH_TOKEN: 'sk-test',
+  AI_PROVIDER_API_KEY: 'provider-key-test',
   AZURE_DEVOPS_ORG: 'ibsbiosistemico',
   AZURE_DEVOPS_PAT: 'pat-test',
   AZURE_DEVOPS_DEFAULT_PROJECT: 'AGROTRACE',
@@ -362,7 +362,7 @@ describe('runStandupJob', () => {
       mocks.generate.mockResolvedValue(
         Result.err(
           new ExternalServiceError({
-            service: 'anthropic',
+            service: 'ai-provider',
             message: 'LLM permanent error',
           }),
         ),

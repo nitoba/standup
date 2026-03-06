@@ -1,4 +1,4 @@
-import { createAnthropic } from '@ai-sdk/anthropic'
+import { createGroq } from '@ai-sdk/groq'
 import type {
   GatheredGitActivity,
   GeneratedStandup,
@@ -177,7 +177,7 @@ function countCharacters(text: string): number {
 }
 
 function runStandupGeneration(
-  anthropic: ReturnType<typeof createAnthropic>,
+  provider: ReturnType<typeof createGroq>,
   system: string,
   prompt: string,
   errorContext: string,
@@ -185,21 +185,44 @@ function runStandupGeneration(
   return Result.tryPromise({
     try: async () => {
       const { object } = await generateObject({
-        model: anthropic('claude-sonnet-4-6'),
+        model: provider('qwen/qwen3-32b'),
         schema: standupOutputSchema,
-        system,
+        system: `
+${system}
+
+Responda SOMENTE com JSON válido.
+Não use markdown fora do campo "content".
+Não use crases para envolver o JSON.
+Formato exato:
+
+{
+  "content": "string",
+  "summary": "string"
+}
+
+Regras:
+- "content" deve ser o standup completo em Markdown, em português.
+- "summary" deve ser um resumo de uma linha, em português.
+- Não inclua campos extras.
+
+      `,
         prompt,
-        maxOutputTokens: 4096,
       })
 
-      return object
+      const standup = standupOutputSchema.parse(object)
+
+      return standup
     },
     catch: (err) =>
       new ExternalServiceError({
-        service: 'anthropic',
+        service: 'ai-provider',
         message: `${errorContext}: ${err instanceof Error ? err.message : String(err)}`,
       }),
   })
+}
+
+function getAiProviderApiKey(config: GeneratorConfig): string | undefined {
+  return config.aiProviderApiKey
 }
 
 // ---------------------------------------------------------------------------
@@ -215,15 +238,15 @@ export async function generateStandup(
     meetingType: input.meetingType,
   })
 
-  const authToken = config.anthropicAuthToken
+  const apiKey = getAiProviderApiKey(config)
 
   return Result.gen(async function* () {
     // Guard: auth must be configured
-    if (!authToken) {
+    if (!apiKey) {
       yield* Result.err(
         new ExternalServiceError({
-          service: 'anthropic',
-          message: 'No authentication configured: set ANTHROPIC_AUTH_TOKEN',
+          service: 'ai-provider',
+          message: 'No authentication configured: set AI_PROVIDER_API_KEY',
         }),
       )
     }
@@ -233,7 +256,7 @@ export async function generateStandup(
     const enrichedActivity = await withEnrichmentRetry(input, config)
 
     // Stage 2: LLM generation with retry
-    const anthropic = createAnthropic({ authToken })
+    const groq = createGroq({ apiKey })
     const systemPrompt = buildSystemPrompt()
 
     logger.info('Calling LLM to generate standup')
@@ -242,7 +265,7 @@ export async function generateStandup(
       withRetry(
         () =>
           runStandupGeneration(
-            anthropic,
+            groq,
             systemPrompt,
             buildUserMessage(input, enrichedActivity),
             'LLM generation failed',
@@ -266,7 +289,7 @@ export async function generateStandup(
         withRetry(
           () =>
             runStandupGeneration(
-              anthropic,
+              groq,
               systemPrompt,
               buildRewriteUserMessage(standup.content, standup.summary),
               'LLM rewrite failed',
@@ -284,7 +307,7 @@ export async function generateStandup(
     if (contentLength > MAX_STANDUP_CONTENT_CHARS) {
       yield* Result.err(
         new ExternalServiceError({
-          service: 'anthropic',
+          service: 'ai-provider',
           message: `Generated standup content exceeds ${MAX_STANDUP_CONTENT_CHARS} characters after rewrite (${contentLength})`,
         }),
       )

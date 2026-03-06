@@ -168,33 +168,28 @@ describe('handleButtonInteraction', () => {
     expect(mocks.handleStandupInteraction).not.toHaveBeenCalled()
     expect(showModal).toHaveBeenCalledTimes(1)
 
-    // Inspect the ModalBuilder's internal data to verify structure.
-    // LabelBuilder stores: data.label (string), data.component (TextInputBuilder instance).
-    // TextInputBuilder stores: data.custom_id (string).
     const modalBuilder = showModal.mock.calls[0]?.[0] as {
-      data: { custom_id: string; title: string }
-      components: Array<{
-        data: {
-          label?: string
-          component?: { data?: { custom_id?: string } }
-        }
-      }>
-    }
-    expect(modalBuilder.data.custom_id).toBe(
-      'standup-regenerate-modal:standup-1',
-    )
-    expect(modalBuilder.data.title).toBe('Regenerar Standup')
-    expect(modalBuilder.components).toHaveLength(1)
-    // LabelBuilder wraps a TextInputBuilder. In the Node/Vitest env,
-    // the internal structure is: LabelBuilder.data.data = { label, type, component }.
-    // We verify the modal customId/title from the top-level data,
-    // and the label + input customId from the nested label builder data.
-    const comp0 = modalBuilder.components[0] as unknown as {
-      data: {
-        data?: { label?: string }
+      toJSON: () => {
+        custom_id: string
+        title: string
+        components: Array<{
+          components: Array<{
+            custom_id: string
+            label: string
+          }>
+        }>
       }
     }
-    expect(modalBuilder.components).toHaveLength(1)
-    expect(comp0?.data?.data?.label).toBe('O que deseja alterar?')
+    const json = modalBuilder.toJSON()
+
+    expect(json.custom_id).toBe('standup-regenerate-modal:standup-1')
+    expect(json.title).toBe('Regenerar Standup')
+    expect(json.components).toHaveLength(1)
+    expect(json.components[0]?.components[0]?.custom_id).toBe(
+      'regenerate-context',
+    )
+    expect(json.components[0]?.components[0]?.label).toBe(
+      'O que deseja alterar?',
+    )
   })
 })

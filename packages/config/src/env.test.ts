@@ -28,7 +28,7 @@ describe('env loaders', () => {
 
   it('loadWorkerEnv does not require Discord bot token', () => {
     const result = loadWorkerEnv({
-      ANTHROPIC_AUTH_TOKEN: 'anthropic-token',
+      AI_PROVIDER_API_KEY: 'provider-key',
       AZURE_DEVOPS_ORG: 'org',
       AZURE_DEVOPS_PAT: 'pat',
     })
@@ -47,7 +47,7 @@ describe('env loaders', () => {
       throw new Error('Expected error result')
     }
 
-    expect(result.error.field).toBe('ANTHROPIC_AUTH_TOKEN')
-    expect(result.error.message).toContain('ANTHROPIC_AUTH_TOKEN')
+    expect(result.error.field).toBe('AI_PROVIDER_API_KEY')
+    expect(result.error.message).toContain('AI_PROVIDER_API_KEY')
   })
 })

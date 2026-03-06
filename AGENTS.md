@@ -35,7 +35,7 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 - HTTP Server: Hono
 - Validacao: Zod
 - Error Handling: better-result (Result + TaggedError)
-- LLM: AI SDK da Vercel (@ai-sdk/anthropic)
+- LLM: AI SDK da Vercel (provider configuravel)
 - Azure DevOps: MCP client para work items e PRs
 - Discord: discord.js (bot com botoes + DM)
 - Scheduler: croner (cron expressions em Bun)
@@ -329,7 +329,7 @@ GIT_AUTHOR=bruno.alves@biosistemico.com.br
 GIT_SINCE_PERIOD=16 hours ago
 WORKER_INTERNAL_PORT=3335
 BOT_INTERNAL_URL=http://localhost:3334
-ANTHROPIC_AUTH_TOKEN=
+AI_PROVIDER_API_KEY=
 AZURE_DEVOPS_ORG=
 AZURE_DEVOPS_PAT=
 AZURE_DEVOPS_DEFAULT_PROJECT=AGROTRACE
@@ -345,7 +345,7 @@ Cada processo deve chamar apenas seu loader:
 
 - discord.js com Bun: funciona nativamente desde Bun 1.1+
 - SQLite WAL mode: necessario para leitura concorrente (bot + scheduler + API)
-- AI SDK: usar `@ai-sdk/anthropic` com `generateObject` para geracao de standups
+- AI SDK: usar provider configuravel com `generateObject` para geracao de standups
 - croner: alternativa leve ao node-cron, funciona bem com Bun
 
 ### Vitest + Bun globals (oven-sh/bun#4145)

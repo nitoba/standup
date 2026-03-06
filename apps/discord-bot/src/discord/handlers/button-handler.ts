@@ -1,7 +1,7 @@
-import { LabelBuilder } from '@discordjs/builders'
 import type { BotEnv } from '@standup/config'
 import { createServiceLogger, withContext } from '@standup/logger'
 import {
+  ActionRowBuilder,
   type ButtonInteraction,
   type Client,
   ModalBuilder,
@@ -31,30 +31,29 @@ const STATUS_EMOJI: Record<string, string> = {
  * Builds and shows the regenerate modal with a text input for extra context.
  * Must be the immediate response to the interaction (within 3s).
  *
- * Uses LabelBuilder (Components v2) instead of the deprecated
- * ActionRowBuilder + TextInputBuilder.setLabel() pattern.
+ * Uses ActionRowBuilder + TextInputBuilder for modal compatibility
+ * with discord.js validation/runtime.
  */
 async function showRegenerateModal(
   interaction: ButtonInteraction,
   standupId: string,
 ): Promise<void> {
+  const textInput = new TextInputBuilder()
+    .setCustomId('regenerate-context')
+    .setLabel('O que deseja alterar?')
+    .setPlaceholder(
+      'Ex: Focar mais nas correcoes do card #1234, remover detalhes do repo X...',
+    )
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(false)
+    .setMaxLength(1000)
+
+  const row = new ActionRowBuilder<TextInputBuilder>().addComponents(textInput)
+
   const modal = new ModalBuilder()
     .setCustomId(`standup-regenerate-modal:${standupId}`)
     .setTitle('Regenerar Standup')
-    .addLabelComponents(
-      new LabelBuilder()
-        .setLabel('O que deseja alterar?')
-        .setTextInputComponent(
-          new TextInputBuilder()
-            .setCustomId('regenerate-context')
-            .setPlaceholder(
-              'Ex: Focar mais nas correcoes do card #1234, remover detalhes do repo X...',
-            )
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(false)
-            .setMaxLength(1000),
-        ),
-    )
+    .addComponents(row)
 
   await interaction.showModal(modal)
 }

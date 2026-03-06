@@ -44,7 +44,6 @@ export interface AzureMcpConfig {
 }
 
 export interface GeneratorConfig {
-  anthropicAuthToken?: string
-  anthropicApiKey?: string
+  aiProviderApiKey?: string
   azure: AzureMcpConfig
 }
