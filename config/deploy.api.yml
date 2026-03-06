@@ -35,7 +35,7 @@ proxy:
     interval: 3
 
 ssh:
-  user: nitoba
+  user: colima
   keys:
     - ~/.ssh/deploy_key
 
