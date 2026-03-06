@@ -158,6 +158,7 @@ jobs:
       AZURE_DEVOPS_ORG: ${{ secrets.AZURE_DEVOPS_ORG }}
       AZURE_DEVOPS_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
       INTERNAL_SECRET: ${{ secrets.INTERNAL_SECRET }}
+      DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -234,7 +235,65 @@ jobs:
       - name: Validate Kamal config (Worker)
         run: kamal config -c config/deploy.worker.yml
 
+      # ── Discord: Pipeline Started ──────────────────────────────
+      - name: "Notify: Deploy started"
+        id: notify-start
+        continue-on-error: true
+        run: |
+          if [ -z "$DISCORD_DEPLOY_WEBHOOK_URL" ]; then
+            echo "DISCORD_DEPLOY_WEBHOOK_URL not configured; skipping"
+            exit 0
+          fi
+
+          SHORT_SHA="${GITHUB_SHA::7}"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+
+          payload=$(jq -n \
+            --arg sha "$SHORT_SHA" \
+            --arg commit_url "$COMMIT_URL" \
+            --arg branch "${GITHUB_REF_NAME}" \
+            --arg actor "${GITHUB_ACTOR}" \
+            --arg run_url "$RUN_URL" \
+            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{
+              "embeds": [{
+                "title": "Standup CI/CD Pipeline",
+                "description": ("**Deploy iniciado** para [`" + $sha + "`](" + $commit_url + ") em `" + $branch + "`"),
+                "color": 3447003,
+                "fields": [
+                  { "name": "Commit", "value": ("[`" + $sha + "`](" + $commit_url + ")"), "inline": true },
+                  { "name": "Branch", "value": ("`" + $branch + "`"), "inline": true },
+                  { "name": "Actor", "value": $actor, "inline": true },
+                  { "name": "\u200b", "value": "\u200b", "inline": false },
+                  { "name": "Quality", "value": "\u2705 Passed", "inline": true },
+                  { "name": "Build", "value": "\u2705 4 images", "inline": true },
+                  { "name": "\u200b", "value": "\u200b", "inline": true },
+                  { "name": "\u200b", "value": "\u200b", "inline": false },
+                  { "name": "Deploy Progress", "value": "\u23f3  **standup-api** \u2014 pending\n\u23f3  **standup-bot** \u2014 pending\n\u23f3  **standup-worker** \u2014 pending", "inline": false },
+                  { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
+                ],
+                "footer": { "text": "Standup Bot CI/CD" },
+                "timestamp": $ts
+              }]
+            }')
+
+          # Send with ?wait=true to get the message ID back for later edits
+          RESPONSE=$(curl -sS -X POST "${DISCORD_DEPLOY_WEBHOOK_URL}?wait=true" \
+            -H "Content-Type: application/json" \
+            -d "$payload")
+
+          MSG_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+          if [ -n "$MSG_ID" ]; then
+            echo "message_id=${MSG_ID}" >> "$GITHUB_OUTPUT"
+            echo "Notification sent (message_id=${MSG_ID})"
+          else
+            echo "Failed to get message ID from response"
+            echo "$RESPONSE"
+          fi
+
       - name: Run database migrations
+        id: migrations
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
             "set -e && \
@@ -256,7 +315,9 @@ jobs:
           EOF
           chmod 600 ~/.ssh/config
 
+      # ── Deploy: API ────────────────────────────────────────────
       - name: Deploy API
+        id: deploy-api
         run: |
           kamal deploy \
             -c config/deploy.api.yml \
@@ -264,7 +325,60 @@ jobs:
             --version "sha-${DEPLOY_VERSION}" \
             --skip-hooks
 
+      - name: "Notify: API deployed"
+        if: always() && steps.notify-start.outputs.message_id
+        continue-on-error: true
+        run: |
+          MSG_ID="${{ steps.notify-start.outputs.message_id }}"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+
+          API_OUTCOME="${{ steps.deploy-api.outcome }}"
+          if [ "$API_OUTCOME" = "success" ]; then
+            API_STATUS="\u2705  **standup-api** \u2014 deployed"
+          else
+            API_STATUS="\u274c  **standup-api** \u2014 failed"
+          fi
+
+          payload=$(jq -n \
+            --arg sha "$SHORT_SHA" \
+            --arg commit_url "$COMMIT_URL" \
+            --arg branch "${GITHUB_REF_NAME}" \
+            --arg actor "${GITHUB_ACTOR}" \
+            --arg run_url "$RUN_URL" \
+            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg api_status "$API_STATUS" \
+            '{
+              "embeds": [{
+                "title": "Standup CI/CD Pipeline",
+                "description": ("**Deploy em andamento** para [`" + $sha + "`](" + $commit_url + ") em `" + $branch + "`"),
+                "color": 15105570,
+                "fields": [
+                  { "name": "Commit", "value": ("[`" + $sha + "`](" + $commit_url + ")"), "inline": true },
+                  { "name": "Branch", "value": ("`" + $branch + "`"), "inline": true },
+                  { "name": "Actor", "value": $actor, "inline": true },
+                  { "name": "\u200b", "value": "\u200b", "inline": false },
+                  { "name": "Quality", "value": "\u2705 Passed", "inline": true },
+                  { "name": "Build", "value": "\u2705 4 images", "inline": true },
+                  { "name": "Migrations", "value": "\u2705 Applied", "inline": true },
+                  { "name": "\u200b", "value": "\u200b", "inline": false },
+                  { "name": "Deploy Progress", "value": ($api_status + "\n\u23f3  **standup-bot** \u2014 deploying...\n\u23f3  **standup-worker** \u2014 pending"), "inline": false },
+                  { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
+                ],
+                "footer": { "text": "Standup Bot CI/CD" },
+                "timestamp": $ts
+              }]
+            }')
+
+          curl -sS -X PATCH "${DISCORD_DEPLOY_WEBHOOK_URL}/messages/${MSG_ID}" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
+
+      # ── Deploy: Discord Bot ────────────────────────────────────
       - name: Deploy Discord Bot
+        id: deploy-bot
+        if: always() && steps.deploy-api.outcome == 'success'
         run: |
           kamal deploy \
             -c config/deploy.bot.yml \
@@ -272,7 +386,64 @@ jobs:
             --version "sha-${DEPLOY_VERSION}" \
             --skip-hooks
 
+      - name: "Notify: Bot deployed"
+        if: always() && steps.notify-start.outputs.message_id
+        continue-on-error: true
+        run: |
+          MSG_ID="${{ steps.notify-start.outputs.message_id }}"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+
+          API_OUTCOME="${{ steps.deploy-api.outcome }}"
+          BOT_OUTCOME="${{ steps.deploy-bot.outcome }}"
+
+          if [ "$API_OUTCOME" = "success" ]; then API_STATUS="\u2705  **standup-api** \u2014 deployed"
+          else API_STATUS="\u274c  **standup-api** \u2014 failed"; fi
+
+          if [ "$BOT_OUTCOME" = "success" ]; then BOT_STATUS="\u2705  **standup-bot** \u2014 deployed"
+          elif [ "$BOT_OUTCOME" = "skipped" ]; then BOT_STATUS="\u23ed\ufe0f  **standup-bot** \u2014 skipped"
+          else BOT_STATUS="\u274c  **standup-bot** \u2014 failed"; fi
+
+          payload=$(jq -n \
+            --arg sha "$SHORT_SHA" \
+            --arg commit_url "$COMMIT_URL" \
+            --arg branch "${GITHUB_REF_NAME}" \
+            --arg actor "${GITHUB_ACTOR}" \
+            --arg run_url "$RUN_URL" \
+            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg api_status "$API_STATUS" \
+            --arg bot_status "$BOT_STATUS" \
+            '{
+              "embeds": [{
+                "title": "Standup CI/CD Pipeline",
+                "description": ("**Deploy em andamento** para [`" + $sha + "`](" + $commit_url + ") em `" + $branch + "`"),
+                "color": 15105570,
+                "fields": [
+                  { "name": "Commit", "value": ("[`" + $sha + "`](" + $commit_url + ")"), "inline": true },
+                  { "name": "Branch", "value": ("`" + $branch + "`"), "inline": true },
+                  { "name": "Actor", "value": $actor, "inline": true },
+                  { "name": "\u200b", "value": "\u200b", "inline": false },
+                  { "name": "Quality", "value": "\u2705 Passed", "inline": true },
+                  { "name": "Build", "value": "\u2705 4 images", "inline": true },
+                  { "name": "Migrations", "value": "\u2705 Applied", "inline": true },
+                  { "name": "\u200b", "value": "\u200b", "inline": false },
+                  { "name": "Deploy Progress", "value": ($api_status + "\n" + $bot_status + "\n\u23f3  **standup-worker** \u2014 deploying..."), "inline": false },
+                  { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
+                ],
+                "footer": { "text": "Standup Bot CI/CD" },
+                "timestamp": $ts
+              }]
+            }')
+
+          curl -sS -X PATCH "${DISCORD_DEPLOY_WEBHOOK_URL}/messages/${MSG_ID}" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
+
+      # ── Deploy: Worker ─────────────────────────────────────────
       - name: Deploy Worker
+        id: deploy-worker
+        if: always() && steps.deploy-api.outcome == 'success' && steps.deploy-bot.outcome == 'success'
         run: |
           kamal deploy \
             -c config/deploy.worker.yml \
@@ -280,93 +451,96 @@ jobs:
             --version "sha-${DEPLOY_VERSION}" \
             --skip-hooks
 
+      # ── Discord: Final Status ──────────────────────────────────
+      - name: "Notify: Deploy finished"
+        if: always() && steps.notify-start.outputs.message_id
+        continue-on-error: true
+        run: |
+          MSG_ID="${{ steps.notify-start.outputs.message_id }}"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+
+          API_OUTCOME="${{ steps.deploy-api.outcome }}"
+          BOT_OUTCOME="${{ steps.deploy-bot.outcome }}"
+          WORKER_OUTCOME="${{ steps.deploy-worker.outcome }}"
+
+          if [ "$API_OUTCOME" = "success" ]; then API_STATUS="\u2705  **standup-api** \u2014 deployed"
+          else API_STATUS="\u274c  **standup-api** \u2014 failed"; fi
+
+          if [ "$BOT_OUTCOME" = "success" ]; then BOT_STATUS="\u2705  **standup-bot** \u2014 deployed"
+          elif [ "$BOT_OUTCOME" = "skipped" ]; then BOT_STATUS="\u23ed\ufe0f  **standup-bot** \u2014 skipped"
+          else BOT_STATUS="\u274c  **standup-bot** \u2014 failed"; fi
+
+          if [ "$WORKER_OUTCOME" = "success" ]; then WORKER_STATUS="\u2705  **standup-worker** \u2014 deployed"
+          elif [ "$WORKER_OUTCOME" = "skipped" ]; then WORKER_STATUS="\u23ed\ufe0f  **standup-worker** \u2014 skipped"
+          else WORKER_STATUS="\u274c  **standup-worker** \u2014 failed"; fi
+
+          MIGRATION_OUTCOME="${{ steps.migrations.outcome }}"
+          if [ "$MIGRATION_OUTCOME" = "success" ]; then MIGRATION_STATUS="\u2705 Applied"
+          else MIGRATION_STATUS="\u274c Failed"; fi
+
+          # Determine overall status
+          ALL_OK="true"
+          for outcome in "$API_OUTCOME" "$BOT_OUTCOME" "$WORKER_OUTCOME"; do
+            if [ "$outcome" != "success" ]; then ALL_OK="false"; break; fi
+          done
+
+          if [ "$ALL_OK" = "true" ]; then
+            TITLE="Standup CI/CD \u2014 Deploy Success"
+            DESC="Todos os servicos deployados com sucesso para [\`${SHORT_SHA}\`](${COMMIT_URL})"
+            CONTENT="\u2705 Pipeline concluido com sucesso"
+            COLOR=3066993
+          else
+            TITLE="Standup CI/CD \u2014 Deploy Failed"
+            DESC="Falha no deploy de [\`${SHORT_SHA}\`](${COMMIT_URL}) em \`${GITHUB_REF_NAME}\`"
+            CONTENT="\u274c Pipeline falhou no deploy"
+            COLOR=15158332
+          fi
+
+          payload=$(jq -n \
+            --arg content "$CONTENT" \
+            --arg title "$TITLE" \
+            --arg desc "$DESC" \
+            --argjson color "$COLOR" \
+            --arg sha "$SHORT_SHA" \
+            --arg commit_url "$COMMIT_URL" \
+            --arg branch "${GITHUB_REF_NAME}" \
+            --arg actor "${GITHUB_ACTOR}" \
+            --arg run_url "$RUN_URL" \
+            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg migration_status "$MIGRATION_STATUS" \
+            --arg api_status "$API_STATUS" \
+            --arg bot_status "$BOT_STATUS" \
+            --arg worker_status "$WORKER_STATUS" \
+            '{
+              "content": $content,
+              "embeds": [{
+                "title": $title,
+                "description": $desc,
+                "color": $color,
+                "fields": [
+                  { "name": "Commit", "value": ("[`" + $sha + "`](" + $commit_url + ")"), "inline": true },
+                  { "name": "Branch", "value": ("`" + $branch + "`"), "inline": true },
+                  { "name": "Actor", "value": $actor, "inline": true },
+                  { "name": "\u200b", "value": "\u200b", "inline": false },
+                  { "name": "Quality", "value": "\u2705 Passed", "inline": true },
+                  { "name": "Build", "value": "\u2705 4 images", "inline": true },
+                  { "name": "Migrations", "value": $migration_status, "inline": true },
+                  { "name": "\u200b", "value": "\u200b", "inline": false },
+                  { "name": "Services Deployed", "value": ($api_status + "\n" + $bot_status + "\n" + $worker_status), "inline": false },
+                  { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
+                ],
+                "footer": { "text": "Standup Bot CI/CD" },
+                "timestamp": $ts
+              }]
+            }')
+
+          curl -sS -X PATCH "${DISCORD_DEPLOY_WEBHOOK_URL}/messages/${MSG_ID}" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
+
       - name: Cleanup Kamal secrets file
         if: always()
         run: |
           rm -f .kamal/secrets-common
-
-  notify-deploy:
-    needs: deploy
-    if: ${{ always() && needs.deploy.result != 'skipped' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Notify deploy success on Discord
-        if: ${{ needs.deploy.result == 'success' }}
-        continue-on-error: true
-        env:
-          DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
-        run: |
-          if [ -z "$DISCORD_DEPLOY_WEBHOOK_URL" ]; then
-            echo "DISCORD_DEPLOY_WEBHOOK_URL not configured; skipping notification"
-            exit 0
-          fi
-
-          SHORT_SHA="${GITHUB_SHA::7}"
-          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
-
-          payload=$(cat <<EOF
-          {
-            "content": "✅ Deploy concluido com sucesso",
-            "embeds": [
-              {
-                "title": "Standup Deploy Success",
-                "color": 3066993,
-                "fields": [
-                  { "name": "Repository", "value": "${GITHUB_REPOSITORY}", "inline": true },
-                  { "name": "Branch", "value": "${GITHUB_REF_NAME}", "inline": true },
-                  { "name": "Commit", "value": "[${SHORT_SHA}](${COMMIT_URL})", "inline": true },
-                  { "name": "Actor", "value": "${GITHUB_ACTOR}", "inline": true },
-                  { "name": "Run", "value": "[View workflow run](${RUN_URL})", "inline": false }
-                ],
-                "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-              }
-            ]
-          }
-          EOF
-          )
-
-          curl -fsS -X POST "$DISCORD_DEPLOY_WEBHOOK_URL" \
-            -H "Content-Type: application/json" \
-            -d "$payload"
-
-      - name: Notify deploy failure on Discord
-        if: ${{ needs.deploy.result != 'success' }}
-        continue-on-error: true
-        env:
-          DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
-        run: |
-          if [ -z "$DISCORD_DEPLOY_WEBHOOK_URL" ]; then
-            echo "DISCORD_DEPLOY_WEBHOOK_URL not configured; skipping notification"
-            exit 0
-          fi
-
-          SHORT_SHA="${GITHUB_SHA::7}"
-          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
-
-          payload=$(cat <<EOF
-          {
-            "content": "❌ Deploy falhou",
-            "embeds": [
-              {
-                "title": "Standup Deploy Failure",
-                "color": 15158332,
-                "fields": [
-                  { "name": "Repository", "value": "${GITHUB_REPOSITORY}", "inline": true },
-                  { "name": "Branch", "value": "${GITHUB_REF_NAME}", "inline": true },
-                  { "name": "Commit", "value": "[${SHORT_SHA}](${COMMIT_URL})", "inline": true },
-                  { "name": "Actor", "value": "${GITHUB_ACTOR}", "inline": true },
-                  { "name": "Deploy result", "value": "${{ needs.deploy.result }}", "inline": true },
-                  { "name": "Run", "value": "[View workflow run](${RUN_URL})", "inline": false }
-                ],
-                "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-              }
-            ]
-          }
-          EOF
-          )
-
-          curl -fsS -X POST "$DISCORD_DEPLOY_WEBHOOK_URL" \
-            -H "Content-Type: application/json" \
-            -d "$payload"
