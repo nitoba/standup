@@ -63,7 +63,7 @@ async function processRepo(
   const currentBranch = branchResult.stdout.toString().trim()
 
   const logResult =
-    await $`git -C ${repoPath} log --author=${options.author} --since=${options.sincePeriod} --pretty=format:"%h%n%s%n%b%n---"`
+    await $`git -C ${repoPath} log --all --author=${options.author} --since=${options.sincePeriod} --pretty=format:"%h%n%s%n%b%n---"`
       .quiet()
       .nothrow()
   const logOutput = logResult.stdout.toString()
