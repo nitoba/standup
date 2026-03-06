@@ -57,6 +57,18 @@ async function processRepo(
 
   logger.debug('processing repo', { repo: repoName })
 
+  // Fetch latest refs from all remotes so --all sees remote branches.
+  // Non-fatal: if fetch fails (no network, no remote) we continue with local data.
+  const fetchResult = await $`git -C ${repoPath} fetch --all --quiet`
+    .quiet()
+    .nothrow()
+  if (fetchResult.exitCode !== 0) {
+    logger.warn('git fetch failed, continuing with local data', {
+      repo: repoName,
+      stderr: fetchResult.stderr.toString().trim(),
+    })
+  }
+
   const branchResult = await $`git -C ${repoPath} branch --show-current`
     .quiet()
     .nothrow()

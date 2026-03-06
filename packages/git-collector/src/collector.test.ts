@@ -259,6 +259,78 @@ describe('collectGitActivity', () => {
       expect(names).toEqual(['repo-a', 'repo-b'])
     })
 
+    it('finds commits on remote branches after fetching', async () => {
+      const base = join(tmpBase, 'remote-branch')
+      await mkdir(base)
+
+      // 1. Create an "origin" repo with a commit on a feature branch
+      const originPath = await initRepo(base, 'origin-repo', AUTHOR)
+      await addCommit(originPath, 'feat: initial on main', 'init.ts', 'x')
+
+      // Detect default branch name (master or main depending on git config)
+      const defaultBranch = (
+        await $`git -C ${originPath} branch --show-current`.quiet()
+      ).stdout
+        .toString()
+        .trim()
+
+      await $`git -C ${originPath} checkout -b feat/remote-work`.quiet()
+      await addCommit(
+        originPath,
+        'feat: work on remote branch',
+        'remote.ts',
+        'y',
+      )
+      await $`git -C ${originPath} checkout ${defaultBranch}`.quiet()
+
+      // 2. Clone it into the scanned directory (simulates deployed repos)
+      const cloneBase = join(tmpBase, 'remote-branch-clones')
+      await mkdir(cloneBase)
+      await $`git clone ${originPath} ${join(cloneBase, 'cloned-repo')}`.quiet()
+
+      // The clone has the remote branch as origin/feat/remote-work
+      // Without fetch+--all, only the default branch commits would appear
+      const result = await collectGitActivity({
+        reposBasePath: cloneBase,
+        author: AUTHOR,
+        sincePeriod: '1 hour ago',
+      })
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      const repo = result.value.repos[0]
+      expect(repo).toBeDefined()
+      if (!repo) return
+
+      const subjects = repo.commits.map((c) => c.subject)
+      expect(subjects).toContain('feat: work on remote branch')
+      expect(subjects).toContain('feat: initial on main')
+    })
+
+    it('continues gracefully when fetch fails (no remote)', async () => {
+      const base = join(tmpBase, 'no-remote')
+      await mkdir(base)
+
+      // A repo with no remote — fetch will fail, but collection should still work
+      const repoPath = await initRepo(base, 'local-only', AUTHOR)
+      await addCommit(repoPath, 'feat: local work', 'local.ts', 'code')
+
+      const result = await collectGitActivity({
+        reposBasePath: base,
+        author: AUTHOR,
+        sincePeriod: '1 hour ago',
+      })
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.repos).toHaveLength(1)
+      expect(result.value.repos[0]?.commits[0]?.subject).toBe(
+        'feat: local work',
+      )
+    })
+
     it('ignores plain directories that are not git repos', async () => {
       const base = join(tmpBase, 'mixed-dirs')
       await mkdir(base)

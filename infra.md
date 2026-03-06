@@ -49,11 +49,11 @@ As aplicacoes rodam dentro da VM Linux do Colima, nao diretamente no macOS host.
 [ Push na main ]
         |
 [ GitHub Actions ]
-   ├─ quality: lint + typecheck + test
-   ├─ build: Docker images arm64 → GHCR (via QEMU cross-compile)
+   ├─ quality: lint + typecheck + test (ubuntu-latest)
+   ├─ build: Docker images arm64 → GHCR (ubuntu-24.04-arm nativo, sem QEMU)
    └─ deploy:
         ├─ Tailscale connect (OAuth, tag:ci, efemero)
-        ├─ SSH no MacBook via Tailscale
+        ├─ SSH na VM Colima via Tailscale
         ├─ docker run migrate (one-shot)
         └─ kamal deploy x3 (api, bot, worker) com --skip-push
 ```
@@ -76,21 +76,22 @@ SSH e portas internas so acessiveis via Tailscale. Apenas a API fica publica via
 
 | Item               | Valor                                                       |
 | ------------------ | ----------------------------------------------------------- |
-| Host               | MacBook Apple Silicon (M1)                                  |
-| Tailscale hostname | `nitoba-mac.tail2ee1d6.ts.net`                              |
+| Host               | MacBook Apple Silicon (M1) com Colima                       |
+| Tailscale hostname | `colima.tail2ee1d6.ts.net`                                  |
 | Usuario SSH        | `nitoba`                                                    |
 | Container runtime  | Colima (Docker engine em VM Linux)                          |
 | Arquitetura        | `aarch64` (arm64)                                           |
-| Diretorio de dados | `/opt/standup/data` (SQLite, compartilhado entre os 3 apps) |
-| Diretorio de repos | `/Users/nitoba/repos` (bind-mount read-only no worker)      |
+| Diretorio de dados | `/opt/standup/data` (dentro da VM Colima, SQLite WAL)       |
+| Diretorio de repos | `/Users/nitoba/repos` (virtiofs mount, read-only no worker) |
 
 Observacao: o MacBook hospeda o Colima, mas API, Bot e Worker executam dentro da VM Linux do Colima.
+O diretorio `/opt/standup/data` existe apenas dentro da VM — nao confundir com um path no macOS host.
 
 ---
 
 ## Imagens Docker
 
-Todas as imagens sao arm64, buildadas no GitHub Actions via QEMU e publicadas no GHCR.
+Todas as imagens sao arm64, buildadas no GitHub Actions com runner nativo `ubuntu-24.04-arm` (sem QEMU) e publicadas no GHCR.
 
 | Imagem                           | Dockerfile                    | Base runtime             | Porta |
 | -------------------------------- | ----------------------------- | ------------------------ | ----- |
@@ -120,29 +121,32 @@ standup/
     secrets              # Secrets do Kamal (gitignored) — usa $VAR substitution
   config/
     deploy.api.yml       # API — com kamal-proxy (api.nitodev.com.br)
-    deploy.bot.yml       # Discord bot — sem proxy, porta 3334 no host
-    deploy.worker.yml    # Worker — sem proxy, porta 3335 no host + volumes
+    deploy.bot.yml       # Discord bot — sem proxy, network alias standup-bot
+    deploy.worker.yml    # Worker — sem proxy, network alias standup-worker + volumes
 ```
 
 ### Servicos
 
-| App    | Service name     | Proxy       | Porta no host   | Hostname publico    |
-| ------ | ---------------- | ----------- | --------------- | ------------------- |
-| API    | `standup-api`    | kamal-proxy | via proxy (:80) | `api.nitodev.com.br` |
-| Bot    | `standup-bot`    | nenhum      | 3334            | nenhum (interno)    |
-| Worker | `standup-worker` | nenhum      | 3335            | nenhum (interno)    |
+| App    | Service name     | Proxy       | Acesso                          | Hostname publico     |
+| ------ | ---------------- | ----------- | ------------------------------- | -------------------- |
+| API    | `standup-api`    | kamal-proxy | via proxy (:80)                 | `api.nitodev.com.br` |
+| Bot    | `standup-bot`    | nenhum      | network alias `standup-bot`     | nenhum (interno)     |
+| Worker | `standup-worker` | nenhum      | network alias `standup-worker`  | nenhum (interno)     |
+
+Bot e Worker **nao publicam portas no host** — usam Docker network aliases na rede `kamal`.
+Isso evita conflitos de porta durante redeploys (Kamal renomeia o container antigo mas nao o para antes de iniciar o novo).
 
 ### Comunicacao interna entre containers
 
-Os 3 containers rodam na mesma VM Linux do Colima.
-As URLs internas (`BOT_INTERNAL_URL`, `WORKER_INTERNAL_URL`, `API_BASE_URL`) devem apontar para endpoints acessiveis dentro da rede/host exposto pelo Colima, nao para processos rodando diretamente no macOS.
+Os 3 containers rodam na rede Docker `kamal` dentro da VM Colima.
+URLs internas usam os network aliases dos containers.
 
-| De           | Para                               | URL                                           |
-| ------------ | ---------------------------------- | --------------------------------------------- |
-| API → Bot    | endpoint interno do Colima         | notificacoes, DMs                             |
-| API → Worker | endpoint interno do Colima         | trigger manual                                |
-| Worker → Bot | endpoint interno do Colima         | standup-ready, job-failed                     |
-| Bot → API    | `https://api.nitodev.com.br`       | slash commands (via Cloudflare → kamal-proxy) |
+| De           | Para                         | URL                                           | Finalidade                      |
+| ------------ | ---------------------------- | --------------------------------------------- | ------------------------------- |
+| API → Worker | `standup-worker:3335`        | `http://standup-worker:3335`                  | trigger manual                  |
+| API → Bot    | `standup-bot:3334`           | `http://standup-bot:3334`                     | notificacoes                    |
+| Worker → Bot | `standup-bot:3334`           | `http://standup-bot:3334`                     | standup-ready, job-failed       |
+| Bot → API    | `api.nitodev.com.br`         | `https://api.nitodev.com.br`                  | slash commands (via Cloudflare) |
 
 ### Volumes
 
@@ -197,8 +201,8 @@ push/PR (qualquer branch)     push na main
 ### Job: build
 
 - Roda **apenas em push na main**, apos quality passar
-- Matrix strategy: `[api, discord-bot, worker, migrate]`
-- QEMU para emular arm64 no runner ubuntu (amd64)
+- Runner nativo arm64 (`ubuntu-24.04-arm`) — sem QEMU, sem emulacao
+- Builds sequenciais (api → bot → worker → migrate) no mesmo job para evitar cancelamentos por concurrency
 - Docker Buildx com cache GHA (scope por app)
 - Login no GHCR via `GITHUB_TOKEN` (permissao `packages: write`)
 - Push com tags `sha-<commit>` + `latest`
@@ -206,10 +210,10 @@ push/PR (qualquer branch)     push na main
 ### Job: deploy
 
 - Roda **apenas em push na main**, apos build
-- `tailscale/github-action@v3` com OAuth client (tag:ci, efemero)
-- SSH key setup (`~/.ssh/deploy_key`)
+- `tailscale/github-action@v4` com OAuth client (tag:ci, efemero)
+- SSH key setup (`~/.ssh/deploy_key`) com `StrictHostKeyChecking accept-new`
 - Instala Kamal via `gem install kamal`
-- Roda migracao via `docker run --rm` (SSH direto)
+- Roda migracao via `docker run --rm` (SSH na VM Colima, com `docker login ghcr.io` antes)
 - `kamal deploy --skip-push --version "sha-<commit>"` para cada app
 - Sequencial: API → Bot → Worker
 
@@ -228,7 +232,7 @@ push/PR (qualquer branch)     push na main
 | `TS_OAUTH_CLIENT_ID`     | OAuth client Tailscale (scope: Devices Write, tag: `tag:ci`) |
 | `TS_OAUTH_CLIENT_SECRET` | OAuth client secret Tailscale                                |
 | `SSH_PRIVATE_KEY`        | Chave privada Ed25519 para SSH no MacBook                    |
-| `DEPLOY_HOST`            | `nitoba-mac.tail2ee1d6.ts.net`                               |
+| `DEPLOY_HOST`            | `colima.tail2ee1d6.ts.net`                                   |
 | `DEPLOY_USER`            | `nitoba`                                                     |
 
 ### App secrets
@@ -243,7 +247,8 @@ push/PR (qualquer branch)     push na main
 | `AZURE_DEVOPS_PAT`     | Worker           |
 | `INTERNAL_SECRET`      | API, Bot, Worker |
 
-O `KAMAL_REGISTRY_PASSWORD` usa o `GITHUB_TOKEN` automatico (nao precisa de secret manual).
+O `KAMAL_REGISTRY_PASSWORD` usa o secret `GHCR_PAT` (PAT pessoal com scope `read:packages`).
+O build job usa `GITHUB_TOKEN` para push; o deploy job usa `GHCR_PAT` para pull via Kamal.
 
 ---
 
@@ -287,8 +292,8 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 ## Seguranca
 
 - **API** (`api.nitodev.com.br`): unico servico publico. Protegido por Cloudflare WAF/rate limiting.
-- **Bot** (porta 3334): interno, acessivel apenas via rede/host do Colima e Tailscale.
-- **Worker** (porta 3335): interno, acessivel apenas via rede/host do Colima e Tailscale.
+- **Bot**: interno, acessivel apenas via network alias `standup-bot` na rede Docker `kamal`. Sem porta publicada no host.
+- **Worker**: interno, acessivel apenas via network alias `standup-worker` na rede Docker `kamal`. Sem porta publicada no host.
 - **SSH**: apenas via Tailscale (chave Ed25519, sem senha).
 - **Secrets**: nunca commitados. `.kamal/secrets` e `*.env` no `.gitignore`.
 - **GHCR**: autenticacao via `GITHUB_TOKEN` (automatico no CI).
@@ -305,9 +310,9 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 - [x] `/opt/standup/data` criado com owner `nitoba`
 - [x] Chave publica do deploy em `~/.ssh/authorized_keys`
 - [x] Azure DevOps SSH key (RSA 4096) configurada para clone de repos
-- [x] Repositorios clonados em `/Users/nitoba/repos`
+- [x] Repositorios clonados em `/Users/nitoba/repos` (git-collector faz `fetch --all` automaticamente)
 - [x] Cloudflare Tunnel configurado (`cloudflared` como servico)
-- [ ] Primeiro deploy realizado com sucesso (kamal-proxy bootstrapped automaticamente)
+- [x] Primeiro deploy realizado com sucesso (kamal-proxy bootstrapped automaticamente)
 
 ---
 
@@ -315,4 +320,6 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 
 - **Caddy**: desnecessario — Cloudflare ja resolve TLS na borda.
 - **Subdominio publico para bot/worker**: desnecessario — comunicacao interna via rede privada do Colima.
-- **Build no servidor**: desnecessario — imagens pre-buildadas no CI via QEMU arm64.
+- **Build no servidor**: desnecessario — imagens pre-buildadas no CI via runner arm64 nativo.
+- **QEMU cross-compilation**: desnecessario — GitHub oferece `ubuntu-24.04-arm` com arm64 nativo.
+- **Portas publicadas para bot/worker**: desnecessario — Docker network aliases evitam conflitos durante redeploys.
