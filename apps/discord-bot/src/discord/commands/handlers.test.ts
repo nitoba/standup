@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   repoList: vi.fn(),
   getDb: vi.fn().mockReturnValue({}),
   createPendingTriggerRequest: vi.fn(),
+  checkRemoteServiceHealth: vi.fn(),
   handleInteraction: vi.fn(),
   loggerInfo: vi.fn(),
   loggerError: vi.fn(),
@@ -39,6 +40,10 @@ vi.mock('../handlers/trigger-request-store.js', () => ({
   createPendingTriggerRequest: mocks.createPendingTriggerRequest,
 }))
 
+vi.mock('../../services/service-health-check.js', () => ({
+  checkRemoteServiceHealth: mocks.checkRemoteServiceHealth,
+}))
+
 // ---------------------------------------------------------------------------
 // Import após mocks
 // ---------------------------------------------------------------------------
@@ -50,6 +55,7 @@ import {
 } from 'discord.js'
 import { handleApproveCommand } from './approve.js'
 import { handleList } from './list.js'
+import { handleServices } from './services.js'
 import { handleTrigger } from './trigger.js'
 
 // ---------------------------------------------------------------------------
@@ -59,6 +65,7 @@ import { handleTrigger } from './trigger.js'
 const DATABASE_URL = ':memory:'
 const CHANNEL_ID = 'channel-123'
 const API_BASE_URL = 'http://localhost:3333'
+const WORKER_INTERNAL_URL = 'http://localhost:3335'
 
 function makeInteraction(
   overrides: Partial<{
@@ -67,6 +74,7 @@ function makeInteraction(
     idOption: string
     forceRegenerateOption: boolean | null
     extraContextOption: string | null
+    serviceOption: string | null
   }> = {},
 ): ChatInputCommandInteraction {
   return {
@@ -79,6 +87,7 @@ function makeInteraction(
           if (name === 'id') return overrides.idOption ?? 'standup-abc'
           if (name === 'extra-context')
             return overrides.extraContextOption ?? null
+          if (name === 'service') return overrides.serviceOption ?? null
           if (required) throw new Error(`Missing required option: ${name}`)
           return null
         }),
@@ -95,7 +104,9 @@ function makeInteraction(
   } as unknown as ChatInputCommandInteraction
 }
 
-const fakeClient = {} as unknown as Client
+const fakeClient = {
+  isReady: () => true,
+} as unknown as Client
 
 const standupRecord = {
   id: 'standup-abc',
@@ -225,6 +236,79 @@ describe('handleList', () => {
 
     expect(mocks.interactionEditReply).toHaveBeenCalledWith(
       expect.stringContaining('Erro'),
+    )
+  })
+})
+
+describe('handleServices', () => {
+  beforeEach(() => vi.clearAllMocks())
+  afterEach(() => vi.restoreAllMocks())
+
+  it('retorna status de api, worker e bot quando filtro nao e informado', async () => {
+    mocks.checkRemoteServiceHealth
+      .mockResolvedValueOnce({
+        service: 'api',
+        ok: true,
+        latencyMs: 20,
+        statusCode: 200,
+        uptimeSeconds: 120,
+      })
+      .mockResolvedValueOnce({
+        service: 'worker',
+        ok: true,
+        latencyMs: 31,
+        statusCode: 200,
+        uptimeSeconds: 450,
+      })
+
+    const interaction = makeInteraction()
+
+    await handleServices(interaction, {
+      apiBaseUrl: API_BASE_URL,
+      workerInternalUrl: WORKER_INTERNAL_URL,
+      client: fakeClient,
+    })
+
+    expect(mocks.interactionDeferReply).toHaveBeenCalledWith({
+      flags: MessageFlags.Ephemeral,
+    })
+    expect(mocks.checkRemoteServiceHealth).toHaveBeenCalledTimes(2)
+    expect(mocks.checkRemoteServiceHealth).toHaveBeenNthCalledWith(
+      1,
+      'api',
+      API_BASE_URL,
+    )
+    expect(mocks.checkRemoteServiceHealth).toHaveBeenNthCalledWith(
+      2,
+      'worker',
+      WORKER_INTERNAL_URL,
+    )
+    expect(mocks.interactionEditReply).toHaveBeenCalledWith(
+      expect.objectContaining({ embeds: expect.any(Array) }),
+    )
+  })
+
+  it('filtra por worker quando service=worker', async () => {
+    mocks.checkRemoteServiceHealth.mockResolvedValue({
+      service: 'worker',
+      ok: false,
+      latencyMs: 3001,
+      statusCode: 503,
+      error: 'HTTP 503',
+    })
+
+    const interaction = makeInteraction({ serviceOption: 'worker' })
+
+    await handleServices(interaction, {
+      apiBaseUrl: API_BASE_URL,
+      workerInternalUrl: WORKER_INTERNAL_URL,
+      client: fakeClient,
+    })
+
+    expect(mocks.checkRemoteServiceHealth).toHaveBeenCalledTimes(1)
+    expect(mocks.checkRemoteServiceHealth).toHaveBeenCalledWith(
+      'worker',
+      WORKER_INTERNAL_URL,
     )
   })
 })

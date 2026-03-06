@@ -3,6 +3,7 @@ import { createServiceLogger, withContext } from '@standup/logger'
 import type { ChatInputCommandInteraction, Client } from 'discord.js'
 import { handleApproveCommand } from '../commands/approve.js'
 import { handleList } from '../commands/list.js'
+import { handleServices } from '../commands/services.js'
 import { handleTrigger } from '../commands/trigger.js'
 import { handleStandupInteraction } from './interaction-handler.js'
 
@@ -19,7 +20,13 @@ const logger = createServiceLogger({
 export async function handleSlashCommand(
   interaction: ChatInputCommandInteraction,
   client: Client,
-  env: Pick<BotEnv, 'DATABASE_URL' | 'DISCORD_CHANNEL_ID' | 'API_BASE_URL'>,
+  env: Pick<
+    BotEnv,
+    | 'DATABASE_URL'
+    | 'DISCORD_CHANNEL_ID'
+    | 'API_BASE_URL'
+    | 'WORKER_INTERNAL_URL'
+  >,
 ): Promise<void> {
   if (interaction.commandName !== 'standup') return
 
@@ -32,6 +39,12 @@ export async function handleSlashCommand(
 
   if (sub === 'trigger') {
     await handleTrigger(interaction, { apiBaseUrl: env.API_BASE_URL })
+  } else if (sub === 'services') {
+    await handleServices(interaction, {
+      apiBaseUrl: env.API_BASE_URL,
+      workerInternalUrl: env.WORKER_INTERNAL_URL,
+      client,
+    })
   } else if (sub === 'list') {
     await handleList(interaction, { databaseUrl: env.DATABASE_URL })
   } else if (sub === 'approve') {

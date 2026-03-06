@@ -18,6 +18,13 @@ const STATUS_CHOICES = [
   { name: 'Rejeitado', value: 'rejected' },
 ] as const
 
+const SERVICE_CHOICES = [
+  { name: 'Todos', value: 'all' },
+  { name: 'API', value: 'api' },
+  { name: 'Worker', value: 'worker' },
+  { name: 'Bot', value: 'bot' },
+] as const
+
 /**
  * Constrói o SlashCommandBuilder para o comando /standup com subcommands.
  * Exportado para reutilização nos testes.
@@ -39,6 +46,17 @@ export function buildStandupCommand(): SlashCommandBuilder {
           opt
             .setName('extra-context')
             .setDescription('Contexto extra para orientar a geracao'),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('services')
+        .setDescription('Ver status dos servicos')
+        .addStringOption((opt) =>
+          opt
+            .setName('service')
+            .setDescription('Filtrar por servico especifico')
+            .addChoices(...SERVICE_CHOICES),
         ),
     )
     .addSubcommand((sub) =>

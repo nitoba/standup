@@ -58,7 +58,7 @@ function makeClient(userId?: string): Client {
 // ---------------------------------------------------------------------------
 
 describe('buildStandupCommand', () => {
-  it('constrói comando /standup com os 3 subcommands', () => {
+  it('constrói comando /standup com os subcommands esperados', () => {
     const cmd = buildStandupCommand()
     const json = cmd.toJSON()
 
@@ -68,8 +68,26 @@ describe('buildStandupCommand', () => {
     const options = json.options ?? []
     const subNames = options.map((o) => o.name)
     expect(subNames).toContain('trigger')
+    expect(subNames).toContain('services')
     expect(subNames).toContain('list')
     expect(subNames).toContain('approve')
+  })
+
+  it('subcommand services tem opcao service com choices', () => {
+    const cmd = buildStandupCommand()
+    const json = cmd.toJSON()
+    const options = json.options ?? []
+
+    const servicesSub = options.find((o) => o.name === 'services')
+    expect(servicesSub).toBeDefined()
+
+    // @ts-expect-error — toJSON() retorna estrutura genérica
+    const servicesOptions: unknown[] = servicesSub?.options ?? []
+    const serviceOption = (
+      servicesOptions as Array<{ name: string; choices?: unknown[] }>
+    ).find((o) => o.name === 'service')
+    expect(serviceOption).toBeDefined()
+    expect(serviceOption?.choices?.length).toBeGreaterThan(0)
   })
 
   it('subcommand trigger tem opcoes force-regenerate e extra-context', () => {
