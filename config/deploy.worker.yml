@@ -26,7 +26,7 @@ servers:
       publish:
         - "127.0.0.1:3335:3335"
 
-proxy: false
+    proxy: false
 
 builder:
   context: .
