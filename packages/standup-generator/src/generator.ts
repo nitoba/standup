@@ -216,11 +216,10 @@ export async function generateStandup(
   })
 
   const authToken = config.anthropicAuthToken
-  const apiKey = config.anthropicApiKey
 
   return Result.gen(async function* () {
     // Guard: auth must be configured
-    if (!authToken && !apiKey) {
+    if (!authToken) {
       yield* Result.err(
         new ExternalServiceError({
           service: 'anthropic',
@@ -234,13 +233,7 @@ export async function generateStandup(
     const enrichedActivity = await withEnrichmentRetry(input, config)
 
     // Stage 2: LLM generation with retry
-    const anthropicOptions = authToken
-      ? {
-          apiKey: 'sk-dummy',
-          headers: { Authorization: `Bearer ${authToken}` },
-        }
-      : { apiKey: apiKey ?? '' }
-    const anthropic = createAnthropic(anthropicOptions)
+    const anthropic = createAnthropic({ authToken })
     const systemPrompt = buildSystemPrompt()
 
     logger.info('Calling LLM to generate standup')

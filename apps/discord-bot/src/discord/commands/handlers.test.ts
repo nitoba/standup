@@ -1,4 +1,4 @@
-import { ExternalServiceError, NotFoundError, Result } from '@standup/domain'
+import { NotFoundError, Result } from '@standup/domain'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   repoList: vi.fn(),
   getDb: vi.fn().mockReturnValue({}),
-  triggerStandup: vi.fn(),
+  createPendingTriggerRequest: vi.fn(),
   handleInteraction: vi.fn(),
   loggerInfo: vi.fn(),
   loggerError: vi.fn(),
@@ -35,8 +35,8 @@ vi.mock('@standup/db', () => {
   return { getDb: mocks.getDb, StandupRepository }
 })
 
-vi.mock('../../services/trigger-standup-service.js', () => ({
-  triggerStandup: mocks.triggerStandup,
+vi.mock('../handlers/trigger-request-store.js', () => ({
+  createPendingTriggerRequest: mocks.createPendingTriggerRequest,
 }))
 
 // ---------------------------------------------------------------------------
@@ -65,6 +65,8 @@ function makeInteraction(
     userId: string
     statusOption: string | null
     idOption: string
+    forceRegenerateOption: boolean | null
+    extraContextOption: string | null
   }> = {},
 ): ChatInputCommandInteraction {
   return {
@@ -75,9 +77,17 @@ function makeInteraction(
         .mockImplementation((name: string, required?: boolean) => {
           if (name === 'status') return overrides.statusOption ?? null
           if (name === 'id') return overrides.idOption ?? 'standup-abc'
+          if (name === 'extra-context')
+            return overrides.extraContextOption ?? null
           if (required) throw new Error(`Missing required option: ${name}`)
           return null
         }),
+      getBoolean: vi.fn().mockImplementation((name: string) => {
+        if (name === 'force-regenerate') {
+          return overrides.forceRegenerateOption ?? null
+        }
+        return null
+      }),
     },
     reply: mocks.interactionReply.mockResolvedValue(undefined),
     deferReply: mocks.interactionDeferReply.mockResolvedValue(undefined),
@@ -112,65 +122,53 @@ describe('handleTrigger', () => {
   beforeEach(() => vi.clearAllMocks())
   afterEach(() => vi.restoreAllMocks())
 
-  it('responde com sucesso quando API aceita trigger manual', async () => {
-    mocks.triggerStandup.mockResolvedValue(Result.ok({ accepted: true }))
+  it('responde com confirmacao ephemeral e botoes, sem disparar API imediatamente', async () => {
+    mocks.createPendingTriggerRequest.mockReturnValue({ id: 'req-123' })
     const interaction = makeInteraction()
 
     await handleTrigger(interaction, { apiBaseUrl: API_BASE_URL })
 
     expect(mocks.interactionReply).toHaveBeenCalledTimes(1)
     const [replyArg] = mocks.interactionReply.mock.calls[0] as [
-      { content: string; flags: number },
+      { content: string; flags: number; components?: unknown[] },
     ]
     expect(replyArg.flags).toBe(MessageFlags.Ephemeral)
-    expect(replyArg.content).toMatch(/sucesso/i)
-    expect(mocks.triggerStandup).toHaveBeenCalledWith('user-abc', {
-      apiBaseUrl: API_BASE_URL,
+    expect(replyArg.content).toMatch(/Confirme a geracao manual/i)
+    expect(replyArg.components?.length).toBe(1)
+    expect(mocks.createPendingTriggerRequest).toHaveBeenCalledWith('user-abc', {
+      forceRegenerate: false,
+      extraContext: undefined,
     })
   })
 
-  it('responde com mensagem de autorizado quando API retorna forbidden', async () => {
-    mocks.triggerStandup.mockResolvedValue(
-      Result.ok({ accepted: false, reason: 'forbidden' }),
-    )
-    const interaction = makeInteraction()
+  it('inclui force-regenerate e extra-context no request pendente', async () => {
+    mocks.createPendingTriggerRequest.mockReturnValue({ id: 'req-456' })
+    const interaction = makeInteraction({
+      forceRegenerateOption: true,
+      extraContextOption: 'focar no card 123',
+    })
 
     await handleTrigger(interaction, { apiBaseUrl: API_BASE_URL })
 
-    const [replyArg] = mocks.interactionReply.mock.calls[0] as [
-      { content: string; flags: number },
-    ]
-    expect(replyArg.content).toMatch(/nao esta autorizado/i)
+    expect(mocks.createPendingTriggerRequest).toHaveBeenCalledWith('user-abc', {
+      forceRegenerate: true,
+      extraContext: 'focar no card 123',
+    })
   })
 
-  it('responde com erro quando chamada ao API falha', async () => {
-    mocks.triggerStandup.mockResolvedValue(
-      Result.err(
-        new ExternalServiceError({
-          service: 'api',
-          message: 'HTTP 503',
-        }),
-      ),
-    )
-    const interaction = makeInteraction()
-
-    await handleTrigger(interaction, { apiBaseUrl: API_BASE_URL })
-
-    const [replyArg] = mocks.interactionReply.mock.calls[0] as [
-      { content: string; flags: number },
-    ]
-    expect(replyArg.content).toMatch(/falha ao disparar/i)
-  })
-
-  it('loga o userId do usuario que disparou o comando', async () => {
-    mocks.triggerStandup.mockResolvedValue(Result.ok({ accepted: true }))
+  it('loga userId e metadados das opcoes', async () => {
+    mocks.createPendingTriggerRequest.mockReturnValue({ id: 'req-789' })
     const interaction = makeInteraction({ userId: 'user-xyz' })
 
     await handleTrigger(interaction, { apiBaseUrl: API_BASE_URL })
 
     expect(mocks.loggerInfo).toHaveBeenCalledWith(
       expect.stringContaining('trigger'),
-      expect.objectContaining({ userId: 'user-xyz' }),
+      expect.objectContaining({
+        userId: 'user-xyz',
+        forceRegenerate: false,
+        hasExtraContext: false,
+      }),
     )
   })
 })

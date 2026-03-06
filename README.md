@@ -13,6 +13,21 @@ Monorepo com Turborepo para separar servicos independentes:
 bun install
 ```
 
+## Testar Local Com Bot de Dev
+
+1. Crie um bot de desenvolvimento no Discord Developer Portal.
+2. Convide no servidor de dev com scopes `bot` e `applications.commands`.
+3. Preencha os valores em `.env.local` (token do bot dev, guild, channel, user id).
+4. Rode os 3 servicos em terminais separados:
+
+```bash
+bun run dev:local:api
+bun run dev:local:worker
+bun run dev:local:bot
+```
+
+Com `DISCORD_GUILD_ID` preenchido, os slash commands propagam rapido para o servidor de dev.
+
 ## Comandos
 
 ```bash

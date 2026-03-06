@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun --env-file=../../.env --watch src/index.ts",
+    "dev:local": "bun --env-file=../../.env.local --watch src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target bun",
     "lint": "biome check src",
     "typecheck": "tsc --noEmit -p tsconfig.json",

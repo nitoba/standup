@@ -27,7 +27,19 @@ export function buildStandupCommand(): SlashCommandBuilder {
     .setName('standup')
     .setDescription('Gerenciar standups diários')
     .addSubcommand((sub) =>
-      sub.setName('trigger').setDescription('Gerar standup agora'),
+      sub
+        .setName('trigger')
+        .setDescription('Gerar standup agora')
+        .addBooleanOption((opt) =>
+          opt
+            .setName('force-regenerate')
+            .setDescription('Forca geracao mesmo se ja houve sucesso hoje'),
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('extra-context')
+            .setDescription('Contexto extra para orientar a geracao'),
+        ),
     )
     .addSubcommand((sub) =>
       sub

@@ -72,6 +72,21 @@ describe('buildStandupCommand', () => {
     expect(subNames).toContain('approve')
   })
 
+  it('subcommand trigger tem opcoes force-regenerate e extra-context', () => {
+    const cmd = buildStandupCommand()
+    const json = cmd.toJSON()
+    const options = json.options ?? []
+
+    const triggerSub = options.find((o) => o.name === 'trigger')
+    expect(triggerSub).toBeDefined()
+
+    // @ts-expect-error — toJSON() retorna estrutura genérica
+    const triggerOptions: unknown[] = triggerSub?.options ?? []
+    const names = (triggerOptions as Array<{ name: string }>).map((o) => o.name)
+    expect(names).toContain('force-regenerate')
+    expect(names).toContain('extra-context')
+  })
+
   it('subcommand list tem opção status com choices de status', () => {
     const cmd = buildStandupCommand()
     const json = cmd.toJSON()

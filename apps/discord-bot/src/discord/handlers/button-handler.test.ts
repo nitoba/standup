@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   handleStandupInteraction: vi.fn(),
   handleReminderInteraction: vi.fn(),
+  handleTriggerButtonInteraction: vi.fn(),
   loggerInfo: vi.fn(),
   loggerError: vi.fn(),
   withContextInfo: vi.fn(),
@@ -27,6 +28,10 @@ vi.mock('./interaction-handler.js', () => ({
 
 vi.mock('./reminder-handler.js', () => ({
   handleReminderInteraction: mocks.handleReminderInteraction,
+}))
+
+vi.mock('./trigger-handler.js', () => ({
+  handleTriggerButtonInteraction: mocks.handleTriggerButtonInteraction,
 }))
 
 import type { ButtonInteraction, Client } from 'discord.js'
@@ -85,6 +90,24 @@ describe('handleButtonInteraction', () => {
     expect(deferUpdate).not.toHaveBeenCalled()
     expect(mocks.handleStandupInteraction).not.toHaveBeenCalled()
     expect(editReply).not.toHaveBeenCalled()
+  })
+
+  it('delega standup-trigger:* para trigger-handler', async () => {
+    const { interaction, deferUpdate, editReply } = makeInteraction(
+      'standup-trigger:confirm:req-123',
+    )
+
+    await handleButtonInteraction(interaction, fakeClient, env)
+
+    expect(mocks.handleTriggerButtonInteraction).toHaveBeenCalledWith(
+      interaction,
+      'confirm',
+      'req-123',
+      { apiBaseUrl: 'http://localhost:3333' },
+    )
+    expect(deferUpdate).not.toHaveBeenCalled()
+    expect(editReply).not.toHaveBeenCalled()
+    expect(mocks.handleStandupInteraction).not.toHaveBeenCalled()
   })
 
   it('deferUpdate, delega interacao e responde com emoji de sucesso', async () => {

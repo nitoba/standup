@@ -12,6 +12,8 @@ import type { StandupAction } from './interaction-handler.js'
 import { handleStandupInteraction } from './interaction-handler.js'
 import type { ReminderAction } from './reminder-handler.js'
 import { handleReminderInteraction } from './reminder-handler.js'
+import type { TriggerAction } from './trigger-handler.js'
+import { handleTriggerButtonInteraction } from './trigger-handler.js'
 
 const logger = createServiceLogger({
   service: 'discord-bot',
@@ -88,6 +90,19 @@ export async function handleButtonInteraction(
       internalSecret: env.INTERNAL_SECRET,
       discordUserId: env.DISCORD_USER_ID,
     })
+    return
+  }
+
+  // Route standup-trigger:* to the trigger confirmation handler
+  if (namespace === 'standup-trigger') {
+    if (!standupId) return
+    const triggerAction = action as TriggerAction
+    await handleTriggerButtonInteraction(
+      interaction,
+      triggerAction,
+      standupId,
+      { apiBaseUrl: env.API_BASE_URL },
+    )
     return
   }
 

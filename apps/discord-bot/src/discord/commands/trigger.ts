@@ -1,10 +1,13 @@
 import { createServiceLogger } from '@standup/logger'
 import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   type ChatInputCommandInteraction,
   type InteractionReplyOptions,
   MessageFlags,
 } from 'discord.js'
-import { triggerStandup } from '../../services/trigger-standup-service.js'
+import { createPendingTriggerRequest } from '../handlers/trigger-request-store.js'
 
 const logger = createServiceLogger({
   service: 'discord-bot',
@@ -21,37 +24,49 @@ export interface TriggerCommandDeps {
 
 /**
  * Handler para /standup trigger.
- * Dispara POST /standups/trigger enviando o userId do Discord para autorizacao.
+ * Nao dispara imediatamente: pede confirmacao via botoes em mensagem ephemeral.
  */
 export async function handleTrigger(
   interaction: ChatInputCommandInteraction,
-  deps: TriggerCommandDeps,
+  _deps: TriggerCommandDeps,
 ): Promise<void> {
   const userId = interaction.user.id
+  const forceRegenerate =
+    interaction.options.getBoolean('force-regenerate') ?? false
+  const extraContext =
+    interaction.options.getString('extra-context') ?? undefined
 
-  logger.info('Received /standup trigger command', { userId })
+  logger.info('Received /standup trigger command', {
+    userId,
+    forceRegenerate,
+    hasExtraContext: !!extraContext,
+  })
 
-  const result = await triggerStandup(userId, { apiBaseUrl: deps.apiBaseUrl })
+  const request = createPendingTriggerRequest(userId, {
+    forceRegenerate,
+    extraContext,
+  })
 
-  if (result.isErr()) {
-    await interaction.reply(
-      ephemeral(
-        `Falha ao disparar o standup agora. Tente novamente em instantes.\n\nDetalhe: ${result.error.message}`,
-      ),
-    )
-    return
-  }
-
-  if (!result.value.accepted && result.value.reason === 'forbidden') {
-    await interaction.reply(
-      ephemeral('Voce nao esta autorizado a disparar o standup manualmente.'),
-    )
-    return
-  }
-
-  await interaction.reply(
-    ephemeral(
-      'Trigger manual enviado com sucesso. O job foi aceito e comecou a processar em background.',
-    ),
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`standup-trigger:confirm:${request.id}`)
+      .setLabel('Confirmar')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(`standup-trigger:cancel:${request.id}`)
+      .setLabel('Cancelar')
+      .setStyle(ButtonStyle.Secondary),
   )
+
+  const details = [
+    `- force-regenerate: ${forceRegenerate ? 'true' : 'false'}`,
+    `- extra-context: ${extraContext ? 'informado' : 'vazio'}`,
+  ].join('\n')
+
+  await interaction.reply({
+    ...ephemeral(
+      `Confirme a geracao manual do standup:\n${details}\n\nEsta confirmacao expira em 5 minutos.`,
+    ),
+    components: [row],
+  })
 }
