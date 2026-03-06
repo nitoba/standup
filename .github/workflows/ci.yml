@@ -173,20 +173,33 @@ jobs:
           EOF
           chmod 600 ~/.ssh/deploy_key
 
-          DEPLOY_IP="$(getent ahostsv4 "${{ secrets.DEPLOY_HOST }}" | awk '{print $1; exit}')"
+          touch ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+          DEPLOY_HOST="${{ secrets.DEPLOY_HOST }}"
+          DEPLOY_IP="$(getent ahostsv4 "$DEPLOY_HOST" | awk '{print $1; exit}')"
           echo "Resolved deploy host IP: ${DEPLOY_IP}"
 
-          ssh-keygen -R "${{ secrets.DEPLOY_HOST }}" -f ~/.ssh/known_hosts || true
-          if [ -n "${DEPLOY_IP}" ]; then
-            ssh-keygen -R "${DEPLOY_IP}" -f ~/.ssh/known_hosts || true
+          # Remove entradas antigas
+          ssh-keygen -R "$DEPLOY_HOST" -f ~/.ssh/known_hosts || true
+          ssh-keygen -R "$DEPLOY_IP" -f ~/.ssh/known_hosts || true
+          ssh-keygen -R "[$DEPLOY_HOST]:22" -f ~/.ssh/known_hosts || true
+          ssh-keygen -R "[$DEPLOY_IP]:22" -f ~/.ssh/known_hosts || true
+
+          # Remove também entrada no formato host,ip
+          if [ -n "$DEPLOY_IP" ]; then
+            grep -vE "^(\\|1\\|.*)?$" ~/.ssh/known_hosts > ~/.ssh/known_hosts.tmp || true
+            mv ~/.ssh/known_hosts.tmp ~/.ssh/known_hosts
           fi
 
-          ssh-keyscan -H -t ed25519,ecdsa,rsa "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
-          if [ -n "${DEPLOY_IP}" ]; then
-            ssh-keyscan -H -t ed25519,ecdsa,rsa "${DEPLOY_IP}" >> ~/.ssh/known_hosts 2>/dev/null
+          # Recria com host e IP atuais
+          ssh-keyscan -H -t ed25519,ecdsa,rsa "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          if [ -n "$DEPLOY_IP" ]; then
+            ssh-keyscan -H -t ed25519,ecdsa,rsa "$DEPLOY_IP" >> ~/.ssh/known_hosts 2>/dev/null
           fi
 
-          chmod 600 ~/.ssh/known_hosts
+          echo "Known hosts:"
+          cat ~/.ssh/known_hosts
 
       - name: Check remote host
         run: |
@@ -246,6 +259,16 @@ jobs:
               -e NODE_ENV=production \
               ghcr.io/nitoba/standup-migrate:sha-${{ env.DEPLOY_VERSION }}
           '
+
+      - name: Create SSH config for deploy
+        run: |
+          cat > ~/.ssh/config <<EOF
+          Host *
+            IdentityFile ~/.ssh/deploy_key
+            UserKnownHostsFile ~/.ssh/known_hosts
+            StrictHostKeyChecking yes
+          EOF
+          chmod 600 ~/.ssh/config
 
       - name: Deploy API
         run: |
