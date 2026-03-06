@@ -1,4 +1,4 @@
-import { loadEnv } from '@standup/config'
+import { loadBotEnv } from '@standup/config'
 import { Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import { Client, Events, GatewayIntentBits } from 'discord.js'
@@ -14,7 +14,7 @@ export async function startDiscordBot(): Promise<void> {
     component: 'gateway',
   })
 
-  const envResult = loadEnv()
+  const envResult = loadBotEnv()
   if (Result.isError(envResult)) {
     throw new Error(`Invalid environment: ${envResult.error.message}`)
   }

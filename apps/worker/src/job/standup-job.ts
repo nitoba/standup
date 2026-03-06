@@ -1,4 +1,4 @@
-import type { AppEnv } from '@standup/config'
+import type { WorkerEnv } from '@standup/config'
 import { getDb, JobRunRepository, StandupRepository } from '@standup/db'
 import {
   JobAlreadyCompletedError,
@@ -69,7 +69,7 @@ export interface StandupJobOptions {
 }
 
 export async function runStandupJob(
-  env: AppEnv,
+  env: WorkerEnv,
   options?: StandupJobOptions,
 ): Promise<void> {
   const runId = Bun.randomUUIDv7()

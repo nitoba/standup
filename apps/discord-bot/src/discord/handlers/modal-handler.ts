@@ -1,4 +1,4 @@
-import type { AppEnv } from '@standup/config'
+import type { BotEnv } from '@standup/config'
 import { createServiceLogger, withContext } from '@standup/logger'
 import type { Client, ModalSubmitInteraction } from 'discord.js'
 import {
@@ -26,7 +26,7 @@ const logger = createServiceLogger({
 export async function handleRegenerateModal(
   interaction: ModalSubmitInteraction,
   _client: Client,
-  env: Pick<AppEnv, 'DATABASE_URL' | 'DISCORD_CHANNEL_ID' | 'API_BASE_URL'>,
+  env: Pick<BotEnv, 'DATABASE_URL' | 'DISCORD_CHANNEL_ID' | 'API_BASE_URL'>,
 ): Promise<void> {
   const [namespace, standupId] = interaction.customId.split(':')
   if (namespace !== 'standup-regenerate-modal' || !standupId) return

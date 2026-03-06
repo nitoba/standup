@@ -2,7 +2,7 @@ import { DbError, NotFoundError } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import type { Client } from 'discord.js'
 import type { Context } from 'hono'
-import { z } from 'zod'
+import * as z from 'zod'
 import { notifyStandupReady } from '../../services/standup-notification-service.js'
 
 const logger = createServiceLogger({

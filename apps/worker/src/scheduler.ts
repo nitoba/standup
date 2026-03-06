@@ -1,4 +1,4 @@
-import type { AppEnv } from '@standup/config'
+import type { WorkerEnv } from '@standup/config'
 import { getDb, JobRunRepository } from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import { Cron } from 'croner'
@@ -21,7 +21,7 @@ const STALE_RUN_MAX_AGE_MS = 30 * 60 * 1000
  *
  * Returns the three Cron instances so callers can inspect nextRun or stop them.
  */
-export function startScheduler(env: AppEnv): {
+export function startScheduler(env: WorkerEnv): {
   standupCron: Cron
   reminderCron: Cron
   recoveryCron: Cron

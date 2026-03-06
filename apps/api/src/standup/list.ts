@@ -1,7 +1,7 @@
 import { StandupStatusSchema } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import type { Context } from 'hono'
-import { z } from 'zod'
+import * as z from 'zod'
 import { listStandups } from '../services/standup-service.js'
 
 const logger = createServiceLogger({

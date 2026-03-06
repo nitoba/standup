@@ -1,4 +1,4 @@
-import { loadEnv } from '@standup/config'
+import { loadApiEnv } from '@standup/config'
 import { Result } from '@standup/domain'
 import { createServiceLogger, withContext } from '@standup/logger'
 import { Hono } from 'hono'
@@ -11,7 +11,7 @@ type AppContext = {
   }
 }
 
-const envResult = loadEnv()
+const envResult = loadApiEnv()
 if (Result.isError(envResult)) {
   throw new Error(`Invalid environment: ${envResult.error.message}`)
 }

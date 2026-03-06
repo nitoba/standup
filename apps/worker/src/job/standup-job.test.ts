@@ -1,4 +1,4 @@
-import type { AppEnv } from '@standup/config'
+import type { WorkerEnv } from '@standup/config'
 import {
   ExternalServiceError,
   JobAlreadyCompletedError,
@@ -57,8 +57,9 @@ vi.mock('../notifications/notify-job-failed.js', () => ({
   notifyJobFailed: mocks.notifyJobFailed,
 }))
 
-// Mock Bun.sleep para evitar delays reais nos testes de retry
-vi.stubGlobal('Bun', {
+// Mock Bun.sleep para evitar delays reais nos testes de retry.
+// O setup do pacote já define globalThis.Bun; aqui só sobrescrevemos os métodos usados.
+Object.assign(globalThis.Bun, {
   randomUUIDv7: () => 'uuid-test',
   sleep: mocks.sleep,
 })
@@ -73,7 +74,7 @@ import { runStandupJob } from './standup-job.js'
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const baseEnv: AppEnv = {
+const baseEnv: WorkerEnv = {
   NODE_ENV: 'test',
   PORT: 3333,
   DATABASE_URL: ':memory:',
@@ -81,9 +82,6 @@ const baseEnv: AppEnv = {
   STANDUP_CRON: '30 17 * * 1-5',
   STANDUP_REMINDER_CRON: '20 17 * * 1-5',
   STANDUP_RECOVERY_CRON: '0 18 * * 1-5',
-  DISCORD_BOT_TOKEN: 'tok-bot',
-  DISCORD_CHANNEL_ID: 'ch-123',
-  DISCORD_USER_ID: 'usr-456',
   ANTHROPIC_AUTH_TOKEN: 'sk-test',
   AZURE_DEVOPS_ORG: 'ibsbiosistemico',
   AZURE_DEVOPS_PAT: 'pat-test',
@@ -92,10 +90,7 @@ const baseEnv: AppEnv = {
   GIT_AUTHOR: 'dev@example.com',
   GIT_SINCE_PERIOD: '16 hours ago',
   BOT_INTERNAL_URL: 'http://localhost:3334',
-  BOT_INTERNAL_PORT: 3334,
-  WORKER_INTERNAL_URL: 'http://localhost:3335',
   WORKER_INTERNAL_PORT: 3335,
-  API_BASE_URL: 'http://localhost:3333',
   INTERNAL_SECRET: 'test-secret',
 }
 

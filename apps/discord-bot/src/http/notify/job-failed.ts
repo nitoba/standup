@@ -1,7 +1,7 @@
 import { createServiceLogger } from '@standup/logger'
 import type { Client } from 'discord.js'
 import type { Context } from 'hono'
-import { z } from 'zod'
+import * as z from 'zod'
 import { notifyJobFailed } from '../../services/job-notification-service.js'
 
 const logger = createServiceLogger({

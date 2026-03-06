@@ -1,5 +1,5 @@
 import { LabelBuilder } from '@discordjs/builders'
-import type { AppEnv } from '@standup/config'
+import type { BotEnv } from '@standup/config'
 import { createServiceLogger, withContext } from '@standup/logger'
 import {
   type ButtonInteraction,
@@ -65,7 +65,7 @@ async function showRegenerateModal(
 export async function handleButtonInteraction(
   interaction: ButtonInteraction,
   client: Client,
-  env: Pick<AppEnv, 'DATABASE_URL' | 'DISCORD_CHANNEL_ID'>,
+  env: Pick<BotEnv, 'DATABASE_URL' | 'DISCORD_CHANNEL_ID'>,
 ): Promise<void> {
   const [namespace, action, standupId] = interaction.customId.split(':')
   if (namespace !== 'standup' || !standupId) return

@@ -1,4 +1,4 @@
-import { loadEnv } from '@standup/config'
+import { loadWorkerEnv } from '@standup/config'
 import { Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import { createInternalRouter } from './http/router.js'
@@ -11,7 +11,7 @@ const logger = createServiceLogger({
 })
 
 function bootstrap() {
-  const envResult = loadEnv()
+  const envResult = loadWorkerEnv()
   if (Result.isError(envResult)) {
     throw new Error(`Invalid environment: ${envResult.error.message}`)
   }

@@ -1,4 +1,4 @@
-import type { AppEnv } from '@standup/config'
+import type { BotEnv } from '@standup/config'
 import { createServiceLogger, withContext } from '@standup/logger'
 import type { ChatInputCommandInteraction, Client } from 'discord.js'
 import { handleApproveCommand } from '../commands/approve.js'
@@ -19,7 +19,7 @@ const logger = createServiceLogger({
 export async function handleSlashCommand(
   interaction: ChatInputCommandInteraction,
   client: Client,
-  env: Pick<AppEnv, 'DATABASE_URL' | 'DISCORD_CHANNEL_ID' | 'API_BASE_URL'>,
+  env: Pick<BotEnv, 'DATABASE_URL' | 'DISCORD_CHANNEL_ID' | 'API_BASE_URL'>,
 ): Promise<void> {
   if (interaction.commandName !== 'standup') return
 
