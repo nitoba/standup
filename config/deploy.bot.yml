@@ -20,7 +20,7 @@ registry:
 servers:
   web:
     hosts:
-      - nitoba-mac.tail2ee1d6.ts.net
+      - colima.tail2ee1d6.ts.net
     options:
       publish:
         - "3334:3334"
