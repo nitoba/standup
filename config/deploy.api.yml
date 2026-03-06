@@ -1,7 +1,7 @@
 # Kamal deploy config — standup-api
 #
 # Hono HTTP API: health checks, standup CRUD, manual triggers.
-# This is the only service with a public-facing kamal-proxy (api.nitoba.com.br).
+# This is the only service with a public-facing kamal-proxy (api.nitodev.com.br).
 # Port 3333 is also published on the host for internal container-to-container traffic.
 #
 # Usage:
@@ -27,7 +27,7 @@ builder:
   arch: arm64
 
 proxy:
-  host: api.nitoba.com.br
+  host: api.nitodev.com.br
   app_port: 3333
   forward_headers: true
   healthcheck:

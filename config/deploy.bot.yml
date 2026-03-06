@@ -48,7 +48,7 @@ env:
     NODE_ENV: production
     BOT_INTERNAL_PORT: "3334"
     DATABASE_URL: /app/data/standup.db
-    API_BASE_URL: https://api.nitoba.com.br
+    API_BASE_URL: https://api.nitodev.com.br
     WORKER_INTERNAL_URL: http://host.docker.internal:3335
   secret:
     - DISCORD_BOT_TOKEN

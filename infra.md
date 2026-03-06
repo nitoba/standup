@@ -119,7 +119,7 @@ standup/
   .kamal/
     secrets              # Secrets do Kamal (gitignored) — usa $VAR substitution
   config/
-    deploy.api.yml       # API — com kamal-proxy (api.nitoba.com.br)
+    deploy.api.yml       # API — com kamal-proxy (api.nitodev.com.br)
     deploy.bot.yml       # Discord bot — sem proxy, porta 3334 no host
     deploy.worker.yml    # Worker — sem proxy, porta 3335 no host + volumes
 ```
@@ -128,7 +128,7 @@ standup/
 
 | App    | Service name     | Proxy       | Porta no host   | Hostname publico    |
 | ------ | ---------------- | ----------- | --------------- | ------------------- |
-| API    | `standup-api`    | kamal-proxy | via proxy (:80) | `api.nitoba.com.br` |
+| API    | `standup-api`    | kamal-proxy | via proxy (:80) | `api.nitodev.com.br` |
 | Bot    | `standup-bot`    | nenhum      | 3334            | nenhum (interno)    |
 | Worker | `standup-worker` | nenhum      | 3335            | nenhum (interno)    |
 
@@ -142,7 +142,7 @@ As URLs internas (`BOT_INTERNAL_URL`, `WORKER_INTERNAL_URL`, `API_BASE_URL`) dev
 | API → Bot    | endpoint interno do Colima         | notificacoes, DMs                             |
 | API → Worker | endpoint interno do Colima         | trigger manual                                |
 | Worker → Bot | endpoint interno do Colima         | standup-ready, job-failed                     |
-| Bot → API    | `https://api.nitoba.com.br`        | slash commands (via Cloudflare → kamal-proxy) |
+| Bot → API    | `https://api.nitodev.com.br`       | slash commands (via Cloudflare → kamal-proxy) |
 
 ### Volumes
 
@@ -258,7 +258,7 @@ tunnel: <UUID_DO_TUNNEL>
 credentials-file: /Users/nitoba/.cloudflared/<UUID_DO_TUNNEL>.json
 
 ingress:
-  - hostname: api.nitoba.com.br
+  - hostname: api.nitodev.com.br
     service: http://<COLIMA_ENDPOINT>:80
 
   - service: http_status:404
@@ -286,7 +286,7 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 
 ## Seguranca
 
-- **API** (`api.nitoba.com.br`): unico servico publico. Protegido por Cloudflare WAF/rate limiting.
+- **API** (`api.nitodev.com.br`): unico servico publico. Protegido por Cloudflare WAF/rate limiting.
 - **Bot** (porta 3334): interno, acessivel apenas via rede/host do Colima e Tailscale.
 - **Worker** (porta 3335): interno, acessivel apenas via rede/host do Colima e Tailscale.
 - **SSH**: apenas via Tailscale (chave Ed25519, sem senha).
