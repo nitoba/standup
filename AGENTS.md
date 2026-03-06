@@ -611,7 +611,7 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 
 ### Apps completos
 
-- `apps/api` — 23 testes (vitest)
+- `apps/api` — 25 testes (vitest)
   - `standup/router.ts`: `createStandupRouter(opts)` — 4 rotas
     - `GET /standups` — lista com filtros opcionais `?status=&date=`
     - `GET /standups/:id` — detalhe por ID
@@ -624,7 +624,7 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
   - middleware HTTP extraido: `http/middleware.ts`
   - `index.ts`: entrypoint — middleware logging, health, monta standup router
 
-- `apps/worker` — 37 testes (vitest)
+- `apps/worker` — 42 testes (vitest)
   - `job/standup-job.ts`: pipeline com lock + retry + idempotencia + notify
   - `http/router.ts`: auth middleware + POST /internal/trigger/standup + /reminder/snooze + /reminder/cancel
   - handlers por responsabilidade: `http/trigger/standup.ts`, `http/reminder/snooze.ts`, `http/reminder/cancel.ts`
@@ -635,7 +635,7 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
   - `scheduler.ts`: startScheduler() — ReminderState + standupCron (checa snooze/cancel) + reminderCron (notifica bot) + recoveryCron (Padrao 5)
   - `index.ts`: entrypoint puro (scheduler + HTTP interno)
 
-- `apps/discord-bot` — 76 testes (vitest)
+- `apps/discord-bot` — 77 testes (vitest)
   - `http/router.ts`: auth middleware + POST /internal/notify/standup-ready + /job-failed + /standup-reminder
   - handlers por responsabilidade: `http/notify/standup-ready.ts`, `http/notify/job-failed.ts`, `http/notify/standup-reminder.ts`
   - middleware extraido: `http/middleware/auth.ts`
@@ -670,14 +670,14 @@ Bot envia DM com embed ambar + 3 botoes (`standup-reminder:run-now/snooze/cancel
 ~~2. **Graceful degradation quando Azure DevOps MCP falha**~~
 **CONCLUIDO.** `generateStandup()` agora tem retry interno (2 tentativas para MCP, 3 para LLM)
 e fallback gracioso para dados git brutos quando MCP falha. O retry externo dead code foi
-removido do `standup-job.ts`. Testes: 23 (standup-generator) + 37 (worker), todos verdes.
+removido do `standup-job.ts`. Testes: 23 (standup-generator) + 42 (worker), todos verdes.
 
 ### Media prioridade — Qualidade e resiliencia
 
 ~~1. **Health endpoint no bot e worker**~~
 **CONCLUIDO.** `GET /health` adicionado nos routers Hono de `apps/worker` e `apps/discord-bot`,
 fora do scope `/internal/*` (sem auth), retornando `{ status: "ok", service: "worker"|"discord-bot", uptimeSeconds: number }`.
-Testes adicionados em ambos os `router.test.ts`. Contagens: worker=38, discord-bot=77, todos verdes.
+Testes adicionados em ambos os `router.test.ts`. Contagens atuais: worker=42, discord-bot=77, todos verdes.
 
 ~~2. **Refatorar `azure-mcp-client.ts` para usar Result pattern**~~
 **CONCLUIDO.** Todos os 5 metodos publicos (`connect`, `callTool`, `getMe`, `getWorkItem`, `listPullRequests`)
@@ -686,20 +686,22 @@ refatorados para `Result.tryPromise`. O `disconnect()` manteve try/catch vazio i
 
 ### Baixa prioridade — Polimento
 
-3. **Remover transicao dead code `approved -> draft` da state machine**
-   A state machine permite `approved -> draft` mas nenhum handler usa essa transicao.
-   Remover de `packages/domain` ou, se for intencional para futuro, documentar o caso de uso.
+~~3. **Remover transicao dead code `approved -> draft` da state machine**~~
+**CONCLUIDO.** `ALLOWED_TRANSITIONS.approved` passou de `['published', 'draft']` para `['published']`.
+Nenhum teste cobria essa transicao; nenhum handler a usava. CI: 33/33 verde.
 
-4. **Usar `.is()` dos TaggedErrors no retry predicate**
-   Em `standup-job.ts`, o retry predicate usa cast unsafe `(err as { _tag?: string })._tag`.
-   Substituir por `LlmTemporaryError.is(err) || McpConnectionError.is(err)` que ja existe.
+~~4. **Usar `.is()` dos TaggedErrors no retry predicate**~~
+**CONCLUIDO (ja estava resolvido).** O `withRetry()` com cast unsafe `(err as { _tag?: string })._tag`
+foi removido quando o retry migrou para dentro de `generateStandup()`. Nao ha mais ocorrencias
+de `._tag` em `apps/worker` ou `packages/standup-generator`. Os checks de lock em `standup-job.ts`
+ja usam `LockAlreadyHeldError.is()` e `JobAlreadyCompletedError.is()` corretamente.
 
-5. **Testes de integracao entre servicos**
-   Todos os 170+ testes sao unitarios com mocks. Adicionar pelo menos um smoke test por
-   path de comunicacao HTTP:
-   - Worker -> Bot (`POST /internal/notify/standup-ready`)
-   - Worker -> Bot (`POST /internal/notify/standup-reminder`)
-   - API -> Worker (`POST /internal/trigger/standup`)
-   - Bot -> Worker (`POST /internal/reminder/snooze` e `/cancel`)
-   Podem ser testes que sobem os routers Hono reais (sem mocks de HTTP) e validam
-   request/response contracts.
+~~5. **Testes de integracao entre servicos**~~
+**CONCLUIDO.** Smoke tests de contrato HTTP adicionados em
+`apps/worker/src/integration/service-contracts.test.js`, cobrindo os 4 paths:
+- Worker -> Bot (`POST /internal/notify/standup-ready`)
+- Worker -> Bot (`POST /internal/notify/standup-reminder`)
+- API -> Worker (`POST /internal/trigger/standup`)
+- Bot -> Worker (`POST /internal/reminder/snooze` e `/cancel`)
+Os testes sobem routers Hono reais via servidor HTTP local de teste e validam os contracts
+request/response entre sender e receiver. CI: 33/33 verde.

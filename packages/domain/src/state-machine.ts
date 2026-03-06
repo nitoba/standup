@@ -5,7 +5,7 @@ import type { StandupStatus } from './types'
 const ALLOWED_TRANSITIONS: Record<StandupStatus, StandupStatus[]> = {
   draft: ['pending_review'],
   pending_review: ['approved', 'rejected', 'draft'],
-  approved: ['published', 'draft'],
+  approved: ['published'],
   rejected: ['draft'],
   published: [],
 }
