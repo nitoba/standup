@@ -1,14 +1,17 @@
 # Kamal deploy config — standup-worker
 #
 # Cron scheduler + standup job pipeline + internal HTTP trigger.
-# No public proxy — port 3335 is published directly on the host for internal traffic only.
+# No public proxy — uses Docker network alias for internal traffic.
 # The worker needs read-only access to git repositories on the host for commit collection.
+#
+# No published ports: other containers reach this service via the "standup-worker"
+# network alias on the shared "kamal" Docker network. This avoids port conflicts
+# during redeploys (Kamal renames but doesn't stop the old container before starting the new one).
 #
 # Usage:
 #   kamal deploy -c config/deploy.worker.yml
 #   kamal app logs -c config/deploy.worker.yml
 
-# config/deploy.worker.yml
 service: standup-worker
 image: nitoba/standup-worker
 
@@ -23,8 +26,8 @@ servers:
     hosts:
       - colima.tail2ee1d6.ts.net
     options:
-      publish:
-        - "127.0.0.1:3335:3335"
+      network-alias:
+        - standup-worker
 
     proxy: false
 
@@ -49,7 +52,7 @@ env:
     NODE_ENV: production
     WORKER_INTERNAL_PORT: "3335"
     DATABASE_URL: /app/data/standup.db
-    BOT_INTERNAL_URL: http://host.docker.internal:3334
+    BOT_INTERNAL_URL: http://standup-bot:3334
     REPOS_BASE_PATH: /repos
     GIT_AUTHOR: bruno.alves@biosistemico.com.br
     GIT_SINCE_PERIOD: "16 hours ago"

@@ -1,14 +1,17 @@
 # Kamal deploy config — standup-bot (Discord bot)
 #
 # Discord gateway + internal HTTP server for worker notifications.
-# No public proxy — port 3334 is published directly on the host for internal traffic only.
+# No public proxy — uses Docker network alias for internal traffic.
 # The Discord bot connects outbound to Discord's gateway (no inbound public traffic needed).
+#
+# No published ports: other containers reach this service via the "standup-bot"
+# network alias on the shared "kamal" Docker network. This avoids port conflicts
+# during redeploys (Kamal renames but doesn't stop the old container before starting the new one).
 #
 # Usage:
 #   kamal deploy -c config/deploy.bot.yml
 #   kamal app logs -c config/deploy.bot.yml
 
-# config/deploy.bot.yml
 service: standup-bot
 image: nitoba/standup-bot
 
@@ -23,8 +26,8 @@ servers:
     hosts:
       - colima.tail2ee1d6.ts.net
     options:
-      publish:
-        - "127.0.0.1:3334:3334"
+      network-alias:
+        - standup-bot
 
     proxy: false
 
@@ -49,7 +52,7 @@ env:
     BOT_INTERNAL_PORT: "3334"
     DATABASE_URL: /app/data/standup.db
     API_BASE_URL: https://api.nitodev.com.br
-    WORKER_INTERNAL_URL: http://host.docker.internal:3335
+    WORKER_INTERNAL_URL: http://standup-worker:3335
   secret:
     - DISCORD_BOT_TOKEN
     - DISCORD_CHANNEL_ID
