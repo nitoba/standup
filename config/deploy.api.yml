@@ -13,7 +13,7 @@ image: ghcr.io/nitoba/standup-api
 
 servers:
   web:
-    - nitoba-mac.tail2ee1d6.ts.net
+    - colima.tail2ee1d6.ts.net
 
 registry:
   server: ghcr.io
