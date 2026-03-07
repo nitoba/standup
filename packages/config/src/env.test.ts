@@ -30,7 +30,6 @@ describe('env loaders', () => {
 
   it('loadWorkerEnv does not require Discord bot token', () => {
     const result = loadWorkerEnv({
-      DISCORD_USER_ID: 'user-123',
       AI_PROVIDER_API_KEY: 'provider-key',
       AZURE_DEVOPS_ORG: 'org',
       AZURE_DEVOPS_PAT: 'pat',
@@ -41,7 +40,6 @@ describe('env loaders', () => {
 
   it('returns a ValidationError with the failing field', () => {
     const result = loadWorkerEnv({
-      DISCORD_USER_ID: 'user-123',
       AZURE_DEVOPS_ORG: 'org',
       AZURE_DEVOPS_PAT: 'pat',
     })

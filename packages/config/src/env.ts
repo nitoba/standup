@@ -29,20 +29,10 @@ const botEnvSchema = baseEnvSchema.extend({
 })
 
 const workerEnvSchema = baseEnvSchema.extend({
-  DISCORD_USER_ID: z.string().min(1), // Cron fallback — Phase 2b will remove this
-  TIMEZONE: z.string().default('America/Sao_Paulo'),
-  STANDUP_CRON: z.string().default('30 17 * * 1-5'),
-  STANDUP_REMINDER_CRON: z.string().default('20 17 * * 1-5'),
-  // Recovery cron — roda X minutos após o principal como safety net (Padrão 5 do Akita)
-  // Default: 18:00 nos dias úteis (30 min após o cron principal das 17:30)
-  STANDUP_RECOVERY_CRON: z.string().default('0 18 * * 1-5'),
   AI_PROVIDER_API_KEY: z.string().min(1),
   AZURE_DEVOPS_ORG: z.string().min(1),
   AZURE_DEVOPS_PAT: z.string().min(1),
   AZURE_DEVOPS_DEFAULT_PROJECT: z.string().default('AGROTRACE'),
-  REPOS_BASE_PATH: z.string().default('/home/nitoba/Documents/repos/ibs/repos'),
-  GIT_AUTHOR: z.string().default('bruno.alves@biosistemico.com.br'),
-  GIT_SINCE_PERIOD: z.string().default('16 hours ago'),
   BOT_INTERNAL_URL: z.string().default('http://localhost:3334'),
   WORKER_INTERNAL_PORT: z.coerce.number().int().positive().default(3335),
 })

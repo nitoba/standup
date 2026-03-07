@@ -192,6 +192,7 @@ describe('Cross-service HTTP contracts', () => {
         botInternalUrl: server.baseUrl,
         secret: INTERNAL_SECRET,
         nextRunAt,
+        discordUserId: 'discord-user-1',
       })
 
       expect(result.isOk()).toBe(true)
