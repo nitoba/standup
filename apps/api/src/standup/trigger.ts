@@ -1,4 +1,4 @@
-import { UserRepository, UserSettingsRepository, getDb } from '@standup/db'
+import { getDb, UserRepository, UserSettingsRepository } from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import type { Context } from 'hono'
 import * as z from 'zod'
@@ -65,7 +65,10 @@ export async function handleTriggerStandup(
   const settingsResult = settingsRepo.findByUserId(userId)
   if (settingsResult.isErr() || !settingsResult.value) {
     return c.json(
-      { error: 'User settings not found. Configure via /standup settings first.' },
+      {
+        error:
+          'User settings not found. Configure via /standup settings first.',
+      },
       400,
     )
   }
