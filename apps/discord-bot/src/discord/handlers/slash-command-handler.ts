@@ -1,6 +1,7 @@
 import type { BotEnv } from '@standup/config'
 import { createServiceLogger, withContext } from '@standup/logger'
 import type { ChatInputCommandInteraction, Client } from 'discord.js'
+import { requireAuth } from '../auth/require-auth.js'
 import { handleApproveCommand } from '../commands/approve.js'
 import { handleList } from '../commands/list.js'
 import { handleServices } from '../commands/services.js'
@@ -12,10 +13,22 @@ const logger = createServiceLogger({
   component: 'slash-command-handler',
 })
 
+/** Subcommands that require authentication. */
+const AUTH_REQUIRED_SUBCOMMANDS = new Set([
+  'trigger',
+  'list',
+  'approve',
+  'services',
+])
+
 /**
  * Routes /standup subcommands to their respective handlers.
  * Only handles the 'standup' command — ignores everything else.
  * Padrão 13 do Akita: Application Commands bridge.
+ *
+ * Auth guard: subcommands in AUTH_REQUIRED_SUBCOMMANDS check if the
+ * Discord user is registered before proceeding. Unregistered users
+ * get an ephemeral message with a login link.
  */
 export async function handleSlashCommand(
   interaction: ChatInputCommandInteraction,
@@ -36,6 +49,15 @@ export async function handleSlashCommand(
     command: `standup ${sub}`,
     userId: interaction.user.id,
   }).info('Received slash command')
+
+  // Auth guard for protected subcommands
+  if (AUTH_REQUIRED_SUBCOMMANDS.has(sub)) {
+    const isAuthed = await requireAuth(interaction, {
+      databaseUrl: env.DATABASE_URL,
+      apiBaseUrl: env.API_BASE_URL,
+    })
+    if (!isAuthed) return
+  }
 
   if (sub === 'trigger') {
     await handleTrigger(interaction, { apiBaseUrl: env.API_BASE_URL })

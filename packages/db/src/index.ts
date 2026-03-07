@@ -10,11 +10,23 @@ export type {
   ListStandupFilters,
 } from './repositories/standup.js'
 export { StandupRepository } from './repositories/standup.js'
+export type { UserWithAccount } from './repositories/user.js'
+export { UserRepository } from './repositories/user.js'
 export type {
+  AccountRow,
   JobRunRow,
   NewJobRunRow,
   NewStandupRow,
+  SessionRow,
   StandupRow,
+  UserRow,
 } from './schema.js'
 // Schema
-export { jobRuns, standups } from './schema.js'
+export {
+  account,
+  jobRuns,
+  session,
+  standups,
+  user,
+  verification,
+} from './schema.js'
