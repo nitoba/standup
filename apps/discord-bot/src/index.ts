@@ -7,6 +7,7 @@ import { handleAdjustModal } from './discord/handlers/adjust-modal-handler.js'
 import { handleApproveModal } from './discord/handlers/approve-modal-handler.js'
 import { handleButtonInteraction } from './discord/handlers/button-handler.js'
 import { handleRegenerateModal } from './discord/handlers/modal-handler.js'
+import { handleSettingsModal } from './discord/handlers/settings-modal-handler.js'
 import { handleSlashCommand } from './discord/handlers/slash-command-handler.js'
 import { createInternalRouter } from './http/router.js'
 
@@ -39,7 +40,6 @@ export async function startDiscordBot(): Promise<void> {
     internalSecret: env.INTERNAL_SECRET,
     databaseUrl: env.DATABASE_URL,
     client,
-    discordUserId: env.DISCORD_USER_ID,
     discordChannelId: env.DISCORD_CHANNEL_ID,
     workerInternalUrl: env.WORKER_INTERNAL_URL,
   })
@@ -75,6 +75,10 @@ export async function startDiscordBot(): Promise<void> {
       }
 
       if (interaction.isModalSubmit()) {
+        if (interaction.customId === 'settings-modal:edit') {
+          await handleSettingsModal(interaction, env)
+          return
+        }
         if (interaction.customId.startsWith('standup-approve-modal:')) {
           await handleApproveModal(interaction, client, env)
           return

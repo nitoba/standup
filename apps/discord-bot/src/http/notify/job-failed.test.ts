@@ -34,7 +34,6 @@ import { createInternalRouter } from '../router.js'
 
 const INTERNAL_SECRET = 'test-secret'
 const DATABASE_URL = ':memory:'
-const DISCORD_USER_ID = 'user-123'
 const DISCORD_CHANNEL_ID = 'channel-456'
 const fakeClient = {} as unknown as Client
 
@@ -64,7 +63,6 @@ describe('POST /internal/notify/job-failed', () => {
       internalSecret: INTERNAL_SECRET,
       databaseUrl: DATABASE_URL,
       client: fakeClient,
-      discordUserId: DISCORD_USER_ID,
       discordChannelId: DISCORD_CHANNEL_ID,
       workerInternalUrl: 'http://localhost:3335',
     })

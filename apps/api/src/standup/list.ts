@@ -28,9 +28,10 @@ export async function handleListStandups(
   c: Context,
   query: ListQuery,
   databaseUrl: string,
+  userId: string,
 ): Promise<Response> {
   const result = await listStandups(
-    { status: query.status, date: query.date },
+    { status: query.status, date: query.date, userId },
     { databaseUrl },
   )
 

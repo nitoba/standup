@@ -27,7 +27,28 @@ vi.mock(
   }),
 )
 
+const dbMocks = vi.hoisted(() => ({
+  findUserIdByDiscordId: vi.fn(),
+  updateSnoozedUntil: vi.fn(),
+  updateCancelledDate: vi.fn(),
+}))
+
+vi.mock('@standup/db', () => ({
+  getDb: vi.fn(),
+  UserRepository: function UserRepository() {
+    return { findUserIdByDiscordId: dbMocks.findUserIdByDiscordId }
+  },
+  UserSettingsRepository: function UserSettingsRepository() {
+    return {
+      updateSnoozedUntil: dbMocks.updateSnoozedUntil,
+      updateCancelledDate: dbMocks.updateCancelledDate,
+    }
+  },
+}))
+
 const INTERNAL_SECRET = 'test-secret'
+const TEST_USER_ID = 'test-user-1'
+const TEST_DISCORD_USER_ID = 'discord-user-1'
 
 function readRequestBody(req) {
   return new Promise((resolve, reject) => {
@@ -127,7 +148,6 @@ describe('Cross-service HTTP contracts', () => {
       internalSecret: INTERNAL_SECRET,
       databaseUrl: ':memory:',
       client: {},
-      discordUserId: 'discord-user-1',
       discordChannelId: 'discord-channel-1',
       workerInternalUrl: 'http://localhost:3335',
     })
@@ -137,6 +157,7 @@ describe('Cross-service HTTP contracts', () => {
       const result = await notifyStandupReady({
         botInternalUrl: server.baseUrl,
         standupId: 'standup-123',
+        discordUserId: TEST_DISCORD_USER_ID,
         secret: INTERNAL_SECRET,
       })
 
@@ -144,7 +165,7 @@ describe('Cross-service HTTP contracts', () => {
       expect(mocks.notifyStandupReady).toHaveBeenCalledWith('standup-123', {
         databaseUrl: ':memory:',
         client: {},
-        discordUserId: 'discord-user-1',
+        discordUserId: TEST_DISCORD_USER_ID,
       })
     } finally {
       await server.close()
@@ -158,7 +179,6 @@ describe('Cross-service HTTP contracts', () => {
       internalSecret: INTERNAL_SECRET,
       databaseUrl: ':memory:',
       client: {},
-      discordUserId: 'discord-user-1',
       discordChannelId: 'discord-channel-1',
       workerInternalUrl: 'http://localhost:3335',
     })
@@ -170,6 +190,7 @@ describe('Cross-service HTTP contracts', () => {
         botInternalUrl: server.baseUrl,
         secret: INTERNAL_SECRET,
         nextRunAt,
+        discordUserId: 'discord-user-1',
       })
 
       expect(result.isOk()).toBe(true)
@@ -188,11 +209,8 @@ describe('Cross-service HTTP contracts', () => {
     const triggerStandupJob = vi.fn().mockResolvedValue(undefined)
     const workerApp = createWorkerRouter({
       internalSecret: INTERNAL_SECRET,
+      databaseUrl: ':memory:',
       triggerStandupJob,
-      reminderState: {
-        snoozedUntil: null,
-        cancelledDate: null,
-      },
     })
 
     const server = await startHonoServer(workerApp)
@@ -203,6 +221,11 @@ describe('Cross-service HTTP contracts', () => {
           internalSecret: INTERNAL_SECRET,
         },
         {
+          userId: TEST_USER_ID,
+          discordUserId: TEST_DISCORD_USER_ID,
+          reposBasePath: '/tmp/repos',
+          gitAuthor: 'dev@example.com',
+          gitSincePeriod: '16 hours ago',
           extraContext: 'focar em PR review',
           forceRegenerate: true,
         },
@@ -210,6 +233,11 @@ describe('Cross-service HTTP contracts', () => {
 
       expect(result.isOk()).toBe(true)
       expect(triggerStandupJob).toHaveBeenCalledWith({
+        userId: TEST_USER_ID,
+        discordUserId: TEST_DISCORD_USER_ID,
+        reposBasePath: '/tmp/repos',
+        gitAuthor: 'dev@example.com',
+        gitSincePeriod: '16 hours ago',
         extraContext: 'focar em PR review',
         forceRegenerate: true,
       })
@@ -219,13 +247,15 @@ describe('Cross-service HTTP contracts', () => {
   })
 
   it('bot -> worker: actions snooze/cancel usam contratos aceitos pelo router do worker', async () => {
+    // Mock DB lookups for the reminder handler
+    dbMocks.findUserIdByDiscordId.mockReturnValue(Result.ok(TEST_USER_ID))
+    dbMocks.updateSnoozedUntil.mockResolvedValue(Result.ok(undefined))
+    dbMocks.updateCancelledDate.mockResolvedValue(Result.ok(undefined))
+
     const workerApp = createWorkerRouter({
       internalSecret: INTERNAL_SECRET,
+      databaseUrl: ':memory:',
       triggerStandupJob: vi.fn().mockResolvedValue(undefined),
-      reminderState: {
-        snoozedUntil: null,
-        cancelledDate: null,
-      },
     })
 
     const server = await startHonoServer(workerApp)
@@ -239,7 +269,8 @@ describe('Cross-service HTTP contracts', () => {
         workerInternalUrl: server.baseUrl,
         apiBaseUrl: 'http://localhost:3333',
         internalSecret: INTERNAL_SECRET,
-        discordUserId: 'discord-user-1',
+        discordUserId: TEST_DISCORD_USER_ID,
+        databaseUrl: ':memory:',
       })
 
       expect(snoozeInteraction.deferUpdate).toHaveBeenCalledTimes(1)
@@ -257,7 +288,8 @@ describe('Cross-service HTTP contracts', () => {
         workerInternalUrl: server.baseUrl,
         apiBaseUrl: 'http://localhost:3333',
         internalSecret: INTERNAL_SECRET,
-        discordUserId: 'discord-user-1',
+        discordUserId: TEST_DISCORD_USER_ID,
+        databaseUrl: ':memory:',
       })
 
       expect(cancelInteraction.deferUpdate).toHaveBeenCalledTimes(1)

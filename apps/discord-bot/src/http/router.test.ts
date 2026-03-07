@@ -37,7 +37,6 @@ function makeRouter() {
     internalSecret: INTERNAL_SECRET,
     databaseUrl: ':memory:',
     client: fakeClient,
-    discordUserId: 'user-123',
     discordChannelId: 'channel-456',
     workerInternalUrl: 'http://localhost:3335',
   })

@@ -24,8 +24,9 @@ describe('triggerStandup', () => {
   it('retorna accepted=true quando API responde 202', async () => {
     mockFetch.mockResolvedValue(response(202))
 
-    const result = await triggerStandup('user-123', {
+    const result = await triggerStandup('test-user-1', 'user-123', {
       apiBaseUrl: 'http://localhost:3333',
+      internalSecret: 'test-secret',
     })
 
     expect(result.isOk()).toBe(true)
@@ -37,11 +38,17 @@ describe('triggerStandup', () => {
       'http://localhost:3333/standups/trigger',
       {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          'x-internal-secret': 'test-secret',
+        },
         body: JSON.stringify({
+          userId: 'test-user-1',
           discordUserId: 'user-123',
           extraContext: undefined,
           forceRegenerate: undefined,
+          rewriteFromStandupId: undefined,
+          rewriteInstruction: undefined,
         }),
       },
     )
@@ -51,8 +58,9 @@ describe('triggerStandup', () => {
     mockFetch.mockResolvedValue(response(202))
 
     const result = await triggerStandup(
+      'test-user-1',
       'user-123',
-      { apiBaseUrl: 'http://localhost:3333' },
+      { apiBaseUrl: 'http://localhost:3333', internalSecret: 'test-secret' },
       { extraContext: 'focar no card #123', forceRegenerate: true },
     )
 
@@ -61,8 +69,12 @@ describe('triggerStandup', () => {
       'http://localhost:3333/standups/trigger',
       {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          'x-internal-secret': 'test-secret',
+        },
         body: JSON.stringify({
+          userId: 'test-user-1',
           discordUserId: 'user-123',
           extraContext: 'focar no card #123',
           forceRegenerate: true,
@@ -77,8 +89,9 @@ describe('triggerStandup', () => {
     mockFetch.mockResolvedValue(response(202))
 
     const result = await triggerStandup(
+      'test-user-1',
       'user-123',
-      { apiBaseUrl: 'http://localhost:3333' },
+      { apiBaseUrl: 'http://localhost:3333', internalSecret: 'test-secret' },
       {
         forceRegenerate: true,
         rewriteFromStandupId: 'standup-abc',
@@ -91,8 +104,12 @@ describe('triggerStandup', () => {
       'http://localhost:3333/standups/trigger',
       {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          'x-internal-secret': 'test-secret',
+        },
         body: JSON.stringify({
+          userId: 'test-user-1',
           discordUserId: 'user-123',
           extraContext: undefined,
           forceRegenerate: true,
@@ -106,8 +123,9 @@ describe('triggerStandup', () => {
   it('retorna forbidden quando API responde 403', async () => {
     mockFetch.mockResolvedValue(response(403))
 
-    const result = await triggerStandup('user-123', {
+    const result = await triggerStandup('test-user-1', 'user-123', {
       apiBaseUrl: 'http://localhost:3333',
+      internalSecret: 'test-secret',
     })
 
     expect(result.isOk()).toBe(true)
@@ -119,8 +137,9 @@ describe('triggerStandup', () => {
   it('retorna ExternalServiceError quando API responde erro inesperado', async () => {
     mockFetch.mockResolvedValue(response(500))
 
-    const result = await triggerStandup('user-123', {
+    const result = await triggerStandup('test-user-1', 'user-123', {
       apiBaseUrl: 'http://localhost:3333',
+      internalSecret: 'test-secret',
     })
 
     expect(result.isErr()).toBe(true)
@@ -134,8 +153,9 @@ describe('triggerStandup', () => {
   it('retorna ExternalServiceError quando fetch falha', async () => {
     mockFetch.mockRejectedValue(new Error('network down'))
 
-    const result = await triggerStandup('user-123', {
+    const result = await triggerStandup('test-user-1', 'user-123', {
       apiBaseUrl: 'http://localhost:3333',
+      internalSecret: 'test-secret',
     })
 
     expect(result.isErr()).toBe(true)

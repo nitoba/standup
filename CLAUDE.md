@@ -88,7 +88,7 @@ api ──POST /internal/trigger/standup─────────────�
 
 - Worker nao sabe que Discord existe — apenas faz POST HTTP generico
 - API nao executa job inline — apenas encaminha trigger manual para o worker
-- `POST /standups/trigger` no API valida `discordUserId === DISCORD_USER_ID`
+- `POST /standups/trigger` no API valida autenticacao via session ou internal secret
 - discord-bot sobe **dois servidores** na mesma instancia:
   - Hono na `BOT_INTERNAL_PORT` (3334) para rotas internas
   - Gateway Discord (discord.js) para interacoes com botoes
@@ -282,7 +282,6 @@ INTERNAL_SECRET=change-me-in-production
 
 # API (loadApiEnv)
 PORT=3333
-DISCORD_USER_ID=
 WORKER_INTERNAL_URL=http://localhost:3335
 
 # Discord Bot (loadBotEnv)
@@ -290,17 +289,11 @@ BOT_INTERNAL_PORT=3334
 API_BASE_URL=http://localhost:3333
 DISCORD_BOT_TOKEN=
 DISCORD_CHANNEL_ID=       # Canal onde publica standups
-DISCORD_USER_ID=          # Seu user ID para DMs
 DISCORD_GUILD_ID=         # Opcional: guild commands (dev) vs global (prod)
 
 # Worker (loadWorkerEnv)
-TIMEZONE=America/Sao_Paulo
-STANDUP_CRON=30 17 * * 1-5
-STANDUP_REMINDER_CRON=20 17 * * 1-5
-STANDUP_RECOVERY_CRON=0 18 * * 1-5
-REPOS_BASE_PATH=/home/nitoba/Documents/repos/ibs/repos
-GIT_AUTHOR=bruno.alves@biosistemico.com.br
-GIT_SINCE_PERIOD=16 hours ago
+# Nota: STANDUP_CRON, TIMEZONE, REPOS_BASE_PATH, GIT_AUTHOR, GIT_SINCE_PERIOD
+# agora vem da tabela user_settings (configuravel via /standup settings)
 WORKER_INTERNAL_PORT=3335
 BOT_INTERNAL_URL=http://localhost:3334
 AI_PROVIDER_API_KEY=
@@ -589,7 +582,7 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
     - `GET /standups` — lista com filtros opcionais `?status=&date=`
     - `GET /standups/:id` — detalhe por ID
     - `PATCH /standups/:id/status` — atualiza status (state machine valida transições)
-    - `POST /standups/trigger` — trigger manual validando `discordUserId === DISCORD_USER_ID`
+    - `POST /standups/trigger` — trigger manual com auth via session ou internal secret
   - handlers por responsabilidade: `standup/list.ts`, `standup/get-by-id.ts`, `standup/update-status.ts`
   - handler de trigger: `standup/trigger.ts`
   - service isolado: `services/standup-service.ts`

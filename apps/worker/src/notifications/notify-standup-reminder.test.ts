@@ -47,6 +47,7 @@ describe('notifyStandupReminder', () => {
       botInternalUrl: 'http://localhost:3334',
       secret: 'my-secret',
       nextRunAt,
+      discordUserId: 'discord-user-1',
     })
 
     expect(result.status).toBe('ok')
@@ -60,8 +61,12 @@ describe('notifyStandupReminder', () => {
     expect(headers['x-internal-secret']).toBe('my-secret')
     expect(headers['content-type']).toBe('application/json')
 
-    const body = JSON.parse(init.body as string) as { nextRunAt: string }
+    const body = JSON.parse(init.body as string) as {
+      nextRunAt: string
+      discordUserId: string
+    }
     expect(body.nextRunAt).toBe(nextRunAt)
+    expect(body.discordUserId).toBe('discord-user-1')
   })
 
   it('retorna ExternalServiceError quando o bot responde com status não-ok (Err)', async () => {
@@ -71,6 +76,7 @@ describe('notifyStandupReminder', () => {
       botInternalUrl: 'http://localhost:3334',
       secret: 'my-secret',
       nextRunAt: '2026-03-06T17:30:00.000Z',
+      discordUserId: 'discord-user-1',
     })
 
     expect(result.status).toBe('error')
@@ -88,6 +94,7 @@ describe('notifyStandupReminder', () => {
       botInternalUrl: 'http://localhost:3334',
       secret: 'my-secret',
       nextRunAt: '2026-03-06T17:30:00.000Z',
+      discordUserId: 'discord-user-1',
     })
 
     expect(result.status).toBe('error')

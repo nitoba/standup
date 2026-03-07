@@ -13,6 +13,12 @@ vi.mock('../services/standup-service.js', () => ({
   listStandups: mocks.listStandups,
 }))
 
+vi.mock('@standup/db', () => ({
+  getDb: vi.fn(),
+  UserRepository: vi.fn(),
+}))
+
+import { Hono } from 'hono'
 import { createStandupRouter } from './router.js'
 
 // ---------------------------------------------------------------------------
@@ -20,7 +26,7 @@ import { createStandupRouter } from './router.js'
 // ---------------------------------------------------------------------------
 
 const DATABASE_URL = ':memory:'
-const ALLOWED_DISCORD_USER_ID = 'discord-user-123'
+const TEST_USER_ID = 'test-user-1'
 const WORKER_INTERNAL_URL = 'http://localhost:3335'
 const INTERNAL_SECRET = 'internal-secret'
 
@@ -44,16 +50,21 @@ function makeGetRequest(url: string): Request {
 // ---------------------------------------------------------------------------
 
 describe('GET /standups', () => {
-  let app: ReturnType<typeof createStandupRouter>
+  let app: Hono<{ Variables: { user: Record<string, unknown> } }>
 
   beforeEach(() => {
     vi.clearAllMocks()
-    app = createStandupRouter({
+    const router = createStandupRouter({
       databaseUrl: DATABASE_URL,
-      allowedDiscordUserId: ALLOWED_DISCORD_USER_ID,
       workerInternalUrl: WORKER_INTERNAL_URL,
       internalSecret: INTERNAL_SECRET,
     })
+    app = new Hono<{ Variables: { user: Record<string, unknown> } }>()
+    app.use('*', async (c, next) => {
+      c.set('user', { id: TEST_USER_ID })
+      return next()
+    })
+    app.route('/', router)
   })
 
   afterEach(() => {
@@ -69,7 +80,7 @@ describe('GET /standups', () => {
     const body = (await res.json()) as { data: unknown[] }
     expect(body.data).toEqual([])
     expect(mocks.listStandups).toHaveBeenCalledWith(
-      { status: undefined, date: undefined },
+      { status: undefined, date: undefined, userId: TEST_USER_ID },
       { databaseUrl: DATABASE_URL },
     )
   })
@@ -92,7 +103,7 @@ describe('GET /standups', () => {
 
     expect(res.status).toBe(200)
     expect(mocks.listStandups).toHaveBeenCalledWith(
-      { status: 'draft', date: undefined },
+      { status: 'draft', date: undefined, userId: TEST_USER_ID },
       { databaseUrl: DATABASE_URL },
     )
   })
@@ -104,7 +115,7 @@ describe('GET /standups', () => {
 
     expect(res.status).toBe(200)
     expect(mocks.listStandups).toHaveBeenCalledWith(
-      { status: undefined, date: '2026-03-04' },
+      { status: undefined, date: '2026-03-04', userId: TEST_USER_ID },
       { databaseUrl: DATABASE_URL },
     )
   })

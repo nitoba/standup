@@ -2,12 +2,18 @@ import { loadApiEnv } from '@standup/config'
 import { Result } from '@standup/domain'
 import { createServiceLogger, withContext } from '@standup/logger'
 import { Hono } from 'hono'
+import { createAuth } from './auth/auth.js'
+import { handleAuthCallback } from './auth/callback-page.js'
+import { handleDiscordLogin } from './auth/login-redirect.js'
+import { sessionAuthMiddleware } from './auth/middleware.js'
 import { requestLogger } from './http/middleware.js'
 import { createStandupRouter } from './standup/router.js'
 
 type AppContext = {
   Variables: {
     requestId: string
+    user: Record<string, unknown>
+    session: Record<string, unknown>
   }
 }
 
@@ -20,6 +26,18 @@ const env = envResult.value
 const logger = createServiceLogger({ service: 'api', component: 'http-server' })
 
 // ---------------------------------------------------------------------------
+// Better Auth
+// ---------------------------------------------------------------------------
+
+const auth = createAuth({
+  databaseUrl: env.DATABASE_URL,
+  discordClientId: env.DISCORD_CLIENT_ID,
+  discordClientSecret: env.DISCORD_CLIENT_SECRET,
+  betterAuthSecret: env.BETTER_AUTH_SECRET,
+  betterAuthUrl: env.BETTER_AUTH_URL,
+})
+
+// ---------------------------------------------------------------------------
 // Bootstrap
 // ---------------------------------------------------------------------------
 
@@ -28,7 +46,7 @@ const app = new Hono<AppContext>()
 app.use('*', requestLogger(logger))
 
 // ---------------------------------------------------------------------------
-// Health / readiness
+// Health / readiness (public, no auth)
 // ---------------------------------------------------------------------------
 
 app.get('/health', (c) => {
@@ -44,14 +62,26 @@ app.get('/ready', (c) => {
 })
 
 // ---------------------------------------------------------------------------
-// Domain routes
+// Better Auth routes (public, handles OAuth flow)
 // ---------------------------------------------------------------------------
+
+app.on(['POST', 'GET'], '/api/auth/*', (c) => {
+  return auth.handler(c.req.raw)
+})
+
+app.get('/auth/callback', handleAuthCallback)
+app.get('/auth/login/discord', handleDiscordLogin(auth))
+
+// ---------------------------------------------------------------------------
+// Protected domain routes
+// ---------------------------------------------------------------------------
+
+app.use('/standups/*', sessionAuthMiddleware(auth, env.INTERNAL_SECRET))
 
 app.route(
   '/',
   createStandupRouter({
     databaseUrl: env.DATABASE_URL,
-    allowedDiscordUserId: env.DISCORD_USER_ID,
     workerInternalUrl: env.WORKER_INTERNAL_URL,
     internalSecret: env.INTERNAL_SECRET,
   }),

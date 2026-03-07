@@ -1,3 +1,4 @@
+import { getDb, UserRepository, UserSettingsRepository } from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import type { Context } from 'hono'
 import * as z from 'zod'
@@ -9,33 +10,70 @@ const logger = createServiceLogger({
 })
 
 export const triggerBodySchema = z.object({
-  discordUserId: z.string().min(1),
   extraContext: z.string().optional(),
   forceRegenerate: z.boolean().optional(),
   rewriteFromStandupId: z.string().optional(),
   rewriteInstruction: z.string().optional(),
+  // Internal calls provide userId/discordUserId explicitly
+  userId: z.string().optional(),
+  discordUserId: z.string().optional(),
 })
 
 export type TriggerBody = z.infer<typeof triggerBodySchema>
 
 export interface TriggerHandlerDeps {
-  allowedDiscordUserId: string
+  databaseUrl: string
   workerInternalUrl: string
   internalSecret: string
 }
 
 /**
  * POST /standups/trigger
- * Trigger manual autenticado por discordUserId (comparação com DISCORD_USER_ID).
+ * Trigger manual. userId vem da sessão (Better Auth) ou do body (internal calls).
  */
 export async function handleTriggerStandup(
   c: Context,
   body: TriggerBody,
   deps: TriggerHandlerDeps,
 ): Promise<Response> {
-  if (body.discordUserId !== deps.allowedDiscordUserId) {
-    return c.json({ error: 'Forbidden' }, 403)
+  let userId: string | undefined
+  let discordUserId: string | undefined
+
+  const sessionUser = c.get('user') as Record<string, unknown> | undefined
+  if (sessionUser?.id) {
+    // Session-authenticated user: resolve discordUserId from account table
+    userId = sessionUser.id as string
+    const db = getDb(deps.databaseUrl)
+    const userRepo = new UserRepository(db)
+    const discordResult = userRepo.findDiscordIdByUserId(userId)
+    if (discordResult.isOk()) {
+      discordUserId = discordResult.value ?? undefined
+    }
+  } else {
+    // Internal call (x-internal-secret bypass): get from body
+    userId = body.userId
+    discordUserId = body.discordUserId
   }
+
+  if (!userId || !discordUserId) {
+    return c.json({ error: 'Could not resolve userId or discordUserId' }, 400)
+  }
+
+  // Look up user_settings for git config
+  const db = getDb(deps.databaseUrl)
+  const settingsRepo = new UserSettingsRepository(db)
+  const settingsResult = settingsRepo.findByUserId(userId)
+  if (settingsResult.isErr() || !settingsResult.value) {
+    return c.json(
+      {
+        error:
+          'User settings not found. Configure via /standup settings first.',
+      },
+      400,
+    )
+  }
+
+  const settings = settingsResult.value
 
   const result = await triggerStandupJob(
     {
@@ -43,6 +81,11 @@ export async function handleTriggerStandup(
       internalSecret: deps.internalSecret,
     },
     {
+      userId,
+      discordUserId,
+      reposBasePath: settings.reposBasePath,
+      gitAuthor: settings.gitAuthor,
+      gitSincePeriod: settings.gitSincePeriod,
       extraContext: body.extraContext,
       forceRegenerate: body.forceRegenerate,
       rewriteFromStandupId: body.rewriteFromStandupId,

@@ -1,3 +1,4 @@
+import { getDb, UserRepository } from '@standup/db'
 import { ExternalServiceError, Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import type { ButtonInteraction } from 'discord.js'
@@ -14,6 +15,7 @@ export interface ReminderHandlerDeps {
   apiBaseUrl: string
   internalSecret: string
   discordUserId: string
+  databaseUrl: string
 }
 
 // ---------------------------------------------------------------------------
@@ -23,6 +25,7 @@ export interface ReminderHandlerDeps {
 async function postWorker(
   url: string,
   secret: string,
+  body: Record<string, unknown> = {},
 ): Promise<Result<void, ExternalServiceError>> {
   return Result.tryPromise({
     try: async () => {
@@ -32,7 +35,7 @@ async function postWorker(
           'content-type': 'application/json',
           'x-internal-secret': secret,
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
     },
@@ -44,10 +47,10 @@ async function postWorker(
   })
 }
 
-async function postApi(
+async function postApiTrigger(
   url: string,
   secret: string,
-  discordUserId: string,
+  body: { userId: string; discordUserId: string },
 ): Promise<Result<void, ExternalServiceError>> {
   return Result.tryPromise({
     try: async () => {
@@ -57,7 +60,7 @@ async function postApi(
           'content-type': 'application/json',
           'x-internal-secret': secret,
         },
-        body: JSON.stringify({ discordUserId }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
     },
@@ -101,21 +104,36 @@ export async function handleReminderInteraction(
 
   let result: Result<void, ExternalServiceError>
 
+  // Resolve userId from Discord ID for all actions
+  const db = getDb(deps.databaseUrl)
+  const userRepo = new UserRepository(db)
+  const userIdResult = userRepo.findUserIdByDiscordId(deps.discordUserId)
+  if (userIdResult.isErr() || !userIdResult.value) {
+    await interaction.editReply({
+      content: '\u{274C} Usuário não registrado. Use /login primeiro.',
+      components: [],
+    })
+    return
+  }
+  const userId = userIdResult.value
+
   if (action === 'run-now') {
-    result = await postApi(
+    result = await postApiTrigger(
       `${deps.apiBaseUrl}/standups/trigger`,
       deps.internalSecret,
-      deps.discordUserId,
+      { userId, discordUserId: deps.discordUserId },
     )
   } else if (action === 'snooze') {
     result = await postWorker(
       `${deps.workerInternalUrl}/internal/reminder/snooze`,
       deps.internalSecret,
+      { userId },
     )
   } else {
     result = await postWorker(
       `${deps.workerInternalUrl}/internal/reminder/cancel`,
       deps.internalSecret,
+      { userId },
     )
   }
 

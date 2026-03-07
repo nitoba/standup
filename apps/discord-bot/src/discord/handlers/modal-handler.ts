@@ -1,4 +1,5 @@
 import type { BotEnv } from '@standup/config'
+import { getDb, UserRepository } from '@standup/db'
 import { createServiceLogger, withContext } from '@standup/logger'
 import type { Client, ModalSubmitInteraction } from 'discord.js'
 import {
@@ -28,7 +29,10 @@ const logger = createServiceLogger({
 export async function handleRegenerateModal(
   interaction: ModalSubmitInteraction,
   _client: Client,
-  env: Pick<BotEnv, 'DATABASE_URL' | 'DISCORD_CHANNEL_ID' | 'API_BASE_URL'>,
+  env: Pick<
+    BotEnv,
+    'DATABASE_URL' | 'DISCORD_CHANNEL_ID' | 'API_BASE_URL' | 'INTERNAL_SECRET'
+  >,
 ): Promise<void> {
   const [namespace, standupId] = interaction.customId.split(':')
   if (namespace !== 'standup-regenerate-modal' || !standupId) return
@@ -66,15 +70,28 @@ export async function handleRegenerateModal(
     return
   }
 
-  // Step 2: Trigger new generation via API (full regenerate)
+  // Step 2: Resolve userId from Discord ID
+  const db = getDb(env.DATABASE_URL)
+  const userRepo = new UserRepository(db)
+  const userIdResult = userRepo.findUserIdByDiscordId(interaction.user.id)
+  if (userIdResult.isErr() || !userIdResult.value) {
+    await updateReviewMessage(interaction, {
+      content: '\u{274C} Usuário não registrado. Use /login primeiro.',
+      components: [],
+    })
+    return
+  }
+
+  // Step 3: Trigger new generation via API (full regenerate)
   const triggerOptions: TriggerStandupOptions = {
     forceRegenerate: true,
     ...(extraContext ? { extraContext } : {}),
   }
 
   const triggerResult = await triggerStandup(
+    userIdResult.value,
     interaction.user.id,
-    { apiBaseUrl: env.API_BASE_URL },
+    { apiBaseUrl: env.API_BASE_URL, internalSecret: env.INTERNAL_SECRET },
     triggerOptions,
   )
 

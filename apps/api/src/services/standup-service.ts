@@ -18,8 +18,7 @@ export interface StandupServiceDeps {
 }
 
 /**
- * Lista standups com filtros opcionais.
- * Filtros são aplicados como OR (status ou date — apenas um por vez).
+ * Lista standups com filtros opcionais, scoped por userId.
  */
 export async function listStandups(
   filters: ListStandupFilters,
@@ -31,29 +30,33 @@ export async function listStandups(
 }
 
 /**
- * Busca um standup pelo ID.
- * Retorna NotFoundError se o standup não existir.
+ * Busca um standup pelo ID, com ownership check via userId.
+ * Retorna NotFoundError se o standup não existir ou não pertencer ao usuário.
  */
 export async function getStandupById(
   id: string,
+  userId: string,
   deps: StandupServiceDeps,
 ): Promise<Result<StandupRecord, NotFoundError | DbError>> {
   const db = getDb(deps.databaseUrl)
   const repo = new StandupRepository(db)
-  return repo.findById(id)
+  return repo.findByIdForUser(id, userId)
 }
 
 /**
- * Atualiza o status de um standup.
+ * Atualiza o status de um standup com ownership check.
  * A state machine em StandupRepository valida as transições permitidas.
- * Retorna InvalidStateTransitionError se a transição não for permitida.
  */
 export async function updateStandupStatus(
   id: string,
+  userId: string,
   status: StandupStatus,
   deps: StandupServiceDeps,
 ): Promise<Result<StandupRecord, StandupServiceError>> {
   const db = getDb(deps.databaseUrl)
   const repo = new StandupRepository(db)
+  // Validate ownership first
+  const found = await repo.findByIdForUser(id, userId)
+  if (found.isErr()) return found
   return repo.updateStatus(id, status)
 }

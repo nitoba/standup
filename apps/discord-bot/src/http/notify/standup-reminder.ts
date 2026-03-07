@@ -11,13 +11,13 @@ const logger = createServiceLogger({
 
 export const standupReminderBodySchema = z.object({
   nextRunAt: z.string().min(1),
+  discordUserId: z.string().min(1),
 })
 
 export type StandupReminderBody = z.infer<typeof standupReminderBodySchema>
 
 export interface StandupReminderHandlerDeps {
   client: Client
-  discordUserId: string
   workerInternalUrl: string
   internalSecret: string
 }
@@ -39,7 +39,7 @@ export async function handleStandupReminder(
 
   const result = await sendReminderDm(body.nextRunAt, {
     client: deps.client,
-    discordUserId: deps.discordUserId,
+    discordUserId: body.discordUserId,
     workerInternalUrl: deps.workerInternalUrl,
     internalSecret: deps.internalSecret,
   })

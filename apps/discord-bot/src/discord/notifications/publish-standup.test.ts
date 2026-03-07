@@ -46,6 +46,7 @@ const standupRecord = {
   content: '## Standup\n\n- feat: add feature',
   sourceData: '{}',
   customEntries: null,
+  userId: 'test-user-1',
   status: 'approved' as const,
   createdAt: 1000,
   updatedAt: 1000,

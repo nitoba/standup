@@ -8,6 +8,11 @@ const logger = createServiceLogger({
 })
 
 export interface StandupJobOptions {
+  userId: string
+  discordUserId: string
+  reposBasePath: string
+  gitAuthor: string
+  gitSincePeriod: string
   extraContext?: string
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
@@ -15,7 +20,7 @@ export interface StandupJobOptions {
 }
 
 export interface TriggerStandupHandlerDeps {
-  triggerStandupJob: (options?: StandupJobOptions) => Promise<void>
+  triggerStandupJob: (options: StandupJobOptions) => Promise<void>
 }
 
 /**
@@ -29,46 +34,61 @@ export async function handleTriggerStandup(
 ): Promise<Response> {
   const startedAt = Date.now()
 
-  // Parse optional body — empty body is valid (backwards-compatible)
-  let jobOptions: StandupJobOptions | undefined
+  // Parse body — userId and discordUserId are required
+  let body: Record<string, unknown> = {}
   const contentType = c.req.header('content-type') ?? ''
   if (contentType.includes('application/json')) {
     try {
-      const body = (await c.req.json()) as Record<string, unknown>
-      if (body && typeof body === 'object') {
-        const parsedExtraContext =
-          typeof body.extraContext === 'string' ? body.extraContext : undefined
-        const parsedForceRegenerate =
-          typeof body.forceRegenerate === 'boolean'
-            ? body.forceRegenerate
-            : undefined
-        const parsedRewriteFromStandupId =
-          typeof body.rewriteFromStandupId === 'string'
-            ? body.rewriteFromStandupId
-            : undefined
-        const parsedRewriteInstruction =
-          typeof body.rewriteInstruction === 'string'
-            ? body.rewriteInstruction
-            : undefined
-
-        jobOptions = {
-          ...(parsedExtraContext !== undefined
-            ? { extraContext: parsedExtraContext }
-            : {}),
-          ...(parsedForceRegenerate !== undefined
-            ? { forceRegenerate: parsedForceRegenerate }
-            : {}),
-          ...(parsedRewriteFromStandupId !== undefined
-            ? { rewriteFromStandupId: parsedRewriteFromStandupId }
-            : {}),
-          ...(parsedRewriteInstruction !== undefined
-            ? { rewriteInstruction: parsedRewriteInstruction }
-            : {}),
-        }
-      }
+      body = (await c.req.json()) as Record<string, unknown>
     } catch {
-      // Empty or malformed body — ignore, run without options
+      return c.json({ error: 'Invalid JSON body' }, 400)
     }
+  }
+
+  const userId = typeof body.userId === 'string' ? body.userId : undefined
+  const discordUserId =
+    typeof body.discordUserId === 'string' ? body.discordUserId : undefined
+  const reposBasePath =
+    typeof body.reposBasePath === 'string' ? body.reposBasePath : undefined
+  const gitAuthor =
+    typeof body.gitAuthor === 'string' ? body.gitAuthor : undefined
+  const gitSincePeriod =
+    typeof body.gitSincePeriod === 'string' ? body.gitSincePeriod : undefined
+
+  if (
+    !userId ||
+    !discordUserId ||
+    !reposBasePath ||
+    !gitAuthor ||
+    !gitSincePeriod
+  ) {
+    return c.json(
+      {
+        error:
+          'userId, discordUserId, reposBasePath, gitAuthor, and gitSincePeriod are required',
+      },
+      400,
+    )
+  }
+
+  const jobOptions: StandupJobOptions = {
+    userId,
+    discordUserId,
+    reposBasePath,
+    gitAuthor,
+    gitSincePeriod,
+    ...(typeof body.extraContext === 'string'
+      ? { extraContext: body.extraContext }
+      : {}),
+    ...(typeof body.forceRegenerate === 'boolean'
+      ? { forceRegenerate: body.forceRegenerate }
+      : {}),
+    ...(typeof body.rewriteFromStandupId === 'string'
+      ? { rewriteFromStandupId: body.rewriteFromStandupId }
+      : {}),
+    ...(typeof body.rewriteInstruction === 'string'
+      ? { rewriteInstruction: body.rewriteInstruction }
+      : {}),
   }
 
   const dispatchResult = await Result.tryPromise({

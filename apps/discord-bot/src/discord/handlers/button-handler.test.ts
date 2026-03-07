@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   handleReminderInteraction: vi.fn(),
   handleTriggerButtonInteraction: vi.fn(),
   handleCopyButtonInteraction: vi.fn(),
+  handleSettingsButton: vi.fn(),
   loggerInfo: vi.fn(),
   loggerError: vi.fn(),
   withContextInfo: vi.fn(),
@@ -37,6 +38,10 @@ vi.mock('./trigger-handler.js', () => ({
 
 vi.mock('./copy-handler.js', () => ({
   handleCopyButtonInteraction: mocks.handleCopyButtonInteraction,
+}))
+
+vi.mock('./settings-button-handler.js', () => ({
+  handleSettingsButton: mocks.handleSettingsButton,
 }))
 
 import type { ButtonInteraction, Client } from 'discord.js'
@@ -71,7 +76,6 @@ const env = {
   DATABASE_URL: ':memory:',
   DISCORD_CHANNEL_ID: 'channel-123',
   INTERNAL_SECRET: 'test-secret',
-  DISCORD_USER_ID: 'user-123',
   WORKER_INTERNAL_URL: 'http://localhost:3335',
   API_BASE_URL: 'http://localhost:3333',
 }
@@ -108,7 +112,11 @@ describe('handleButtonInteraction', () => {
       interaction,
       'confirm',
       'req-123',
-      { apiBaseUrl: 'http://localhost:3333' },
+      {
+        apiBaseUrl: 'http://localhost:3333',
+        internalSecret: 'test-secret',
+        databaseUrl: ':memory:',
+      },
     )
     expect(deferUpdate).not.toHaveBeenCalled()
     expect(editReply).not.toHaveBeenCalled()

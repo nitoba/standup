@@ -17,8 +17,9 @@ export async function handleGetStandupById(
   c: Context,
   id: string,
   databaseUrl: string,
+  userId: string,
 ): Promise<Response> {
-  const result = await getStandupById(id, { databaseUrl })
+  const result = await getStandupById(id, userId, { databaseUrl })
 
   if (result.isErr()) {
     if (NotFoundError.is(result.error)) {

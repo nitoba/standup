@@ -9,6 +9,7 @@ const logger = createServiceLogger({
 export interface NotifyStandupReadyOptions {
   botInternalUrl: string
   standupId: string
+  discordUserId: string
   secret: string
 }
 
@@ -30,7 +31,10 @@ export async function notifyStandupReady(
           'content-type': 'application/json',
           'x-internal-secret': opts.secret,
         },
-        body: JSON.stringify({ standupId: opts.standupId }),
+        body: JSON.stringify({
+          standupId: opts.standupId,
+          discordUserId: opts.discordUserId,
+        }),
       })
 
       if (!response.ok) {

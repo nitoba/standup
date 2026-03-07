@@ -1,12 +1,43 @@
+import { Result } from '@standup/domain'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ReminderState } from '../scheduler.js'
 import { createInternalRouter } from './router.js'
 import type { StandupJobOptions } from './trigger/standup.js'
 
-const INTERNAL_SECRET = 'test-secret'
+const mocks = vi.hoisted(() => ({
+  getDb: vi.fn(),
+  updateSnoozedUntil: vi.fn(),
+  updateCancelledDate: vi.fn(),
+}))
 
-function makeReminderState(overrides?: Partial<ReminderState>): ReminderState {
-  return { snoozedUntil: null, cancelledDate: null, ...overrides }
+vi.mock('@standup/db', () => {
+  function UserSettingsRepository() {
+    return {
+      updateSnoozedUntil: mocks.updateSnoozedUntil,
+      updateCancelledDate: mocks.updateCancelledDate,
+    }
+  }
+  return { getDb: mocks.getDb, UserSettingsRepository }
+})
+
+const INTERNAL_SECRET = 'test-secret'
+const TEST_USER_ID = 'test-user-1'
+const TEST_DISCORD_USER_ID = 'discord-user-123'
+const TRIGGER_BODY = {
+  userId: TEST_USER_ID,
+  discordUserId: TEST_DISCORD_USER_ID,
+  reposBasePath: '/tmp/repos',
+  gitAuthor: 'dev@example.com',
+  gitSincePeriod: '16 hours ago',
+}
+
+const triggerStandupJob = vi.fn<(options: StandupJobOptions) => Promise<void>>()
+
+function makeRouter() {
+  return createInternalRouter({
+    internalSecret: INTERNAL_SECRET,
+    databaseUrl: ':memory:',
+    triggerStandupJob,
+  })
 }
 
 function makeRequest(
@@ -26,12 +57,11 @@ function makeRequest(
 }
 
 describe('createInternalRouter', () => {
-  const triggerStandupJob =
-    vi.fn<(options?: StandupJobOptions) => Promise<void>>()
-
   beforeEach(() => {
     vi.clearAllMocks()
     triggerStandupJob.mockResolvedValue(undefined)
+    mocks.updateSnoozedUntil.mockResolvedValue(Result.ok(undefined))
+    mocks.updateCancelledDate.mockResolvedValue(Result.ok(undefined))
   })
 
   afterEach(() => {
@@ -43,11 +73,7 @@ describe('createInternalRouter', () => {
   // ---------------------------------------------------------------------------
 
   it('GET /health retorna 200 com status ok e service worker (sem autenticacao)', async () => {
-    const app = createInternalRouter({
-      internalSecret: INTERNAL_SECRET,
-      triggerStandupJob,
-      reminderState: makeReminderState(),
-    })
+    const app = makeRouter()
 
     const res = await app.fetch(
       new Request('http://localhost/health', { method: 'GET' }),
@@ -70,11 +96,7 @@ describe('createInternalRouter', () => {
   // ---------------------------------------------------------------------------
 
   it('retorna 401 quando secret esta ausente', async () => {
-    const app = createInternalRouter({
-      internalSecret: INTERNAL_SECRET,
-      triggerStandupJob,
-      reminderState: makeReminderState(),
-    })
+    const app = makeRouter()
 
     const res = await app.fetch(makeRequest('/internal/trigger/standup', null))
 
@@ -83,11 +105,7 @@ describe('createInternalRouter', () => {
   })
 
   it('retorna 401 quando secret esta incorreto', async () => {
-    const app = createInternalRouter({
-      internalSecret: INTERNAL_SECRET,
-      triggerStandupJob,
-      reminderState: makeReminderState(),
-    })
+    const app = makeRouter()
 
     const res = await app.fetch(
       makeRequest('/internal/trigger/standup', 'wrong-secret'),
@@ -101,14 +119,12 @@ describe('createInternalRouter', () => {
   // POST /internal/trigger/standup
   // ---------------------------------------------------------------------------
 
-  it('retorna 202 e dispara runStandupJob quando secret esta correto', async () => {
-    const app = createInternalRouter({
-      internalSecret: INTERNAL_SECRET,
-      triggerStandupJob,
-      reminderState: makeReminderState(),
-    })
+  it('retorna 202 e dispara runStandupJob quando secret e body estao corretos', async () => {
+    const app = makeRouter()
 
-    const res = await app.fetch(makeRequest('/internal/trigger/standup'))
+    const res = await app.fetch(
+      makeRequest('/internal/trigger/standup', INTERNAL_SECRET, TRIGGER_BODY),
+    )
 
     expect(res.status).toBe(202)
     const body = (await res.json()) as { ok: boolean; accepted: boolean }
@@ -117,31 +133,35 @@ describe('createInternalRouter', () => {
     expect(triggerStandupJob).toHaveBeenCalledTimes(1)
   })
 
+  it('retorna 400 quando userId e discordUserId estao ausentes', async () => {
+    const app = makeRouter()
+
+    const res = await app.fetch(makeRequest('/internal/trigger/standup'))
+
+    expect(res.status).toBe(400)
+    expect(triggerStandupJob).not.toHaveBeenCalled()
+  })
+
   it('retorna 500 quando dispatch do trigger falha antes de iniciar', async () => {
     triggerStandupJob.mockImplementationOnce(() => {
       throw new Error('dispatch failed')
     })
 
-    const app = createInternalRouter({
-      internalSecret: INTERNAL_SECRET,
-      triggerStandupJob,
-      reminderState: makeReminderState(),
-    })
+    const app = makeRouter()
 
-    const res = await app.fetch(makeRequest('/internal/trigger/standup'))
+    const res = await app.fetch(
+      makeRequest('/internal/trigger/standup', INTERNAL_SECRET, TRIGGER_BODY),
+    )
 
     expect(res.status).toBe(500)
   })
 
   it('passa extraContext e forceRegenerate ao triggerStandupJob quando body presente', async () => {
-    const app = createInternalRouter({
-      internalSecret: INTERNAL_SECRET,
-      triggerStandupJob,
-      reminderState: makeReminderState(),
-    })
+    const app = makeRouter()
 
     const res = await app.fetch(
       makeRequest('/internal/trigger/standup', INTERNAL_SECRET, {
+        ...TRIGGER_BODY,
         extraContext: 'focar mais no card #123',
         forceRegenerate: true,
       }),
@@ -149,20 +169,18 @@ describe('createInternalRouter', () => {
 
     expect(res.status).toBe(202)
     expect(triggerStandupJob).toHaveBeenCalledWith({
+      ...TRIGGER_BODY,
       extraContext: 'focar mais no card #123',
       forceRegenerate: true,
     })
   })
 
   it('passa rewriteFromStandupId e rewriteInstruction ao triggerStandupJob quando fornecidos', async () => {
-    const app = createInternalRouter({
-      internalSecret: INTERNAL_SECRET,
-      triggerStandupJob,
-      reminderState: makeReminderState(),
-    })
+    const app = makeRouter()
 
     const res = await app.fetch(
       makeRequest('/internal/trigger/standup', INTERNAL_SECRET, {
+        ...TRIGGER_BODY,
         forceRegenerate: true,
         rewriteFromStandupId: 'standup-abc',
         rewriteInstruction: 'Remover seção X e adicionar seção Y',
@@ -171,102 +189,100 @@ describe('createInternalRouter', () => {
 
     expect(res.status).toBe(202)
     expect(triggerStandupJob).toHaveBeenCalledWith({
+      ...TRIGGER_BODY,
       forceRegenerate: true,
       rewriteFromStandupId: 'standup-abc',
       rewriteInstruction: 'Remover seção X e adicionar seção Y',
     })
   })
 
-  it('funciona sem body (backwards-compatible)', async () => {
-    const app = createInternalRouter({
-      internalSecret: INTERNAL_SECRET,
-      triggerStandupJob,
-      reminderState: makeReminderState(),
-    })
-
-    const res = await app.fetch(makeRequest('/internal/trigger/standup'))
-
-    expect(res.status).toBe(202)
-    expect(triggerStandupJob).toHaveBeenCalledWith(undefined)
-  })
-
   // ---------------------------------------------------------------------------
   // POST /internal/reminder/snooze
   // ---------------------------------------------------------------------------
 
-  it('snooze: retorna 200 e define snoozedUntil no estado', async () => {
-    const reminderState = makeReminderState()
-    const before = new Date()
+  it('snooze: retorna 200 e persiste snoozedUntil no DB', async () => {
+    const app = makeRouter()
 
-    const app = createInternalRouter({
-      internalSecret: INTERNAL_SECRET,
-      triggerStandupJob,
-      reminderState,
-    })
-
-    const res = await app.fetch(makeRequest('/internal/reminder/snooze'))
+    const res = await app.fetch(
+      makeRequest('/internal/reminder/snooze', INTERNAL_SECRET, {
+        userId: TEST_USER_ID,
+      }),
+    )
 
     expect(res.status).toBe(200)
     const body = (await res.json()) as { ok: boolean; snoozedUntil: string }
     expect(body.ok).toBe(true)
-    expect(reminderState.snoozedUntil).not.toBeNull()
-
-    // snoozedUntil deve ser ~15min no futuro
-    const snoozedAt = reminderState.snoozedUntil as Date
-    expect(snoozedAt.getTime()).toBeGreaterThan(
-      before.getTime() + 14 * 60 * 1000,
+    expect(body.snoozedUntil).toBeDefined()
+    expect(mocks.updateSnoozedUntil).toHaveBeenCalledWith(
+      TEST_USER_ID,
+      expect.any(Number),
     )
-    expect(snoozedAt.getTime()).toBeLessThan(before.getTime() + 16 * 60 * 1000)
+
+    // snoozedUntil should be ~15min in the future
+    const snoozedMs = mocks.updateSnoozedUntil.mock.calls[0]?.[1] as number
+    const now = Date.now()
+    expect(snoozedMs).toBeGreaterThan(now + 14 * 60 * 1000)
+    expect(snoozedMs).toBeLessThan(now + 16 * 60 * 1000)
+  })
+
+  it('snooze: retorna 400 quando userId esta ausente', async () => {
+    const app = makeRouter()
+
+    const res = await app.fetch(
+      makeRequest('/internal/reminder/snooze', INTERNAL_SECRET, {}),
+    )
+
+    expect(res.status).toBe(400)
+    expect(mocks.updateSnoozedUntil).not.toHaveBeenCalled()
   })
 
   it('snooze: retorna 401 quando secret esta ausente', async () => {
-    const reminderState = makeReminderState()
-    const app = createInternalRouter({
-      internalSecret: INTERNAL_SECRET,
-      triggerStandupJob,
-      reminderState,
-    })
+    const app = makeRouter()
 
     const res = await app.fetch(makeRequest('/internal/reminder/snooze', null))
 
     expect(res.status).toBe(401)
-    expect(reminderState.snoozedUntil).toBeNull()
+    expect(mocks.updateSnoozedUntil).not.toHaveBeenCalled()
   })
 
   // ---------------------------------------------------------------------------
   // POST /internal/reminder/cancel
   // ---------------------------------------------------------------------------
 
-  it('cancel: retorna 200 e define cancelledDate como hoje', async () => {
-    const reminderState = makeReminderState()
+  it('cancel: retorna 200 e persiste cancelledDate no DB', async () => {
+    const app = makeRouter()
     const today = new Date().toISOString().slice(0, 10)
 
-    const app = createInternalRouter({
-      internalSecret: INTERNAL_SECRET,
-      triggerStandupJob,
-      reminderState,
-    })
-
-    const res = await app.fetch(makeRequest('/internal/reminder/cancel'))
+    const res = await app.fetch(
+      makeRequest('/internal/reminder/cancel', INTERNAL_SECRET, {
+        userId: TEST_USER_ID,
+      }),
+    )
 
     expect(res.status).toBe(200)
     const body = (await res.json()) as { ok: boolean; cancelledDate: string }
     expect(body.ok).toBe(true)
     expect(body.cancelledDate).toBe(today)
-    expect(reminderState.cancelledDate).toBe(today)
+    expect(mocks.updateCancelledDate).toHaveBeenCalledWith(TEST_USER_ID, today)
+  })
+
+  it('cancel: retorna 400 quando userId esta ausente', async () => {
+    const app = makeRouter()
+
+    const res = await app.fetch(
+      makeRequest('/internal/reminder/cancel', INTERNAL_SECRET, {}),
+    )
+
+    expect(res.status).toBe(400)
+    expect(mocks.updateCancelledDate).not.toHaveBeenCalled()
   })
 
   it('cancel: retorna 401 quando secret esta ausente', async () => {
-    const reminderState = makeReminderState()
-    const app = createInternalRouter({
-      internalSecret: INTERNAL_SECRET,
-      triggerStandupJob,
-      reminderState,
-    })
+    const app = makeRouter()
 
     const res = await app.fetch(makeRequest('/internal/reminder/cancel', null))
 
     expect(res.status).toBe(401)
-    expect(reminderState.cancelledDate).toBeNull()
+    expect(mocks.updateCancelledDate).not.toHaveBeenCalled()
   })
 })

@@ -5,7 +5,9 @@ import { loadApiEnv, loadBotEnv, loadWorkerEnv } from './env.js'
 describe('env loaders', () => {
   it('loadApiEnv validates only API requirements', () => {
     const result = loadApiEnv({
-      DISCORD_USER_ID: 'user-123',
+      DISCORD_CLIENT_ID: 'client-id',
+      DISCORD_CLIENT_SECRET: 'client-secret',
+      BETTER_AUTH_SECRET: 'auth-secret',
     })
 
     expect(result.isOk()).toBe(true)
@@ -20,7 +22,6 @@ describe('env loaders', () => {
     const result = loadBotEnv({
       DISCORD_BOT_TOKEN: 'bot-token',
       DISCORD_CHANNEL_ID: 'channel-123',
-      DISCORD_USER_ID: 'user-123',
     })
 
     expect(result.isOk()).toBe(true)

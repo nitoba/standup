@@ -29,8 +29,11 @@ export async function handleUpdateStandupStatus(
   id: string,
   body: UpdateStatusBody,
   databaseUrl: string,
+  userId: string,
 ): Promise<Response> {
-  const result = await updateStandupStatus(id, body.status, { databaseUrl })
+  const result = await updateStandupStatus(id, userId, body.status, {
+    databaseUrl,
+  })
 
   if (result.isErr()) {
     if (NotFoundError.is(result.error)) {

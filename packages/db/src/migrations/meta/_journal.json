@@ -15,6 +15,27 @@
       "when": 1772746800000,
       "tag": "0001_add_custom_entries",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1772857077034,
+      "tag": "0002_majestic_dracula",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1772858574722,
+      "tag": "0003_melodic_morph",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1772889843467,
+      "tag": "0004_unknown_ogun",
+      "breakpoints": true
     }
   ]
 }

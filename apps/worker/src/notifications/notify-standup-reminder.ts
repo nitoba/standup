@@ -10,6 +10,7 @@ export interface NotifyStandupReminderOptions {
   botInternalUrl: string
   secret: string
   nextRunAt: string // ISO timestamp of when the standup job will fire
+  discordUserId: string
 }
 
 /**
@@ -31,7 +32,10 @@ export async function notifyStandupReminder(
           'content-type': 'application/json',
           'x-internal-secret': opts.secret,
         },
-        body: JSON.stringify({ nextRunAt: opts.nextRunAt }),
+        body: JSON.stringify({
+          nextRunAt: opts.nextRunAt,
+          discordUserId: opts.discordUserId,
+        }),
       })
 
       if (!response.ok) {

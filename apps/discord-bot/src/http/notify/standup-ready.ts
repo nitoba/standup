@@ -12,6 +12,7 @@ const logger = createServiceLogger({
 
 export const standupReadyBodySchema = z.object({
   standupId: z.string().min(1),
+  discordUserId: z.string().min(1),
 })
 
 export type StandupReadyBody = z.infer<typeof standupReadyBodySchema>
@@ -19,7 +20,6 @@ export type StandupReadyBody = z.infer<typeof standupReadyBodySchema>
 export interface StandupReadyHandlerDeps {
   databaseUrl: string
   client: Client
-  discordUserId: string
 }
 
 /**
@@ -32,12 +32,12 @@ export async function handleStandupReady(
   body: StandupReadyBody,
   deps: StandupReadyHandlerDeps,
 ): Promise<Response> {
-  const { standupId } = body
+  const { standupId, discordUserId } = body
 
   const result = await notifyStandupReady(standupId, {
     databaseUrl: deps.databaseUrl,
     client: deps.client,
-    discordUserId: deps.discordUserId,
+    discordUserId,
   })
 
   if (result.isErr()) {

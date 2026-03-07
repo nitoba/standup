@@ -49,6 +49,7 @@ describe('notifyStandupReady', () => {
     const result = await notifyStandupReady({
       botInternalUrl: 'http://localhost:3334',
       standupId: 'standup-abc',
+      discordUserId: 'test-discord-1',
       secret: 'my-secret',
     })
 
@@ -73,6 +74,7 @@ describe('notifyStandupReady', () => {
     const result = await notifyStandupReady({
       botInternalUrl: 'http://localhost:3334',
       standupId: 'standup-xyz',
+      discordUserId: 'test-discord-1',
       secret: 'my-secret',
     })
 
@@ -90,6 +92,7 @@ describe('notifyStandupReady', () => {
     const result = await notifyStandupReady({
       botInternalUrl: 'http://localhost:3334',
       standupId: 'standup-xyz',
+      discordUserId: 'test-discord-1',
       secret: 'my-secret',
     })
 

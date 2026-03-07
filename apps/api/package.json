@@ -16,6 +16,7 @@
     "@standup/db": "workspace:*",
     "@standup/domain": "workspace:*",
     "@standup/logger": "workspace:*",
+    "better-auth": "^1.5.4",
     "hono": "catalog:",
     "zod": "catalog:"
   },

@@ -21,6 +21,7 @@ export const StandupSchema = z.object({
   sourceData: z.string().min(2),
   customEntries: CustomEntriesSchema.nullable().optional(),
   status: StandupStatusSchema,
+  userId: z.string().nullable(),
   createdAt: z.number().int(),
   updatedAt: z.number().int(),
 })

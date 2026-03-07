@@ -10,9 +10,18 @@ import {
 
 export interface StandupRouterDeps {
   databaseUrl: string
-  allowedDiscordUserId: string
   workerInternalUrl: string
   internalSecret: string
+}
+
+/**
+ * Extracts userId from the Hono context.
+ * For session-authenticated requests, userId comes from Better Auth session.
+ * For internal calls (x-internal-secret), userId must be passed in the request body.
+ */
+function getUserId(c: { get: (key: string) => unknown }): string | undefined {
+  const user = c.get('user') as Record<string, unknown> | undefined
+  return user?.id as string | undefined
 }
 
 /**
@@ -25,12 +34,20 @@ export function createStandupRouter(deps: StandupRouterDeps): Hono {
 
   // GET /standups — lista com filtros opcionais ?status= e ?date=
   app.get('/standups', sValidator('query', listQuerySchema), async (c) => {
-    return handleListStandups(c, c.req.valid('query'), deps.databaseUrl)
+    const userId = getUserId(c)
+    if (!userId) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    return handleListStandups(c, c.req.valid('query'), deps.databaseUrl, userId)
   })
 
   // GET /standups/:id — detalhe por ID
   app.get('/standups/:id', async (c) => {
-    return handleGetStandupById(c, c.req.param('id'), deps.databaseUrl)
+    const userId = getUserId(c)
+    if (!userId) {
+      return c.json({ error: 'Unauthorized' }, 401)
+    }
+    return handleGetStandupById(c, c.req.param('id'), deps.databaseUrl, userId)
   })
 
   // PATCH /standups/:id/status — aprovação manual (state machine valida transição)
@@ -38,19 +55,24 @@ export function createStandupRouter(deps: StandupRouterDeps): Hono {
     '/standups/:id/status',
     sValidator('json', updateStatusBodySchema),
     async (c) => {
+      const userId = getUserId(c)
+      if (!userId) {
+        return c.json({ error: 'Unauthorized' }, 401)
+      }
       return handleUpdateStandupStatus(
         c,
         c.req.param('id'),
         c.req.valid('json'),
         deps.databaseUrl,
+        userId,
       )
     },
   )
 
-  // POST /standups/trigger — trigger manual autenticado por discordUserId
+  // POST /standups/trigger — trigger manual autenticado por sessão
   app.post('/standups/trigger', sValidator('json', triggerBodySchema), (c) => {
     return handleTriggerStandup(c, c.req.valid('json'), {
-      allowedDiscordUserId: deps.allowedDiscordUserId,
+      databaseUrl: deps.databaseUrl,
       workerInternalUrl: deps.workerInternalUrl,
       internalSecret: deps.internalSecret,
     })

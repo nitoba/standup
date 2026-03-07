@@ -6,6 +6,9 @@ const mocks = vi.hoisted(() => ({
   listStandups: vi.fn(),
   getStandupById: vi.fn(),
   updateStandupStatus: vi.fn(),
+  getDb: vi.fn(),
+  findDiscordIdByUserId: vi.fn(),
+  findSettingsByUserId: vi.fn(),
 }))
 
 vi.mock('../services/standup-trigger-service.js', () => ({
@@ -18,13 +21,35 @@ vi.mock('../services/standup-service.js', () => ({
   updateStandupStatus: mocks.updateStandupStatus,
 }))
 
+vi.mock('@standup/db', () => {
+  function UserRepository() {
+    return {
+      findDiscordIdByUserId: mocks.findDiscordIdByUserId,
+    }
+  }
+  function UserSettingsRepository() {
+    return {
+      findByUserId: mocks.findSettingsByUserId,
+    }
+  }
+  return { getDb: mocks.getDb, UserRepository, UserSettingsRepository }
+})
+
+import { Hono } from 'hono'
 import { createStandupRouter } from './router.js'
 
 const deps = {
   databaseUrl: ':memory:',
-  allowedDiscordUserId: 'discord-user-123',
   workerInternalUrl: 'http://localhost:3335',
   internalSecret: 'internal-secret',
+}
+
+const TEST_USER_ID = 'test-user-1'
+const TEST_DISCORD_USER_ID = 'discord-user-123'
+const TEST_SETTINGS = {
+  reposBasePath: '/tmp/repos',
+  gitAuthor: 'dev@example.com',
+  gitSincePeriod: '16 hours ago',
 }
 
 function makePostRequest(body: unknown): Request {
@@ -36,23 +61,29 @@ function makePostRequest(body: unknown): Request {
 }
 
 describe('POST /standups/trigger', () => {
-  let app: ReturnType<typeof createStandupRouter>
+  let app: Hono<{ Variables: { user: Record<string, unknown> } }>
 
   beforeEach(() => {
     vi.clearAllMocks()
-    app = createStandupRouter(deps)
+    mocks.findDiscordIdByUserId.mockReturnValue(Result.ok(TEST_DISCORD_USER_ID))
+    mocks.findSettingsByUserId.mockReturnValue(Result.ok(TEST_SETTINGS))
+    const router = createStandupRouter(deps)
+    app = new Hono<{ Variables: { user: Record<string, unknown> } }>()
+    app.use('*', async (c, next) => {
+      c.set('user', { id: TEST_USER_ID })
+      return next()
+    })
+    app.route('/', router)
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('retorna 202 quando usuário autorizado e worker aceita trigger', async () => {
+  it('retorna 202 quando sessão válida e worker aceita trigger', async () => {
     mocks.triggerStandupJob.mockResolvedValue(Result.ok(undefined))
 
-    const res = await app.fetch(
-      makePostRequest({ discordUserId: deps.allowedDiscordUserId }),
-    )
+    const res = await app.fetch(makePostRequest({}))
 
     expect(res.status).toBe(202)
     const body = (await res.json()) as { ok: boolean; accepted: boolean }
@@ -64,6 +95,9 @@ describe('POST /standups/trigger', () => {
         internalSecret: deps.internalSecret,
       },
       {
+        userId: TEST_USER_ID,
+        discordUserId: TEST_DISCORD_USER_ID,
+        ...TEST_SETTINGS,
         extraContext: undefined,
         forceRegenerate: undefined,
         rewriteFromStandupId: undefined,
@@ -77,7 +111,6 @@ describe('POST /standups/trigger', () => {
 
     const res = await app.fetch(
       makePostRequest({
-        discordUserId: deps.allowedDiscordUserId,
         extraContext: 'focar no card #1234',
         forceRegenerate: true,
       }),
@@ -90,6 +123,9 @@ describe('POST /standups/trigger', () => {
         internalSecret: deps.internalSecret,
       },
       {
+        userId: TEST_USER_ID,
+        discordUserId: TEST_DISCORD_USER_ID,
+        ...TEST_SETTINGS,
         extraContext: 'focar no card #1234',
         forceRegenerate: true,
         rewriteFromStandupId: undefined,
@@ -103,7 +139,6 @@ describe('POST /standups/trigger', () => {
 
     const res = await app.fetch(
       makePostRequest({
-        discordUserId: deps.allowedDiscordUserId,
         forceRegenerate: true,
         rewriteFromStandupId: 'standup-abc',
         rewriteInstruction: 'Remover seção X e incluir seção Y',
@@ -117,6 +152,9 @@ describe('POST /standups/trigger', () => {
         internalSecret: deps.internalSecret,
       },
       {
+        userId: TEST_USER_ID,
+        discordUserId: TEST_DISCORD_USER_ID,
+        ...TEST_SETTINGS,
         extraContext: undefined,
         forceRegenerate: true,
         rewriteFromStandupId: 'standup-abc',
@@ -125,16 +163,9 @@ describe('POST /standups/trigger', () => {
     )
   })
 
-  it('retorna 403 quando discordUserId não é autorizado', async () => {
-    const res = await app.fetch(
-      makePostRequest({ discordUserId: 'discord-user-999' }),
-    )
+  it('retorna 400 quando discordUserId não pode ser resolvido', async () => {
+    mocks.findDiscordIdByUserId.mockReturnValue(Result.ok(null))
 
-    expect(res.status).toBe(403)
-    expect(mocks.triggerStandupJob).not.toHaveBeenCalled()
-  })
-
-  it('retorna 400 para body inválido', async () => {
     const res = await app.fetch(makePostRequest({}))
 
     expect(res.status).toBe(400)
@@ -151,9 +182,7 @@ describe('POST /standups/trigger', () => {
       ),
     )
 
-    const res = await app.fetch(
-      makePostRequest({ discordUserId: deps.allowedDiscordUserId }),
-    )
+    const res = await app.fetch(makePostRequest({}))
 
     expect(res.status).toBe(503)
     const body = (await res.json()) as { error: string }

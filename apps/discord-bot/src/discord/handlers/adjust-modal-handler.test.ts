@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   loggerError: vi.fn(),
   withContextInfo: vi.fn(),
   withContextError: vi.fn(),
+  findUserIdByDiscordId: vi.fn(),
+  getDb: vi.fn(),
 }))
 
 vi.mock('@standup/logger', () => ({
@@ -23,6 +25,13 @@ vi.mock('@standup/logger', () => ({
 vi.mock('../../services/trigger-standup-service.js', () => ({
   triggerStandup: mocks.triggerStandup,
 }))
+
+vi.mock('@standup/db', () => {
+  function UserRepository() {
+    return { findUserIdByDiscordId: mocks.findUserIdByDiscordId }
+  }
+  return { getDb: mocks.getDb, UserRepository }
+})
 
 import type { Client, ModalSubmitInteraction } from 'discord.js'
 import { handleAdjustModal } from './adjust-modal-handler.js'
@@ -56,11 +65,14 @@ function makeModalInteraction(
 const fakeClient = {} as unknown as Client
 const env = {
   API_BASE_URL: 'http://localhost:3333',
+  INTERNAL_SECRET: 'test-secret',
+  DATABASE_URL: ':memory:',
 }
 
 describe('handleAdjustModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok('resolved-user-id'))
   })
 
   afterEach(() => {
@@ -87,8 +99,9 @@ describe('handleAdjustModal', () => {
     await handleAdjustModal(interaction, fakeClient, env)
 
     expect(mocks.triggerStandup).toHaveBeenCalledWith(
+      expect.any(String),
       'user-123',
-      { apiBaseUrl: 'http://localhost:3333' },
+      { apiBaseUrl: 'http://localhost:3333', internalSecret: 'test-secret' },
       {
         forceRegenerate: true,
         rewriteFromStandupId: 'standup-1',

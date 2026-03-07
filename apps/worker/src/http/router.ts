@@ -1,5 +1,4 @@
 import { Hono } from 'hono'
-import type { ReminderState } from '../scheduler.js'
 import { internalAuthMiddleware } from './middleware/auth.js'
 import { handleCancelReminder } from './reminder/cancel.js'
 import { handleSnoozeReminder } from './reminder/snooze.js'
@@ -8,8 +7,8 @@ import { handleTriggerStandup } from './trigger/standup.js'
 
 export interface InternalRouterOptions {
   internalSecret: string
-  triggerStandupJob: (options?: StandupJobOptions) => Promise<void>
-  reminderState: ReminderState
+  databaseUrl: string
+  triggerStandupJob: (options: StandupJobOptions) => Promise<void>
 }
 
 /**
@@ -38,11 +37,11 @@ export function createInternalRouter(opts: InternalRouterOptions): Hono {
   })
 
   app.post('/internal/reminder/snooze', (c) => {
-    return handleSnoozeReminder(c, opts.reminderState)
+    return handleSnoozeReminder(c, { databaseUrl: opts.databaseUrl })
   })
 
   app.post('/internal/reminder/cancel', (c) => {
-    return handleCancelReminder(c, opts.reminderState)
+    return handleCancelReminder(c, { databaseUrl: opts.databaseUrl })
   })
 
   return app

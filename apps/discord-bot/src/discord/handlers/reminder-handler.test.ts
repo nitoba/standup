@@ -1,5 +1,26 @@
+import { Result } from '@standup/domain'
 import type { ButtonInteraction } from 'discord.js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+const mocks = vi.hoisted(() => ({
+  findUserIdByDiscordId: vi.fn(),
+  getDb: vi.fn(),
+}))
+
+vi.mock('@standup/db', () => {
+  function UserRepository() {
+    return { findUserIdByDiscordId: mocks.findUserIdByDiscordId }
+  }
+  return { getDb: mocks.getDb, UserRepository }
+})
+
+vi.mock('@standup/logger', () => ({
+  createServiceLogger: vi.fn().mockReturnValue({
+    info: vi.fn(),
+    error: vi.fn(),
+  }),
+}))
+
 import type { ReminderAction } from './reminder-handler.js'
 import { handleReminderInteraction } from './reminder-handler.js'
 
@@ -17,6 +38,7 @@ const deps = {
   apiBaseUrl: API_BASE_URL,
   internalSecret: INTERNAL_SECRET,
   discordUserId: DISCORD_USER_ID,
+  databaseUrl: ':memory:',
 }
 
 function makeInteraction() {
@@ -36,6 +58,7 @@ function makeInteraction() {
 describe('handleReminderInteraction', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok('resolved-user-id'))
   })
 
   afterEach(() => {
