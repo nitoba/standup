@@ -150,8 +150,12 @@ export function startScheduler(env: WorkerEnv): {
           }
         }
 
-        // Check if already succeeded today
-        const runResult = await jobRunRepo.findByJobAndDate('standup', today)
+        // Check if already succeeded today (scoped by userId)
+        const runResult = await jobRunRepo.findByJobAndDate(
+          'standup',
+          today,
+          settings.userId,
+        )
         if (runResult.isOk() && runResult.value?.status === 'success') {
           logger.info('Recovery cron: job already succeeded today — no-op', {
             userId: settings.userId,
