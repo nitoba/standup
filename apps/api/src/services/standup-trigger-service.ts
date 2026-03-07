@@ -8,6 +8,9 @@ export interface TriggerStandupJobDeps {
 export interface TriggerStandupJobOptions {
   userId: string
   discordUserId: string
+  reposBasePath: string
+  gitAuthor: string
+  gitSincePeriod: string
   extraContext?: string
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
@@ -35,6 +38,9 @@ export async function triggerStandupJob(
           body: JSON.stringify({
             userId: options.userId,
             discordUserId: options.discordUserId,
+            reposBasePath: options.reposBasePath,
+            gitAuthor: options.gitAuthor,
+            gitSincePeriod: options.gitSincePeriod,
             extraContext: options.extraContext,
             forceRegenerate: options.forceRegenerate,
             rewriteFromStandupId: options.rewriteFromStandupId,

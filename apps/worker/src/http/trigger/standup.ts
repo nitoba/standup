@@ -10,6 +10,9 @@ const logger = createServiceLogger({
 export interface StandupJobOptions {
   userId: string
   discordUserId: string
+  reposBasePath: string
+  gitAuthor: string
+  gitSincePeriod: string
   extraContext?: string
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
@@ -45,14 +48,26 @@ export async function handleTriggerStandup(
   const userId = typeof body.userId === 'string' ? body.userId : undefined
   const discordUserId =
     typeof body.discordUserId === 'string' ? body.discordUserId : undefined
+  const reposBasePath =
+    typeof body.reposBasePath === 'string' ? body.reposBasePath : undefined
+  const gitAuthor =
+    typeof body.gitAuthor === 'string' ? body.gitAuthor : undefined
+  const gitSincePeriod =
+    typeof body.gitSincePeriod === 'string' ? body.gitSincePeriod : undefined
 
-  if (!userId || !discordUserId) {
-    return c.json({ error: 'userId and discordUserId are required' }, 400)
+  if (!userId || !discordUserId || !reposBasePath || !gitAuthor || !gitSincePeriod) {
+    return c.json(
+      { error: 'userId, discordUserId, reposBasePath, gitAuthor, and gitSincePeriod are required' },
+      400,
+    )
   }
 
   const jobOptions: StandupJobOptions = {
     userId,
     discordUserId,
+    reposBasePath,
+    gitAuthor,
+    gitSincePeriod,
     ...(typeof body.extraContext === 'string'
       ? { extraContext: body.extraContext }
       : {}),

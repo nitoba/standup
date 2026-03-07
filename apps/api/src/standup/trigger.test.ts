@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   updateStandupStatus: vi.fn(),
   getDb: vi.fn(),
   findDiscordIdByUserId: vi.fn(),
+  findSettingsByUserId: vi.fn(),
 }))
 
 vi.mock('../services/standup-trigger-service.js', () => ({
@@ -26,7 +27,12 @@ vi.mock('@standup/db', () => {
       findDiscordIdByUserId: mocks.findDiscordIdByUserId,
     }
   }
-  return { getDb: mocks.getDb, UserRepository }
+  function UserSettingsRepository() {
+    return {
+      findByUserId: mocks.findSettingsByUserId,
+    }
+  }
+  return { getDb: mocks.getDb, UserRepository, UserSettingsRepository }
 })
 
 import { Hono } from 'hono'
@@ -40,6 +46,11 @@ const deps = {
 
 const TEST_USER_ID = 'test-user-1'
 const TEST_DISCORD_USER_ID = 'discord-user-123'
+const TEST_SETTINGS = {
+  reposBasePath: '/tmp/repos',
+  gitAuthor: 'dev@example.com',
+  gitSincePeriod: '16 hours ago',
+}
 
 function makePostRequest(body: unknown): Request {
   return new Request('http://localhost/standups/trigger', {
@@ -55,6 +66,7 @@ describe('POST /standups/trigger', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.findDiscordIdByUserId.mockReturnValue(Result.ok(TEST_DISCORD_USER_ID))
+    mocks.findSettingsByUserId.mockReturnValue(Result.ok(TEST_SETTINGS))
     const router = createStandupRouter(deps)
     app = new Hono<{ Variables: { user: Record<string, unknown> } }>()
     app.use('*', async (c, next) => {
@@ -85,6 +97,7 @@ describe('POST /standups/trigger', () => {
       {
         userId: TEST_USER_ID,
         discordUserId: TEST_DISCORD_USER_ID,
+        ...TEST_SETTINGS,
         extraContext: undefined,
         forceRegenerate: undefined,
         rewriteFromStandupId: undefined,
@@ -112,6 +125,7 @@ describe('POST /standups/trigger', () => {
       {
         userId: TEST_USER_ID,
         discordUserId: TEST_DISCORD_USER_ID,
+        ...TEST_SETTINGS,
         extraContext: 'focar no card #1234',
         forceRegenerate: true,
         rewriteFromStandupId: undefined,
@@ -140,6 +154,7 @@ describe('POST /standups/trigger', () => {
       {
         userId: TEST_USER_ID,
         discordUserId: TEST_DISCORD_USER_ID,
+        ...TEST_SETTINGS,
         extraContext: undefined,
         forceRegenerate: true,
         rewriteFromStandupId: 'standup-abc',

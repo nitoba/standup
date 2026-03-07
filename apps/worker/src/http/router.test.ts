@@ -9,6 +9,9 @@ const TEST_DISCORD_USER_ID = 'discord-user-123'
 const TRIGGER_BODY = {
   userId: TEST_USER_ID,
   discordUserId: TEST_DISCORD_USER_ID,
+  reposBasePath: '/tmp/repos',
+  gitAuthor: 'dev@example.com',
+  gitSincePeriod: '16 hours ago',
 }
 
 function makeReminderState(overrides?: Partial<ReminderState>): ReminderState {

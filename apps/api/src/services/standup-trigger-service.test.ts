@@ -12,6 +12,14 @@ function response(status: number): Response {
   } as Response
 }
 
+const BASE_OPTIONS = {
+  userId: 'test-user-1',
+  discordUserId: 'test-discord-1',
+  reposBasePath: '/tmp/repos',
+  gitAuthor: 'dev@example.com',
+  gitSincePeriod: '16 hours ago',
+}
+
 describe('triggerStandupJob', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -29,7 +37,7 @@ describe('triggerStandupJob', () => {
         workerInternalUrl: 'http://localhost:3335',
         internalSecret: 'internal-secret',
       },
-      { userId: 'test-user-1', discordUserId: 'test-discord-1' },
+      BASE_OPTIONS,
     )
 
     expect(result.isOk()).toBe(true)
@@ -42,8 +50,7 @@ describe('triggerStandupJob', () => {
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          userId: 'test-user-1',
-          discordUserId: 'test-discord-1',
+          ...BASE_OPTIONS,
           extraContext: undefined,
           forceRegenerate: undefined,
           rewriteFromStandupId: undefined,
@@ -62,8 +69,7 @@ describe('triggerStandupJob', () => {
         internalSecret: 'internal-secret',
       },
       {
-        userId: 'test-user-1',
-        discordUserId: 'test-discord-1',
+        ...BASE_OPTIONS,
         extraContext: 'focar no card #123',
         forceRegenerate: true,
       },
@@ -79,8 +85,7 @@ describe('triggerStandupJob', () => {
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          userId: 'test-user-1',
-          discordUserId: 'test-discord-1',
+          ...BASE_OPTIONS,
           extraContext: 'focar no card #123',
           forceRegenerate: true,
           rewriteFromStandupId: undefined,
@@ -99,8 +104,7 @@ describe('triggerStandupJob', () => {
         internalSecret: 'internal-secret',
       },
       {
-        userId: 'test-user-1',
-        discordUserId: 'test-discord-1',
+        ...BASE_OPTIONS,
         forceRegenerate: true,
         rewriteFromStandupId: 'standup-abc',
         rewriteInstruction: 'Ajustar para remover seção antiga',
@@ -117,8 +121,7 @@ describe('triggerStandupJob', () => {
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          userId: 'test-user-1',
-          discordUserId: 'test-discord-1',
+          ...BASE_OPTIONS,
           extraContext: undefined,
           forceRegenerate: true,
           rewriteFromStandupId: 'standup-abc',
@@ -136,7 +139,7 @@ describe('triggerStandupJob', () => {
         workerInternalUrl: 'http://localhost:3335',
         internalSecret: 'internal-secret',
       },
-      { userId: 'test-user-1', discordUserId: 'test-discord-1' },
+      BASE_OPTIONS,
     )
 
     expect(result.isErr()).toBe(true)
@@ -155,7 +158,7 @@ describe('triggerStandupJob', () => {
         workerInternalUrl: 'http://localhost:3335',
         internalSecret: 'internal-secret',
       },
-      { userId: 'test-user-1', discordUserId: 'test-discord-1' },
+      BASE_OPTIONS,
     )
 
     expect(result.isErr()).toBe(true)

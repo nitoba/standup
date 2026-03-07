@@ -213,6 +213,9 @@ describe('Cross-service HTTP contracts', () => {
         {
           userId: TEST_USER_ID,
           discordUserId: TEST_DISCORD_USER_ID,
+          reposBasePath: '/tmp/repos',
+          gitAuthor: 'dev@example.com',
+          gitSincePeriod: '16 hours ago',
           extraContext: 'focar em PR review',
           forceRegenerate: true,
         },
@@ -222,6 +225,9 @@ describe('Cross-service HTTP contracts', () => {
       expect(triggerStandupJob).toHaveBeenCalledWith({
         userId: TEST_USER_ID,
         discordUserId: TEST_DISCORD_USER_ID,
+        reposBasePath: '/tmp/repos',
+        gitAuthor: 'dev@example.com',
+        gitSincePeriod: '16 hours ago',
         extraContext: 'focar em PR review',
         forceRegenerate: true,
       })

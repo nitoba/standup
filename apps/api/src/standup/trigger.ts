@@ -1,4 +1,4 @@
-import { getDb, UserRepository } from '@standup/db'
+import { UserRepository, UserSettingsRepository, getDb } from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import type { Context } from 'hono'
 import * as z from 'zod'
@@ -59,6 +59,19 @@ export async function handleTriggerStandup(
     return c.json({ error: 'Could not resolve userId or discordUserId' }, 400)
   }
 
+  // Look up user_settings for git config
+  const db = getDb(deps.databaseUrl)
+  const settingsRepo = new UserSettingsRepository(db)
+  const settingsResult = settingsRepo.findByUserId(userId)
+  if (settingsResult.isErr() || !settingsResult.value) {
+    return c.json(
+      { error: 'User settings not found. Configure via /standup settings first.' },
+      400,
+    )
+  }
+
+  const settings = settingsResult.value
+
   const result = await triggerStandupJob(
     {
       workerInternalUrl: deps.workerInternalUrl,
@@ -67,6 +80,9 @@ export async function handleTriggerStandup(
     {
       userId,
       discordUserId,
+      reposBasePath: settings.reposBasePath,
+      gitAuthor: settings.gitAuthor,
+      gitSincePeriod: settings.gitSincePeriod,
       extraContext: body.extraContext,
       forceRegenerate: body.forceRegenerate,
       rewriteFromStandupId: body.rewriteFromStandupId,
