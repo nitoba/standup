@@ -12,14 +12,18 @@ export type {
 export { StandupRepository } from './repositories/standup.js'
 export type { UserWithAccount } from './repositories/user.js'
 export { UserRepository } from './repositories/user.js'
+export type { UpsertUserSettingsInput } from './repositories/user-settings.js'
+export { UserSettingsRepository } from './repositories/user-settings.js'
 export type {
   AccountRow,
   JobRunRow,
   NewJobRunRow,
   NewStandupRow,
+  NewUserSettingsRow,
   SessionRow,
   StandupRow,
   UserRow,
+  UserSettingsRow,
 } from './schema.js'
 // Schema
 export {
@@ -28,5 +32,6 @@ export {
   session,
   standups,
   user,
+  userSettings,
   verification,
 } from './schema.js'

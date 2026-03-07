@@ -5,6 +5,7 @@ import { requireAuth } from '../auth/require-auth.js'
 import { handleApproveCommand } from '../commands/approve.js'
 import { handleList } from '../commands/list.js'
 import { handleServices } from '../commands/services.js'
+import { handleSettings } from '../commands/settings.js'
 import { handleTrigger } from '../commands/trigger.js'
 import { handleStandupInteraction } from './interaction-handler.js'
 
@@ -19,6 +20,7 @@ const AUTH_REQUIRED_SUBCOMMANDS = new Set([
   'list',
   'approve',
   'services',
+  'settings',
 ])
 
 /**
@@ -75,5 +77,7 @@ export async function handleSlashCommand(
       discordChannelId: env.DISCORD_CHANNEL_ID,
       handleInteraction: handleStandupInteraction,
     })
+  } else if (sub === 'settings') {
+    await handleSettings(interaction, { databaseUrl: env.DATABASE_URL })
   }
 }

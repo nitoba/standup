@@ -30,6 +30,9 @@ const logger = createServiceLogger({
 export interface StandupJobOptions {
   userId: string
   discordUserId: string
+  reposBasePath: string
+  gitAuthor: string
+  gitSincePeriod: string
   extraContext?: string
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
@@ -213,9 +216,9 @@ export async function runStandupJob(
     // Step 1: Collect git activity
     const gitActivity = yield* Result.await(
       collectGitActivity({
-        reposBasePath: env.REPOS_BASE_PATH,
-        author: env.GIT_AUTHOR,
-        sincePeriod: env.GIT_SINCE_PERIOD,
+        reposBasePath: options.reposBasePath,
+        author: options.gitAuthor,
+        sincePeriod: options.gitSincePeriod,
       }),
     )
 

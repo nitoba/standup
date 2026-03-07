@@ -14,6 +14,7 @@ import type { StandupAction } from './interaction-handler.js'
 import { handleStandupInteraction } from './interaction-handler.js'
 import type { ReminderAction } from './reminder-handler.js'
 import { handleReminderInteraction } from './reminder-handler.js'
+import { handleSettingsButton } from './settings-button-handler.js'
 import type { TriggerAction } from './trigger-handler.js'
 import { handleTriggerButtonInteraction } from './trigger-handler.js'
 import { updateReviewMessage } from './update-review-message.js'
@@ -179,6 +180,14 @@ export async function handleButtonInteraction(
         databaseUrl: env.DATABASE_URL,
       },
     )
+    return
+  }
+
+  // Route settings:* to settings button handler
+  if (namespace === 'settings' && action) {
+    await handleSettingsButton(interaction, action, {
+      databaseUrl: env.DATABASE_URL,
+    })
     return
   }
 

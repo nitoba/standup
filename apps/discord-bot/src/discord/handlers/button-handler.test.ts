@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   handleReminderInteraction: vi.fn(),
   handleTriggerButtonInteraction: vi.fn(),
   handleCopyButtonInteraction: vi.fn(),
+  handleSettingsButton: vi.fn(),
   loggerInfo: vi.fn(),
   loggerError: vi.fn(),
   withContextInfo: vi.fn(),
@@ -37,6 +38,10 @@ vi.mock('./trigger-handler.js', () => ({
 
 vi.mock('./copy-handler.js', () => ({
   handleCopyButtonInteraction: mocks.handleCopyButtonInteraction,
+}))
+
+vi.mock('./settings-button-handler.js', () => ({
+  handleSettingsButton: mocks.handleSettingsButton,
 }))
 
 import type { ButtonInteraction, Client } from 'discord.js'

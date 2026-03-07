@@ -80,6 +80,11 @@ export function buildStandupCommand(): SlashCommandBuilder {
             .setDescription('ID do standup a aprovar')
             .setRequired(true),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('settings')
+        .setDescription('Ver ou alterar configurações de standup'),
     ) as SlashCommandBuilder
 }
 

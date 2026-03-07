@@ -107,3 +107,30 @@ export const jobRuns = sqliteTable('job_runs', {
 
 export type JobRunRow = typeof jobRuns.$inferSelect
 export type NewJobRunRow = typeof jobRuns.$inferInsert
+
+// ---------------------------------------------------------------------------
+// user_settings  (per-user scheduler config, reminder state)
+// ---------------------------------------------------------------------------
+
+export const userSettings = sqliteTable('user_settings', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .unique()
+    .references(() => user.id),
+  standupCron: text('standup_cron').notNull().default('30 17 * * 1-5'),
+  reminderCron: text('reminder_cron').notNull().default('20 17 * * 1-5'),
+  recoveryCron: text('recovery_cron').notNull().default('0 18 * * 1-5'),
+  timezone: text('timezone').notNull().default('America/Sao_Paulo'),
+  reposBasePath: text('repos_base_path').notNull(),
+  gitAuthor: text('git_author').notNull(),
+  gitSincePeriod: text('git_since_period').notNull().default('16 hours ago'),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  snoozedUntil: integer('snoozed_until'), // epoch ms, nullable
+  cancelledDate: text('cancelled_date'), // 'YYYY-MM-DD', nullable
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+})
+
+export type UserSettingsRow = typeof userSettings.$inferSelect
+export type NewUserSettingsRow = typeof userSettings.$inferInsert
