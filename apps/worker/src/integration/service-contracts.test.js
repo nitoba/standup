@@ -27,9 +27,23 @@ vi.mock(
   }),
 )
 
+const dbMocks = vi.hoisted(() => ({
+  findUserIdByDiscordId: vi.fn(),
+  updateSnoozedUntil: vi.fn(),
+  updateCancelledDate: vi.fn(),
+}))
+
 vi.mock('@standup/db', () => ({
   getDb: vi.fn(),
-  UserRepository: vi.fn(),
+  UserRepository: function UserRepository() {
+    return { findUserIdByDiscordId: dbMocks.findUserIdByDiscordId }
+  },
+  UserSettingsRepository: function UserSettingsRepository() {
+    return {
+      updateSnoozedUntil: dbMocks.updateSnoozedUntil,
+      updateCancelledDate: dbMocks.updateCancelledDate,
+    }
+  },
 }))
 
 const INTERNAL_SECRET = 'test-secret'
@@ -196,11 +210,8 @@ describe('Cross-service HTTP contracts', () => {
     const triggerStandupJob = vi.fn().mockResolvedValue(undefined)
     const workerApp = createWorkerRouter({
       internalSecret: INTERNAL_SECRET,
+      databaseUrl: ':memory:',
       triggerStandupJob,
-      reminderState: {
-        snoozedUntil: null,
-        cancelledDate: null,
-      },
     })
 
     const server = await startHonoServer(workerApp)
@@ -237,13 +248,15 @@ describe('Cross-service HTTP contracts', () => {
   })
 
   it('bot -> worker: actions snooze/cancel usam contratos aceitos pelo router do worker', async () => {
+    // Mock DB lookups for the reminder handler
+    dbMocks.findUserIdByDiscordId.mockReturnValue(Result.ok(TEST_USER_ID))
+    dbMocks.updateSnoozedUntil.mockResolvedValue(Result.ok(undefined))
+    dbMocks.updateCancelledDate.mockResolvedValue(Result.ok(undefined))
+
     const workerApp = createWorkerRouter({
       internalSecret: INTERNAL_SECRET,
+      databaseUrl: ':memory:',
       triggerStandupJob: vi.fn().mockResolvedValue(undefined),
-      reminderState: {
-        snoozedUntil: null,
-        cancelledDate: null,
-      },
     })
 
     const server = await startHonoServer(workerApp)

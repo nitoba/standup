@@ -25,6 +25,7 @@ export interface ReminderHandlerDeps {
 async function postWorker(
   url: string,
   secret: string,
+  body: Record<string, unknown> = {},
 ): Promise<Result<void, ExternalServiceError>> {
   return Result.tryPromise({
     try: async () => {
@@ -34,7 +35,7 @@ async function postWorker(
           'content-type': 'application/json',
           'x-internal-secret': secret,
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
     },
@@ -103,33 +104,36 @@ export async function handleReminderInteraction(
 
   let result: Result<void, ExternalServiceError>
 
-  if (action === 'run-now') {
-    // Resolve userId from Discord ID to pass to the API trigger
-    const db = getDb(deps.databaseUrl)
-    const userRepo = new UserRepository(db)
-    const userIdResult = userRepo.findUserIdByDiscordId(deps.discordUserId)
-    if (userIdResult.isErr() || !userIdResult.value) {
-      await interaction.editReply({
-        content: '\u{274C} Usuário não registrado. Use /login primeiro.',
-        components: [],
-      })
-      return
-    }
+  // Resolve userId from Discord ID for all actions
+  const db = getDb(deps.databaseUrl)
+  const userRepo = new UserRepository(db)
+  const userIdResult = userRepo.findUserIdByDiscordId(deps.discordUserId)
+  if (userIdResult.isErr() || !userIdResult.value) {
+    await interaction.editReply({
+      content: '\u{274C} Usuário não registrado. Use /login primeiro.',
+      components: [],
+    })
+    return
+  }
+  const userId = userIdResult.value
 
+  if (action === 'run-now') {
     result = await postApiTrigger(
       `${deps.apiBaseUrl}/standups/trigger`,
       deps.internalSecret,
-      { userId: userIdResult.value, discordUserId: deps.discordUserId },
+      { userId, discordUserId: deps.discordUserId },
     )
   } else if (action === 'snooze') {
     result = await postWorker(
       `${deps.workerInternalUrl}/internal/reminder/snooze`,
       deps.internalSecret,
+      { userId },
     )
   } else {
     result = await postWorker(
       `${deps.workerInternalUrl}/internal/reminder/cancel`,
       deps.internalSecret,
+      { userId },
     )
   }
 

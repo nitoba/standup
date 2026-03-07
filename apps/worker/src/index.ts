@@ -18,14 +18,12 @@ function bootstrap() {
 
   const env = envResult.value
 
-  // reminderState is shared between scheduler and HTTP router so Discord button
-  // interactions (snooze/cancel) can mutate the scheduler's in-memory state.
-  const { reminderState } = startScheduler(env)
+  startScheduler(env)
 
   const internalApp = createInternalRouter({
     internalSecret: env.INTERNAL_SECRET,
+    databaseUrl: env.DATABASE_URL,
     triggerStandupJob: async (opts) => runStandupJob(env, opts),
-    reminderState,
   })
 
   const server = Bun.serve({
