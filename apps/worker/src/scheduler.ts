@@ -1,9 +1,9 @@
 import type { WorkerEnv } from '@standup/config'
 import {
+  getDb,
   JobRunRepository,
   UserRepository,
   UserSettingsRepository,
-  getDb,
 } from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import { Cron } from 'croner'
@@ -129,19 +129,15 @@ export function startScheduler(env: WorkerEnv): {
         })
 
         // Clean stale runs
-        const staleResult =
-          await jobRunRepo.findStaleRuns(STALE_RUN_MAX_AGE_MS)
+        const staleResult = await jobRunRepo.findStaleRuns(STALE_RUN_MAX_AGE_MS)
         if (staleResult.isOk() && staleResult.value.length > 0) {
           for (const stale of staleResult.value) {
-            logger.warn(
-              'Stale run detected — marking as failed for recovery',
-              {
-                id: stale.id,
-                jobName: stale.jobName,
-                date: stale.date,
-                startedAt: stale.startedAt,
-              },
-            )
+            logger.warn('Stale run detected — marking as failed for recovery', {
+              id: stale.id,
+              jobName: stale.jobName,
+              date: stale.date,
+              startedAt: stale.startedAt,
+            })
             await jobRunRepo.releaseLock(
               stale.id,
               'failed',

@@ -55,9 +55,18 @@ export async function handleTriggerStandup(
   const gitSincePeriod =
     typeof body.gitSincePeriod === 'string' ? body.gitSincePeriod : undefined
 
-  if (!userId || !discordUserId || !reposBasePath || !gitAuthor || !gitSincePeriod) {
+  if (
+    !userId ||
+    !discordUserId ||
+    !reposBasePath ||
+    !gitAuthor ||
+    !gitSincePeriod
+  ) {
     return c.json(
-      { error: 'userId, discordUserId, reposBasePath, gitAuthor, and gitSincePeriod are required' },
+      {
+        error:
+          'userId, discordUserId, reposBasePath, gitAuthor, and gitSincePeriod are required',
+      },
       400,
     )
   }

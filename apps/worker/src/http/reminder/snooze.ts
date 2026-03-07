@@ -1,4 +1,4 @@
-import { UserSettingsRepository, getDb } from '@standup/db'
+import { getDb, UserSettingsRepository } from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import type { Context } from 'hono'
 
@@ -45,7 +45,10 @@ export async function handleSnoozeReminder(
   const result = await repo.updateSnoozedUntil(userId, snoozedUntil)
 
   if (result.isErr()) {
-    logger.error('Failed to persist snooze', { userId, error: result.error.message })
+    logger.error('Failed to persist snooze', {
+      userId,
+      error: result.error.message,
+    })
     return c.json({ error: 'Failed to snooze' }, 500)
   }
 
@@ -55,5 +58,8 @@ export async function handleSnoozeReminder(
     minutes: SNOOZE_MINUTES,
   })
 
-  return c.json({ ok: true, snoozedUntil: new Date(snoozedUntil).toISOString() })
+  return c.json({
+    ok: true,
+    snoozedUntil: new Date(snoozedUntil).toISOString(),
+  })
 }

@@ -30,8 +30,7 @@ const TRIGGER_BODY = {
   gitSincePeriod: '16 hours ago',
 }
 
-const triggerStandupJob =
-  vi.fn<(options: StandupJobOptions) => Promise<void>>()
+const triggerStandupJob = vi.fn<(options: StandupJobOptions) => Promise<void>>()
 
 function makeRouter() {
   return createInternalRouter({
@@ -264,10 +263,7 @@ describe('createInternalRouter', () => {
     const body = (await res.json()) as { ok: boolean; cancelledDate: string }
     expect(body.ok).toBe(true)
     expect(body.cancelledDate).toBe(today)
-    expect(mocks.updateCancelledDate).toHaveBeenCalledWith(
-      TEST_USER_ID,
-      today,
-    )
+    expect(mocks.updateCancelledDate).toHaveBeenCalledWith(TEST_USER_ID, today)
   })
 
   it('cancel: retorna 400 quando userId esta ausente', async () => {

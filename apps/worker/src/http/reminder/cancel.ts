@@ -1,4 +1,4 @@
-import { UserSettingsRepository, getDb } from '@standup/db'
+import { getDb, UserSettingsRepository } from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import type { Context } from 'hono'
 
@@ -44,11 +44,17 @@ export async function handleCancelReminder(
   const result = await repo.updateCancelledDate(userId, today)
 
   if (result.isErr()) {
-    logger.error('Failed to persist cancel', { userId, error: result.error.message })
+    logger.error('Failed to persist cancel', {
+      userId,
+      error: result.error.message,
+    })
     return c.json({ error: 'Failed to cancel' }, 500)
   }
 
-  logger.info('Standup cancelled for today via Discord button', { userId, date: today })
+  logger.info('Standup cancelled for today via Discord button', {
+    userId,
+    date: today,
+  })
 
   return c.json({ ok: true, cancelledDate: today })
 }

@@ -20,9 +20,7 @@ describe('isCronDueNow', () => {
   it('respects timezone — does not match when UTC time differs from local', () => {
     // 17:30 UTC = 14:30 Sao Paulo (UTC-3) — cron targets 17:30 SP time
     const now = new Date('2026-03-04T17:30:15Z')
-    expect(isCronDueNow('30 17 * * 1-5', 'America/Sao_Paulo', now)).toBe(
-      false,
-    )
+    expect(isCronDueNow('30 17 * * 1-5', 'America/Sao_Paulo', now)).toBe(false)
   })
 
   it('matches when timezone-adjusted time is correct', () => {

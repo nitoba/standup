@@ -425,9 +425,7 @@ describe('runStandupJob', () => {
         ),
       )
 
-      await expect(
-        runStandupJob(baseEnv, baseOptions),
-      ).resolves.toBeUndefined()
+      await expect(runStandupJob(baseEnv, baseOptions)).resolves.toBeUndefined()
     })
 
     it('passa extraContext ao generateStandup quando fornecido nas opcoes', async () => {
@@ -529,9 +527,7 @@ describe('runStandupJob', () => {
       )
 
       // Não deve lançar exceção — notificação é non-fatal
-      await expect(
-        runStandupJob(baseEnv, baseOptions),
-      ).resolves.toBeUndefined()
+      await expect(runStandupJob(baseEnv, baseOptions)).resolves.toBeUndefined()
 
       // Standup foi persistido e lock liberado com sucesso
       expect(mocks.repoCreate).toHaveBeenCalledOnce()
