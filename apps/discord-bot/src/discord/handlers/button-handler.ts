@@ -148,7 +148,6 @@ export async function handleButtonInteraction(
     | 'WORKER_INTERNAL_URL'
     | 'API_BASE_URL'
     | 'INTERNAL_SECRET'
-    | 'DISCORD_USER_ID'
   >,
 ): Promise<void> {
   const [namespace, action, standupId] = interaction.customId.split(':')
@@ -160,7 +159,7 @@ export async function handleButtonInteraction(
       workerInternalUrl: env.WORKER_INTERNAL_URL,
       apiBaseUrl: env.API_BASE_URL,
       internalSecret: env.INTERNAL_SECRET,
-      discordUserId: env.DISCORD_USER_ID,
+      discordUserId: interaction.user.id,
       databaseUrl: env.DATABASE_URL,
     })
     return

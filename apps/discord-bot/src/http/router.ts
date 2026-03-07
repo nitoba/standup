@@ -17,8 +17,6 @@ export interface InternalRouterOptions {
   databaseUrl: string
   /** Cliente Discord unificado — mesmo Client do gateway (index.ts). */
   client: Client
-  /** Discord User ID para lembretes via cron (Phase 2b will remove). */
-  discordUserId: string
   /** Canal Discord onde publicar standups e notificações de falha. */
   discordChannelId: string
   /** URL interna do worker — usada pelo reminder-handler para snooze/cancel. */
@@ -74,7 +72,6 @@ export function createInternalRouter(opts: InternalRouterOptions): Hono {
     (c) =>
       handleStandupReminder(c, c.req.valid('json'), {
         client: opts.client,
-        discordUserId: opts.discordUserId,
         workerInternalUrl: opts.workerInternalUrl,
         internalSecret: opts.internalSecret,
       }),

@@ -148,7 +148,6 @@ describe('Cross-service HTTP contracts', () => {
       internalSecret: INTERNAL_SECRET,
       databaseUrl: ':memory:',
       client: {},
-      discordUserId: 'discord-user-1',
       discordChannelId: 'discord-channel-1',
       workerInternalUrl: 'http://localhost:3335',
     })
@@ -180,7 +179,6 @@ describe('Cross-service HTTP contracts', () => {
       internalSecret: INTERNAL_SECRET,
       databaseUrl: ':memory:',
       client: {},
-      discordUserId: 'discord-user-1',
       discordChannelId: 'discord-channel-1',
       workerInternalUrl: 'http://localhost:3335',
     })

@@ -57,7 +57,6 @@ describe('POST /internal/notify/standup-ready', () => {
       internalSecret: INTERNAL_SECRET,
       databaseUrl: DATABASE_URL,
       client: fakeClient,
-      discordUserId: DISCORD_USER_ID,
       discordChannelId: DISCORD_CHANNEL_ID,
       workerInternalUrl: 'http://localhost:3335',
     })

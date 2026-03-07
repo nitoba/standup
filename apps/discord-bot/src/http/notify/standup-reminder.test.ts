@@ -40,7 +40,6 @@ function makeRouter() {
     internalSecret: INTERNAL_SECRET,
     databaseUrl: ':memory:',
     client: fakeClient,
-    discordUserId: 'user-123',
     discordChannelId: 'channel-456',
     workerInternalUrl: WORKER_INTERNAL_URL,
   })
@@ -77,13 +76,24 @@ describe('POST /internal/notify/standup-reminder', () => {
 
   it('retorna 401 sem secret', async () => {
     const res = await app.fetch(
-      makeRequest({ nextRunAt: '2026-03-06T17:30:00.000Z' }, null),
+      makeRequest(
+        { nextRunAt: '2026-03-06T17:30:00.000Z', discordUserId: 'user-123' },
+        null,
+      ),
     )
     expect(res.status).toBe(401)
   })
 
   it('retorna 400 quando nextRunAt está ausente', async () => {
-    const res = await app.fetch(makeRequest({}))
+    const res = await app.fetch(makeRequest({ discordUserId: 'user-123' }))
+    expect(res.status).toBe(400)
+    expect(mocks.sendReminderDm).not.toHaveBeenCalled()
+  })
+
+  it('retorna 400 quando discordUserId está ausente', async () => {
+    const res = await app.fetch(
+      makeRequest({ nextRunAt: '2026-03-06T17:30:00.000Z' }),
+    )
     expect(res.status).toBe(400)
     expect(mocks.sendReminderDm).not.toHaveBeenCalled()
   })
@@ -92,7 +102,10 @@ describe('POST /internal/notify/standup-reminder', () => {
     mocks.sendReminderDm.mockResolvedValue(Result.ok({ messageId: 'msg-789' }))
 
     const res = await app.fetch(
-      makeRequest({ nextRunAt: '2026-03-06T17:30:00.000Z' }),
+      makeRequest({
+        nextRunAt: '2026-03-06T17:30:00.000Z',
+        discordUserId: 'user-123',
+      }),
     )
 
     expect(res.status).toBe(200)
@@ -118,7 +131,10 @@ describe('POST /internal/notify/standup-reminder', () => {
     )
 
     const res = await app.fetch(
-      makeRequest({ nextRunAt: '2026-03-06T17:30:00.000Z' }),
+      makeRequest({
+        nextRunAt: '2026-03-06T17:30:00.000Z',
+        discordUserId: 'user-123',
+      }),
     )
 
     expect(res.status).toBe(200)

@@ -24,7 +24,6 @@ const botEnvSchema = baseEnvSchema.extend({
   WORKER_INTERNAL_URL: z.string().default('http://localhost:3335'),
   DISCORD_BOT_TOKEN: z.string().min(1),
   DISCORD_CHANNEL_ID: z.string().min(1),
-  DISCORD_USER_ID: z.string().min(1),
   DISCORD_GUILD_ID: z.string().optional(), // Guild commands (dev) vs global (prod)
 })
 

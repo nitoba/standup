@@ -39,7 +39,6 @@ export async function startDiscordBot(): Promise<void> {
     internalSecret: env.INTERNAL_SECRET,
     databaseUrl: env.DATABASE_URL,
     client,
-    discordUserId: env.DISCORD_USER_ID,
     discordChannelId: env.DISCORD_CHANNEL_ID,
     workerInternalUrl: env.WORKER_INTERNAL_URL,
   })

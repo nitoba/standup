@@ -22,7 +22,6 @@ describe('env loaders', () => {
     const result = loadBotEnv({
       DISCORD_BOT_TOKEN: 'bot-token',
       DISCORD_CHANNEL_ID: 'channel-123',
-      DISCORD_USER_ID: 'user-123',
     })
 
     expect(result.isOk()).toBe(true)

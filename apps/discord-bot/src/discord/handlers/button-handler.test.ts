@@ -71,7 +71,6 @@ const env = {
   DATABASE_URL: ':memory:',
   DISCORD_CHANNEL_ID: 'channel-123',
   INTERNAL_SECRET: 'test-secret',
-  DISCORD_USER_ID: 'user-123',
   WORKER_INTERNAL_URL: 'http://localhost:3335',
   API_BASE_URL: 'http://localhost:3333',
 }
