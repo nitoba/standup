@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   repoList: vi.fn(),
   getDb: vi.fn().mockReturnValue({}),
+  findUserIdByDiscordId: vi.fn(),
   createPendingTriggerRequest: vi.fn(),
   checkRemoteServiceHealth: vi.fn(),
   handleInteraction: vi.fn(),
@@ -33,7 +34,10 @@ vi.mock('@standup/db', () => {
   function StandupRepository() {
     return { list: mocks.repoList }
   }
-  return { getDb: mocks.getDb, StandupRepository }
+  function UserRepository() {
+    return { findUserIdByDiscordId: mocks.findUserIdByDiscordId }
+  }
+  return { getDb: mocks.getDb, StandupRepository, UserRepository }
 })
 
 vi.mock('../handlers/trigger-request-store.js', () => ({
@@ -185,7 +189,10 @@ describe('handleTrigger', () => {
 })
 
 describe('handleList', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok('resolved-user-id'))
+  })
   afterEach(() => vi.restoreAllMocks())
 
   it('lista standups sem filtro e exibe embeds', async () => {
@@ -212,7 +219,10 @@ describe('handleList', () => {
 
     await handleList(interaction, { databaseUrl: DATABASE_URL })
 
-    expect(mocks.repoList).toHaveBeenCalledWith({ status: 'pending_review' })
+    expect(mocks.repoList).toHaveBeenCalledWith({
+      status: 'pending_review',
+      userId: 'resolved-user-id',
+    })
   })
 
   it('responde com mensagem de lista vazia quando não há standups', async () => {

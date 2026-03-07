@@ -6,6 +6,8 @@ export interface TriggerStandupJobDeps {
 }
 
 export interface TriggerStandupJobOptions {
+  userId: string
+  discordUserId: string
   extraContext?: string
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
@@ -18,32 +20,26 @@ export interface TriggerStandupJobOptions {
  */
 export async function triggerStandupJob(
   deps: TriggerStandupJobDeps,
-  options?: TriggerStandupJobOptions,
+  options: TriggerStandupJobOptions,
 ): Promise<Result<void, ExternalServiceError>> {
   return Result.tryPromise({
     try: async () => {
-      const hasBody =
-        options?.extraContext !== undefined ||
-        options?.forceRegenerate !== undefined
-
       const response = await fetch(
         `${deps.workerInternalUrl}/internal/trigger/standup`,
         {
           method: 'POST',
           headers: {
             'x-internal-secret': deps.internalSecret,
-            ...(hasBody ? { 'content-type': 'application/json' } : {}),
+            'content-type': 'application/json',
           },
-          ...(hasBody
-            ? {
-                body: JSON.stringify({
-                  extraContext: options?.extraContext,
-                  forceRegenerate: options?.forceRegenerate,
-                  rewriteFromStandupId: options?.rewriteFromStandupId,
-                  rewriteInstruction: options?.rewriteInstruction,
-                }),
-              }
-            : {}),
+          body: JSON.stringify({
+            userId: options.userId,
+            discordUserId: options.discordUserId,
+            extraContext: options.extraContext,
+            forceRegenerate: options.forceRegenerate,
+            rewriteFromStandupId: options.rewriteFromStandupId,
+            rewriteInstruction: options.rewriteInstruction,
+          }),
         },
       )
 

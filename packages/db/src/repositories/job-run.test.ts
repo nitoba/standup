@@ -17,7 +17,8 @@ async function setupTables(db: Db): Promise<void> {
       status      TEXT NOT NULL,
       started_at  INTEGER NOT NULL,
       finished_at INTEGER,
-      error       TEXT
+      error       TEXT,
+      user_id     TEXT
     )
   `)
 }

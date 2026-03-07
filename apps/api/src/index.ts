@@ -82,7 +82,6 @@ app.route(
   '/',
   createStandupRouter({
     databaseUrl: env.DATABASE_URL,
-    allowedDiscordUserId: env.DISCORD_USER_ID,
     workerInternalUrl: env.WORKER_INTERNAL_URL,
     internalSecret: env.INTERNAL_SECRET,
   }),

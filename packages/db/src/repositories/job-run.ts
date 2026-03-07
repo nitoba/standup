@@ -23,6 +23,7 @@ export interface AcquireLockInput {
   id: string
   jobName: string
   date: string
+  userId?: string
   forceRegenerate?: boolean
 }
 
@@ -59,13 +60,18 @@ export class JobRunRepository {
     Result<JobRunRow, LockAlreadyHeldError | JobAlreadyCompletedError | DbError>
   > {
     try {
-      // Verifica se já existe run para (jobName, date)
+      // Verifica se já existe run para (jobName, date[, userId])
+      const lockConditions = [
+        eq(jobRuns.jobName, input.jobName),
+        eq(jobRuns.date, input.date),
+      ]
+      if (input.userId) {
+        lockConditions.push(eq(jobRuns.userId, input.userId))
+      }
       const existing = await this.db
         .select()
         .from(jobRuns)
-        .where(
-          and(eq(jobRuns.jobName, input.jobName), eq(jobRuns.date, input.date)),
-        )
+        .where(and(...lockConditions))
         .get()
 
       if (existing) {
@@ -116,6 +122,7 @@ export class JobRunRepository {
         jobName: input.jobName,
         date: input.date,
         status: 'running',
+        userId: input.userId ?? null,
         startedAt: now,
         finishedAt: null,
         error: null,
@@ -200,12 +207,17 @@ export class JobRunRepository {
   async findByJobAndDate(
     jobName: string,
     date: string,
+    userId?: string,
   ): Promise<Result<JobRunRow | null, DbError>> {
     try {
+      const conditions = [eq(jobRuns.jobName, jobName), eq(jobRuns.date, date)]
+      if (userId) {
+        conditions.push(eq(jobRuns.userId, userId))
+      }
       const row = await this.db
         .select()
         .from(jobRuns)
-        .where(and(eq(jobRuns.jobName, jobName), eq(jobRuns.date, date)))
+        .where(and(...conditions))
         .get()
 
       return Result.ok(row ?? null)

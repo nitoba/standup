@@ -4,10 +4,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   triggerStandup: vi.fn(),
+  findUserIdByDiscordId: vi.fn(),
+  getDb: vi.fn(),
 }))
 
 vi.mock('../../services/trigger-standup-service.js', () => ({
   triggerStandup: mocks.triggerStandup,
+}))
+
+vi.mock('@standup/db', () => {
+  function UserRepository() {
+    return { findUserIdByDiscordId: mocks.findUserIdByDiscordId }
+  }
+  return { getDb: mocks.getDb, UserRepository }
+})
+
+vi.mock('@standup/logger', () => ({
+  createServiceLogger: vi.fn().mockReturnValue({
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+  }),
+  withContext: vi.fn().mockReturnValue({
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+  }),
 }))
 
 import { handleTriggerButtonInteraction } from './trigger-handler.js'
@@ -39,6 +61,7 @@ describe('handleTriggerButtonInteraction', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     clearPendingTriggerRequests()
+    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok('resolved-user-id'))
   })
 
   afterEach(() => {
@@ -57,12 +80,15 @@ describe('handleTriggerButtonInteraction', () => {
 
     await handleTriggerButtonInteraction(interaction, 'confirm', request.id, {
       apiBaseUrl: 'http://localhost:3333',
+      internalSecret: 'test-secret',
+      databaseUrl: ':memory:',
     })
 
     expect(deferUpdate).toHaveBeenCalledTimes(1)
     expect(mocks.triggerStandup).toHaveBeenCalledWith(
+      expect.any(String),
       'user-123',
-      { apiBaseUrl: 'http://localhost:3333' },
+      { apiBaseUrl: 'http://localhost:3333', internalSecret: 'test-secret' },
       {
         forceRegenerate: true,
         extraContext: 'focar no card 123',
@@ -85,6 +111,8 @@ describe('handleTriggerButtonInteraction', () => {
 
     await handleTriggerButtonInteraction(interaction, 'cancel', request.id, {
       apiBaseUrl: 'http://localhost:3333',
+      internalSecret: 'test-secret',
+      databaseUrl: ':memory:',
     })
 
     expect(mocks.triggerStandup).not.toHaveBeenCalled()
@@ -99,6 +127,8 @@ describe('handleTriggerButtonInteraction', () => {
 
     await handleTriggerButtonInteraction(interaction, 'confirm', 'missing', {
       apiBaseUrl: 'http://localhost:3333',
+      internalSecret: 'test-secret',
+      databaseUrl: ':memory:',
     })
 
     expect(mocks.triggerStandup).not.toHaveBeenCalled()
@@ -115,6 +145,8 @@ describe('handleTriggerButtonInteraction', () => {
 
     await handleTriggerButtonInteraction(interaction, 'confirm', request.id, {
       apiBaseUrl: 'http://localhost:3333',
+      internalSecret: 'test-secret',
+      databaseUrl: ':memory:',
     })
 
     expect(mocks.triggerStandup).not.toHaveBeenCalled()
@@ -136,6 +168,8 @@ describe('handleTriggerButtonInteraction', () => {
 
     await handleTriggerButtonInteraction(interaction, 'confirm', request.id, {
       apiBaseUrl: 'http://localhost:3333',
+      internalSecret: 'test-secret',
+      databaseUrl: ':memory:',
     })
 
     expect(editReply).toHaveBeenNthCalledWith(1, {
@@ -158,6 +192,8 @@ describe('handleTriggerButtonInteraction', () => {
 
     await handleTriggerButtonInteraction(interaction, 'confirm', request.id, {
       apiBaseUrl: 'http://localhost:3333',
+      internalSecret: 'test-secret',
+      databaseUrl: ':memory:',
     })
 
     expect(editReply).toHaveBeenNthCalledWith(1, {

@@ -25,6 +25,68 @@ export class UserRepository {
   constructor(private db: Db) {}
 
   /**
+   * Resolve Discord ID → internal user ID.
+   * Retorna apenas o user.id (usado pela API e worker para propagar userId).
+   */
+  findUserIdByDiscordId(
+    discordId: string,
+  ): Result<string | null, { message: string }> {
+    try {
+      const row = this.db
+        .select({ id: user.id })
+        .from(account)
+        .innerJoin(user, eq(account.userId, user.id))
+        .where(
+          and(
+            eq(account.providerId, 'discord'),
+            eq(account.accountId, discordId),
+          ),
+        )
+        .limit(1)
+        .get()
+
+      return Result.ok(row?.id ?? null)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown DB error'
+      logger.error('Failed to find userId by Discord ID', {
+        discordId,
+        error: message,
+      })
+      return Result.err({ message })
+    }
+  }
+
+  /**
+   * Resolve internal user ID → Discord ID.
+   * Usado pela API para resolver discordUserId a partir da sessão.
+   */
+  findDiscordIdByUserId(
+    userId: string,
+  ): Result<string | null, { message: string }> {
+    try {
+      const row = this.db
+        .select({ accountId: account.accountId })
+        .from(account)
+        .where(
+          and(eq(account.userId, userId), eq(account.providerId, 'discord')),
+        )
+        .limit(1)
+        .get()
+
+      return Result.ok(row?.accountId ?? null)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown DB error'
+      logger.error('Failed to find Discord ID by userId', {
+        userId,
+        error: message,
+      })
+      return Result.err({ message })
+    }
+  }
+
+  /**
    * Busca um usuário pelo seu Discord ID (account.accountId onde providerId = 'discord').
    * Retorna null se o usuário não estiver registrado.
    */

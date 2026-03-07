@@ -5,7 +5,6 @@ import { loadApiEnv, loadBotEnv, loadWorkerEnv } from './env.js'
 describe('env loaders', () => {
   it('loadApiEnv validates only API requirements', () => {
     const result = loadApiEnv({
-      DISCORD_USER_ID: 'user-123',
       DISCORD_CLIENT_ID: 'client-id',
       DISCORD_CLIENT_SECRET: 'client-secret',
       BETTER_AUTH_SECRET: 'auth-secret',
@@ -31,6 +30,7 @@ describe('env loaders', () => {
 
   it('loadWorkerEnv does not require Discord bot token', () => {
     const result = loadWorkerEnv({
+      DISCORD_USER_ID: 'user-123',
       AI_PROVIDER_API_KEY: 'provider-key',
       AZURE_DEVOPS_ORG: 'org',
       AZURE_DEVOPS_PAT: 'pat',
@@ -41,6 +41,7 @@ describe('env loaders', () => {
 
   it('returns a ValidationError with the failing field', () => {
     const result = loadWorkerEnv({
+      DISCORD_USER_ID: 'user-123',
       AZURE_DEVOPS_ORG: 'org',
       AZURE_DEVOPS_PAT: 'pat',
     })

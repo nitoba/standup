@@ -94,6 +94,7 @@ const baseEnv: WorkerEnv = {
   GIT_SINCE_PERIOD: '16 hours ago',
   BOT_INTERNAL_URL: 'http://localhost:3334',
   WORKER_INTERNAL_PORT: 3335,
+  DISCORD_USER_ID: 'test-discord-1',
   INTERNAL_SECRET: 'test-secret',
 }
 
@@ -178,7 +179,10 @@ describe('runStandupJob', () => {
         ),
       )
 
-      await runStandupJob(baseEnv)
+      await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
+      })
 
       expect(mocks.collect).not.toHaveBeenCalled()
       expect(mocks.generate).not.toHaveBeenCalled()
@@ -196,7 +200,10 @@ describe('runStandupJob', () => {
         ),
       )
 
-      await runStandupJob(baseEnv)
+      await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
+      })
 
       expect(mocks.collect).not.toHaveBeenCalled()
       expect(mocks.generate).not.toHaveBeenCalled()
@@ -211,7 +218,10 @@ describe('runStandupJob', () => {
       mocks.repoFindById.mockResolvedValue(Result.ok(savedRecord))
       mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
 
-      await runStandupJob(baseEnv)
+      await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
+      })
 
       expect(mocks.releaseLock).toHaveBeenCalledWith('uuid-test', 'success')
     })
@@ -224,7 +234,10 @@ describe('runStandupJob', () => {
       )
       mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
 
-      await runStandupJob(baseEnv)
+      await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
+      })
 
       expect(mocks.releaseLock).toHaveBeenCalledWith(
         'uuid-test',
@@ -236,7 +249,10 @@ describe('runStandupJob', () => {
     it('libera lock com success quando não há commits (no-op legítimo)', async () => {
       mocks.collect.mockResolvedValue(Result.ok(emptyGitActivity))
 
-      await runStandupJob(baseEnv)
+      await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
+      })
 
       expect(mocks.releaseLock).toHaveBeenCalledWith('uuid-test', 'success')
     })
@@ -258,7 +274,10 @@ describe('runStandupJob', () => {
       )
       mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
 
-      await runStandupJob(baseEnv)
+      await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
+      })
 
       // Job chama generateStandup uma unica vez — retry e interno ao generator
       expect(mocks.generate).toHaveBeenCalledTimes(1)
@@ -281,7 +300,10 @@ describe('runStandupJob', () => {
       mocks.repoFindById.mockResolvedValue(Result.ok(savedRecord))
       mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
 
-      await runStandupJob(baseEnv)
+      await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
+      })
 
       expect(mocks.generate).toHaveBeenCalledTimes(1)
       expect(mocks.generateAdjusted).not.toHaveBeenCalled()
@@ -298,7 +320,10 @@ describe('runStandupJob', () => {
       )
       mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
 
-      await runStandupJob(baseEnv)
+      await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
+      })
 
       expect(mocks.collect).toHaveBeenCalledTimes(1)
       expect(mocks.generateAdjusted).not.toHaveBeenCalled()
@@ -314,7 +339,10 @@ describe('runStandupJob', () => {
     it('retorna sem gerar standup quando não há commits hoje', async () => {
       mocks.collect.mockResolvedValue(Result.ok(emptyGitActivity))
 
-      await runStandupJob(baseEnv)
+      await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
+      })
 
       expect(mocks.collect).toHaveBeenCalledOnce()
       expect(mocks.generate).not.toHaveBeenCalled()
@@ -330,7 +358,10 @@ describe('runStandupJob', () => {
       mocks.repoFindById.mockResolvedValue(Result.ok(savedRecord))
       mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
 
-      await runStandupJob(baseEnv)
+      await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
+      })
 
       expect(mocks.collect).toHaveBeenCalledOnce()
       expect(mocks.generate).toHaveBeenCalledOnce()
@@ -339,6 +370,7 @@ describe('runStandupJob', () => {
       expect(mocks.notifyStandupReady).toHaveBeenCalledWith({
         botInternalUrl: baseEnv.BOT_INTERNAL_URL,
         standupId: savedRecord.id,
+        discordUserId: 'test-discord-1',
         secret: baseEnv.INTERNAL_SECRET,
       })
     })
@@ -357,7 +389,10 @@ describe('runStandupJob', () => {
       )
       mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
 
-      await runStandupJob(baseEnv)
+      await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
+      })
 
       expect(mocks.generate).not.toHaveBeenCalled()
       expect(mocks.generateAdjusted).not.toHaveBeenCalled()
@@ -383,7 +418,10 @@ describe('runStandupJob', () => {
       )
       mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
 
-      await runStandupJob(baseEnv)
+      await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
+      })
 
       expect(mocks.generate).toHaveBeenCalledTimes(1) // sem retry para non-retryable
       expect(mocks.generateAdjusted).not.toHaveBeenCalled()
@@ -402,7 +440,10 @@ describe('runStandupJob', () => {
       )
       mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
 
-      await runStandupJob(baseEnv)
+      await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
+      })
 
       expect(mocks.notifyStandupReady).not.toHaveBeenCalled()
       expect(mocks.notifyJobFailed).toHaveBeenCalledOnce()
@@ -423,7 +464,12 @@ describe('runStandupJob', () => {
         ),
       )
 
-      await expect(runStandupJob(baseEnv)).resolves.toBeUndefined()
+      await expect(
+        runStandupJob(baseEnv, {
+          userId: 'test-user-1',
+          discordUserId: 'test-discord-1',
+        }),
+      ).resolves.toBeUndefined()
     })
 
     it('passa extraContext ao generateStandup quando fornecido nas opcoes', async () => {
@@ -433,6 +479,8 @@ describe('runStandupJob', () => {
       mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
 
       await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
         extraContext: 'Focar no card #1234',
       })
 
@@ -454,6 +502,8 @@ describe('runStandupJob', () => {
       mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
 
       await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
         forceRegenerate: true,
         rewriteFromStandupId: 'standup-abc',
         rewriteInstruction: 'Remover item antigo e adicionar item novo',
@@ -482,6 +532,8 @@ describe('runStandupJob', () => {
       mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
 
       await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
         forceRegenerate: true,
         rewriteInstruction: 'Ajustar texto',
       })
@@ -498,7 +550,11 @@ describe('runStandupJob', () => {
       mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
       mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
 
-      await runStandupJob(baseEnv, { forceRegenerate: true })
+      await runStandupJob(baseEnv, {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
+        forceRegenerate: true,
+      })
 
       expect(mocks.acquireLock).toHaveBeenCalledWith(
         expect.objectContaining({ forceRegenerate: true }),
@@ -519,7 +575,12 @@ describe('runStandupJob', () => {
       )
 
       // Não deve lançar exceção — notificação é non-fatal
-      await expect(runStandupJob(baseEnv)).resolves.toBeUndefined()
+      await expect(
+        runStandupJob(baseEnv, {
+          userId: 'test-user-1',
+          discordUserId: 'test-discord-1',
+        }),
+      ).resolves.toBeUndefined()
 
       // Standup foi persistido e lock liberado com sucesso
       expect(mocks.repoCreate).toHaveBeenCalledOnce()

@@ -108,7 +108,11 @@ describe('handleButtonInteraction', () => {
       interaction,
       'confirm',
       'req-123',
-      { apiBaseUrl: 'http://localhost:3333' },
+      {
+        apiBaseUrl: 'http://localhost:3333',
+        internalSecret: 'test-secret',
+        databaseUrl: ':memory:',
+      },
     )
     expect(deferUpdate).not.toHaveBeenCalled()
     expect(editReply).not.toHaveBeenCalled()

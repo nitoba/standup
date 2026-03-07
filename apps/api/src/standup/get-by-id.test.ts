@@ -13,6 +13,12 @@ vi.mock('../services/standup-service.js', () => ({
   getStandupById: mocks.getStandupById,
 }))
 
+vi.mock('@standup/db', () => ({
+  getDb: vi.fn(),
+  UserRepository: vi.fn(),
+}))
+
+import { Hono } from 'hono'
 import { createStandupRouter } from './router.js'
 
 // ---------------------------------------------------------------------------
@@ -20,7 +26,7 @@ import { createStandupRouter } from './router.js'
 // ---------------------------------------------------------------------------
 
 const DATABASE_URL = ':memory:'
-const ALLOWED_DISCORD_USER_ID = 'discord-user-123'
+const TEST_USER_ID = 'test-user-1'
 const WORKER_INTERNAL_URL = 'http://localhost:3335'
 const INTERNAL_SECRET = 'internal-secret'
 
@@ -44,16 +50,21 @@ function makeGetRequest(url: string): Request {
 // ---------------------------------------------------------------------------
 
 describe('GET /standups/:id', () => {
-  let app: ReturnType<typeof createStandupRouter>
+  let app: Hono<{ Variables: { user: Record<string, unknown> } }>
 
   beforeEach(() => {
     vi.clearAllMocks()
-    app = createStandupRouter({
+    const router = createStandupRouter({
       databaseUrl: DATABASE_URL,
-      allowedDiscordUserId: ALLOWED_DISCORD_USER_ID,
       workerInternalUrl: WORKER_INTERNAL_URL,
       internalSecret: INTERNAL_SECRET,
     })
+    app = new Hono<{ Variables: { user: Record<string, unknown> } }>()
+    app.use('*', async (c, next) => {
+      c.set('user', { id: TEST_USER_ID })
+      return next()
+    })
+    app.route('/', router)
   })
 
   afterEach(() => {
@@ -69,9 +80,13 @@ describe('GET /standups/:id', () => {
     const body = (await res.json()) as { data: typeof standupRecord }
     expect(body.data.id).toBe('standup-abc')
     expect(body.data.content).toBe('## Standup\n\n- feat: add feature')
-    expect(mocks.getStandupById).toHaveBeenCalledWith('standup-abc', {
-      databaseUrl: DATABASE_URL,
-    })
+    expect(mocks.getStandupById).toHaveBeenCalledWith(
+      'standup-abc',
+      TEST_USER_ID,
+      {
+        databaseUrl: DATABASE_URL,
+      },
+    )
   })
 
   it('retorna 404 quando standup não existe', async () => {

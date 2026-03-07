@@ -4,6 +4,12 @@ import { createInternalRouter } from './router.js'
 import type { StandupJobOptions } from './trigger/standup.js'
 
 const INTERNAL_SECRET = 'test-secret'
+const TEST_USER_ID = 'test-user-1'
+const TEST_DISCORD_USER_ID = 'discord-user-123'
+const TRIGGER_BODY = {
+  userId: TEST_USER_ID,
+  discordUserId: TEST_DISCORD_USER_ID,
+}
 
 function makeReminderState(overrides?: Partial<ReminderState>): ReminderState {
   return { snoozedUntil: null, cancelledDate: null, ...overrides }
@@ -27,7 +33,7 @@ function makeRequest(
 
 describe('createInternalRouter', () => {
   const triggerStandupJob =
-    vi.fn<(options?: StandupJobOptions) => Promise<void>>()
+    vi.fn<(options: StandupJobOptions) => Promise<void>>()
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -101,7 +107,25 @@ describe('createInternalRouter', () => {
   // POST /internal/trigger/standup
   // ---------------------------------------------------------------------------
 
-  it('retorna 202 e dispara runStandupJob quando secret esta correto', async () => {
+  it('retorna 202 e dispara runStandupJob quando secret e body estao corretos', async () => {
+    const app = createInternalRouter({
+      internalSecret: INTERNAL_SECRET,
+      triggerStandupJob,
+      reminderState: makeReminderState(),
+    })
+
+    const res = await app.fetch(
+      makeRequest('/internal/trigger/standup', INTERNAL_SECRET, TRIGGER_BODY),
+    )
+
+    expect(res.status).toBe(202)
+    const body = (await res.json()) as { ok: boolean; accepted: boolean }
+    expect(body.ok).toBe(true)
+    expect(body.accepted).toBe(true)
+    expect(triggerStandupJob).toHaveBeenCalledTimes(1)
+  })
+
+  it('retorna 400 quando userId e discordUserId estao ausentes', async () => {
     const app = createInternalRouter({
       internalSecret: INTERNAL_SECRET,
       triggerStandupJob,
@@ -110,11 +134,8 @@ describe('createInternalRouter', () => {
 
     const res = await app.fetch(makeRequest('/internal/trigger/standup'))
 
-    expect(res.status).toBe(202)
-    const body = (await res.json()) as { ok: boolean; accepted: boolean }
-    expect(body.ok).toBe(true)
-    expect(body.accepted).toBe(true)
-    expect(triggerStandupJob).toHaveBeenCalledTimes(1)
+    expect(res.status).toBe(400)
+    expect(triggerStandupJob).not.toHaveBeenCalled()
   })
 
   it('retorna 500 quando dispatch do trigger falha antes de iniciar', async () => {
@@ -128,7 +149,9 @@ describe('createInternalRouter', () => {
       reminderState: makeReminderState(),
     })
 
-    const res = await app.fetch(makeRequest('/internal/trigger/standup'))
+    const res = await app.fetch(
+      makeRequest('/internal/trigger/standup', INTERNAL_SECRET, TRIGGER_BODY),
+    )
 
     expect(res.status).toBe(500)
   })
@@ -142,6 +165,7 @@ describe('createInternalRouter', () => {
 
     const res = await app.fetch(
       makeRequest('/internal/trigger/standup', INTERNAL_SECRET, {
+        ...TRIGGER_BODY,
         extraContext: 'focar mais no card #123',
         forceRegenerate: true,
       }),
@@ -149,6 +173,7 @@ describe('createInternalRouter', () => {
 
     expect(res.status).toBe(202)
     expect(triggerStandupJob).toHaveBeenCalledWith({
+      ...TRIGGER_BODY,
       extraContext: 'focar mais no card #123',
       forceRegenerate: true,
     })
@@ -163,6 +188,7 @@ describe('createInternalRouter', () => {
 
     const res = await app.fetch(
       makeRequest('/internal/trigger/standup', INTERNAL_SECRET, {
+        ...TRIGGER_BODY,
         forceRegenerate: true,
         rewriteFromStandupId: 'standup-abc',
         rewriteInstruction: 'Remover seção X e adicionar seção Y',
@@ -171,23 +197,11 @@ describe('createInternalRouter', () => {
 
     expect(res.status).toBe(202)
     expect(triggerStandupJob).toHaveBeenCalledWith({
+      ...TRIGGER_BODY,
       forceRegenerate: true,
       rewriteFromStandupId: 'standup-abc',
       rewriteInstruction: 'Remover seção X e adicionar seção Y',
     })
-  })
-
-  it('funciona sem body (backwards-compatible)', async () => {
-    const app = createInternalRouter({
-      internalSecret: INTERNAL_SECRET,
-      triggerStandupJob,
-      reminderState: makeReminderState(),
-    })
-
-    const res = await app.fetch(makeRequest('/internal/trigger/standup'))
-
-    expect(res.status).toBe(202)
-    expect(triggerStandupJob).toHaveBeenCalledWith(undefined)
   })
 
   // ---------------------------------------------------------------------------

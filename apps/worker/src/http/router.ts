@@ -8,7 +8,7 @@ import { handleTriggerStandup } from './trigger/standup.js'
 
 export interface InternalRouterOptions {
   internalSecret: string
-  triggerStandupJob: (options?: StandupJobOptions) => Promise<void>
+  triggerStandupJob: (options: StandupJobOptions) => Promise<void>
   reminderState: ReminderState
 }
 

@@ -1,5 +1,5 @@
 import type { WorkerEnv } from '@standup/config'
-import { getDb, JobRunRepository } from '@standup/db'
+import { getDb, JobRunRepository, UserRepository } from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import { Cron } from 'croner'
 import { runStandupJob } from './job/standup-job.js'
@@ -80,7 +80,22 @@ export function startScheduler(env: WorkerEnv): {
       // Clear snooze once it fires (or if it already expired)
       reminderState.snoozedUntil = null
 
-      runStandupJob(env).catch((error: unknown) => {
+      // Resolve userId from DISCORD_USER_ID env (Phase 2b will iterate all users)
+      const db = getDb(env.DATABASE_URL)
+      const userRepo = new UserRepository(db)
+      const userIdResult = userRepo.findUserIdByDiscordId(env.DISCORD_USER_ID)
+      if (userIdResult.isErr() || !userIdResult.value) {
+        logger.warn(
+          'Cannot resolve userId for DISCORD_USER_ID — skipping cron standup',
+          { discordUserId: env.DISCORD_USER_ID },
+        )
+        return
+      }
+
+      runStandupJob(env, {
+        userId: userIdResult.value,
+        discordUserId: env.DISCORD_USER_ID,
+      }).catch((error: unknown) => {
         logger.error('Standup job threw unexpectedly', {
           error: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined,
@@ -167,11 +182,25 @@ export function startScheduler(env: WorkerEnv): {
         return
       }
 
-      // 3. Re-executar o job (idempotente: lock + JobAlreadyCompletedError protegem)
+      // 3. Resolve userId from DISCORD_USER_ID env (Phase 2b will iterate all users)
+      const userRepo = new UserRepository(db)
+      const userIdResult = userRepo.findUserIdByDiscordId(env.DISCORD_USER_ID)
+      if (userIdResult.isErr() || !userIdResult.value) {
+        logger.warn(
+          'Recovery cron: cannot resolve userId for DISCORD_USER_ID — skipping',
+          { discordUserId: env.DISCORD_USER_ID },
+        )
+        return
+      }
+
+      // 4. Re-executar o job (idempotente: lock + JobAlreadyCompletedError protegem)
       logger.info('Recovery cron: no successful run found — executing job', {
         date: today,
       })
-      runStandupJob(env).catch((error: unknown) => {
+      runStandupJob(env, {
+        userId: userIdResult.value,
+        discordUserId: env.DISCORD_USER_ID,
+      }).catch((error: unknown) => {
         logger.error('Recovery job threw unexpectedly', {
           error: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined,

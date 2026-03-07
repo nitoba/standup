@@ -18,6 +18,12 @@ vi.mock('../services/standup-service.js', () => ({
   updateStandupStatus: mocks.updateStandupStatus,
 }))
 
+vi.mock('@standup/db', () => ({
+  getDb: vi.fn(),
+  UserRepository: vi.fn(),
+}))
+
+import { Hono } from 'hono'
 import { createStandupRouter } from './router.js'
 
 // ---------------------------------------------------------------------------
@@ -25,7 +31,7 @@ import { createStandupRouter } from './router.js'
 // ---------------------------------------------------------------------------
 
 const DATABASE_URL = ':memory:'
-const ALLOWED_DISCORD_USER_ID = 'discord-user-123'
+const TEST_USER_ID = 'test-user-1'
 const WORKER_INTERNAL_URL = 'http://localhost:3335'
 const INTERNAL_SECRET = 'internal-secret'
 
@@ -53,16 +59,21 @@ function makePatchRequest(url: string, body: unknown): Request {
 // ---------------------------------------------------------------------------
 
 describe('PATCH /standups/:id/status', () => {
-  let app: ReturnType<typeof createStandupRouter>
+  let app: Hono<{ Variables: { user: Record<string, unknown> } }>
 
   beforeEach(() => {
     vi.clearAllMocks()
-    app = createStandupRouter({
+    const router = createStandupRouter({
       databaseUrl: DATABASE_URL,
-      allowedDiscordUserId: ALLOWED_DISCORD_USER_ID,
       workerInternalUrl: WORKER_INTERNAL_URL,
       internalSecret: INTERNAL_SECRET,
     })
+    app = new Hono<{ Variables: { user: Record<string, unknown> } }>()
+    app.use('*', async (c, next) => {
+      c.set('user', { id: TEST_USER_ID })
+      return next()
+    })
+    app.route('/', router)
   })
 
   afterEach(() => {
@@ -84,6 +95,7 @@ describe('PATCH /standups/:id/status', () => {
     expect(body.data.status).toBe('pending_review')
     expect(mocks.updateStandupStatus).toHaveBeenCalledWith(
       'standup-abc',
+      TEST_USER_ID,
       'pending_review',
       { databaseUrl: DATABASE_URL },
     )

@@ -1,4 +1,4 @@
-import { getDb, StandupRepository } from '@standup/db'
+import { getDb, StandupRepository, UserRepository } from '@standup/db'
 import type { StandupStatus } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import { type ChatInputCommandInteraction, MessageFlags } from 'discord.js'
@@ -44,8 +44,14 @@ export async function handleList(
     const db = getDb(deps.databaseUrl)
     const repo = new StandupRepository(db)
 
+    // Resolve userId from Discord ID to filter standups by ownership
+    const userRepo = new UserRepository(db)
+    const userIdResult = userRepo.findUserIdByDiscordId(interaction.user.id)
+    const userId =
+      userIdResult.isOk() && userIdResult.value ? userIdResult.value : undefined
+
     const result = await repo.list(
-      statusFilter ? { status: statusFilter } : undefined,
+      statusFilter ? { status: statusFilter, userId } : { userId },
     )
 
     if (result.isErr()) {

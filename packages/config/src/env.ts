@@ -11,7 +11,6 @@ const baseEnvSchema = z.object({
 })
 
 const apiEnvSchema = baseEnvSchema.extend({
-  DISCORD_USER_ID: z.string().min(1),
   DISCORD_CLIENT_ID: z.string().min(1),
   DISCORD_CLIENT_SECRET: z.string().min(1),
   BETTER_AUTH_SECRET: z.string().min(1),
@@ -30,6 +29,7 @@ const botEnvSchema = baseEnvSchema.extend({
 })
 
 const workerEnvSchema = baseEnvSchema.extend({
+  DISCORD_USER_ID: z.string().min(1), // Cron fallback — Phase 2b will remove this
   TIMEZONE: z.string().default('America/Sao_Paulo'),
   STANDUP_CRON: z.string().default('30 17 * * 1-5'),
   STANDUP_REMINDER_CRON: z.string().default('20 17 * * 1-5'),

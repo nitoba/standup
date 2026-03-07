@@ -17,7 +17,7 @@ export interface InternalRouterOptions {
   databaseUrl: string
   /** Cliente Discord unificado — mesmo Client do gateway (index.ts). */
   client: Client
-  /** Discord User ID para DMs de revisão e lembretes. */
+  /** Discord User ID para lembretes via cron (Phase 2b will remove). */
   discordUserId: string
   /** Canal Discord onde publicar standups e notificações de falha. */
   discordChannelId: string
@@ -53,7 +53,6 @@ export function createInternalRouter(opts: InternalRouterOptions): Hono {
       handleStandupReady(c, c.req.valid('json'), {
         databaseUrl: opts.databaseUrl,
         client: opts.client,
-        discordUserId: opts.discordUserId,
       }),
   )
 

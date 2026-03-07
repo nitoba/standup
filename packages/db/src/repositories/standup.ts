@@ -11,7 +11,7 @@ import {
   transitionStandupStatus,
 } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { Db } from '../connection.js'
 import type { NewStandupRow } from '../schema.js'
 import { standups } from '../schema.js'
@@ -50,6 +50,7 @@ function toRecord(row: typeof standups.$inferSelect): StandupRecord {
     sourceData: row.sourceData,
     customEntries: parseCustomEntries(row.customEntries),
     status: row.status as StandupStatus,
+    userId: row.userId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }
@@ -65,11 +66,13 @@ export interface CreateStandupInput {
   meetingType: string
   content: string
   sourceData: string
+  userId: string
 }
 
 export interface ListStandupFilters {
   status?: StandupStatus
   date?: string
+  userId?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +94,7 @@ export class StandupRepository {
         content: input.content,
         sourceData: input.sourceData,
         status: 'draft',
+        userId: input.userId,
         createdAt: now,
         updatedAt: now,
       }
@@ -170,21 +174,41 @@ export class StandupRepository {
     filters?: ListStandupFilters,
   ): Promise<Result<StandupRecord[], DbError>> {
     try {
+      const conditions = []
+      if (filters?.status) conditions.push(eq(standups.status, filters.status))
+      if (filters?.date) conditions.push(eq(standups.date, filters.date))
+      if (filters?.userId) conditions.push(eq(standups.userId, filters.userId))
+
       const rows = await this.db
         .select()
         .from(standups)
-        .where(
-          filters?.status
-            ? eq(standups.status, filters.status)
-            : filters?.date
-              ? eq(standups.date, filters.date)
-              : undefined,
-        )
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
         .all()
 
       return Result.ok(rows.map(toRecord))
     } catch (error) {
       return this.dbErr('list', error)
+    }
+  }
+
+  async findByIdForUser(
+    id: string,
+    userId: string,
+  ): Promise<Result<StandupRecord, NotFoundError | DbError>> {
+    try {
+      const row = await this.db
+        .select()
+        .from(standups)
+        .where(and(eq(standups.id, id), eq(standups.userId, userId)))
+        .get()
+
+      if (!row) {
+        return Result.err(new NotFoundError({ resource: 'standup', id }))
+      }
+
+      return Result.ok(toRecord(row))
+    } catch (error) {
+      return this.dbErr('findByIdForUser', error)
     }
   }
 

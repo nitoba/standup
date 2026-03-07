@@ -80,6 +80,7 @@ export const standups = sqliteTable('standups', {
   })
     .notNull()
     .default('draft'),
+  userId: text('user_id').references(() => user.id),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 })
@@ -98,6 +99,7 @@ export const jobRuns = sqliteTable('job_runs', {
   status: text('status', {
     enum: ['running', 'success', 'failed'],
   }).notNull(),
+  userId: text('user_id').references(() => user.id),
   startedAt: integer('started_at').notNull(),
   finishedAt: integer('finished_at'),
   error: text('error'),

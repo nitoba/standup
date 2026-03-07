@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   withContextInfo: vi.fn(),
   withContextError: vi.fn(),
   withContextWarn: vi.fn(),
+  findUserIdByDiscordId: vi.fn(),
+  getDb: vi.fn(),
 }))
 
 vi.mock('@standup/logger', () => ({
@@ -32,6 +34,13 @@ vi.mock('./interaction-handler.js', () => ({
 vi.mock('../../services/trigger-standup-service.js', () => ({
   triggerStandup: mocks.triggerStandup,
 }))
+
+vi.mock('@standup/db', () => {
+  function UserRepository() {
+    return { findUserIdByDiscordId: mocks.findUserIdByDiscordId }
+  }
+  return { getDb: mocks.getDb, UserRepository }
+})
 
 import type { Client, ModalSubmitInteraction } from 'discord.js'
 import { handleRegenerateModal } from './modal-handler.js'
@@ -67,11 +76,13 @@ const env = {
   DATABASE_URL: ':memory:',
   DISCORD_CHANNEL_ID: 'channel-123',
   API_BASE_URL: 'http://localhost:3333',
+  INTERNAL_SECRET: 'test-secret',
 }
 
 describe('handleRegenerateModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok('resolved-user-id'))
   })
 
   afterEach(() => {
@@ -118,8 +129,9 @@ describe('handleRegenerateModal', () => {
 
     // Triggers new generation with context
     expect(mocks.triggerStandup).toHaveBeenCalledWith(
+      expect.any(String),
       'user-123',
-      { apiBaseUrl: 'http://localhost:3333' },
+      { apiBaseUrl: 'http://localhost:3333', internalSecret: 'test-secret' },
       {
         forceRegenerate: true,
         extraContext: 'Focar mais no card #1234',
@@ -158,8 +170,9 @@ describe('handleRegenerateModal', () => {
     await handleRegenerateModal(interaction, fakeClient, env)
 
     expect(mocks.triggerStandup).toHaveBeenCalledWith(
+      expect.any(String),
       'user-123',
-      { apiBaseUrl: 'http://localhost:3333' },
+      { apiBaseUrl: 'http://localhost:3333', internalSecret: 'test-secret' },
       { forceRegenerate: true },
     )
   })

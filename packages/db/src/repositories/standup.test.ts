@@ -10,6 +10,17 @@ import { StandupRepository } from './standup.js'
 
 async function setupTables(db: Db): Promise<void> {
   db.run(sql`
+    CREATE TABLE IF NOT EXISTS user (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      email_verified INTEGER NOT NULL DEFAULT 0,
+      image TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+  `)
+  db.run(sql`
     CREATE TABLE IF NOT EXISTS standups (
       id          TEXT PRIMARY KEY,
       date        TEXT NOT NULL,
@@ -18,10 +29,15 @@ async function setupTables(db: Db): Promise<void> {
       source_data TEXT NOT NULL,
       custom_entries TEXT,
       status      TEXT NOT NULL DEFAULT 'draft',
+      user_id     TEXT REFERENCES user(id),
       created_at  INTEGER NOT NULL,
       updated_at  INTEGER NOT NULL
     )
   `)
+  // Seed a test user for FK constraints
+  db.run(
+    sql`INSERT OR IGNORE INTO user (id, name, email, email_verified, created_at, updated_at) VALUES ('test-user-1', 'Test User', 'test@test.com', 0, 1000, 1000)`,
+  )
 }
 
 function makeInput(
@@ -36,6 +52,7 @@ function makeInput(
       timestamp: new Date().toISOString(),
       repos: [],
     }),
+    userId: 'test-user-1',
     ...overrides,
   }
 }

@@ -28,6 +28,8 @@ const logger = createServiceLogger({
 // ---------------------------------------------------------------------------
 
 export interface StandupJobOptions {
+  userId: string
+  discordUserId: string
   extraContext?: string
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
@@ -45,13 +47,13 @@ interface StandupAdjustmentRequest {
 }
 
 function buildGenerationExtraContext(
-  options: StandupJobOptions | undefined,
+  options: StandupJobOptions,
 ): string | undefined {
-  return options?.extraContext?.trim() || undefined
+  return options.extraContext?.trim() || undefined
 }
 
 async function resolveAdjustmentRequest(
-  options: StandupJobOptions | undefined,
+  options: StandupJobOptions,
   standupRepo: StandupRepository,
 ): Promise<Result<StandupAdjustmentRequest | null, ResolveAdjustmentError>> {
   const rewriteInstruction = options?.rewriteInstruction?.trim()
@@ -86,7 +88,7 @@ async function resolveAdjustmentRequest(
 
 export async function runStandupJob(
   env: WorkerEnv,
-  options?: StandupJobOptions,
+  options: StandupJobOptions,
 ): Promise<void> {
   const runId = Bun.randomUUIDv7()
   const today = new Date().toISOString().slice(0, 10)
@@ -112,7 +114,8 @@ export async function runStandupJob(
     id: runId,
     jobName: 'standup',
     date: today,
-    forceRegenerate: options?.forceRegenerate,
+    userId: options.userId,
+    forceRegenerate: options.forceRegenerate,
   })
 
   if (lockResult.isErr()) {
@@ -179,6 +182,7 @@ export async function runStandupJob(
           meetingType: adjustmentRequest.meetingType,
           content: adjusted.content,
           sourceData: adjustmentRequest.sourceData,
+          userId: options.userId,
         }),
       )
 
@@ -190,6 +194,7 @@ export async function runStandupJob(
       const notifyResult = await notifyStandupReady({
         botInternalUrl: env.BOT_INTERNAL_URL,
         standupId: record.id,
+        discordUserId: options.discordUserId,
         secret: env.INTERNAL_SECRET,
       })
 
@@ -251,6 +256,7 @@ export async function runStandupJob(
         meetingType,
         content: generated.content,
         sourceData: JSON.stringify(gitActivity),
+        userId: options.userId,
       }),
     )
 
@@ -262,6 +268,7 @@ export async function runStandupJob(
     const notifyResult = await notifyStandupReady({
       botInternalUrl: env.BOT_INTERNAL_URL,
       standupId: record.id,
+      discordUserId: options.discordUserId,
       secret: env.INTERNAL_SECRET,
     })
 

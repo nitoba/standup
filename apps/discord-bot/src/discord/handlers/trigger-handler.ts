@@ -1,3 +1,4 @@
+import { getDb, UserRepository } from '@standup/db'
 import { createServiceLogger, withContext } from '@standup/logger'
 import type { ButtonInteraction } from 'discord.js'
 import { triggerStandup } from '../../services/trigger-standup-service.js'
@@ -12,6 +13,8 @@ export type TriggerAction = 'confirm' | 'cancel'
 
 export interface TriggerHandlerDeps {
   apiBaseUrl: string
+  internalSecret: string
+  databaseUrl: string
 }
 
 /**
@@ -72,6 +75,20 @@ export async function handleTriggerButtonInteraction(
     return
   }
 
+  // Resolve userId from discordUserId
+  const db = getDb(deps.databaseUrl)
+  const userRepo = new UserRepository(db)
+  const userIdResult = userRepo.findUserIdByDiscordId(
+    pendingRequest.discordUserId,
+  )
+  if (userIdResult.isErr() || !userIdResult.value) {
+    await interaction.editReply({
+      content: '❌ Usuário não registrado. Use /login primeiro.',
+      components: [],
+    })
+    return
+  }
+
   // Remove os botoes imediatamente para evitar cliques duplicados
   // enquanto o request HTTP para a API ainda esta em andamento.
   await interaction.editReply({
@@ -80,8 +97,9 @@ export async function handleTriggerButtonInteraction(
   })
 
   const result = await triggerStandup(
+    userIdResult.value,
     pendingRequest.discordUserId,
-    { apiBaseUrl: deps.apiBaseUrl },
+    { apiBaseUrl: deps.apiBaseUrl, internalSecret: deps.internalSecret },
     pendingRequest.options,
   )
 

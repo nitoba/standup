@@ -2,6 +2,7 @@ import { ExternalServiceError, Result } from '@standup/domain'
 
 export interface TriggerStandupDeps {
   apiBaseUrl: string
+  internalSecret: string
 }
 
 export interface TriggerStandupOptions {
@@ -16,10 +17,11 @@ export type TriggerStandupOutcome =
   | { accepted: false; reason: 'forbidden' }
 
 /**
- * Dispara trigger manual no API, autenticando por discordUserId.
- * Opcionalmente envia extraContext e forceRegenerate para regeneracao.
+ * Dispara trigger manual no API via internal auth (x-internal-secret).
+ * Envia userId e discordUserId no body para que o API propague ao worker.
  */
 export async function triggerStandup(
+  userId: string,
   discordUserId: string,
   deps: TriggerStandupDeps,
   options?: TriggerStandupOptions,
@@ -30,8 +32,10 @@ export async function triggerStandup(
         method: 'POST',
         headers: {
           'content-type': 'application/json',
+          'x-internal-secret': deps.internalSecret,
         },
         body: JSON.stringify({
+          userId,
           discordUserId,
           extraContext: options?.extraContext,
           forceRegenerate: options?.forceRegenerate,

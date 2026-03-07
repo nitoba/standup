@@ -54,6 +54,7 @@ export interface StandupRecord {
   sourceData: string
   customEntries: CustomEntries | null
   status: StandupStatus
+  userId: string | null
   createdAt: number
   updatedAt: number
 }

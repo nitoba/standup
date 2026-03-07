@@ -68,7 +68,7 @@ describe('POST /internal/notify/standup-ready', () => {
   })
 
   it('retorna 400 quando standupId está ausente', async () => {
-    const res = await app.fetch(makeRequest({}))
+    const res = await app.fetch(makeRequest({ discordUserId: DISCORD_USER_ID }))
 
     expect(res.status).toBe(400)
     const body = (await res.json()) as { success: boolean; error: unknown[] }
@@ -78,7 +78,9 @@ describe('POST /internal/notify/standup-ready', () => {
   })
 
   it('retorna 400 quando standupId é string vazia', async () => {
-    const res = await app.fetch(makeRequest({ standupId: '' }))
+    const res = await app.fetch(
+      makeRequest({ standupId: '', discordUserId: DISCORD_USER_ID }),
+    )
 
     expect(res.status).toBe(400)
     expect(mocks.notifyStandupReady).not.toHaveBeenCalled()
@@ -89,7 +91,9 @@ describe('POST /internal/notify/standup-ready', () => {
       Result.err(new NotFoundError({ resource: 'standup', id: 'standup-abc' })),
     )
 
-    const res = await app.fetch(makeRequest({ standupId: 'standup-abc' }))
+    const res = await app.fetch(
+      makeRequest({ standupId: 'standup-abc', discordUserId: DISCORD_USER_ID }),
+    )
 
     expect(res.status).toBe(404)
     const body = (await res.json()) as { error: string }
@@ -101,7 +105,9 @@ describe('POST /internal/notify/standup-ready', () => {
       Result.err(new DbError({ operation: 'findById', message: 'disk full' })),
     )
 
-    const res = await app.fetch(makeRequest({ standupId: 'standup-abc' }))
+    const res = await app.fetch(
+      makeRequest({ standupId: 'standup-abc', discordUserId: DISCORD_USER_ID }),
+    )
 
     expect(res.status).toBe(500)
     const body = (await res.json()) as { error: string }
@@ -113,7 +119,9 @@ describe('POST /internal/notify/standup-ready', () => {
       Result.ok({ standupId: 'standup-abc', dmSent: true, transitioned: true }),
     )
 
-    const res = await app.fetch(makeRequest({ standupId: 'standup-abc' }))
+    const res = await app.fetch(
+      makeRequest({ standupId: 'standup-abc', discordUserId: DISCORD_USER_ID }),
+    )
 
     expect(res.status).toBe(200)
     const body = (await res.json()) as { ok: boolean; standupId: string }
@@ -135,7 +143,9 @@ describe('POST /internal/notify/standup-ready', () => {
       }),
     )
 
-    const res = await app.fetch(makeRequest({ standupId: 'standup-abc' }))
+    const res = await app.fetch(
+      makeRequest({ standupId: 'standup-abc', discordUserId: DISCORD_USER_ID }),
+    )
 
     expect(res.status).toBe(200)
     const body = (await res.json()) as { ok: boolean }

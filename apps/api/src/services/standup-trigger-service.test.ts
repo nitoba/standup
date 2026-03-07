@@ -21,20 +21,34 @@ describe('triggerStandupJob', () => {
     vi.restoreAllMocks()
   })
 
-  it('retorna Ok quando worker responde 202 (sem opcoes)', async () => {
+  it('retorna Ok quando worker responde 202 (sem opcoes extras)', async () => {
     mockFetch.mockResolvedValue(response(202))
 
-    const result = await triggerStandupJob({
-      workerInternalUrl: 'http://localhost:3335',
-      internalSecret: 'internal-secret',
-    })
+    const result = await triggerStandupJob(
+      {
+        workerInternalUrl: 'http://localhost:3335',
+        internalSecret: 'internal-secret',
+      },
+      { userId: 'test-user-1', discordUserId: 'test-discord-1' },
+    )
 
     expect(result.isOk()).toBe(true)
     expect(mockFetch).toHaveBeenCalledWith(
       'http://localhost:3335/internal/trigger/standup',
       {
         method: 'POST',
-        headers: { 'x-internal-secret': 'internal-secret' },
+        headers: {
+          'x-internal-secret': 'internal-secret',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: 'test-user-1',
+          discordUserId: 'test-discord-1',
+          extraContext: undefined,
+          forceRegenerate: undefined,
+          rewriteFromStandupId: undefined,
+          rewriteInstruction: undefined,
+        }),
       },
     )
   })
@@ -48,6 +62,8 @@ describe('triggerStandupJob', () => {
         internalSecret: 'internal-secret',
       },
       {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
         extraContext: 'focar no card #123',
         forceRegenerate: true,
       },
@@ -63,6 +79,8 @@ describe('triggerStandupJob', () => {
           'content-type': 'application/json',
         },
         body: JSON.stringify({
+          userId: 'test-user-1',
+          discordUserId: 'test-discord-1',
           extraContext: 'focar no card #123',
           forceRegenerate: true,
           rewriteFromStandupId: undefined,
@@ -81,6 +99,8 @@ describe('triggerStandupJob', () => {
         internalSecret: 'internal-secret',
       },
       {
+        userId: 'test-user-1',
+        discordUserId: 'test-discord-1',
         forceRegenerate: true,
         rewriteFromStandupId: 'standup-abc',
         rewriteInstruction: 'Ajustar para remover seção antiga',
@@ -97,6 +117,8 @@ describe('triggerStandupJob', () => {
           'content-type': 'application/json',
         },
         body: JSON.stringify({
+          userId: 'test-user-1',
+          discordUserId: 'test-discord-1',
           extraContext: undefined,
           forceRegenerate: true,
           rewriteFromStandupId: 'standup-abc',
@@ -109,10 +131,13 @@ describe('triggerStandupJob', () => {
   it('retorna ExternalServiceError quando worker responde status diferente de 202', async () => {
     mockFetch.mockResolvedValue(response(503))
 
-    const result = await triggerStandupJob({
-      workerInternalUrl: 'http://localhost:3335',
-      internalSecret: 'internal-secret',
-    })
+    const result = await triggerStandupJob(
+      {
+        workerInternalUrl: 'http://localhost:3335',
+        internalSecret: 'internal-secret',
+      },
+      { userId: 'test-user-1', discordUserId: 'test-discord-1' },
+    )
 
     expect(result.isErr()).toBe(true)
     if (result.isErr()) {
@@ -125,10 +150,13 @@ describe('triggerStandupJob', () => {
   it('retorna ExternalServiceError quando fetch falha', async () => {
     mockFetch.mockRejectedValue(new Error('ECONNREFUSED'))
 
-    const result = await triggerStandupJob({
-      workerInternalUrl: 'http://localhost:3335',
-      internalSecret: 'internal-secret',
-    })
+    const result = await triggerStandupJob(
+      {
+        workerInternalUrl: 'http://localhost:3335',
+        internalSecret: 'internal-secret',
+      },
+      { userId: 'test-user-1', discordUserId: 'test-discord-1' },
+    )
 
     expect(result.isErr()).toBe(true)
     if (result.isErr()) {

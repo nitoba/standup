@@ -1,4 +1,5 @@
 import type { BotEnv } from '@standup/config'
+import { getDb, UserRepository } from '@standup/db'
 import { createServiceLogger, withContext } from '@standup/logger'
 import type { Client, ModalSubmitInteraction } from 'discord.js'
 import { triggerStandup } from '../../services/trigger-standup-service.js'
@@ -16,7 +17,7 @@ const logger = createServiceLogger({
 export async function handleAdjustModal(
   interaction: ModalSubmitInteraction,
   _client: Client,
-  env: Pick<BotEnv, 'API_BASE_URL'>,
+  env: Pick<BotEnv, 'API_BASE_URL' | 'INTERNAL_SECRET' | 'DATABASE_URL'>,
 ): Promise<void> {
   const [namespace, standupId] = interaction.customId.split(':')
   if (namespace !== 'standup-adjust-modal' || !standupId) return
@@ -47,9 +48,22 @@ export async function handleAdjustModal(
     return
   }
 
+  // Resolve userId from Discord ID
+  const db = getDb(env.DATABASE_URL)
+  const userRepo = new UserRepository(db)
+  const userIdResult = userRepo.findUserIdByDiscordId(interaction.user.id)
+  if (userIdResult.isErr() || !userIdResult.value) {
+    await updateReviewMessage(interaction, {
+      content: '❌ Usuário não registrado. Use /login primeiro.',
+      components: [],
+    })
+    return
+  }
+
   const triggerResult = await triggerStandup(
+    userIdResult.value,
     interaction.user.id,
-    { apiBaseUrl: env.API_BASE_URL },
+    { apiBaseUrl: env.API_BASE_URL, internalSecret: env.INTERNAL_SECRET },
     {
       forceRegenerate: true,
       rewriteFromStandupId: standupId,

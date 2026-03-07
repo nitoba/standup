@@ -161,6 +161,7 @@ export async function handleButtonInteraction(
       apiBaseUrl: env.API_BASE_URL,
       internalSecret: env.INTERNAL_SECRET,
       discordUserId: env.DISCORD_USER_ID,
+      databaseUrl: env.DATABASE_URL,
     })
     return
   }
@@ -173,7 +174,11 @@ export async function handleButtonInteraction(
       interaction,
       triggerAction,
       standupId,
-      { apiBaseUrl: env.API_BASE_URL },
+      {
+        apiBaseUrl: env.API_BASE_URL,
+        internalSecret: env.INTERNAL_SECRET,
+        databaseUrl: env.DATABASE_URL,
+      },
     )
     return
   }

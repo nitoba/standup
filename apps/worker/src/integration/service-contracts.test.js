@@ -27,7 +27,14 @@ vi.mock(
   }),
 )
 
+vi.mock('@standup/db', () => ({
+  getDb: vi.fn(),
+  UserRepository: vi.fn(),
+}))
+
 const INTERNAL_SECRET = 'test-secret'
+const TEST_USER_ID = 'test-user-1'
+const TEST_DISCORD_USER_ID = 'discord-user-1'
 
 function readRequestBody(req) {
   return new Promise((resolve, reject) => {
@@ -137,6 +144,7 @@ describe('Cross-service HTTP contracts', () => {
       const result = await notifyStandupReady({
         botInternalUrl: server.baseUrl,
         standupId: 'standup-123',
+        discordUserId: TEST_DISCORD_USER_ID,
         secret: INTERNAL_SECRET,
       })
 
@@ -144,7 +152,7 @@ describe('Cross-service HTTP contracts', () => {
       expect(mocks.notifyStandupReady).toHaveBeenCalledWith('standup-123', {
         databaseUrl: ':memory:',
         client: {},
-        discordUserId: 'discord-user-1',
+        discordUserId: TEST_DISCORD_USER_ID,
       })
     } finally {
       await server.close()
@@ -203,6 +211,8 @@ describe('Cross-service HTTP contracts', () => {
           internalSecret: INTERNAL_SECRET,
         },
         {
+          userId: TEST_USER_ID,
+          discordUserId: TEST_DISCORD_USER_ID,
           extraContext: 'focar em PR review',
           forceRegenerate: true,
         },
@@ -210,6 +220,8 @@ describe('Cross-service HTTP contracts', () => {
 
       expect(result.isOk()).toBe(true)
       expect(triggerStandupJob).toHaveBeenCalledWith({
+        userId: TEST_USER_ID,
+        discordUserId: TEST_DISCORD_USER_ID,
         extraContext: 'focar em PR review',
         forceRegenerate: true,
       })
@@ -239,7 +251,8 @@ describe('Cross-service HTTP contracts', () => {
         workerInternalUrl: server.baseUrl,
         apiBaseUrl: 'http://localhost:3333',
         internalSecret: INTERNAL_SECRET,
-        discordUserId: 'discord-user-1',
+        discordUserId: TEST_DISCORD_USER_ID,
+        databaseUrl: ':memory:',
       })
 
       expect(snoozeInteraction.deferUpdate).toHaveBeenCalledTimes(1)
@@ -257,7 +270,8 @@ describe('Cross-service HTTP contracts', () => {
         workerInternalUrl: server.baseUrl,
         apiBaseUrl: 'http://localhost:3333',
         internalSecret: INTERNAL_SECRET,
-        discordUserId: 'discord-user-1',
+        discordUserId: TEST_DISCORD_USER_ID,
+        databaseUrl: ':memory:',
       })
 
       expect(cancelInteraction.deferUpdate).toHaveBeenCalledTimes(1)
