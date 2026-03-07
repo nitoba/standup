@@ -171,3 +171,49 @@ Conteúdo atual para reescrever:
 ${generatedContent}
 \`\`\``
 }
+
+export function buildAdjustUserMessage(
+  previousContent: string,
+  instruction: string,
+  extraContext?: string,
+): string {
+  const sections: string[] = [
+    '## Tarefa: edição cirúrgica de standup',
+    '',
+    'Você receberá um standup já pronto e uma instrução de ajuste pontual.',
+    'Sua única tarefa é aplicar EXCLUSIVAMENTE o que a instrução pede — nada mais, nada menos.',
+    '',
+    '### Regras OBRIGATÓRIAS (leia antes de tudo)',
+    '',
+    '1. **NÃO reescreva, reformule ou altere seções não mencionadas na instrução.**',
+    '   Trate todas as seções não citadas como somente-leitura: copie-as palavra por palavra.',
+    '2. **Aplique apenas a mudança descrita na instrução.**',
+    '   Se a instrução diz "remova o item X", remova só esse item; o resto fica intacto.',
+    '   Se diz "adicione Y em Done", adicione apenas Y nessa seção; nada mais muda.',
+    '3. **Preserve 100% da estrutura e formatação originais** (headers, emojis, indentação, `➜`, `---`).',
+    '4. **Não melhore, não resuma, não expanda** conteúdo não mencionado.',
+    `5. O campo "content" final deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres.`,
+    '6. Retorne JSON com "content" (standup ajustado em Markdown) e "summary" (frase resumo em português).',
+    '',
+    '### Instrução de ajuste',
+    '',
+    instruction,
+  ]
+
+  if (extraContext) {
+    sections.push('', '### Contexto adicional', '', extraContext)
+  }
+
+  sections.push(
+    '',
+    '### Standup original (somente-leitura exceto onde a instrução pede alteração)',
+    '',
+    '```markdown',
+    previousContent,
+    '```',
+    '',
+    'Aplique a instrução acima de forma cirúrgica e retorne o standup ajustado.',
+  )
+
+  return sections.join('\n')
+}

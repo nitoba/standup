@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   collect: vi.fn(),
   generate: vi.fn(),
+  generateAdjusted: vi.fn(),
   determineMeetingType: vi.fn().mockReturnValue(''),
   repoCreate: vi.fn(),
   repoFindById: vi.fn(),
@@ -36,6 +37,7 @@ vi.mock('@standup/git-collector', () => ({
 
 vi.mock('@standup/standup-generator', () => ({
   generateStandup: mocks.generate,
+  generateAdjustedStandup: mocks.generateAdjusted,
   determineMeetingType: mocks.determineMeetingType,
 }))
 
@@ -180,6 +182,7 @@ describe('runStandupJob', () => {
 
       expect(mocks.collect).not.toHaveBeenCalled()
       expect(mocks.generate).not.toHaveBeenCalled()
+      expect(mocks.generateAdjusted).not.toHaveBeenCalled()
       expect(mocks.releaseLock).not.toHaveBeenCalled()
     })
 
@@ -197,6 +200,7 @@ describe('runStandupJob', () => {
 
       expect(mocks.collect).not.toHaveBeenCalled()
       expect(mocks.generate).not.toHaveBeenCalled()
+      expect(mocks.generateAdjusted).not.toHaveBeenCalled()
       expect(mocks.releaseLock).not.toHaveBeenCalled()
     })
 
@@ -258,6 +262,7 @@ describe('runStandupJob', () => {
 
       // Job chama generateStandup uma unica vez — retry e interno ao generator
       expect(mocks.generate).toHaveBeenCalledTimes(1)
+      expect(mocks.generateAdjusted).not.toHaveBeenCalled()
       // Nenhum Bun.sleep no job — delays sao do setTimeout interno ao generator
       expect(mocks.sleep).not.toHaveBeenCalled()
       // Falha notificada
@@ -279,6 +284,7 @@ describe('runStandupJob', () => {
       await runStandupJob(baseEnv)
 
       expect(mocks.generate).toHaveBeenCalledTimes(1)
+      expect(mocks.generateAdjusted).not.toHaveBeenCalled()
       expect(mocks.sleep).not.toHaveBeenCalled()
       expect(mocks.repoCreate).toHaveBeenCalledOnce()
       expect(mocks.releaseLock).toHaveBeenCalledWith('uuid-test', 'success')
@@ -295,6 +301,7 @@ describe('runStandupJob', () => {
       await runStandupJob(baseEnv)
 
       expect(mocks.collect).toHaveBeenCalledTimes(1)
+      expect(mocks.generateAdjusted).not.toHaveBeenCalled()
       expect(mocks.sleep).not.toHaveBeenCalled()
     })
   })
@@ -311,6 +318,7 @@ describe('runStandupJob', () => {
 
       expect(mocks.collect).toHaveBeenCalledOnce()
       expect(mocks.generate).not.toHaveBeenCalled()
+      expect(mocks.generateAdjusted).not.toHaveBeenCalled()
       expect(mocks.repoCreate).not.toHaveBeenCalled()
       expect(mocks.notifyStandupReady).not.toHaveBeenCalled()
     })
@@ -326,6 +334,7 @@ describe('runStandupJob', () => {
 
       expect(mocks.collect).toHaveBeenCalledOnce()
       expect(mocks.generate).toHaveBeenCalledOnce()
+      expect(mocks.generateAdjusted).not.toHaveBeenCalled()
       expect(mocks.repoCreate).toHaveBeenCalledOnce()
       expect(mocks.notifyStandupReady).toHaveBeenCalledWith({
         botInternalUrl: baseEnv.BOT_INTERNAL_URL,
@@ -351,6 +360,7 @@ describe('runStandupJob', () => {
       await runStandupJob(baseEnv)
 
       expect(mocks.generate).not.toHaveBeenCalled()
+      expect(mocks.generateAdjusted).not.toHaveBeenCalled()
       expect(mocks.repoCreate).not.toHaveBeenCalled()
       expect(mocks.notifyStandupReady).not.toHaveBeenCalled()
       expect(mocks.notifyJobFailed).toHaveBeenCalledWith({
@@ -376,6 +386,7 @@ describe('runStandupJob', () => {
       await runStandupJob(baseEnv)
 
       expect(mocks.generate).toHaveBeenCalledTimes(1) // sem retry para non-retryable
+      expect(mocks.generateAdjusted).not.toHaveBeenCalled()
       expect(mocks.repoCreate).not.toHaveBeenCalled()
       expect(mocks.notifyStandupReady).not.toHaveBeenCalled()
       expect(mocks.notifyJobFailed).toHaveBeenCalledOnce()
@@ -431,9 +442,8 @@ describe('runStandupJob', () => {
       expect(input.extraContext).toBe('Focar no card #1234')
     })
 
-    it('monta contexto de ajuste usando standup anterior quando rewriteInstruction e fornecido', async () => {
-      mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
-      mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
+    it('ajusta em cima do standup anterior sem coletar git novamente', async () => {
+      mocks.generateAdjusted.mockResolvedValue(Result.ok(generatedStandup))
       mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
       mocks.repoFindById.mockResolvedValue(
         Result.ok({
@@ -447,16 +457,39 @@ describe('runStandupJob', () => {
         forceRegenerate: true,
         rewriteFromStandupId: 'standup-abc',
         rewriteInstruction: 'Remover item antigo e adicionar item novo',
+        extraContext: 'Deixar mais objetivo',
       })
 
       expect(mocks.repoFindById).toHaveBeenCalledWith('standup-abc')
-      const generateCall = mocks.generate.mock.calls[0]
-      const input = generateCall?.[0] as { extraContext?: string }
-      expect(input.extraContext).toContain('Modo de ajuste solicitado')
-      expect(input.extraContext).toContain(
+      expect(mocks.collect).not.toHaveBeenCalled()
+      expect(mocks.generate).not.toHaveBeenCalled()
+      expect(mocks.generateAdjusted).toHaveBeenCalledOnce()
+
+      const adjustCall = mocks.generateAdjusted.mock.calls[0]
+      const input = adjustCall?.[0] as {
+        previousContent?: string
+        instruction?: string
+        extraContext?: string
+      }
+      expect(input.instruction).toBe(
         'Remover item antigo e adicionar item novo',
       )
-      expect(input.extraContext).toContain('Standup base')
+      expect(input.previousContent).toContain('Standup base')
+      expect(input.extraContext).toBe('Deixar mais objetivo')
+    })
+
+    it('falha quando rewriteInstruction e enviado sem rewriteFromStandupId', async () => {
+      mocks.notifyJobFailed.mockResolvedValue(Result.ok(undefined))
+
+      await runStandupJob(baseEnv, {
+        forceRegenerate: true,
+        rewriteInstruction: 'Ajustar texto',
+      })
+
+      expect(mocks.collect).not.toHaveBeenCalled()
+      expect(mocks.generate).not.toHaveBeenCalled()
+      expect(mocks.generateAdjusted).not.toHaveBeenCalled()
+      expect(mocks.notifyJobFailed).toHaveBeenCalledOnce()
     })
 
     it('passa forceRegenerate ao acquireLock quando fornecido nas opcoes', async () => {

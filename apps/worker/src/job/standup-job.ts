@@ -12,6 +12,7 @@ import { collectGitActivity } from '@standup/git-collector'
 import { createServiceLogger, withContext } from '@standup/logger'
 import {
   determineMeetingType,
+  generateAdjustedStandup,
   generateStandup,
 } from '@standup/standup-generator'
 import { notifyJobFailed } from '../notifications/notify-job-failed.js'
@@ -33,66 +34,54 @@ export interface StandupJobOptions {
   rewriteInstruction?: string
 }
 
-type BuildExtraContextError = DbError | NotFoundError | ValidationError
+type ResolveAdjustmentError = DbError | NotFoundError | ValidationError
 
-function buildRewriteExtraContext(
-  baseContent: string,
-  instruction: string,
-): string {
-  return [
-    '## Modo de ajuste solicitado',
-    'Use o standup anterior como base e aplique as alteracoes pedidas pelo usuario.',
-    'Mantenha o formato padrao do relatorio para Discord.',
-    '',
-    '### Alteracoes solicitadas:',
-    instruction,
-    '',
-    '### Standup anterior (base para ajuste):',
-    '```markdown',
-    baseContent,
-    '```',
-  ].join('\n')
+interface StandupAdjustmentRequest {
+  standupId: string
+  instruction: string
+  previousContent: string
+  sourceData: string
+  meetingType: string
 }
 
-async function buildGenerationExtraContext(
+function buildGenerationExtraContext(
+  options: StandupJobOptions | undefined,
+): string | undefined {
+  return options?.extraContext?.trim() || undefined
+}
+
+async function resolveAdjustmentRequest(
   options: StandupJobOptions | undefined,
   standupRepo: StandupRepository,
-): Promise<Result<string | undefined, BuildExtraContextError>> {
-  const sections: string[] = []
-
-  const extraContext = options?.extraContext?.trim()
-  if (extraContext) {
-    sections.push(extraContext)
+): Promise<Result<StandupAdjustmentRequest | null, ResolveAdjustmentError>> {
+  const rewriteInstruction = options?.rewriteInstruction?.trim()
+  if (!rewriteInstruction) {
+    return Result.ok(null)
   }
 
-  const rewriteInstruction = options?.rewriteInstruction?.trim()
-  if (rewriteInstruction) {
-    const rewriteFromStandupId = options?.rewriteFromStandupId?.trim()
-    if (!rewriteFromStandupId) {
-      return Result.err(
-        new ValidationError({
-          field: 'rewriteFromStandupId',
-          message:
-            'rewriteFromStandupId is required when rewriteInstruction is provided',
-        }),
-      )
-    }
-
-    const baseStandup = await standupRepo.findById(rewriteFromStandupId)
-    if (baseStandup.isErr()) {
-      return baseStandup
-    }
-
-    sections.push(
-      buildRewriteExtraContext(baseStandup.value.content, rewriteInstruction),
+  const rewriteFromStandupId = options?.rewriteFromStandupId?.trim()
+  if (!rewriteFromStandupId) {
+    return Result.err(
+      new ValidationError({
+        field: 'rewriteFromStandupId',
+        message:
+          'rewriteFromStandupId is required when rewriteInstruction is provided',
+      }),
     )
   }
 
-  if (sections.length === 0) {
-    return Result.ok(undefined)
+  const baseStandup = await standupRepo.findById(rewriteFromStandupId)
+  if (baseStandup.isErr()) {
+    return baseStandup
   }
 
-  return Result.ok(sections.join('\n\n'))
+  return Result.ok({
+    standupId: rewriteFromStandupId,
+    instruction: rewriteInstruction,
+    previousContent: baseStandup.value.content,
+    sourceData: baseStandup.value.sourceData,
+    meetingType: baseStandup.value.meetingType,
+  })
 }
 
 export async function runStandupJob(
@@ -149,6 +138,73 @@ export async function runStandupJob(
   // ---------------------------------------------------------------------------
 
   const result = await Result.gen(async function* () {
+    const generatorConfig = {
+      aiProviderApiKey: env.AI_PROVIDER_API_KEY,
+      azure: {
+        orgUrl: `https://dev.azure.com/${env.AZURE_DEVOPS_ORG}`,
+        defaultProject: env.AZURE_DEVOPS_DEFAULT_PROJECT,
+        pat: env.AZURE_DEVOPS_PAT,
+      },
+    }
+    const generationExtraContext = buildGenerationExtraContext(options)
+    const adjustmentRequest = yield* Result.await(
+      resolveAdjustmentRequest(options, standupRepo),
+    )
+
+    if (adjustmentRequest) {
+      jobLogger.info('Adjustment mode requested', {
+        baseStandupId: adjustmentRequest.standupId,
+      })
+
+      const adjusted = yield* Result.await(
+        generateAdjustedStandup(
+          {
+            previousContent: adjustmentRequest.previousContent,
+            instruction: adjustmentRequest.instruction,
+            extraContext: generationExtraContext,
+          },
+          generatorConfig,
+        ),
+      )
+
+      jobLogger.info('Adjusted standup generated', {
+        summary: adjusted.summary,
+        baseStandupId: adjustmentRequest.standupId,
+      })
+
+      const record = yield* Result.await(
+        standupRepo.create({
+          id: Bun.randomUUIDv7(),
+          date: today,
+          meetingType: adjustmentRequest.meetingType,
+          content: adjusted.content,
+          sourceData: adjustmentRequest.sourceData,
+        }),
+      )
+
+      jobLogger.info('Adjusted standup draft saved', {
+        standupId: record.id,
+        baseStandupId: adjustmentRequest.standupId,
+      })
+
+      const notifyResult = await notifyStandupReady({
+        botInternalUrl: env.BOT_INTERNAL_URL,
+        standupId: record.id,
+        secret: env.INTERNAL_SECRET,
+      })
+
+      if (notifyResult.isErr()) {
+        jobLogger.error(
+          'Failed to notify bot — adjusted standup saved, approve manually via API',
+          { standupId: record.id, error: notifyResult.error.message },
+        )
+      } else {
+        jobLogger.info('Bot notified', { standupId: record.id })
+      }
+
+      return Result.ok(record.id)
+    }
+
     // Step 1: Collect git activity
     const gitActivity = yield* Result.await(
       collectGitActivity({
@@ -168,23 +224,11 @@ export async function runStandupJob(
     }
 
     const meetingType = determineMeetingType(today)
-    const generationExtraContext = yield* Result.await(
-      buildGenerationExtraContext(options, standupRepo),
-    )
 
     // Step 2: Generate standup.
     // Retry para erros de MCP e LLM e feito internamente por generateStandup().
     // Degradacao graciosa: se MCP falhar apos todos os retries, o standup e gerado
     // apenas com dados git (sem enrichment de work items).
-    const generatorConfig = {
-      aiProviderApiKey: env.AI_PROVIDER_API_KEY,
-      azure: {
-        orgUrl: `https://dev.azure.com/${env.AZURE_DEVOPS_ORG}`,
-        defaultProject: env.AZURE_DEVOPS_DEFAULT_PROJECT,
-        pat: env.AZURE_DEVOPS_PAT,
-      },
-    }
-
     const generated = yield* Result.await(
       generateStandup(
         {

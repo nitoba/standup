@@ -1,3 +1,5 @@
+export type { AdjustStandupInput } from './adjust.js'
+export { generateAdjustedStandup } from './adjust.js'
 export type { GeneratorConfig } from './generator.js'
 export { generateStandup } from './generator.js'
 export { determineMeetingType } from './prompt/meeting-type.js'
