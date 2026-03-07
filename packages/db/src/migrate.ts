@@ -79,6 +79,52 @@ function getAppliedMigrationsCount(sqlite: Database): number {
   return Number(row.count ?? 0)
 }
 
+function getDuplicateDiscordAccounts(sqlite: Database): Array<{
+  providerId: string
+  accountId: string
+  count: number
+}> {
+  return sqlite
+    .query(`
+      select
+        provider_id as providerId,
+        account_id as accountId,
+        count(*) as count
+      from account
+      group by provider_id, account_id
+      having count(*) > 1
+    `)
+    .all() as Array<{ providerId: string; accountId: string; count: number }>
+}
+
+function assertNoDuplicateDiscordAccounts(sqlite: Database): void {
+  const accountTableExists = sqlite
+    .query(
+      `select name from sqlite_master where type = 'table' and name = 'account'`,
+    )
+    .get() as { name: string } | null
+
+  if (!accountTableExists) {
+    return
+  }
+
+  const duplicates = getDuplicateDiscordAccounts(sqlite)
+  if (duplicates.length === 0) {
+    return
+  }
+
+  const summary = duplicates
+    .map(
+      (duplicate) =>
+        `${duplicate.providerId}:${duplicate.accountId} (${duplicate.count})`,
+    )
+    .join(', ')
+
+  throw new Error(
+    `Duplicate provider/account identities detected before migration: ${summary}`,
+  )
+}
+
 const databaseUrl = process.env.DATABASE_URL ?? './data/standup.db'
 const migrationsFolder = fileURLToPath(new URL('./migrations', import.meta.url))
 
@@ -111,6 +157,7 @@ try {
     logger.info('No pending migrations detected')
   }
 
+  assertNoDuplicateDiscordAccounts(sqlite)
   migrate(db, { migrationsFolder })
 
   const appliedAfter = getAppliedMigrationsCount(sqlite)

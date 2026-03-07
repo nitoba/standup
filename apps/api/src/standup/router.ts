@@ -10,6 +10,7 @@ import {
 
 export interface StandupRouterDeps {
   databaseUrl: string
+  reposRootPath: string
   workerInternalUrl: string
   internalSecret: string
 }
@@ -73,6 +74,7 @@ export function createStandupRouter(deps: StandupRouterDeps): Hono {
   app.post('/standups/trigger', sValidator('json', triggerBodySchema), (c) => {
     return handleTriggerStandup(c, c.req.valid('json'), {
       databaseUrl: deps.databaseUrl,
+      reposRootPath: deps.reposRootPath,
       workerInternalUrl: deps.workerInternalUrl,
       internalSecret: deps.internalSecret,
     })

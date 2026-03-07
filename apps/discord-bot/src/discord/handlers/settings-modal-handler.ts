@@ -1,4 +1,8 @@
-import type { BotEnv } from '@standup/config'
+import {
+  type BotEnv,
+  normalizeReposSubpath,
+  resolveReposScanPath,
+} from '@standup/config'
 import { getDb, UserRepository, UserSettingsRepository } from '@standup/db'
 import { createServiceLogger, withContext } from '@standup/logger'
 import { MessageFlags, type ModalSubmitInteraction } from 'discord.js'
@@ -20,7 +24,7 @@ const logger = createServiceLogger({
  */
 export async function handleSettingsModal(
   interaction: ModalSubmitInteraction,
-  env: Pick<BotEnv, 'DATABASE_URL'>,
+  env: Pick<BotEnv, 'DATABASE_URL' | 'REPOS_ROOT_PATH'>,
 ): Promise<void> {
   if (interaction.customId !== 'settings-modal:edit') return
 
@@ -46,11 +50,9 @@ export async function handleSettingsModal(
 
   const userId = userResult.value.id
 
-  const standupCron = interaction.fields
-    .getTextInputValue('standup-cron')
-    .trim()
+  const cronConfig = interaction.fields.getTextInputValue('cron-config').trim()
   const timezone = interaction.fields.getTextInputValue('timezone').trim()
-  const reposBasePath = interaction.fields
+  const reposBasePathRaw = interaction.fields
     .getTextInputValue('repos-path')
     .trim()
   const gitAuthor = interaction.fields.getTextInputValue('git-author').trim()
@@ -58,10 +60,49 @@ export async function handleSettingsModal(
     .getTextInputValue('git-since-period')
     .trim()
 
-  if (!reposBasePath || !gitAuthor) {
+  const cronLines = cronConfig
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+
+  if (cronLines.length !== 3) {
     await interaction.editReply({
       content:
-        '❌ Os campos "Caminho base dos repositórios" e "Email do autor git" são obrigatórios.',
+        '❌ Informe exatamente 3 linhas de cron: standup, reminder e recovery.',
+    })
+    return
+  }
+
+  const [standupCron, reminderCron, recoveryCron] = cronLines
+
+  if (!gitAuthor) {
+    await interaction.editReply({
+      content: '❌ O campo "Email do autor git" é obrigatório.',
+    })
+    return
+  }
+
+  const reposBasePath = reposBasePathRaw.startsWith(env.REPOS_ROOT_PATH)
+    ? reposBasePathRaw
+    : reposBasePathRaw.replace(/^[\\/]+/, '')
+
+  const resolvedReposPath = resolveReposScanPath(
+    reposBasePath,
+    env.REPOS_ROOT_PATH,
+  )
+  if (resolvedReposPath.isErr()) {
+    await interaction.editReply({
+      content: `❌ ${resolvedReposPath.error.message}`,
+    })
+    return
+  }
+
+  const normalizedReposSubpath = normalizeReposSubpath(
+    resolvedReposPath.value.normalizedSubpath,
+  )
+  if (normalizedReposSubpath.isErr()) {
+    await interaction.editReply({
+      content: `❌ ${normalizedReposSubpath.error.message}`,
     })
     return
   }
@@ -75,8 +116,10 @@ export async function handleSettingsModal(
   const upsertResult = settingsRepo.upsert({
     userId,
     standupCron,
+    reminderCron,
+    recoveryCron,
     timezone,
-    reposBasePath,
+    reposBasePath: normalizedReposSubpath.value,
     gitAuthor,
     gitSincePeriod,
   })
@@ -95,7 +138,7 @@ export async function handleSettingsModal(
 
   await interaction.editReply({
     content: '✅ Configurações salvas com sucesso!',
-    embeds: [buildSettingsEmbed(settings)],
+    embeds: [buildSettingsEmbed(settings, env.REPOS_ROOT_PATH)],
   })
 
   modalLogger.info('Settings saved successfully', { userId })

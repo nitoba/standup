@@ -237,6 +237,32 @@ export class StandupRepository {
     }
   }
 
+  async updateStatusForUser(
+    id: string,
+    userId: string,
+    nextStatus: StandupStatus,
+  ): Promise<
+    Result<StandupRecord, NotFoundError | DbError | InvalidStateTransitionError>
+  > {
+    try {
+      const found = await this.findByIdForUser(id, userId)
+      if (found.isErr()) return found
+
+      const transition = transitionStandupStatus(found.value.status, nextStatus)
+      if (transition.isErr()) return transition
+
+      const now = Date.now()
+      await this.db
+        .update(standups)
+        .set({ status: nextStatus, updatedAt: now })
+        .where(and(eq(standups.id, id), eq(standups.userId, userId)))
+
+      return Result.ok({ ...found.value, status: nextStatus, updatedAt: now })
+    } catch (error) {
+      return this.dbErr('updateStatusForUser', error)
+    }
+  }
+
   async updateContent(
     id: string,
     content: string,
@@ -254,6 +280,27 @@ export class StandupRepository {
       return Result.ok({ ...found.value, content, updatedAt: now })
     } catch (error) {
       return this.dbErr('updateContent', error)
+    }
+  }
+
+  async updateContentForUser(
+    id: string,
+    userId: string,
+    content: string,
+  ): Promise<Result<StandupRecord, NotFoundError | DbError>> {
+    try {
+      const found = await this.findByIdForUser(id, userId)
+      if (found.isErr()) return found
+
+      const now = Date.now()
+      await this.db
+        .update(standups)
+        .set({ content, updatedAt: now })
+        .where(and(eq(standups.id, id), eq(standups.userId, userId)))
+
+      return Result.ok({ ...found.value, content, updatedAt: now })
+    } catch (error) {
+      return this.dbErr('updateContentForUser', error)
     }
   }
 
@@ -279,6 +326,32 @@ export class StandupRepository {
       })
     } catch (error) {
       return this.dbErr('updateCustomEntries', error)
+    }
+  }
+
+  async updateCustomEntriesForUser(
+    id: string,
+    userId: string,
+    entries: CustomEntries,
+  ): Promise<Result<StandupRecord, NotFoundError | DbError>> {
+    try {
+      const found = await this.findByIdForUser(id, userId)
+      if (found.isErr()) return found
+
+      const now = Date.now()
+      const serialized = JSON.stringify(entries)
+      await this.db
+        .update(standups)
+        .set({ customEntries: serialized, updatedAt: now })
+        .where(and(eq(standups.id, id), eq(standups.userId, userId)))
+
+      return Result.ok({
+        ...found.value,
+        customEntries: entries,
+        updatedAt: now,
+      })
+    } catch (error) {
+      return this.dbErr('updateCustomEntriesForUser', error)
     }
   }
 

@@ -101,7 +101,7 @@ api ──POST /internal/trigger/standup─────────────�
 
 - Worker nao sabe que Discord existe — apenas faz POST HTTP generico
 - API nao executa job inline — apenas encaminha trigger manual para o worker
-- `POST /standups/trigger` no API valida `discordUserId === DISCORD_USER_ID`
+- `POST /standups/trigger` no API valida autenticacao via sessao Better Auth ou `x-internal-secret`
 - discord-bot sobe **dois servidores** na mesma instancia:
   - Hono na `BOT_INTERNAL_PORT` (3334) para rotas internas
   - Gateway Discord (discord.js) para interacoes com botoes
@@ -304,10 +304,14 @@ standup/
 NODE_ENV=development
 DATABASE_URL=./data/standup.db
 INTERNAL_SECRET=change-me-in-production
+REPOS_ROOT_PATH=/home/nitoba/Documents/repos/ibs/repos
 
 # API (loadApiEnv)
 PORT=3333
-DISCORD_USER_ID=
+DISCORD_CLIENT_ID=
+DISCORD_CLIENT_SECRET=
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=http://localhost:3333
 WORKER_INTERNAL_URL=http://localhost:3335
 
 # Discord Bot (loadBotEnv)
@@ -316,23 +320,20 @@ API_BASE_URL=http://localhost:3333
 WORKER_INTERNAL_URL=http://localhost:3335
 DISCORD_BOT_TOKEN=
 DISCORD_CHANNEL_ID=       # Canal onde publica standups
-DISCORD_USER_ID=          # Seu user ID para DMs
 DISCORD_GUILD_ID=         # Opcional: guild commands (dev) vs global (prod)
 
 # Worker (loadWorkerEnv)
-TIMEZONE=America/Sao_Paulo
-STANDUP_CRON=30 17 * * 1-5
-STANDUP_REMINDER_CRON=20 17 * * 1-5
-STANDUP_RECOVERY_CRON=0 18 * * 1-5
-REPOS_BASE_PATH=/home/nitoba/Documents/repos/ibs/repos
-GIT_AUTHOR=bruno.alves@biosistemico.com.br
-GIT_SINCE_PERIOD=16 hours ago
+# Nota: timezone, crons, gitAuthor, gitSincePeriod e repos subpath
+# agora sao preferencias persistidas por usuario em user_settings.
 WORKER_INTERNAL_PORT=3335
 BOT_INTERNAL_URL=http://localhost:3334
 AI_PROVIDER_API_KEY=
 AZURE_DEVOPS_ORG=
 AZURE_DEVOPS_PAT=
 AZURE_DEVOPS_DEFAULT_PROJECT=AGROTRACE
+
+# Docker Compose (infra, opcional)
+HOST_REPOS_ROOT_PATH=/home/nitoba/Documents/repos/ibs/repos
 ```
 
 Cada processo deve chamar apenas seu loader:
@@ -575,7 +576,7 @@ Implementados em `apps/worker/src/job/standup-job.ts` e `packages/db`:
 
 **Padrao 5 — Recovery Cron:**
 
-- `recoveryCron` em `scheduler.ts` — executado 30 min apos cron principal (`STANDUP_RECOVERY_CRON`)
+- `recoveryCron` em `scheduler.ts` — executado 30 min apos o cron principal salvo em `user_settings`
 - Busca runs em `running` com mais de 1h → marca como `failed`
 - Verifica se existe `success` para hoje → se nao, re-executa o job
 
@@ -616,7 +617,7 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
     - `GET /standups` — lista com filtros opcionais `?status=&date=`
     - `GET /standups/:id` — detalhe por ID
     - `PATCH /standups/:id/status` — atualiza status (state machine valida transições)
-    - `POST /standups/trigger` — trigger manual validando `discordUserId === DISCORD_USER_ID`
+    - `POST /standups/trigger` — trigger manual validando sessao Better Auth ou `x-internal-secret`
   - handlers por responsabilidade: `standup/list.ts`, `standup/get-by-id.ts`, `standup/update-status.ts`
   - handler de trigger: `standup/trigger.ts`
   - service isolado: `services/standup-service.ts`

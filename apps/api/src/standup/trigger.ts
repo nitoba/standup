@@ -1,3 +1,4 @@
+import { resolveReposScanPath } from '@standup/config'
 import { getDb, UserRepository, UserSettingsRepository } from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import type { Context } from 'hono'
@@ -23,6 +24,7 @@ export type TriggerBody = z.infer<typeof triggerBodySchema>
 
 export interface TriggerHandlerDeps {
   databaseUrl: string
+  reposRootPath: string
   workerInternalUrl: string
   internalSecret: string
 }
@@ -74,6 +76,13 @@ export async function handleTriggerStandup(
   }
 
   const settings = settingsResult.value
+  const reposPathResult = resolveReposScanPath(
+    settings.reposBasePath,
+    deps.reposRootPath,
+  )
+  if (reposPathResult.isErr()) {
+    return c.json({ error: reposPathResult.error.message }, 400)
+  }
 
   const result = await triggerStandupJob(
     {
@@ -83,7 +92,7 @@ export async function handleTriggerStandup(
     {
       userId,
       discordUserId,
-      reposBasePath: settings.reposBasePath,
+      reposBasePath: reposPathResult.value.absolutePath,
       gitAuthor: settings.gitAuthor,
       gitSincePeriod: settings.gitSincePeriod,
       extraContext: body.extraContext,

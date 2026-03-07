@@ -1,4 +1,4 @@
-import type { WorkerEnv } from '@standup/config'
+import { resolveReposScanPath, type WorkerEnv } from '@standup/config'
 import {
   getDb,
   JobRunRepository,
@@ -106,10 +106,22 @@ export function startScheduler(env: WorkerEnv): {
       if (isCronDueNow(settings.standupCron, settings.timezone, now)) {
         logger.info('Standup cron triggered', { userId: settings.userId })
 
+        const reposPathResult = resolveReposScanPath(
+          settings.reposBasePath,
+          env.REPOS_ROOT_PATH,
+        )
+        if (reposPathResult.isErr()) {
+          logger.error('Invalid reposBasePath for scheduled standup', {
+            userId: settings.userId,
+            error: reposPathResult.error.message,
+          })
+          continue
+        }
+
         runStandupJob(env, {
           userId: settings.userId,
           discordUserId,
-          reposBasePath: settings.reposBasePath,
+          reposBasePath: reposPathResult.value.absolutePath,
           gitAuthor: settings.gitAuthor,
           gitSincePeriod: settings.gitSincePeriod,
         }).catch((error: unknown) => {
@@ -166,10 +178,22 @@ export function startScheduler(env: WorkerEnv): {
           date: today,
         })
 
+        const reposPathResult = resolveReposScanPath(
+          settings.reposBasePath,
+          env.REPOS_ROOT_PATH,
+        )
+        if (reposPathResult.isErr()) {
+          logger.error('Invalid reposBasePath for recovery run', {
+            userId: settings.userId,
+            error: reposPathResult.error.message,
+          })
+          continue
+        }
+
         runStandupJob(env, {
           userId: settings.userId,
           discordUserId,
-          reposBasePath: settings.reposBasePath,
+          reposBasePath: reposPathResult.value.absolutePath,
           gitAuthor: settings.gitAuthor,
           gitSincePeriod: settings.gitSincePeriod,
         }).catch((error: unknown) => {

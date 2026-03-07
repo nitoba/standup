@@ -8,6 +8,7 @@ const baseEnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3333),
   DATABASE_URL: z.string().default('./data/standup.db'),
   INTERNAL_SECRET: z.string().default('change-me-in-production'),
+  REPOS_ROOT_PATH: z.string().default('/repos'),
 })
 
 const apiEnvSchema = baseEnvSchema.extend({

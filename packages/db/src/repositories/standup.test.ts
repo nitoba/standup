@@ -284,6 +284,38 @@ describe('StandupRepository', () => {
     })
   })
 
+  describe('updateStatusForUser', () => {
+    it('atualiza status quando o standup pertence ao usuario', async () => {
+      await repo.create(makeInput())
+
+      const result = await repo.updateStatusForUser(
+        'test-id-1',
+        'test-user-1',
+        'pending_review',
+      )
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.status).toBe('pending_review')
+    })
+
+    it('retorna NotFoundError quando o standup pertence a outro usuario', async () => {
+      await repo.create(makeInput())
+
+      const result = await repo.updateStatusForUser(
+        'test-id-1',
+        'other-user',
+        'pending_review',
+      )
+
+      expect(result.status).toBe('error')
+      if (result.status !== 'error') return
+
+      expect(result.error._tag).toBe('NotFoundError')
+    })
+  })
+
   describe('updateContent', () => {
     it('updates the content of an existing standup', async () => {
       await repo.create(makeInput())
@@ -301,6 +333,38 @@ describe('StandupRepository', () => {
 
     it('returns NotFoundError when standup does not exist', async () => {
       const result = await repo.updateContent('ghost-id', 'content')
+
+      expect(result.status).toBe('error')
+      if (result.status !== 'error') return
+
+      expect(result.error._tag).toBe('NotFoundError')
+    })
+  })
+
+  describe('updateContentForUser', () => {
+    it('atualiza o conteudo quando o standup pertence ao usuario', async () => {
+      await repo.create(makeInput())
+
+      const result = await repo.updateContentForUser(
+        'test-id-1',
+        'test-user-1',
+        'Updated content here',
+      )
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.content).toBe('Updated content here')
+    })
+
+    it('retorna NotFoundError quando o standup pertence a outro usuario', async () => {
+      await repo.create(makeInput())
+
+      const result = await repo.updateContentForUser(
+        'test-id-1',
+        'other-user',
+        'content',
+      )
 
       expect(result.status).toBe('error')
       if (result.status !== 'error') return
@@ -381,6 +445,45 @@ describe('StandupRepository', () => {
       expect(result.value.updatedAt).toBeGreaterThanOrEqual(
         before.value.updatedAt,
       )
+    })
+  })
+
+  describe('updateCustomEntriesForUser', () => {
+    it('salva custom entries quando o standup pertence ao usuario', async () => {
+      await repo.create(makeInput())
+
+      const entries = {
+        scheduledMeetings: ['Planning Backend'],
+        directCalls: ['Call com QA'],
+      }
+      const result = await repo.updateCustomEntriesForUser(
+        'test-id-1',
+        'test-user-1',
+        entries,
+      )
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.customEntries).toEqual(entries)
+    })
+
+    it('retorna NotFoundError quando o standup pertence a outro usuario', async () => {
+      await repo.create(makeInput())
+
+      const result = await repo.updateCustomEntriesForUser(
+        'test-id-1',
+        'other-user',
+        {
+          scheduledMeetings: ['Planning Backend'],
+          directCalls: [],
+        },
+      )
+
+      expect(result.status).toBe('error')
+      if (result.status !== 'error') return
+
+      expect(result.error._tag).toBe('NotFoundError')
     })
   })
 })

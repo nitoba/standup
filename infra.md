@@ -144,7 +144,6 @@ URLs internas usam os network aliases dos containers.
 | De           | Para                         | URL                                           | Finalidade                      |
 | ------------ | ---------------------------- | --------------------------------------------- | ------------------------------- |
 | API → Worker | `standup-worker:3335`        | `http://standup-worker:3335`                  | trigger manual                  |
-| API → Bot    | `standup-bot:3334`           | `http://standup-bot:3334`                     | notificacoes                    |
 | Worker → Bot | `standup-bot:3334`           | `http://standup-bot:3334`                     | standup-ready, job-failed       |
 | Bot → API    | `api.nitodev.com.br`         | `https://api.nitodev.com.br`                  | slash commands (via Cloudflare) |
 
@@ -154,6 +153,11 @@ URLs internas usam os network aliases dos containers.
 | ----------- | --------------------- | -------------- | ---------------- |
 | SQLite data | `/opt/standup/data`   | `/app/data`    | API, Bot, Worker |
 | Git repos   | `/Users/nitoba/repos` | `/repos` (ro)  | Worker           |
+
+`REPOS_ROOT_PATH` deve ser `/repos` em todos os containers. Fora de containers
+(ex.: `bun run dev` local), ele deve apontar para um path absoluto do host.
+No `docker-compose.yml`, o bind source do host usa `HOST_REPOS_ROOT_PATH` para
+nao conflitar com o path de runtime dentro do container.
 
 ### Healthcheck
 
@@ -239,9 +243,11 @@ push/PR (qualquer branch)     push na main
 
 | Secret                 | Usado por        |
 | ---------------------- | ---------------- |
-| `DISCORD_BOT_TOKEN`    | Bot, Worker      |
-| `DISCORD_CHANNEL_ID`   | Bot, Worker      |
-| `DISCORD_USER_ID`      | API, Bot, Worker |
+| `DISCORD_CLIENT_ID`    | API              |
+| `DISCORD_CLIENT_SECRET`| API              |
+| `BETTER_AUTH_SECRET`   | API              |
+| `DISCORD_BOT_TOKEN`    | Bot              |
+| `DISCORD_CHANNEL_ID`   | Bot              |
 | `DISCORD_DEPLOY_WEBHOOK_URL` | CI deploy notifications |
 | `AI_PROVIDER_API_KEY`  | Worker           |
 | `AZURE_DEVOPS_ORG`     | Worker           |
@@ -250,6 +256,8 @@ push/PR (qualquer branch)     push na main
 
 O `KAMAL_REGISTRY_PASSWORD` usa o secret `GHCR_PAT` (PAT pessoal com scope `read:packages`).
 O build job usa `GITHUB_TOKEN` para push; o deploy job usa `GHCR_PAT` para pull via Kamal.
+`BETTER_AUTH_URL` nao e secret; em producao ele fica fixo em `https://api.nitodev.com.br`
+no `config/deploy.api.yml`.
 
 ---
 

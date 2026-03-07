@@ -1,3 +1,4 @@
+import { resolveReposScanPath } from '@standup/config'
 import { getDb, UserRepository, UserSettingsRepository } from '@standup/db'
 import {
   ActionRowBuilder,
@@ -14,6 +15,7 @@ import {
 
 export interface SettingsHandlerDeps {
   databaseUrl: string
+  reposRootPath: string
 }
 
 /**
@@ -81,7 +83,7 @@ export async function handleSettings(
   )
 
   await interaction.editReply({
-    embeds: [buildSettingsEmbed(settings)],
+    embeds: [buildSettingsEmbed(settings, deps.reposRootPath)],
     components: [rowWithToggle],
   })
 }
@@ -91,9 +93,9 @@ export async function handleSettings(
  * Discord modals support max 5 ActionRows (TextInputs).
  *
  * Fields:
- * 1. Standup Cron
+ * 1. Crons (3 linhas: standup, reminder, recovery)
  * 2. Timezone
- * 3. Repos Base Path
+ * 3. Repos Subpath
  * 4. Git Author
  * 5. Git Since Period
  */
@@ -101,29 +103,49 @@ export function showSettingsModal(
   interaction: ButtonInteraction,
   currentSettings?: {
     standupCron: string
+    reminderCron: string
+    recoveryCron: string
     timezone: string
     reposBasePath: string
     gitAuthor: string
     gitSincePeriod: string
   } | null,
+  reposRootPath = '/repos',
 ): Promise<void> {
   const defaults = {
     standupCron: '30 17 * * 1-5',
+    reminderCron: '20 17 * * 1-5',
+    recoveryCron: '0 18 * * 1-5',
     timezone: 'America/Sao_Paulo',
     reposBasePath: '',
     gitAuthor: '',
     gitSincePeriod: '16 hours ago',
   }
 
-  const values = currentSettings ?? defaults
+  const resolvedCurrentRepos =
+    currentSettings !== null && currentSettings !== undefined
+      ? resolveReposScanPath(currentSettings.reposBasePath, reposRootPath)
+      : null
+
+  const values = currentSettings
+    ? {
+        ...currentSettings,
+        reposBasePath:
+          resolvedCurrentRepos?.isOk() === true
+            ? resolvedCurrentRepos.value.normalizedSubpath
+            : currentSettings.reposBasePath,
+      }
+    : defaults
 
   const cronInput = new TextInputBuilder()
-    .setCustomId('standup-cron')
-    .setLabel('Cron do standup (ex: 30 17 * * 1-5)')
-    .setValue(values.standupCron)
-    .setStyle(TextInputStyle.Short)
+    .setCustomId('cron-config')
+    .setLabel('Crons (standup, reminder, recovery)')
+    .setValue(
+      [values.standupCron, values.reminderCron, values.recoveryCron].join('\n'),
+    )
+    .setStyle(TextInputStyle.Paragraph)
     .setRequired(true)
-    .setMaxLength(50)
+    .setMaxLength(200)
 
   const timezoneInput = new TextInputBuilder()
     .setCustomId('timezone')
@@ -135,11 +157,11 @@ export function showSettingsModal(
 
   const reposPathInput = new TextInputBuilder()
     .setCustomId('repos-path')
-    .setLabel('Caminho base dos repositórios')
+    .setLabel('Subcaminho dos repositórios')
     .setValue(values.reposBasePath)
-    .setPlaceholder('/home/user/repos')
+    .setPlaceholder('ibs/repos (vazio = usar o root inteiro)')
     .setStyle(TextInputStyle.Short)
-    .setRequired(true)
+    .setRequired(false)
     .setMaxLength(200)
 
   const gitAuthorInput = new TextInputBuilder()
@@ -173,18 +195,21 @@ export function showSettingsModal(
   return interaction.showModal(modal)
 }
 
-export function buildSettingsEmbed(settings: {
-  standupCron: string
-  reminderCron: string
-  recoveryCron: string
-  timezone: string
-  reposBasePath: string
-  gitAuthor: string
-  gitSincePeriod: string
-  active: boolean
-  snoozedUntil: number | null
-  cancelledDate: string | null
-}): EmbedBuilder {
+export function buildSettingsEmbed(
+  settings: {
+    standupCron: string
+    reminderCron: string
+    recoveryCron: string
+    timezone: string
+    reposBasePath: string
+    gitAuthor: string
+    gitSincePeriod: string
+    active: boolean
+    snoozedUntil: number | null
+    cancelledDate: string | null
+  },
+  reposRootPath: string,
+): EmbedBuilder {
   const statusParts: string[] = []
   if (settings.snoozedUntil && settings.snoozedUntil > Date.now()) {
     const until = new Date(settings.snoozedUntil).toLocaleTimeString('pt-BR')
@@ -192,6 +217,14 @@ export function buildSettingsEmbed(settings: {
   }
   if (settings.cancelledDate) {
     statusParts.push(`🚫 Cancelado em ${settings.cancelledDate}`)
+  }
+
+  const resolvedRepos = resolveReposScanPath(
+    settings.reposBasePath,
+    reposRootPath,
+  )
+  if (resolvedRepos.isErr()) {
+    statusParts.push('⚠️ Subcaminho inválido. Edite e salve novamente.')
   }
 
   const embed = new EmbedBuilder()
@@ -215,8 +248,16 @@ export function buildSettingsEmbed(settings: {
       },
       { name: 'Timezone', value: settings.timezone, inline: true },
       {
-        name: 'Repos Path',
-        value: `\`${settings.reposBasePath}\``,
+        name: 'Repos Root',
+        value: `\`${reposRootPath}\``,
+        inline: true,
+      },
+      {
+        name: 'Repos Subpath',
+        value:
+          resolvedRepos.isOk() && resolvedRepos.value.normalizedSubpath
+            ? `\`${resolvedRepos.value.normalizedSubpath}\``
+            : '`(root)`',
         inline: true,
       },
       { name: 'Git Author', value: settings.gitAuthor, inline: true },

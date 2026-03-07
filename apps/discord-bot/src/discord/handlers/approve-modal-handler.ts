@@ -1,5 +1,5 @@
 import type { BotEnv } from '@standup/config'
-import { getDb, StandupRepository } from '@standup/db'
+import { getDb, StandupRepository, UserRepository } from '@standup/db'
 import type { CustomEntries } from '@standup/domain'
 import { hasCustomEntries, mergeCustomEntries } from '@standup/domain'
 import { createServiceLogger, withContext } from '@standup/logger'
@@ -60,6 +60,19 @@ export async function handleApproveModal(
     components: [],
   })
 
+  const db = getDb(env.DATABASE_URL)
+  const userRepo = new UserRepository(db)
+  const userResult = userRepo.findUserIdByDiscordId(interaction.user.id)
+  if (userResult.isErr() || !userResult.value) {
+    await updateReviewMessage(interaction, {
+      content: '❌ Usuário não registrado. Use /login primeiro.',
+      components: [],
+    })
+    return
+  }
+
+  const actorUserId = userResult.value
+
   // Parse custom entries from modal fields
   const entries: CustomEntries = {
     scheduledMeetings: parseLines(scheduledMeetingsRaw),
@@ -68,11 +81,14 @@ export async function handleApproveModal(
 
   // If custom entries are provided, persist them and merge into content
   if (hasCustomEntries(entries)) {
-    const db = getDb(env.DATABASE_URL)
     const repo = new StandupRepository(db)
 
     // Save custom entries to the dedicated column
-    const saveResult = await repo.updateCustomEntries(standupId, entries)
+    const saveResult = await repo.updateCustomEntriesForUser(
+      standupId,
+      actorUserId,
+      entries,
+    )
     if (saveResult.isErr()) {
       modalLogger.error('Failed to save custom entries', {
         error: saveResult.error.message,
@@ -93,7 +109,11 @@ export async function handleApproveModal(
     )
 
     // Update the content with merged text
-    const contentResult = await repo.updateContent(standupId, mergedContent)
+    const contentResult = await repo.updateContentForUser(
+      standupId,
+      actorUserId,
+      mergedContent,
+    )
     if (contentResult.isErr()) {
       modalLogger.error('Failed to update content with custom entries', {
         error: contentResult.error.message,
@@ -116,6 +136,7 @@ export async function handleApproveModal(
     'approve',
     standupId,
     {
+      actorDiscordId: interaction.user.id,
       databaseUrl: env.DATABASE_URL,
       discordChannelId: env.DISCORD_CHANNEL_ID,
     },

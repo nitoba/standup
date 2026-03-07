@@ -124,7 +124,7 @@ describe('handleRegenerateModal', () => {
     expect(mocks.handleStandupInteraction).toHaveBeenCalledWith(
       'regenerate',
       'standup-1',
-      { databaseUrl: ':memory:' },
+      { actorDiscordId: 'user-123', databaseUrl: ':memory:' },
     )
 
     // Triggers new generation with context

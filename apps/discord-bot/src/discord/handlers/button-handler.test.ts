@@ -78,6 +78,7 @@ const env = {
   INTERNAL_SECRET: 'test-secret',
   WORKER_INTERNAL_URL: 'http://localhost:3335',
   API_BASE_URL: 'http://localhost:3333',
+  REPOS_ROOT_PATH: '/repos',
 }
 
 describe('handleButtonInteraction', () => {
@@ -194,6 +195,7 @@ describe('handleButtonInteraction', () => {
       'reject',
       'standup-1',
       {
+        actorDiscordId: 'user-123',
         databaseUrl: ':memory:',
         discordChannelId: 'channel-123',
       },

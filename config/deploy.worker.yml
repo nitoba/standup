@@ -52,19 +52,10 @@ env:
     NODE_ENV: production
     WORKER_INTERNAL_PORT: "3335"
     DATABASE_URL: /app/data/standup.db
+    REPOS_ROOT_PATH: /repos
     BOT_INTERNAL_URL: http://standup-bot:3334
-    REPOS_BASE_PATH: /repos
-    GIT_AUTHOR: bruno.alves@biosistemico.com.br
-    GIT_SINCE_PERIOD: "16 hours ago"
     AZURE_DEVOPS_DEFAULT_PROJECT: AGROTRACE
-    TIMEZONE: America/Sao_Paulo
-    STANDUP_CRON: "30 17 * * 1-5"
-    STANDUP_REMINDER_CRON: "20 17 * * 1-5"
-    STANDUP_RECOVERY_CRON: "0 18 * * 1-5"
   secret:
-    - DISCORD_BOT_TOKEN
-    - DISCORD_CHANNEL_ID
-    - DISCORD_USER_ID
     - AI_PROVIDER_API_KEY
     - AZURE_DEVOPS_ORG
     - AZURE_DEVOPS_PAT

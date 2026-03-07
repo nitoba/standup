@@ -12,8 +12,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // ---------------------------------------------------------------------------
 
 const mocks = vi.hoisted(() => ({
-  repoFindById: vi.fn(),
+  repoFindByIdForUser: vi.fn(),
   repoUpdateStatus: vi.fn(),
+  findUserIdByDiscordId: vi.fn(),
   getDb: vi.fn().mockReturnValue({}),
   publishStandup: vi.fn(),
 }))
@@ -25,11 +26,17 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@standup/db', () => {
   function StandupRepository() {
     return {
-      findById: mocks.repoFindById,
+      findByIdForUser: mocks.repoFindByIdForUser,
       updateStatus: mocks.repoUpdateStatus,
+      updateStatusForUser: mocks.repoUpdateStatus,
     }
   }
-  return { getDb: mocks.getDb, StandupRepository }
+  function UserRepository() {
+    return {
+      findUserIdByDiscordId: mocks.findUserIdByDiscordId,
+    }
+  }
+  return { getDb: mocks.getDb, StandupRepository, UserRepository }
 })
 
 vi.mock('../notifications/publish-standup.js', () => ({
@@ -64,7 +71,11 @@ const approvedRecord = { ...pendingRecord, status: 'approved' as const }
 const rejectedRecord = { ...pendingRecord, status: 'rejected' as const }
 const publishedRecord = { ...pendingRecord, status: 'published' as const }
 
-const deps = { databaseUrl: DATABASE_URL, discordChannelId: CHANNEL_ID }
+const deps = {
+  actorDiscordId: 'discord-user-123',
+  databaseUrl: DATABASE_URL,
+  discordChannelId: CHANNEL_ID,
+}
 
 // Fake Discord client — apenas para satisfazer o tipo; publishStandup é mockado
 const fakeClient = {} as unknown as import('discord.js').Client
@@ -76,6 +87,7 @@ const fakeClient = {} as unknown as import('discord.js').Client
 describe('handleStandupInteraction', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok('user-123'))
   })
 
   afterEach(() => {
@@ -88,7 +100,7 @@ describe('handleStandupInteraction', () => {
 
   describe('approve', () => {
     it('aprova standup, publica no canal e retorna mensagem de sucesso', async () => {
-      mocks.repoFindById.mockResolvedValue(Result.ok(pendingRecord))
+      mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(pendingRecord))
       mocks.repoUpdateStatus
         .mockResolvedValueOnce(Result.ok(approvedRecord)) // pending_review → approved
         .mockResolvedValueOnce(Result.ok(publishedRecord)) // approved → published
@@ -110,6 +122,7 @@ describe('handleStandupInteraction', () => {
       }
       expect(mocks.repoUpdateStatus).toHaveBeenCalledWith(
         'standup-abc',
+        'user-123',
         'approved',
       )
       expect(mocks.publishStandup).toHaveBeenCalledWith(
@@ -119,12 +132,13 @@ describe('handleStandupInteraction', () => {
       )
       expect(mocks.repoUpdateStatus).toHaveBeenCalledWith(
         'standup-abc',
+        'user-123',
         'published',
       )
     })
 
     it('aprova e retorna aviso quando publicação no canal falha (non-fatal)', async () => {
-      mocks.repoFindById.mockResolvedValue(Result.ok(pendingRecord))
+      mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(pendingRecord))
       mocks.repoUpdateStatus.mockResolvedValue(Result.ok(approvedRecord))
       mocks.publishStandup.mockResolvedValue(
         Result.err(
@@ -149,12 +163,13 @@ describe('handleStandupInteraction', () => {
       expect(mocks.repoUpdateStatus).toHaveBeenCalledTimes(1)
       expect(mocks.repoUpdateStatus).toHaveBeenCalledWith(
         'standup-abc',
+        'user-123',
         'approved',
       )
     })
 
     it('retorna NotFoundError quando standup não existe', async () => {
-      mocks.repoFindById.mockResolvedValue(
+      mocks.repoFindByIdForUser.mockResolvedValue(
         Result.err(
           new NotFoundError({ resource: 'standup', id: 'standup-abc' }),
         ),
@@ -176,7 +191,7 @@ describe('handleStandupInteraction', () => {
     })
 
     it('retorna InvalidStateTransitionError quando transição é inválida', async () => {
-      mocks.repoFindById.mockResolvedValue(Result.ok(pendingRecord))
+      mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(pendingRecord))
       mocks.repoUpdateStatus.mockResolvedValue(
         Result.err(
           new InvalidStateTransitionError({
@@ -207,7 +222,7 @@ describe('handleStandupInteraction', () => {
 
   describe('reject', () => {
     it('rejeita standup e retorna mensagem de sucesso', async () => {
-      mocks.repoFindById.mockResolvedValue(Result.ok(pendingRecord))
+      mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(pendingRecord))
       mocks.repoUpdateStatus.mockResolvedValue(Result.ok(rejectedRecord))
 
       const result = await handleStandupInteraction(
@@ -224,13 +239,14 @@ describe('handleStandupInteraction', () => {
       }
       expect(mocks.repoUpdateStatus).toHaveBeenCalledWith(
         'standup-abc',
+        'user-123',
         'rejected',
       )
       expect(mocks.publishStandup).not.toHaveBeenCalled()
     })
 
     it('retorna NotFoundError quando standup não existe', async () => {
-      mocks.repoFindById.mockResolvedValue(
+      mocks.repoFindByIdForUser.mockResolvedValue(
         Result.err(
           new NotFoundError({ resource: 'standup', id: 'standup-abc' }),
         ),
@@ -255,7 +271,7 @@ describe('handleStandupInteraction', () => {
 
   describe('regenerate', () => {
     it('rejeita standup e retorna mensagem indicando regeneracao', async () => {
-      mocks.repoFindById.mockResolvedValue(Result.ok(pendingRecord))
+      mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(pendingRecord))
       mocks.repoUpdateStatus.mockResolvedValue(Result.ok(rejectedRecord))
 
       const result = await handleStandupInteraction(
@@ -273,13 +289,14 @@ describe('handleStandupInteraction', () => {
       }
       expect(mocks.repoUpdateStatus).toHaveBeenCalledWith(
         'standup-abc',
+        'user-123',
         'rejected',
       )
       expect(mocks.publishStandup).not.toHaveBeenCalled()
     })
 
     it('retorna NotFoundError quando standup não existe', async () => {
-      mocks.repoFindById.mockResolvedValue(
+      mocks.repoFindByIdForUser.mockResolvedValue(
         Result.err(
           new NotFoundError({ resource: 'standup', id: 'standup-abc' }),
         ),
@@ -314,7 +331,24 @@ describe('handleStandupInteraction', () => {
       if (result.isErr()) {
         expect(ValidationError.is(result.error)).toBe(true)
       }
-      expect(mocks.repoFindById).not.toHaveBeenCalled()
+      expect(mocks.repoFindByIdForUser).not.toHaveBeenCalled()
+    })
+
+    it('retorna NotFoundError quando actorDiscordId não pode ser resolvido', async () => {
+      mocks.findUserIdByDiscordId.mockReturnValue(Result.ok(null))
+
+      const result = await handleStandupInteraction(
+        'approve',
+        'standup-abc',
+        deps,
+        fakeClient,
+      )
+
+      expect(result.status).toBe('error')
+      if (result.isErr()) {
+        expect(NotFoundError.is(result.error)).toBe(true)
+      }
+      expect(mocks.repoFindByIdForUser).not.toHaveBeenCalled()
     })
   })
 })

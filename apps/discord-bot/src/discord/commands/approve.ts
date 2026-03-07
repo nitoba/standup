@@ -40,6 +40,7 @@ export async function handleApproveCommand(
     'approve',
     standupId,
     {
+      actorDiscordId: interaction.user.id,
       databaseUrl: deps.databaseUrl,
       discordChannelId: deps.discordChannelId,
     },

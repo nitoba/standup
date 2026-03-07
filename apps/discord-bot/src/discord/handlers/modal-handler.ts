@@ -56,6 +56,7 @@ export async function handleRegenerateModal(
 
   // Step 1: Reject the current standup
   const rejectResult = await handleStandupInteraction('regenerate', standupId, {
+    actorDiscordId: interaction.user.id,
     databaseUrl: env.DATABASE_URL,
   })
 

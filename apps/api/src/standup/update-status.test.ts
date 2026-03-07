@@ -65,6 +65,7 @@ describe('PATCH /standups/:id/status', () => {
     vi.clearAllMocks()
     const router = createStandupRouter({
       databaseUrl: DATABASE_URL,
+      reposRootPath: '/repos',
       workerInternalUrl: WORKER_INTERNAL_URL,
       internalSecret: INTERNAL_SECRET,
     })

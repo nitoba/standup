@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getDb: vi.fn().mockReturnValue({}),
   repoUpdateCustomEntries: vi.fn(),
   repoUpdateContent: vi.fn(),
+  findUserIdByDiscordId: vi.fn(),
   loggerInfo: vi.fn(),
   loggerError: vi.fn(),
   loggerWarn: vi.fn(),
@@ -34,11 +35,16 @@ vi.mock('./interaction-handler.js', () => ({
 vi.mock('@standup/db', () => {
   function StandupRepository() {
     return {
-      updateCustomEntries: mocks.repoUpdateCustomEntries,
-      updateContent: mocks.repoUpdateContent,
+      updateCustomEntriesForUser: mocks.repoUpdateCustomEntries,
+      updateContentForUser: mocks.repoUpdateContent,
     }
   }
-  return { getDb: mocks.getDb, StandupRepository }
+  function UserRepository() {
+    return {
+      findUserIdByDiscordId: mocks.findUserIdByDiscordId,
+    }
+  }
+  return { getDb: mocks.getDb, StandupRepository, UserRepository }
 })
 
 import type { Client, ModalSubmitInteraction } from 'discord.js'
@@ -102,6 +108,7 @@ const baseRecord = {
 describe('handleApproveModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok('user-123'))
   })
 
   afterEach(() => {
@@ -145,7 +152,11 @@ describe('handleApproveModal', () => {
     expect(mocks.handleStandupInteraction).toHaveBeenCalledWith(
       'approve',
       'standup-1',
-      { databaseUrl: ':memory:', discordChannelId: 'channel-123' },
+      {
+        actorDiscordId: 'user-123',
+        databaseUrl: ':memory:',
+        discordChannelId: 'channel-123',
+      },
       fakeClient,
     )
 
@@ -188,14 +199,19 @@ describe('handleApproveModal', () => {
     await handleApproveModal(interaction, fakeClient, env)
 
     // Should save custom entries
-    expect(mocks.repoUpdateCustomEntries).toHaveBeenCalledWith('standup-1', {
-      scheduledMeetings: ['Planning Backend'],
-      directCalls: ['Call com Joao'],
-    })
+    expect(mocks.repoUpdateCustomEntries).toHaveBeenCalledWith(
+      'standup-1',
+      'user-123',
+      {
+        scheduledMeetings: ['Planning Backend'],
+        directCalls: ['Call com Joao'],
+      },
+    )
 
     // Should merge and update content
     expect(mocks.repoUpdateContent).toHaveBeenCalledWith(
       'standup-1',
+      'user-123',
       expect.stringContaining('\u{1F4C6} (Planning Backend)'),
     )
 
@@ -203,7 +219,11 @@ describe('handleApproveModal', () => {
     expect(mocks.handleStandupInteraction).toHaveBeenCalledWith(
       'approve',
       'standup-1',
-      { databaseUrl: ':memory:', discordChannelId: 'channel-123' },
+      {
+        actorDiscordId: 'user-123',
+        databaseUrl: ':memory:',
+        discordChannelId: 'channel-123',
+      },
       fakeClient,
     )
 
@@ -244,10 +264,14 @@ describe('handleApproveModal', () => {
 
     await handleApproveModal(interaction, fakeClient, env)
 
-    expect(mocks.repoUpdateCustomEntries).toHaveBeenCalledWith('standup-1', {
-      scheduledMeetings: ['Meeting A', 'Meeting B'],
-      directCalls: ['Call X'],
-    })
+    expect(mocks.repoUpdateCustomEntries).toHaveBeenCalledWith(
+      'standup-1',
+      'user-123',
+      {
+        scheduledMeetings: ['Meeting A', 'Meeting B'],
+        directCalls: ['Call X'],
+      },
+    )
   })
 
   it('retorna erro quando falha ao salvar custom entries', async () => {
@@ -327,9 +351,30 @@ describe('handleApproveModal', () => {
 
     await handleApproveModal(interaction, fakeClient, env)
 
-    expect(mocks.repoUpdateCustomEntries).toHaveBeenCalledWith('standup-1', {
-      scheduledMeetings: [],
-      directCalls: ['Sync com QA'],
+    expect(mocks.repoUpdateCustomEntries).toHaveBeenCalledWith(
+      'standup-1',
+      'user-123',
+      {
+        scheduledMeetings: [],
+        directCalls: ['Sync com QA'],
+      },
+    )
+  })
+
+  it('retorna erro quando actor não pode ser resolvido', async () => {
+    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok(null))
+
+    const { interaction, editReply } = makeModalInteraction(
+      'standup-approve-modal:standup-1',
+      { 'scheduled-meetings': '', 'direct-calls': '' },
+    )
+
+    await handleApproveModal(interaction, fakeClient, env)
+
+    expect(editReply).toHaveBeenCalledWith({
+      content: '❌ Usuário não registrado. Use /login primeiro.',
+      components: [],
     })
+    expect(mocks.handleStandupInteraction).not.toHaveBeenCalled()
   })
 })

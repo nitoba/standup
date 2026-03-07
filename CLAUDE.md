@@ -279,9 +279,14 @@ standup/
 NODE_ENV=development
 DATABASE_URL=./data/standup.db
 INTERNAL_SECRET=change-me-in-production
+REPOS_ROOT_PATH=/home/nitoba/Documents/repos/ibs/repos
 
 # API (loadApiEnv)
 PORT=3333
+DISCORD_CLIENT_ID=
+DISCORD_CLIENT_SECRET=
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=http://localhost:3333
 WORKER_INTERNAL_URL=http://localhost:3335
 
 # Discord Bot (loadBotEnv)
@@ -292,7 +297,7 @@ DISCORD_CHANNEL_ID=       # Canal onde publica standups
 DISCORD_GUILD_ID=         # Opcional: guild commands (dev) vs global (prod)
 
 # Worker (loadWorkerEnv)
-# Nota: STANDUP_CRON, TIMEZONE, REPOS_BASE_PATH, GIT_AUTHOR, GIT_SINCE_PERIOD
+# Nota: timezone, crons, gitAuthor, gitSincePeriod e repos subpath
 # agora vem da tabela user_settings (configuravel via /standup settings)
 WORKER_INTERNAL_PORT=3335
 BOT_INTERNAL_URL=http://localhost:3334
@@ -300,6 +305,9 @@ AI_PROVIDER_API_KEY=
 AZURE_DEVOPS_ORG=
 AZURE_DEVOPS_PAT=
 AZURE_DEVOPS_DEFAULT_PROJECT=AGROTRACE
+
+# Docker Compose (infra, opcional)
+HOST_REPOS_ROOT_PATH=/home/nitoba/Documents/repos/ibs/repos
 ```
 
 Cada processo deve chamar apenas seu loader:
@@ -541,7 +549,7 @@ Implementados em `apps/worker/src/job/standup-job.ts` e `packages/db`:
 
 **Padrao 5 — Recovery Cron:**
 
-- `recoveryCron` em `scheduler.ts` — executado 30 min apos cron principal (`STANDUP_RECOVERY_CRON`)
+- `recoveryCron` em `scheduler.ts` — executado 30 min apos o cron principal salvo em `user_settings`
 - Busca runs em `running` com mais de 1h → marca como `failed`
 - Verifica se existe `success` para hoje → se nao, re-executa o job
 

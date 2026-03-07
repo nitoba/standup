@@ -345,7 +345,11 @@ describe('handleApproveCommand', () => {
     expect(mocks.handleInteraction).toHaveBeenCalledWith(
       'approve',
       'standup-abc',
-      { databaseUrl: DATABASE_URL, discordChannelId: CHANNEL_ID },
+      {
+        actorDiscordId: 'user-abc',
+        databaseUrl: DATABASE_URL,
+        discordChannelId: CHANNEL_ID,
+      },
       fakeClient,
     )
     expect(mocks.interactionEditReply).toHaveBeenCalledWith(

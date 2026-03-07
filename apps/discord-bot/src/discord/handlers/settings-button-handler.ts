@@ -12,6 +12,7 @@ export type SettingsButtonAction = 'edit' | 'toggle'
 
 interface SettingsButtonDeps {
   databaseUrl: string
+  reposRootPath: string
 }
 
 /**
@@ -48,7 +49,7 @@ export async function handleSettingsButton(
     const result = settingsRepo.findByUserId(userId)
     const currentSettings = result.isOk() ? result.value : null
 
-    await showSettingsModal(interaction, currentSettings)
+    await showSettingsModal(interaction, currentSettings, deps.reposRootPath)
     return
   }
 
@@ -93,7 +94,7 @@ export async function handleSettingsButton(
       content: updated.active
         ? '✅ Standup automático **ativado**!'
         : '⏸️ Standup automático **desativado**.',
-      embeds: [buildSettingsEmbed(updated)],
+      embeds: [buildSettingsEmbed(updated, deps.reposRootPath)],
       components: [],
     })
   }

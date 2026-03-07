@@ -82,6 +82,7 @@ app.route(
   '/',
   createStandupRouter({
     databaseUrl: env.DATABASE_URL,
+    reposRootPath: env.REPOS_ROOT_PATH,
     workerInternalUrl: env.WORKER_INTERNAL_URL,
     internalSecret: env.INTERNAL_SECRET,
   }),

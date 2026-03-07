@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
   generateAdjusted: vi.fn(),
   determineMeetingType: vi.fn().mockReturnValue(''),
   repoCreate: vi.fn(),
-  repoFindById: vi.fn(),
+  repoFindByIdForUser: vi.fn(),
   getDb: vi.fn().mockReturnValue({}),
   acquireLock: vi.fn(),
   releaseLock: vi.fn(), // valor configurado no beforeEach (Result nao disponivel aqui)
@@ -44,7 +44,10 @@ vi.mock('@standup/standup-generator', () => ({
 vi.mock('@standup/db', () => {
   // StandupRepository e JobRunRepository são instanciados com `new`
   function StandupRepository() {
-    return { create: mocks.repoCreate, findById: mocks.repoFindById }
+    return {
+      create: mocks.repoCreate,
+      findByIdForUser: mocks.repoFindByIdForUser,
+    }
   }
   function JobRunRepository() {
     return { acquireLock: mocks.acquireLock, releaseLock: mocks.releaseLock }
@@ -88,6 +91,7 @@ const baseEnv: WorkerEnv = {
   BOT_INTERNAL_URL: 'http://localhost:3334',
   WORKER_INTERNAL_PORT: 3335,
   INTERNAL_SECRET: 'test-secret',
+  REPOS_ROOT_PATH: '/repos',
 }
 
 const emptyGitActivity = { timestamp: '2026-03-04T00:00:00Z', repos: [] }
@@ -209,7 +213,7 @@ describe('runStandupJob', () => {
       mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
       mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
       mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
-      mocks.repoFindById.mockResolvedValue(Result.ok(savedRecord))
+      mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(savedRecord))
       mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
 
       await runStandupJob(baseEnv, baseOptions)
@@ -279,7 +283,7 @@ describe('runStandupJob', () => {
       mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
       mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
       mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
-      mocks.repoFindById.mockResolvedValue(Result.ok(savedRecord))
+      mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(savedRecord))
       mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
 
       await runStandupJob(baseEnv, baseOptions)
@@ -328,7 +332,7 @@ describe('runStandupJob', () => {
       mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
       mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
       mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
-      mocks.repoFindById.mockResolvedValue(Result.ok(savedRecord))
+      mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(savedRecord))
       mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
 
       await runStandupJob(baseEnv, baseOptions)
@@ -448,7 +452,7 @@ describe('runStandupJob', () => {
     it('ajusta em cima do standup anterior sem coletar git novamente', async () => {
       mocks.generateAdjusted.mockResolvedValue(Result.ok(generatedStandup))
       mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
-      mocks.repoFindById.mockResolvedValue(
+      mocks.repoFindByIdForUser.mockResolvedValue(
         Result.ok({
           ...savedRecord,
           content: '**Standup base**\n- item antigo',
@@ -464,7 +468,10 @@ describe('runStandupJob', () => {
         extraContext: 'Deixar mais objetivo',
       })
 
-      expect(mocks.repoFindById).toHaveBeenCalledWith('standup-abc')
+      expect(mocks.repoFindByIdForUser).toHaveBeenCalledWith(
+        'standup-abc',
+        'test-user-1',
+      )
       expect(mocks.collect).not.toHaveBeenCalled()
       expect(mocks.generate).not.toHaveBeenCalled()
       expect(mocks.generateAdjusted).toHaveBeenCalledOnce()

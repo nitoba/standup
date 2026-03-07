@@ -75,7 +75,10 @@ async function resolveAdjustmentRequest(
     )
   }
 
-  const baseStandup = await standupRepo.findById(rewriteFromStandupId)
+  const baseStandup = await standupRepo.findByIdForUser(
+    rewriteFromStandupId,
+    options.userId,
+  )
   if (baseStandup.isErr()) {
     return baseStandup
   }

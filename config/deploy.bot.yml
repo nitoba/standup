@@ -51,10 +51,10 @@ env:
     NODE_ENV: production
     BOT_INTERNAL_PORT: "3334"
     DATABASE_URL: /app/data/standup.db
+    REPOS_ROOT_PATH: /repos
     API_BASE_URL: https://api.nitodev.com.br
     WORKER_INTERNAL_URL: http://standup-worker:3335
   secret:
     - DISCORD_BOT_TOKEN
     - DISCORD_CHANNEL_ID
-    - DISCORD_USER_ID
     - INTERNAL_SECRET

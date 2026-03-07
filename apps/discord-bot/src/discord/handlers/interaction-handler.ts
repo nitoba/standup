@@ -1,4 +1,4 @@
-import { getDb, StandupRepository } from '@standup/db'
+import { getDb, StandupRepository, UserRepository } from '@standup/db'
 import type { StandupRecord } from '@standup/domain'
 import {
   DbError,
@@ -27,6 +27,7 @@ export interface InteractionOutcome {
 export interface InteractionDeps {
   databaseUrl: string
   discordChannelId?: string
+  actorDiscordId: string
 }
 
 type InteractionError =
@@ -42,11 +43,16 @@ type InteractionError =
 async function handleApprove(
   record: StandupRecord,
   repo: StandupRepository,
+  actorUserId: string,
   deps: InteractionDeps,
   client?: Client,
 ): Promise<Result<InteractionOutcome, InteractionError>> {
   // pending_review → approved
-  const approveResult = await repo.updateStatus(record.id, 'approved')
+  const approveResult = await repo.updateStatusForUser(
+    record.id,
+    actorUserId,
+    'approved',
+  )
   if (approveResult.isErr()) return approveResult
 
   const approvedRecord = approveResult.value
@@ -73,7 +79,11 @@ async function handleApprove(
     }
 
     // approved → published
-    const publishedResult = await repo.updateStatus(record.id, 'published')
+    const publishedResult = await repo.updateStatusForUser(
+      record.id,
+      actorUserId,
+      'published',
+    )
     if (publishedResult.isErr()) {
       logger.warn('Failed to transition standup to published', {
         standupId: record.id,
@@ -92,8 +102,13 @@ async function handleApprove(
 async function handleReject(
   record: StandupRecord,
   repo: StandupRepository,
+  actorUserId: string,
 ): Promise<Result<InteractionOutcome, InteractionError>> {
-  const result = await repo.updateStatus(record.id, 'rejected')
+  const result = await repo.updateStatusForUser(
+    record.id,
+    actorUserId,
+    'rejected',
+  )
   if (result.isErr()) return result
 
   return Result.ok({
@@ -107,9 +122,14 @@ async function handleReject(
 async function handleRegenerate(
   record: StandupRecord,
   repo: StandupRepository,
+  actorUserId: string,
 ): Promise<Result<InteractionOutcome, InteractionError>> {
   // Rejeita o standup atual. O trigger de regeneracao e feito pelo modal-handler.
-  const result = await repo.updateStatus(record.id, 'rejected')
+  const result = await repo.updateStatusForUser(
+    record.id,
+    actorUserId,
+    'rejected',
+  )
   if (result.isErr()) return result
 
   return Result.ok({
@@ -152,9 +172,21 @@ export async function handleStandupInteraction(
 
   const db = getDb(deps.databaseUrl)
   const repo = new StandupRepository(db)
+  const userRepo = new UserRepository(db)
 
-  // Buscar standup
-  const found = await repo.findById(standupId)
+  const actorResult = userRepo.findUserIdByDiscordId(deps.actorDiscordId)
+  if (actorResult.isErr() || !actorResult.value) {
+    actionLogger.warn('Actor could not be resolved for standup interaction', {
+      actorDiscordId: deps.actorDiscordId,
+      error: actorResult.isErr() ? actorResult.error.message : 'not found',
+    })
+    return Result.err(new NotFoundError({ resource: 'standup', id: standupId }))
+  }
+
+  const actorUserId = actorResult.value
+
+  // Buscar standup com ownership check
+  const found = await repo.findByIdForUser(standupId, actorUserId)
   if (found.isErr()) {
     actionLogger.warn('Standup not found for interaction', {
       error: found.error.message,
@@ -167,10 +199,10 @@ export async function handleStandupInteraction(
 
   switch (action) {
     case 'approve':
-      return handleApprove(record, repo, deps, client)
+      return handleApprove(record, repo, actorUserId, deps, client)
     case 'reject':
-      return handleReject(record, repo)
+      return handleReject(record, repo, actorUserId)
     case 'regenerate':
-      return handleRegenerate(record, repo)
+      return handleRegenerate(record, repo, actorUserId)
   }
 }

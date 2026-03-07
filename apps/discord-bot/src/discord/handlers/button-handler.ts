@@ -149,6 +149,7 @@ export async function handleButtonInteraction(
     | 'WORKER_INTERNAL_URL'
     | 'API_BASE_URL'
     | 'INTERNAL_SECRET'
+    | 'REPOS_ROOT_PATH'
   >,
 ): Promise<void> {
   const [namespace, action, standupId] = interaction.customId.split(':')
@@ -187,6 +188,7 @@ export async function handleButtonInteraction(
   if (namespace === 'settings' && action) {
     await handleSettingsButton(interaction, action, {
       databaseUrl: env.DATABASE_URL,
+      reposRootPath: env.REPOS_ROOT_PATH,
     })
     return
   }
@@ -243,6 +245,7 @@ export async function handleButtonInteraction(
     action as StandupAction,
     standupId,
     {
+      actorDiscordId: interaction.user.id,
       databaseUrl: env.DATABASE_URL,
       discordChannelId: env.DISCORD_CHANNEL_ID,
     },

@@ -49,9 +49,12 @@ env:
     NODE_ENV: production
     PORT: "3333"
     DATABASE_URL: /app/data/standup.db
+    REPOS_ROOT_PATH: /repos
+    BETTER_AUTH_URL: https://api.nitodev.com.br
     # Internal communication via Docker network aliases on the "kamal" network.
-    BOT_INTERNAL_URL: http://standup-bot:3334
     WORKER_INTERNAL_URL: http://standup-worker:3335
   secret:
-    - DISCORD_USER_ID
+    - DISCORD_CLIENT_ID
+    - DISCORD_CLIENT_SECRET
+    - BETTER_AUTH_SECRET
     - INTERNAL_SECRET
