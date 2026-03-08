@@ -18,11 +18,19 @@ import {
 } from '@standup/standup-generator'
 import { notifyJobFailed } from '../notifications/notify-job-failed.js'
 import { notifyStandupReady } from '../notifications/notify-standup-ready.js'
+import { notifyUserDm } from '../notifications/notify-user-dm.js'
 
 const logger = createServiceLogger({
   service: 'worker',
   component: 'standup-job',
 })
+
+// Cores de embed reutilizadas para DMs informativas ao usuário
+const DM_COLORS = {
+  INFO: 0x3498db, // azul — informativo
+  WARNING: 0xf39c12, // âmbar — aviso não-crítico
+  ERROR: 0xe74c3c, // vermelho — falha
+} as const
 
 // ---------------------------------------------------------------------------
 // Main job
@@ -133,10 +141,42 @@ export async function runStandupJob(
       jobLogger.warn(
         'Job already running — skipping (lock held by another instance)',
       )
+      if (options.discordUserId) {
+        const dmResult = await notifyUserDm({
+          botInternalUrl: env.BOT_INTERNAL_URL,
+          secret: env.INTERNAL_SECRET,
+          discordUserId: options.discordUserId,
+          title: '⏳ Standup já em processamento',
+          message:
+            'Seu standup já está sendo gerado em background. Você receberá uma DM assim que estiver pronto para revisão.',
+          color: DM_COLORS.INFO,
+        })
+        if (dmResult.isErr()) {
+          jobLogger.warn('Failed to send lock-held DM to user', {
+            error: dmResult.error.message,
+          })
+        }
+      }
       return
     }
     if (JobAlreadyCompletedError.is(lockResult.error)) {
       jobLogger.info('Job already completed for today — no-op (idempotent)')
+      if (options.discordUserId) {
+        const dmResult = await notifyUserDm({
+          botInternalUrl: env.BOT_INTERNAL_URL,
+          secret: env.INTERNAL_SECRET,
+          discordUserId: options.discordUserId,
+          title: '✅ Standup já gerado hoje',
+          message:
+            'O standup de hoje já foi gerado. Verifique sua caixa de entrada do Discord para aprová-lo ou use `/standup list` para ver o status.',
+          color: DM_COLORS.INFO,
+        })
+        if (dmResult.isErr()) {
+          jobLogger.warn('Failed to send job-completed DM to user', {
+            error: dmResult.error.message,
+          })
+        }
+      }
       return
     }
     // DbError ao tentar adquirir lock: logar e abortar sem notificar (infra issue)
@@ -237,6 +277,22 @@ export async function runStandupJob(
 
     if (gitActivity.repos.length === 0) {
       jobLogger.info('No commits found today — skipping standup generation')
+      if (options.discordUserId) {
+        const dmResult = await notifyUserDm({
+          botInternalUrl: env.BOT_INTERNAL_URL,
+          secret: env.INTERNAL_SECRET,
+          discordUserId: options.discordUserId,
+          title: '🔍 Nenhuma atividade encontrada',
+          message:
+            'Não encontrei commits hoje nos repositórios configurados. Verifique se os repositórios e o autor git estão corretos em `/standup settings`.',
+          color: DM_COLORS.WARNING,
+        })
+        if (dmResult.isErr()) {
+          jobLogger.warn('Failed to send no-activity DM to user', {
+            error: dmResult.error.message,
+          })
+        }
+      }
       return Result.ok(null)
     }
 
@@ -312,6 +368,7 @@ export async function runStandupJob(
       secret: env.INTERNAL_SECRET,
       error: result.error.message,
       context: 'standup-job',
+      discordUserId: options.discordUserId,
     })
 
     if (failNotifyResult.isErr()) {

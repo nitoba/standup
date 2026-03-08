@@ -1,10 +1,7 @@
 import { sValidator } from '@hono/standard-validator'
 import type { Client } from 'discord.js'
 import type { Hono } from 'hono'
-import {
-  handleJobFailed,
-  jobFailedBodySchema,
-} from '../notify/job-failed.js'
+import { handleJobFailed, jobFailedBodySchema } from '../notify/job-failed.js'
 
 export function registerJobFailedRoute(
   app: Hono,

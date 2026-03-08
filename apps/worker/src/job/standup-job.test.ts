@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   releaseLock: vi.fn(), // valor configurado no beforeEach (Result não disponível aqui)
   notifyStandupReady: vi.fn(),
   notifyJobFailed: vi.fn(),
+  notifyUserDm: vi.fn(),
   sleep: vi.fn().mockResolvedValue(undefined),
 }))
 
@@ -61,6 +62,10 @@ vi.mock('../notifications/notify-standup-ready.js', () => ({
 
 vi.mock('../notifications/notify-job-failed.js', () => ({
   notifyJobFailed: mocks.notifyJobFailed,
+}))
+
+vi.mock('../notifications/notify-user-dm.js', () => ({
+  notifyUserDm: mocks.notifyUserDm,
 }))
 
 // Mock Bun.sleep para evitar delays reais nos testes de retry.
@@ -165,6 +170,7 @@ describe('runStandupJob', () => {
     mocks.acquireLock.mockResolvedValue(Result.ok(lockRecord))
     mocks.releaseLock.mockResolvedValue(Result.ok(undefined)) // configurado aqui onde Result ja esta disponivel
     mocks.sleep.mockResolvedValue(undefined)
+    mocks.notifyUserDm.mockResolvedValue(Result.ok(undefined))
   })
 
   afterEach(() => {
@@ -244,6 +250,57 @@ describe('runStandupJob', () => {
       await runStandupJob(baseEnv, baseOptions)
 
       expect(mocks.releaseLock).toHaveBeenCalledWith('uuid-test', 'success')
+    })
+
+    it('envia DM ao usuário quando lock já está held e discordUserId está presente', async () => {
+      mocks.acquireLock.mockResolvedValue(
+        Result.err(
+          new LockAlreadyHeldError({ jobName: 'standup', date: '2026-03-04' }),
+        ),
+      )
+
+      await runStandupJob(baseEnv, baseOptions)
+
+      expect(mocks.notifyUserDm).toHaveBeenCalledOnce()
+      expect(mocks.notifyUserDm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          discordUserId: 'test-discord-1',
+          color: 0x3498db,
+        }),
+      )
+    })
+
+    it('não envia DM quando lock já está held e discordUserId está ausente', async () => {
+      mocks.acquireLock.mockResolvedValue(
+        Result.err(
+          new LockAlreadyHeldError({ jobName: 'standup', date: '2026-03-04' }),
+        ),
+      )
+
+      await runStandupJob(baseEnv, { ...baseOptions, discordUserId: '' })
+
+      expect(mocks.notifyUserDm).not.toHaveBeenCalled()
+    })
+
+    it('envia DM ao usuário quando job já completou hoje e discordUserId está presente', async () => {
+      mocks.acquireLock.mockResolvedValue(
+        Result.err(
+          new JobAlreadyCompletedError({
+            jobName: 'standup',
+            date: '2026-03-04',
+          }),
+        ),
+      )
+
+      await runStandupJob(baseEnv, baseOptions)
+
+      expect(mocks.notifyUserDm).toHaveBeenCalledOnce()
+      expect(mocks.notifyUserDm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          discordUserId: 'test-discord-1',
+          color: 0x3498db,
+        }),
+      )
     })
   })
 
@@ -328,6 +385,20 @@ describe('runStandupJob', () => {
       expect(mocks.notifyStandupReady).not.toHaveBeenCalled()
     })
 
+    it('envia DM ao usuário quando não há commits hoje e discordUserId está presente', async () => {
+      mocks.collect.mockResolvedValue(Result.ok(emptyGitActivity))
+
+      await runStandupJob(baseEnv, baseOptions)
+
+      expect(mocks.notifyUserDm).toHaveBeenCalledOnce()
+      expect(mocks.notifyUserDm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          discordUserId: 'test-discord-1',
+          color: 0xf39c12, // WARNING âmbar
+        }),
+      )
+    })
+
     it('coleta, gera, persiste e notifica o bot quando há commits', async () => {
       mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
       mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
@@ -374,6 +445,7 @@ describe('runStandupJob', () => {
         secret: baseEnv.INTERNAL_SECRET,
         error: expect.stringContaining('git failed'),
         context: 'standup-job',
+        discordUserId: 'test-discord-1',
       })
     })
 

@@ -20,6 +20,7 @@ async function initRepo(
   await $`git -C ${repoPath} init -q`.quiet()
   await $`git -C ${repoPath} config user.email ${author}`.quiet()
   await $`git -C ${repoPath} config user.name Test`.quiet()
+  await $`git -C ${repoPath} config commit.gpgsign false`.quiet()
 
   return repoPath
 }

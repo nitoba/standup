@@ -142,6 +142,26 @@ export function buildReminderEmbed(nextRunAt: string): APIEmbed {
 }
 
 /**
+ * Embed genérico para DMs diretas ao usuário.
+ * Usado para notificações informativas: nenhuma atividade, job já em andamento, etc.
+ */
+export function buildUserDmEmbed(
+  title: string,
+  message: string,
+  color: number,
+): APIEmbed {
+  return {
+    title: truncate(title, LIMITS.TITLE),
+    color,
+    description: truncate(message, LIMITS.DESCRIPTION),
+    footer: {
+      text: truncate('standup-bot', LIMITS.FOOTER),
+    },
+    timestamp: new Date().toISOString(),
+  }
+}
+
+/**
  * Embed vermelho para notificações de falha de job (Padrão 8 do Akita).
  * Enviado no canal Discord quando o worker falha.
  */
