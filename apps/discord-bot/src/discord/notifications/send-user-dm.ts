@@ -1,7 +1,7 @@
 import { ExternalServiceError, Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import type { Client } from 'discord.js'
-import { EMBED_COLORS, buildUserDmEmbed } from '../embeds.js'
+import { buildUserDmEmbed, EMBED_COLORS } from '../embeds.js'
 
 const logger = createServiceLogger({
   service: 'discord-bot',
@@ -25,8 +25,13 @@ export interface SendUserDmOptions {
 export async function sendUserDm(
   opts: SendUserDmOptions,
 ): Promise<Result<void, ExternalServiceError>> {
-  const { client, discordUserId, title, message, color = EMBED_COLORS.REVIEW } =
-    opts
+  const {
+    client,
+    discordUserId,
+    title,
+    message,
+    color = EMBED_COLORS.REVIEW,
+  } = opts
 
   return Result.tryPromise({
     try: async () => {

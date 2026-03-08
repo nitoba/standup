@@ -34,10 +34,10 @@ export async function notifyJobFailed(
           'x-internal-secret': opts.secret,
         },
         body: JSON.stringify({
-            error: opts.error,
-            context: opts.context,
-            discordUserId: opts.discordUserId,
-          }),
+          error: opts.error,
+          context: opts.context,
+          discordUserId: opts.discordUserId,
+        }),
       })
 
       if (!response.ok) {
