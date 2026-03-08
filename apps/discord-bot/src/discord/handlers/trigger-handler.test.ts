@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   triggerStandup: vi.fn(),
-  findUserIdByDiscordId: vi.fn(),
+  hasActiveSession: vi.fn(),
   getDb: vi.fn(),
 }))
 
@@ -14,7 +14,7 @@ vi.mock('../../services/trigger-standup-service.js', () => ({
 
 vi.mock('@standup/db', () => {
   function UserRepository() {
-    return { findUserIdByDiscordId: mocks.findUserIdByDiscordId }
+    return { hasActiveSession: mocks.hasActiveSession }
   }
   return { getDb: mocks.getDb, UserRepository }
 })
@@ -61,7 +61,9 @@ describe('handleTriggerButtonInteraction', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     clearPendingTriggerRequests()
-    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok('resolved-user-id'))
+    mocks.hasActiveSession.mockReturnValue(
+      Result.ok({ userId: 'resolved-user-id', hasSession: true }),
+    )
   })
 
   afterEach(() => {
@@ -100,12 +102,12 @@ describe('handleTriggerButtonInteraction', () => {
     })
     expect(editReply).toHaveBeenNthCalledWith(2, {
       content:
-        '✅ Trigger manual enviado com sucesso. O job foi aceito e comecou a processar em background.',
+        '✅ Trigger manual enviado com sucesso. O job foi aceito e começou a processar em background.',
       components: [],
     })
   })
 
-  it('cancel: cancela operacao sem chamar API', async () => {
+  it('cancel: cancela operação sem chamar API', async () => {
     const request = createPendingTriggerRequest('user-123', {})
     const { interaction, editReply } = makeInteraction('user-123')
 
@@ -117,12 +119,12 @@ describe('handleTriggerButtonInteraction', () => {
 
     expect(mocks.triggerStandup).not.toHaveBeenCalled()
     expect(editReply).toHaveBeenCalledWith({
-      content: '❌ Operacao cancelada.',
+      content: '❌ Operação cancelada.',
       components: [],
     })
   })
 
-  it('retorna expirado quando request nao existe', async () => {
+  it('retorna expirado quando request não existe', async () => {
     const { interaction, editReply } = makeInteraction('user-123')
 
     await handleTriggerButtonInteraction(interaction, 'confirm', 'missing', {
@@ -134,7 +136,7 @@ describe('handleTriggerButtonInteraction', () => {
     expect(mocks.triggerStandup).not.toHaveBeenCalled()
     expect(editReply).toHaveBeenCalledWith({
       content:
-        '⌛ Esta confirmacao expirou. Rode `/standup trigger` novamente para criar uma nova solicitacao.',
+        '⌛ Esta confirmação expirou. Rode `/standup trigger` novamente para criar uma nova solicitação.',
       components: [],
     })
   })
@@ -151,7 +153,7 @@ describe('handleTriggerButtonInteraction', () => {
 
     expect(mocks.triggerStandup).not.toHaveBeenCalled()
     expect(editReply).toHaveBeenCalledWith({
-      content: '❌ Esta confirmacao pertence a outro usuario.',
+      content: '❌ Esta confirmação pertence a outro usuário.',
       components: [],
     })
   })
@@ -201,7 +203,7 @@ describe('handleTriggerButtonInteraction', () => {
       components: [],
     })
     expect(editReply).toHaveBeenNthCalledWith(2, {
-      content: '❌ Voce nao esta autorizado a disparar o standup manualmente.',
+      content: '❌ Você não está autorizado a disparar o standup manualmente.',
       components: [],
     })
   })

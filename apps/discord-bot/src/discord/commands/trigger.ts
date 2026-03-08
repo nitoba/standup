@@ -24,7 +24,7 @@ export interface TriggerCommandDeps {
 
 /**
  * Handler para /standup trigger.
- * Nao dispara imediatamente: pede confirmacao via botoes em mensagem ephemeral.
+ * Não dispara imediatamente: pede confirmação via botões em mensagem ephemeral.
  */
 export async function handleTrigger(
   interaction: ChatInputCommandInteraction,
@@ -65,7 +65,7 @@ export async function handleTrigger(
 
   await interaction.reply({
     ...ephemeral(
-      `Confirme a geracao manual do standup:\n${details}\n\nEsta confirmacao expira em 5 minutos.`,
+      `Confirme a geração manual do standup:\n${details}\n\nEsta confirmação expira em 5 minutos.`,
     ),
     components: [row],
   })

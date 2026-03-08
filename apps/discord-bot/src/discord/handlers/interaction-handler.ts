@@ -124,7 +124,7 @@ async function handleRegenerate(
   repo: StandupRepository,
   actorUserId: string,
 ): Promise<Result<InteractionOutcome, InteractionError>> {
-  // Rejeita o standup atual. O trigger de regeneracao e feito pelo modal-handler.
+  // Rejeita o standup atual. O trigger de regeneração é feito pelo modal-handler.
   const result = await repo.updateStatusForUser(
     record.id,
     actorUserId,
@@ -135,7 +135,7 @@ async function handleRegenerate(
   return Result.ok({
     action: 'regenerate',
     standupId: record.id,
-    message: 'Standup rejeitado para regeneracao.',
+    message: 'Standup rejeitado para regeneração.',
   })
 }
 
@@ -174,8 +174,12 @@ export async function handleStandupInteraction(
   const repo = new StandupRepository(db)
   const userRepo = new UserRepository(db)
 
-  const actorResult = userRepo.findUserIdByDiscordId(deps.actorDiscordId)
-  if (actorResult.isErr() || !actorResult.value) {
+  const actorResult = userRepo.hasActiveSession(deps.actorDiscordId)
+  if (
+    actorResult.isErr() ||
+    !actorResult.value ||
+    !actorResult.value.hasSession
+  ) {
     actionLogger.warn('Actor could not be resolved for standup interaction', {
       actorDiscordId: deps.actorDiscordId,
       error: actorResult.isErr() ? actorResult.error.message : 'not found',
@@ -183,7 +187,7 @@ export async function handleStandupInteraction(
     return Result.err(new NotFoundError({ resource: 'standup', id: standupId }))
   }
 
-  const actorUserId = actorResult.value
+  const actorUserId = actorResult.value.userId
 
   // Buscar standup com ownership check
   const found = await repo.findByIdForUser(standupId, actorUserId)

@@ -56,22 +56,23 @@ export async function handleApproveModal(
 
   await interaction.deferUpdate()
   await updateReviewMessage(interaction, {
-    content: '⏳ Processando aprovacao do standup...',
+    content: '⏳ Processando aprovação do standup...',
     components: [],
   })
 
   const db = getDb(env.DATABASE_URL)
   const userRepo = new UserRepository(db)
-  const userResult = userRepo.findUserIdByDiscordId(interaction.user.id)
-  if (userResult.isErr() || !userResult.value) {
+  const userResult = userRepo.hasActiveSession(interaction.user.id)
+  if (userResult.isErr() || !userResult.value || !userResult.value.hasSession) {
     await updateReviewMessage(interaction, {
-      content: '❌ Usuário não registrado. Use /login primeiro.',
+      content:
+        '❌ Sessão expirada ou usuário não registrado. Use `/login` para reconectar.',
       components: [],
     })
     return
   }
 
-  const actorUserId = userResult.value
+  const actorUserId = userResult.value.userId
 
   // Parse custom entries from modal fields
   const entries: CustomEntries = {
@@ -119,7 +120,7 @@ export async function handleApproveModal(
         error: contentResult.error.message,
       })
       await updateReviewMessage(interaction, {
-        content: `\u{274C} Erro ao atualizar conteudo: ${contentResult.error.message}`,
+        content: `\u{274C} Erro ao atualizar conteúdo: ${contentResult.error.message}`,
         components: [],
       })
       return

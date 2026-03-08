@@ -46,7 +46,7 @@ export async function handleCopyButtonInteraction(
   await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
   if (action !== 'content') {
-    await interaction.editReply('❌ Acao de copia desconhecida.')
+    await interaction.editReply('❌ Ação de cópia desconhecida.')
     return
   }
 
@@ -62,7 +62,7 @@ export async function handleCopyButtonInteraction(
   const found = await repo.findById(standupId)
   if (found.isErr()) {
     const message = NotFoundError.is(found.error)
-      ? 'Standup nao encontrado para copia.'
+      ? 'Standup não encontrado para cópia.'
       : `Erro ao buscar standup: ${found.error.message}`
 
     actionLogger.warn('Failed to load standup for copy', {
@@ -74,7 +74,7 @@ export async function handleCopyButtonInteraction(
 
   const content = found.value.content?.trim()
   if (!content) {
-    await interaction.editReply('❌ Standup sem conteudo para copiar.')
+    await interaction.editReply('❌ Standup sem conteúdo para copiar.')
     return
   }
 

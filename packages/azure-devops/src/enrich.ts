@@ -1,15 +1,15 @@
 import type { GatheredGitActivity, RepoActivity } from '@standup/domain'
 import { ExternalServiceError, Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
+import type { AzureMcpClient } from './azure-mcp-client.js'
 import type {
   EnrichedGitActivity,
   EnrichedRepo,
   EnrichedWorkItem,
-} from '../types.js'
-import type { AzureMcpClient } from './azure-mcp-client.js'
+} from './types.js'
 
 const logger = createServiceLogger({
-  service: 'standup-generator',
+  service: 'azure-devops',
   component: 'enricher',
 })
 

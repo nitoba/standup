@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   loggerError: vi.fn(),
   withContextInfo: vi.fn(),
   withContextError: vi.fn(),
-  findUserIdByDiscordId: vi.fn(),
+  hasActiveSession: vi.fn(),
   getDb: vi.fn(),
 }))
 
@@ -28,7 +28,7 @@ vi.mock('../../services/trigger-standup-service.js', () => ({
 
 vi.mock('@standup/db', () => {
   function UserRepository() {
-    return { findUserIdByDiscordId: mocks.findUserIdByDiscordId }
+    return { hasActiveSession: mocks.hasActiveSession }
   }
   return { getDb: mocks.getDb, UserRepository }
 })
@@ -72,7 +72,9 @@ const env = {
 describe('handleAdjustModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok('resolved-user-id'))
+    mocks.hasActiveSession.mockReturnValue(
+      Result.ok({ userId: 'resolved-user-id', hasSession: true }),
+    )
   })
 
   afterEach(() => {
@@ -116,7 +118,7 @@ describe('handleAdjustModal', () => {
     )
   })
 
-  it('retorna erro quando instrucoes nao sao informadas', async () => {
+  it('retorna erro quando instruções não são informadas', async () => {
     const { interaction, editReply } = makeModalInteraction(
       'standup-adjust-modal:standup-1',
       '',
@@ -127,7 +129,7 @@ describe('handleAdjustModal', () => {
     expect(mocks.triggerStandup).not.toHaveBeenCalled()
     expect(editReply).toHaveBeenCalledWith(
       expect.objectContaining({
-        content: expect.stringContaining('Informe as alteracoes desejadas'),
+        content: expect.stringContaining('Informe as alterações desejadas'),
         components: [],
       }),
     )
@@ -150,7 +152,7 @@ describe('handleAdjustModal', () => {
     )
   })
 
-  it('retorna erro quando trigger nao e aceito', async () => {
+  it('retorna erro quando trigger não é aceito', async () => {
     mocks.triggerStandup.mockResolvedValue(
       Result.ok({ accepted: false, reason: 'forbidden' }),
     )
@@ -163,7 +165,7 @@ describe('handleAdjustModal', () => {
 
     expect(editReply).toHaveBeenCalledWith(
       expect.objectContaining({
-        content: expect.stringContaining('nao esta autorizado'),
+        content: expect.stringContaining('não está autorizado'),
         components: [],
       }),
     )

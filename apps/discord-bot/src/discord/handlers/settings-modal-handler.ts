@@ -1,8 +1,3 @@
-import {
-  type BotEnv,
-  normalizeReposSubpath,
-  resolveReposScanPath,
-} from '@standup/config'
 import { getDb, UserRepository, UserSettingsRepository } from '@standup/db'
 import { createServiceLogger, withContext } from '@standup/logger'
 import { MessageFlags, type ModalSubmitInteraction } from 'discord.js'
@@ -13,52 +8,57 @@ const logger = createServiceLogger({
   component: 'settings-modal-handler',
 })
 
+interface SettingsModalDeps {
+  databaseUrl: string
+}
+
 /**
  * Handles the settings modal submission (customId: settings-modal:edit).
  *
  * Flow:
  * 1. Resolve internal userId from Discord ID
- * 2. Extract field values from the modal
+ * 2. Extract field values from the modal (TextInputs + StringSelect for repos)
  * 3. Upsert settings to DB
  * 4. Reply with updated settings embed
  */
 export async function handleSettingsModal(
   interaction: ModalSubmitInteraction,
-  env: Pick<BotEnv, 'DATABASE_URL' | 'REPOS_ROOT_PATH'>,
+  deps: SettingsModalDeps,
 ): Promise<void> {
   if (interaction.customId !== 'settings-modal:edit') return
 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
   const discordId = interaction.user.id
-  const db = getDb(env.DATABASE_URL)
+  const db = getDb(deps.databaseUrl)
   const userRepo = new UserRepository(db)
   const settingsRepo = new UserSettingsRepository(db)
 
   const modalLogger = withContext(logger, { discordId })
 
-  const userResult = userRepo.findByDiscordId(discordId)
-  if (userResult.isErr() || !userResult.value) {
-    modalLogger.error('Failed to resolve user', {
+  const userResult = userRepo.hasActiveSession(discordId)
+  if (userResult.isErr() || !userResult.value || !userResult.value.hasSession) {
+    modalLogger.error('Failed to resolve user or session expired', {
       error: userResult.isErr() ? userResult.error.message : 'not found',
     })
     await interaction.editReply({
-      content: '❌ Não foi possível resolver seu usuário.',
+      content:
+        '❌ Sessão expirada ou usuário não registrado. Use `/login` para reconectar.',
     })
     return
   }
 
-  const userId = userResult.value.id
+  const userId = userResult.value.userId
 
   const cronConfig = interaction.fields.getTextInputValue('cron-config').trim()
   const timezone = interaction.fields.getTextInputValue('timezone').trim()
-  const reposBasePathRaw = interaction.fields
-    .getTextInputValue('repos-path')
-    .trim()
   const gitAuthor = interaction.fields.getTextInputValue('git-author').trim()
-  const gitSincePeriod = interaction.fields
-    .getTextInputValue('git-since-period')
-    .trim()
+
+  // StringSelectMenu is submitted via getStringSelectValues
+  const selectedReposRaw: readonly string[] = interaction.fields
+    .getStringSelectValues
+    ? interaction.fields.getStringSelectValues('selected-repos')
+    : []
 
   const cronLines = cronConfig
     .split('\n')
@@ -82,30 +82,7 @@ export async function handleSettingsModal(
     return
   }
 
-  const reposBasePath = reposBasePathRaw.startsWith(env.REPOS_ROOT_PATH)
-    ? reposBasePathRaw
-    : reposBasePathRaw.replace(/^[\\/]+/, '')
-
-  const resolvedReposPath = resolveReposScanPath(
-    reposBasePath,
-    env.REPOS_ROOT_PATH,
-  )
-  if (resolvedReposPath.isErr()) {
-    await interaction.editReply({
-      content: `❌ ${resolvedReposPath.error.message}`,
-    })
-    return
-  }
-
-  const normalizedReposSubpath = normalizeReposSubpath(
-    resolvedReposPath.value.normalizedSubpath,
-  )
-  if (normalizedReposSubpath.isErr()) {
-    await interaction.editReply({
-      content: `❌ ${normalizedReposSubpath.error.message}`,
-    })
-    return
-  }
+  const selectedRepos = JSON.stringify([...selectedReposRaw])
 
   modalLogger.info('Settings modal submitted', {
     userId,
@@ -119,9 +96,8 @@ export async function handleSettingsModal(
     reminderCron,
     recoveryCron,
     timezone,
-    reposBasePath: normalizedReposSubpath.value,
+    selectedRepos,
     gitAuthor,
-    gitSincePeriod,
   })
 
   if (upsertResult.isErr()) {
@@ -138,7 +114,7 @@ export async function handleSettingsModal(
 
   await interaction.editReply({
     content: '✅ Configurações salvas com sucesso!',
-    embeds: [buildSettingsEmbed(settings, env.REPOS_ROOT_PATH)],
+    embeds: [buildSettingsEmbed(settings)],
   })
 
   modalLogger.info('Settings saved successfully', { userId })

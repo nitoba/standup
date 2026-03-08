@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   withContextInfo: vi.fn(),
   withContextError: vi.fn(),
   withContextWarn: vi.fn(),
-  findUserIdByDiscordId: vi.fn(),
+  hasActiveSession: vi.fn(),
   getDb: vi.fn(),
 }))
 
@@ -37,7 +37,7 @@ vi.mock('../../services/trigger-standup-service.js', () => ({
 
 vi.mock('@standup/db', () => {
   function UserRepository() {
-    return { findUserIdByDiscordId: mocks.findUserIdByDiscordId }
+    return { hasActiveSession: mocks.hasActiveSession }
   }
   return { getDb: mocks.getDb, UserRepository }
 })
@@ -82,7 +82,9 @@ const env = {
 describe('handleRegenerateModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok('resolved-user-id'))
+    mocks.hasActiveSession.mockReturnValue(
+      Result.ok({ userId: 'resolved-user-id', hasSession: true }),
+    )
   })
 
   afterEach(() => {
@@ -106,7 +108,7 @@ describe('handleRegenerateModal', () => {
       Result.ok({
         action: 'regenerate',
         standupId: 'standup-1',
-        message: 'Standup rejeitado para regeneracao.',
+        message: 'Standup rejeitado para regeneração.',
       }),
     )
     mocks.triggerStandup.mockResolvedValue(Result.ok({ accepted: true }))
@@ -157,7 +159,7 @@ describe('handleRegenerateModal', () => {
       Result.ok({
         action: 'regenerate',
         standupId: 'standup-1',
-        message: 'Standup rejeitado para regeneracao.',
+        message: 'Standup rejeitado para regeneração.',
       }),
     )
     mocks.triggerStandup.mockResolvedValue(Result.ok({ accepted: true }))
@@ -177,7 +179,7 @@ describe('handleRegenerateModal', () => {
     )
   })
 
-  it('retorna erro quando rejeicao do standup falha', async () => {
+  it('retorna erro quando rejeição do standup falha', async () => {
     mocks.handleStandupInteraction.mockResolvedValue(
       Result.err(new Error('DB error')),
     )
@@ -197,7 +199,7 @@ describe('handleRegenerateModal', () => {
     expect(mocks.triggerStandup).not.toHaveBeenCalled()
   })
 
-  it('retorna erro quando trigger falha apos rejeicao', async () => {
+  it('retorna erro quando trigger falha após rejeição', async () => {
     mocks.handleStandupInteraction.mockResolvedValue(
       Result.ok({
         action: 'regenerate',
@@ -217,13 +219,13 @@ describe('handleRegenerateModal', () => {
 
     expect(editReply).toHaveBeenCalledWith(
       expect.objectContaining({
-        content: expect.stringContaining('falhou ao disparar regeneracao'),
+        content: expect.stringContaining('falhou ao disparar regeneração'),
         components: [],
       }),
     )
   })
 
-  it('retorna erro quando trigger nao e aceito (forbidden)', async () => {
+  it('retorna erro quando trigger não é aceito (forbidden)', async () => {
     mocks.handleStandupInteraction.mockResolvedValue(
       Result.ok({
         action: 'regenerate',
@@ -243,7 +245,7 @@ describe('handleRegenerateModal', () => {
 
     expect(editReply).toHaveBeenCalledWith(
       expect.objectContaining({
-        content: expect.stringContaining('nao esta autorizado'),
+        content: expect.stringContaining('não está autorizado'),
         components: [],
       }),
     )

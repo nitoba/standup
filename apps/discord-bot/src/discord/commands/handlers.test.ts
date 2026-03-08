@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   repoList: vi.fn(),
   getDb: vi.fn().mockReturnValue({}),
-  findUserIdByDiscordId: vi.fn(),
+  hasActiveSession: vi.fn(),
   createPendingTriggerRequest: vi.fn(),
   checkRemoteServiceHealth: vi.fn(),
   handleInteraction: vi.fn(),
@@ -35,7 +35,7 @@ vi.mock('@standup/db', () => {
     return { list: mocks.repoList }
   }
   function UserRepository() {
-    return { findUserIdByDiscordId: mocks.findUserIdByDiscordId }
+    return { hasActiveSession: mocks.hasActiveSession }
   }
   return { getDb: mocks.getDb, StandupRepository, UserRepository }
 })
@@ -137,7 +137,7 @@ describe('handleTrigger', () => {
   beforeEach(() => vi.clearAllMocks())
   afterEach(() => vi.restoreAllMocks())
 
-  it('responde com confirmacao ephemeral e botoes, sem disparar API imediatamente', async () => {
+  it('responde com confirmação ephemeral e botões, sem disparar API imediatamente', async () => {
     mocks.createPendingTriggerRequest.mockReturnValue({ id: 'req-123' })
     const interaction = makeInteraction()
 
@@ -148,7 +148,7 @@ describe('handleTrigger', () => {
       { content: string; flags: number; components?: unknown[] },
     ]
     expect(replyArg.flags).toBe(MessageFlags.Ephemeral)
-    expect(replyArg.content).toMatch(/Confirme a geracao manual/i)
+    expect(replyArg.content).toMatch(/Confirme a geração manual/i)
     expect(replyArg.components?.length).toBe(1)
     expect(mocks.createPendingTriggerRequest).toHaveBeenCalledWith('user-abc', {
       forceRegenerate: false,
@@ -191,7 +191,9 @@ describe('handleTrigger', () => {
 describe('handleList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok('resolved-user-id'))
+    mocks.hasActiveSession.mockReturnValue(
+      Result.ok({ userId: 'resolved-user-id', hasSession: true }),
+    )
   })
   afterEach(() => vi.restoreAllMocks())
 
@@ -254,7 +256,7 @@ describe('handleServices', () => {
   beforeEach(() => vi.clearAllMocks())
   afterEach(() => vi.restoreAllMocks())
 
-  it('retorna status de api, worker e bot quando filtro nao e informado', async () => {
+  it('retorna status de api, worker e bot quando filtro não é informado', async () => {
     mocks.checkRemoteServiceHealth
       .mockResolvedValueOnce({
         service: 'api',

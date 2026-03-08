@@ -28,7 +28,7 @@ function setupTables(db: Db): void {
       reminder_cron    TEXT NOT NULL DEFAULT '20 17 * * 1-5',
       recovery_cron    TEXT NOT NULL DEFAULT '0 18 * * 1-5',
       timezone         TEXT NOT NULL DEFAULT 'America/Sao_Paulo',
-      repos_base_path  TEXT NOT NULL,
+      selected_repos   TEXT NOT NULL DEFAULT '[]',
       git_author       TEXT NOT NULL,
       git_since_period TEXT NOT NULL DEFAULT '16 hours ago',
       active           INTEGER NOT NULL DEFAULT 1,
@@ -51,7 +51,7 @@ function seedUser(db: Db, id = 'user-1'): void {
 function makeInput(overrides?: Record<string, unknown>) {
   return {
     userId: 'user-1',
-    reposBasePath: '/home/user/repos',
+    selectedRepos: '["agrotrace-web","agrotrace-api"]',
     gitAuthor: 'user@test.com',
     ...overrides,
   }
@@ -91,7 +91,9 @@ describe('UserSettingsRepository', () => {
       if (result.status !== 'ok') return
       expect(result.value).not.toBeNull()
       expect(result.value?.userId).toBe('user-1')
-      expect(result.value?.reposBasePath).toBe('/home/user/repos')
+      expect(result.value?.selectedRepos).toBe(
+        '["agrotrace-web","agrotrace-api"]',
+      )
       expect(result.value?.gitAuthor).toBe('user@test.com')
     })
   })
@@ -133,7 +135,6 @@ describe('UserSettingsRepository', () => {
           reminderCron: '50 8 * * 1-5',
           recoveryCron: '30 9 * * 1-5',
           timezone: 'US/Eastern',
-          gitSincePeriod: '24 hours ago',
           active: false,
         }),
       )
@@ -144,7 +145,6 @@ describe('UserSettingsRepository', () => {
       expect(result.value.reminderCron).toBe('50 8 * * 1-5')
       expect(result.value.recoveryCron).toBe('30 9 * * 1-5')
       expect(result.value.timezone).toBe('US/Eastern')
-      expect(result.value.gitSincePeriod).toBe('24 hours ago')
       expect(result.value.active).toBe(false)
     })
   })

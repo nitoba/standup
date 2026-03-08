@@ -15,9 +15,9 @@ function response(status: number): Response {
 const BASE_OPTIONS = {
   userId: 'test-user-1',
   discordUserId: 'test-discord-1',
-  reposBasePath: '/tmp/repos',
+  reposRootPath: '/repos',
+  selectedRepos: ['agrotrace-web', 'checkmilk-api'],
   gitAuthor: 'dev@example.com',
-  gitSincePeriod: '16 hours ago',
 }
 
 describe('triggerStandupJob', () => {

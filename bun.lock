@@ -47,6 +47,7 @@
     "apps/worker": {
       "name": "@standup/worker",
       "dependencies": {
+        "@standup/azure-devops": "workspace:*",
         "@standup/config": "workspace:*",
         "@standup/db": "workspace:*",
         "@standup/domain": "workspace:*",
@@ -55,6 +56,20 @@
         "@standup/standup-generator": "workspace:*",
         "croner": "^10.0.1",
         "hono": "catalog:",
+      },
+    },
+    "packages/azure-devops": {
+      "name": "@standup/azure-devops",
+      "version": "0.0.1",
+      "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.27.1",
+        "@standup/domain": "workspace:*",
+        "@standup/logger": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "catalog:tooling",
+        "typescript": "catalog:tooling",
+        "vitest": "catalog:tooling",
       },
     },
     "packages/config": {
@@ -113,7 +128,7 @@
       "version": "0.0.1",
       "dependencies": {
         "@ai-sdk/groq": "^3.0.29",
-        "@modelcontextprotocol/sdk": "^1.27.1",
+        "@standup/azure-devops": "workspace:*",
         "@standup/config": "workspace:*",
         "@standup/domain": "workspace:*",
         "@standup/logger": "workspace:*",
@@ -392,6 +407,8 @@
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
     "@standup/api": ["@standup/api@workspace:apps/api"],
+
+    "@standup/azure-devops": ["@standup/azure-devops@workspace:packages/azure-devops"],
 
     "@standup/config": ["@standup/config@workspace:packages/config"],
 

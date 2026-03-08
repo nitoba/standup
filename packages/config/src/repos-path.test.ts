@@ -1,74 +1,30 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeReposSubpath, resolveReposScanPath } from './repos-path.js'
+import { resolveRepoPaths } from './repos-path.js'
 
-describe('repos-path helpers', () => {
-  describe('normalizeReposSubpath', () => {
-    it('returns empty string for blank input', () => {
-      const result = normalizeReposSubpath('   ')
-
-      expect(result.isOk()).toBe(true)
-      if (result.isErr()) return
-
-      expect(result.value).toBe('')
-    })
-
-    it('normalizes a relative path', () => {
-      const result = normalizeReposSubpath('./ibs/repos')
-
-      expect(result.isOk()).toBe(true)
-      if (result.isErr()) return
-
-      expect(result.value).toBe('ibs/repos')
-    })
-
-    it('rejects parent directory traversal', () => {
-      const result = normalizeReposSubpath('../outside')
-
-      expect(result.isErr()).toBe(true)
-    })
-
-    it('rejects parent directory traversal in the middle of the path', () => {
-      const result = normalizeReposSubpath('team-a/../outside')
-
-      expect(result.isErr()).toBe(true)
-    })
+describe('resolveRepoPaths', () => {
+  it('returns empty array for empty selectedRepos', () => {
+    const result = resolveRepoPaths('/repos', [])
+    expect(result).toEqual([])
   })
 
-  describe('resolveReposScanPath', () => {
-    it('resolves empty input to the root path', () => {
-      const result = resolveReposScanPath('', '/repos')
+  it('resolves single repo name to absolute path', () => {
+    const result = resolveRepoPaths('/repos', ['agrotrace-web'])
+    expect(result).toEqual(['/repos/agrotrace-web'])
+  })
 
-      expect(result.isOk()).toBe(true)
-      if (result.isErr()) return
+  it('resolves multiple repo names', () => {
+    const result = resolveRepoPaths('/repos', ['repo-a', 'repo-b', 'repo-c'])
+    expect(result).toEqual(['/repos/repo-a', '/repos/repo-b', '/repos/repo-c'])
+  })
 
-      expect(result.value.absolutePath).toBe('/repos')
-      expect(result.value.normalizedSubpath).toBe('')
-    })
+  it('normalizes trailing slashes in reposRootPath', () => {
+    const result = resolveRepoPaths('/repos/', ['my-repo'])
+    expect(result).toEqual(['/repos/my-repo'])
+  })
 
-    it('resolves a relative path inside the root', () => {
-      const result = resolveReposScanPath('ibs/repos', '/repos')
-
-      expect(result.isOk()).toBe(true)
-      if (result.isErr()) return
-
-      expect(result.value.absolutePath).toBe('/repos/ibs/repos')
-      expect(result.value.normalizedSubpath).toBe('ibs/repos')
-    })
-
-    it('accepts absolute paths already inside the root and normalizes them', () => {
-      const result = resolveReposScanPath('/repos/ibs/repos', '/repos')
-
-      expect(result.isOk()).toBe(true)
-      if (result.isErr()) return
-
-      expect(result.value.absolutePath).toBe('/repos/ibs/repos')
-      expect(result.value.normalizedSubpath).toBe('ibs/repos')
-    })
-
-    it('rejects absolute paths outside the root', () => {
-      const result = resolveReposScanPath('/tmp/repos', '/repos')
-
-      expect(result.isErr()).toBe(true)
-    })
+  it('resolves relative reposRootPath to absolute', () => {
+    const result = resolveRepoPaths('./data/repos', ['repo-x'])
+    expect(result[0]).toMatch(/repo-x$/)
+    expect(result[0]).toMatch(/^\//)
   })
 })

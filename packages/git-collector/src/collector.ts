@@ -1,4 +1,3 @@
-import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type {
   CommitInfo,
@@ -21,32 +20,12 @@ const logger = createServiceLogger({
 })
 
 export interface CollectOptions {
-  reposBasePath: string
+  /** Absolute path to the root directory where all repos are cloned. */
+  reposRootPath: string
+  /** Names of the repos to analyse (directory names under reposRootPath). */
+  selectedRepos: string[]
   author: string
   sincePeriod: string
-}
-
-async function isGitRepo(dirPath: string): Promise<boolean> {
-  try {
-    const gitDir = join(dirPath, '.git')
-    const s = await stat(gitDir)
-    return s.isDirectory()
-  } catch {
-    return false
-  }
-}
-
-async function discoverRepos(basePath: string): Promise<string[]> {
-  const entries = await readdir(basePath)
-  const repos: string[] = []
-  for (const entry of entries) {
-    const fullPath = join(basePath, entry)
-    const s = await stat(fullPath)
-    if (s.isDirectory() && (await isGitRepo(fullPath))) {
-      repos.push(fullPath)
-    }
-  }
-  return repos
 }
 
 async function processRepo(
@@ -121,13 +100,16 @@ export async function collectGitActivity(
 ): Promise<Result<GatheredGitActivity, ExternalServiceError>> {
   try {
     logger.info('starting git collection', {
-      basePath: options.reposBasePath,
+      reposRootPath: options.reposRootPath,
+      selectedRepos: options.selectedRepos,
       author: options.author,
       since: options.sincePeriod,
     })
 
-    const repoPaths = await discoverRepos(options.reposBasePath)
-    logger.debug('discovered repos', { count: repoPaths.length })
+    const repoPaths = options.selectedRepos.map((name) =>
+      join(options.reposRootPath, name),
+    )
+    logger.debug('resolved repo paths', { count: repoPaths.length })
 
     const allRepos = await Promise.all(
       repoPaths.map((p) => processRepo(p, options)),

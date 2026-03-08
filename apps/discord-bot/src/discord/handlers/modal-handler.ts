@@ -50,7 +50,7 @@ export async function handleRegenerateModal(
   await interaction.deferUpdate()
   await updateReviewMessage(interaction, {
     content:
-      '⏳ Solicitacao recebida. Estou rejeitando o standup atual e iniciando a regeneracao do zero...',
+      '⏳ Solicitação recebida. Estou rejeitando o standup atual e iniciando a regeneração do zero...',
     components: [],
   })
 
@@ -71,13 +71,18 @@ export async function handleRegenerateModal(
     return
   }
 
-  // Step 2: Resolve userId from Discord ID
+  // Step 2: Resolve userId from Discord ID (requires active session)
   const db = getDb(env.DATABASE_URL)
   const userRepo = new UserRepository(db)
-  const userIdResult = userRepo.findUserIdByDiscordId(interaction.user.id)
-  if (userIdResult.isErr() || !userIdResult.value) {
+  const userIdResult = userRepo.hasActiveSession(interaction.user.id)
+  if (
+    userIdResult.isErr() ||
+    !userIdResult.value ||
+    !userIdResult.value.hasSession
+  ) {
     await updateReviewMessage(interaction, {
-      content: '\u{274C} Usuário não registrado. Use /login primeiro.',
+      content:
+        '\u{274C} Sessão expirada ou usuário não registrado. Use `/login` para reconectar.',
       components: [],
     })
     return
@@ -90,7 +95,7 @@ export async function handleRegenerateModal(
   }
 
   const triggerResult = await triggerStandup(
-    userIdResult.value,
+    userIdResult.value.userId,
     interaction.user.id,
     { apiBaseUrl: env.API_BASE_URL, internalSecret: env.INTERNAL_SECRET },
     triggerOptions,
@@ -102,7 +107,7 @@ export async function handleRegenerateModal(
     })
     await updateReviewMessage(interaction, {
       content:
-        '\u{274C} Standup rejeitado, mas falhou ao disparar regeneracao. Use /standup trigger para tentar novamente.',
+        '\u{274C} Standup rejeitado, mas falhou ao disparar regeneração. Use /standup trigger para tentar novamente.',
       components: [],
     })
     return
@@ -117,7 +122,7 @@ export async function handleRegenerateModal(
     })
     await updateReviewMessage(interaction, {
       content:
-        '\u{274C} Standup rejeitado, mas voce nao esta autorizado a disparar o trigger.',
+        '\u{274C} Standup rejeitado, mas você não está autorizado a disparar o trigger.',
       components: [],
     })
     return
@@ -127,7 +132,7 @@ export async function handleRegenerateModal(
 
   modalLogger.info('Full regeneration triggered successfully')
   await updateReviewMessage(interaction, {
-    content: `\u{1F504} Regenerando standup do zero...${contextMsg}\nVoce recebera uma nova DM quando estiver pronto.`,
+    content: `\u{1F504} Regenerando standup do zero...${contextMsg}\nVocê receberá uma nova DM quando estiver pronto.`,
     components: [],
   })
 }

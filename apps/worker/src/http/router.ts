@@ -1,7 +1,9 @@
+import type { AzureMcpClient } from '@standup/azure-devops'
 import { Hono } from 'hono'
 import { internalAuthMiddleware } from './middleware/auth.js'
 import { handleCancelReminder } from './reminder/cancel.js'
 import { handleSnoozeReminder } from './reminder/snooze.js'
+import { handleListRepos } from './repos/list.js'
 import type { StandupJobOptions } from './trigger/standup.js'
 import { handleTriggerStandup } from './trigger/standup.js'
 
@@ -9,6 +11,8 @@ export interface InternalRouterOptions {
   internalSecret: string
   databaseUrl: string
   triggerStandupJob: (options: StandupJobOptions) => Promise<void>
+  mcpClient: AzureMcpClient
+  azureProjects: string[]
 }
 
 /**
@@ -42,6 +46,13 @@ export function createInternalRouter(opts: InternalRouterOptions): Hono {
 
   app.post('/internal/reminder/cancel', (c) => {
     return handleCancelReminder(c, { databaseUrl: opts.databaseUrl })
+  })
+
+  app.get('/internal/repos/list', (c) => {
+    return handleListRepos(c, {
+      mcpClient: opts.mcpClient,
+      projects: opts.azureProjects,
+    })
   })
 
   return app

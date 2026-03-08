@@ -1,4 +1,6 @@
 import { createGroq } from '@ai-sdk/groq'
+import type { AzureMcpClient, EnrichedGitActivity } from '@standup/azure-devops'
+import { createAzureMcpClient, enrichGitActivity } from '@standup/azure-devops'
 import type {
   GatheredGitActivity,
   GeneratedStandup,
@@ -8,16 +10,13 @@ import { ExternalServiceError, Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import { generateText, Output } from 'ai'
 import * as z from 'zod'
-import type { AzureMcpClient } from './azure/azure-mcp-client.js'
-import { createAzureMcpClient } from './azure/azure-mcp-client.js'
-import { enrichGitActivity } from './azure/enrich.js'
 import {
   buildRewriteUserMessage,
   buildSystemPrompt,
   buildUserMessage,
   MAX_STANDUP_CONTENT_CHARS,
 } from './prompt/prompt.js'
-import type { EnrichedGitActivity, GeneratorConfig } from './types.js'
+import type { GeneratorConfig } from './types.js'
 
 const logger = createServiceLogger({
   service: 'standup-generator',
@@ -83,16 +82,23 @@ async function withRetry<T>(
 // ---------------------------------------------------------------------------
 
 /**
- * Connects to Azure MCP, runs enrichment, then always disconnects.
- * Uses Result.gen so connect/enrich errors short-circuit cleanly.
- * The .finally() on the returned Promise guarantees disconnect runs regardless.
+ * Runs enrichment using the given MCP client.
+ *
+ * When `isShared` is true the client is a long-lived singleton that was
+ * connected at process startup — we skip connect/disconnect.
+ *
+ * When `isShared` is false the client is ephemeral (created per retry
+ * attempt) — we connect before use and disconnect in .finally().
  */
 function runEnrichment(
   input: GenerateStandupInput,
   mcpClient: AzureMcpClient,
+  isShared: boolean,
 ): Promise<Result<EnrichedGitActivity, ExternalServiceError>> {
-  return Result.gen(async function* () {
-    yield* Result.await(mcpClient.connect())
+  const promise = Result.gen(async function* () {
+    if (!isShared) {
+      yield* Result.await(mcpClient.connect())
+    }
 
     const enriched = yield* Result.await(
       Result.tryPromise({
@@ -108,7 +114,13 @@ function runEnrichment(
     // enrichGitActivity itself returns Result<EnrichedGitActivity, ExternalServiceError>
     // yield* unwraps it: short-circuits on Err, returns the value on Ok
     return Result.ok(yield* enriched)
-  }).finally(() => mcpClient.disconnect())
+  })
+
+  // Only disconnect ephemeral clients — shared singleton stays alive.
+  if (isShared) {
+    return promise
+  }
+  return promise.finally(() => mcpClient.disconnect())
 }
 
 /**
@@ -132,16 +144,24 @@ function buildFallbackEnrichedActivity(
  * Attempts enrichment up to ENRICHMENT_MAX_ATTEMPTS times.
  * If all attempts fail, returns a fallback built from raw git data.
  * Never throws — always returns a usable EnrichedGitActivity.
+ *
+ * When `config.mcpClient` is set (shared singleton), the same connected
+ * client is reused across retries. Otherwise a fresh ephemeral client is
+ * created per attempt (previous connection may be broken).
  */
 async function withEnrichmentRetry(
   input: GenerateStandupInput,
   config: GeneratorConfig,
 ): Promise<EnrichedGitActivity> {
+  const sharedClient = config.mcpClient
   const result = await withRetry(
     () => {
-      // Create a fresh MCP client per attempt — previous connection may be broken.
+      if (sharedClient) {
+        return runEnrichment(input, sharedClient, true)
+      }
+      // Ephemeral: create a fresh MCP client per attempt.
       const mcpClient = createAzureMcpClient(config.azure)
-      return runEnrichment(input, mcpClient)
+      return runEnrichment(input, mcpClient, false)
     },
     {
       label: 'MCP enrichment',

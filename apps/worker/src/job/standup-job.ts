@@ -1,3 +1,4 @@
+import type { AzureMcpClient } from '@standup/azure-devops'
 import type { WorkerEnv } from '@standup/config'
 import { getDb, JobRunRepository, StandupRepository } from '@standup/db'
 import {
@@ -30,9 +31,11 @@ const logger = createServiceLogger({
 export interface StandupJobOptions {
   userId: string
   discordUserId: string
-  reposBasePath: string
+  /** Absolute path to the root directory where all repos are cloned (REPOS_ROOT_PATH). */
+  reposRootPath: string
+  /** Names of the repos to analyse (directory names under reposRootPath). */
+  selectedRepos: string[]
   gitAuthor: string
-  gitSincePeriod: string
   extraContext?: string
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
@@ -95,6 +98,7 @@ async function resolveAdjustmentRequest(
 export async function runStandupJob(
   env: WorkerEnv,
   options: StandupJobOptions,
+  mcpClient?: AzureMcpClient,
 ): Promise<void> {
   const runId = Bun.randomUUIDv7()
   const today = new Date().toISOString().slice(0, 10)
@@ -154,6 +158,7 @@ export async function runStandupJob(
         defaultProject: env.AZURE_DEVOPS_DEFAULT_PROJECT,
         pat: env.AZURE_DEVOPS_PAT,
       },
+      mcpClient,
     }
     const generationExtraContext = buildGenerationExtraContext(options)
     const adjustmentRequest = yield* Result.await(
@@ -219,9 +224,10 @@ export async function runStandupJob(
     // Step 1: Collect git activity
     const gitActivity = yield* Result.await(
       collectGitActivity({
-        reposBasePath: options.reposBasePath,
+        reposRootPath: options.reposRootPath,
+        selectedRepos: options.selectedRepos,
         author: options.gitAuthor,
-        sincePeriod: options.gitSincePeriod,
+        sincePeriod: '16 hours ago',
       }),
     )
 
@@ -238,7 +244,7 @@ export async function runStandupJob(
 
     // Step 2: Generate standup.
     // Retry para erros de MCP e LLM e feito internamente por generateStandup().
-    // Degradacao graciosa: se MCP falhar apos todos os retries, o standup e gerado
+    // Degradação graciosa: se MCP falhar após todos os retries, o standup é gerado
     // apenas com dados git (sem enrichment de work items).
     const generated = yield* Result.await(
       generateStandup(

@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => ({
   repoFindByIdForUser: vi.fn(),
   getDb: vi.fn().mockReturnValue({}),
   acquireLock: vi.fn(),
-  releaseLock: vi.fn(), // valor configurado no beforeEach (Result nao disponivel aqui)
+  releaseLock: vi.fn(), // valor configurado no beforeEach (Result não disponível aqui)
   notifyStandupReady: vi.fn(),
   notifyJobFailed: vi.fn(),
   sleep: vi.fn().mockResolvedValue(undefined),
@@ -139,9 +139,9 @@ const savedRecord = {
 const baseOptions = {
   userId: 'test-user-1',
   discordUserId: 'test-discord-1',
-  reposBasePath: '/tmp/repos',
+  reposRootPath: '/tmp/repos',
+  selectedRepos: ['my-repo'],
   gitAuthor: 'dev@example.com',
-  gitSincePeriod: '16 hours ago',
 }
 
 const lockRecord = {
@@ -265,7 +265,7 @@ describe('runStandupJob', () => {
 
       await runStandupJob(baseEnv, baseOptions)
 
-      // Job chama generateStandup uma unica vez — retry e interno ao generator
+      // Job chama generateStandup uma única vez — retry é interno ao generator
       expect(mocks.generate).toHaveBeenCalledTimes(1)
       expect(mocks.generateAdjusted).not.toHaveBeenCalled()
       // Nenhum Bun.sleep no job — delays sao do setTimeout interno ao generator

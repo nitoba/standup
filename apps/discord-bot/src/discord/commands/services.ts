@@ -133,7 +133,7 @@ export async function handleServices(
   await interaction.editReply({
     embeds: [
       {
-        title: 'Status dos servicos',
+        title: 'Status dos serviços',
         color: summaryColor(okCount, totalCount),
         description: `Resultado: **${okCount}/${totalCount}** online`,
         fields: statuses.map((status) => renderStatusField(status)),

@@ -110,7 +110,7 @@ describe('handleCopyButtonInteraction', () => {
     })
 
     expect(editReply).toHaveBeenCalledWith(
-      '❌ Standup nao encontrado para copia.',
+      '❌ Standup não encontrado para cópia.',
     )
   })
 
@@ -124,7 +124,7 @@ describe('handleCopyButtonInteraction', () => {
       { databaseUrl: ':memory:' },
     )
 
-    expect(editReply).toHaveBeenCalledWith('❌ Acao de copia desconhecida.')
+    expect(editReply).toHaveBeenCalledWith('❌ Ação de cópia desconhecida.')
   })
 
   it('retorna erro genérico quando DB falha', async () => {

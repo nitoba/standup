@@ -15,9 +15,9 @@ export interface UpsertUserSettingsInput {
   reminderCron?: string
   recoveryCron?: string
   timezone?: string
-  reposBasePath: string
+  /** JSON-stringified array of selected repo names, e.g. '["repo-a","repo-b"]' */
+  selectedRepos?: string
   gitAuthor: string
-  gitSincePeriod?: string
   active?: boolean
 }
 
@@ -73,9 +73,8 @@ export class UserSettingsRepository {
           reminderCron: input.reminderCron ?? '20 17 * * 1-5',
           recoveryCron: input.recoveryCron ?? '0 18 * * 1-5',
           timezone: input.timezone ?? 'America/Sao_Paulo',
-          reposBasePath: input.reposBasePath,
+          selectedRepos: input.selectedRepos ?? '[]',
           gitAuthor: input.gitAuthor,
-          gitSincePeriod: input.gitSincePeriod ?? '16 hours ago',
           active: input.active ?? true,
           createdAt: now,
           updatedAt: now,
@@ -93,11 +92,10 @@ export class UserSettingsRepository {
               recoveryCron: input.recoveryCron,
             }),
             ...(input.timezone !== undefined && { timezone: input.timezone }),
-            reposBasePath: input.reposBasePath,
-            gitAuthor: input.gitAuthor,
-            ...(input.gitSincePeriod !== undefined && {
-              gitSincePeriod: input.gitSincePeriod,
+            ...(input.selectedRepos !== undefined && {
+              selectedRepos: input.selectedRepos,
             }),
+            gitAuthor: input.gitAuthor,
             ...(input.active !== undefined && { active: input.active }),
             updatedAt: now,
           },

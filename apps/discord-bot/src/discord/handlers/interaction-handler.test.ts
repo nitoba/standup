@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   repoFindByIdForUser: vi.fn(),
   repoUpdateStatus: vi.fn(),
-  findUserIdByDiscordId: vi.fn(),
+  hasActiveSession: vi.fn(),
   getDb: vi.fn().mockReturnValue({}),
   publishStandup: vi.fn(),
 }))
@@ -33,7 +33,7 @@ vi.mock('@standup/db', () => {
   }
   function UserRepository() {
     return {
-      findUserIdByDiscordId: mocks.findUserIdByDiscordId,
+      hasActiveSession: mocks.hasActiveSession,
     }
   }
   return { getDb: mocks.getDb, StandupRepository, UserRepository }
@@ -87,7 +87,9 @@ const fakeClient = {} as unknown as import('discord.js').Client
 describe('handleStandupInteraction', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok('user-123'))
+    mocks.hasActiveSession.mockReturnValue(
+      Result.ok({ userId: 'user-123', hasSession: true }),
+    )
   })
 
   afterEach(() => {
@@ -270,7 +272,7 @@ describe('handleStandupInteraction', () => {
   // -------------------------------------------------------------------------
 
   describe('regenerate', () => {
-    it('rejeita standup e retorna mensagem indicando regeneracao', async () => {
+    it('rejeita standup e retorna mensagem indicando regeneração', async () => {
       mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(pendingRecord))
       mocks.repoUpdateStatus.mockResolvedValue(Result.ok(rejectedRecord))
 
@@ -335,7 +337,7 @@ describe('handleStandupInteraction', () => {
     })
 
     it('retorna NotFoundError quando actorDiscordId não pode ser resolvido', async () => {
-      mocks.findUserIdByDiscordId.mockReturnValue(Result.ok(null))
+      mocks.hasActiveSession.mockReturnValue(Result.ok(null))
 
       const result = await handleStandupInteraction(
         'approve',

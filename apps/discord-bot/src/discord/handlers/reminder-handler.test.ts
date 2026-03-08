@@ -3,13 +3,13 @@ import type { ButtonInteraction } from 'discord.js'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  findUserIdByDiscordId: vi.fn(),
+  hasActiveSession: vi.fn(),
   getDb: vi.fn(),
 }))
 
 vi.mock('@standup/db', () => {
   function UserRepository() {
-    return { findUserIdByDiscordId: mocks.findUserIdByDiscordId }
+    return { hasActiveSession: mocks.hasActiveSession }
   }
   return { getDb: mocks.getDb, UserRepository }
 })
@@ -58,7 +58,9 @@ function makeInteraction() {
 describe('handleReminderInteraction', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok('resolved-user-id'))
+    mocks.hasActiveSession.mockReturnValue(
+      Result.ok({ userId: 'resolved-user-id', hasSession: true }),
+    )
   })
 
   afterEach(() => {

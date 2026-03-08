@@ -2,6 +2,8 @@ import { loadBotEnv } from '@standup/config'
 import { Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import { Client, Events, GatewayIntentBits } from 'discord.js'
+import { handleLogin } from './discord/commands/login.js'
+import { handleLogout } from './discord/commands/logout.js'
 import { registerApplicationCommands } from './discord/commands/register.js'
 import { handleAdjustModal } from './discord/handlers/adjust-modal-handler.js'
 import { handleApproveModal } from './discord/handlers/approve-modal-handler.js'
@@ -65,6 +67,19 @@ export async function startDiscordBot(): Promise<void> {
   client.on(Events.InteractionCreate, async (interaction) => {
     try {
       if (interaction.isChatInputCommand()) {
+        if (interaction.commandName === 'login') {
+          await handleLogin(interaction, {
+            databaseUrl: env.DATABASE_URL,
+            apiBaseUrl: env.API_BASE_URL,
+          })
+          return
+        }
+        if (interaction.commandName === 'logout') {
+          await handleLogout(interaction, {
+            databaseUrl: env.DATABASE_URL,
+          })
+          return
+        }
         await handleSlashCommand(interaction, client, env)
         return
       }
@@ -76,7 +91,9 @@ export async function startDiscordBot(): Promise<void> {
 
       if (interaction.isModalSubmit()) {
         if (interaction.customId === 'settings-modal:edit') {
-          await handleSettingsModal(interaction, env)
+          await handleSettingsModal(interaction, {
+            databaseUrl: env.DATABASE_URL,
+          })
           return
         }
         if (interaction.customId.startsWith('standup-approve-modal:')) {

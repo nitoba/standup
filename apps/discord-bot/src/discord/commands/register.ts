@@ -26,6 +26,28 @@ const SERVICE_CHOICES = [
 ] as const
 
 /**
+ * Constrói o SlashCommandBuilder para o comando /login.
+ * Abre o link de OAuth para conectar a conta Discord.
+ */
+export function buildLoginCommand(): SlashCommandBuilder {
+  return new SlashCommandBuilder()
+    .setName('login')
+    .setDescription(
+      'Conectar sua conta Discord ao Standup Bot',
+    ) as SlashCommandBuilder
+}
+
+/**
+ * Constrói o SlashCommandBuilder para o comando /logout.
+ * Encerra a sessão ativa do usuário.
+ */
+export function buildLogoutCommand(): SlashCommandBuilder {
+  return new SlashCommandBuilder()
+    .setName('logout')
+    .setDescription('Encerrar sua sessão no Standup Bot') as SlashCommandBuilder
+}
+
+/**
  * Constrói o SlashCommandBuilder para o comando /standup com subcommands.
  * Exportado para reutilização nos testes.
  */
@@ -40,22 +62,22 @@ export function buildStandupCommand(): SlashCommandBuilder {
         .addBooleanOption((opt) =>
           opt
             .setName('force-regenerate')
-            .setDescription('Forca geracao mesmo se ja houve sucesso hoje'),
+            .setDescription('Força geração mesmo se já houve sucesso hoje'),
         )
         .addStringOption((opt) =>
           opt
             .setName('extra-context')
-            .setDescription('Contexto extra para orientar a geracao'),
+            .setDescription('Contexto extra para orientar a geração'),
         ),
     )
     .addSubcommand((sub) =>
       sub
         .setName('services')
-        .setDescription('Ver status dos servicos')
+        .setDescription('Ver status dos serviços')
         .addStringOption((opt) =>
           opt
             .setName('service')
-            .setDescription('Filtrar por servico especifico')
+            .setDescription('Filtrar por serviço específico')
             .addChoices(...SERVICE_CHOICES),
         ),
     )
@@ -106,26 +128,31 @@ export async function registerApplicationCommands(
     return
   }
 
-  const command = buildStandupCommand()
+  const commands = [
+    buildLoginCommand(),
+    buildLogoutCommand(),
+    buildStandupCommand(),
+  ]
+  const commandNames = commands.map((c) => c.name)
   const rest = new REST({ version: '10' }).setToken(token)
 
   try {
     if (guildId) {
       // Guild commands: propagação instantânea (ideal para dev)
       await rest.put(Routes.applicationGuildCommands(clientId, guildId), {
-        body: [command.toJSON()],
+        body: commands.map((c) => c.toJSON()),
       })
       logger.info('Registered guild application commands', {
         guildId,
-        commands: ['standup'],
+        commands: commandNames,
       })
     } else {
       // Global commands: propagação em até 1h (ideal para produção)
       await rest.put(Routes.applicationCommands(clientId), {
-        body: [command.toJSON()],
+        body: commands.map((c) => c.toJSON()),
       })
       logger.info('Registered global application commands', {
-        commands: ['standup'],
+        commands: commandNames,
       })
     }
   } catch (err) {

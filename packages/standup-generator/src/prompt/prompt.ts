@@ -1,5 +1,8 @@
+import type {
+  EnrichedGitActivity,
+  EnrichedWorkItem,
+} from '@standup/azure-devops'
 import type { GenerateStandupInput } from '@standup/domain'
-import type { EnrichedGitActivity, EnrichedWorkItem } from '../types.js'
 import { determineMeetingType } from './meeting-type.js'
 import { determineWorkItemStatus } from './work-item-status.js'
 

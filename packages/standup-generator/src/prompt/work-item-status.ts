@@ -1,4 +1,4 @@
-import type { EnrichedWorkItem, PullRequestDetail } from '../types.js'
+import type { EnrichedWorkItem, PullRequestDetail } from '@standup/azure-devops'
 
 /**
  * Determines if a work item is "Done" or "In Progress".

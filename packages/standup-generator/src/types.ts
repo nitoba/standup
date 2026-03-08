@@ -1,49 +1,14 @@
-import type { CommitInfo } from '@standup/domain'
+import type { AzureMcpClient, AzureMcpConfig } from '@standup/azure-devops'
 
-export interface WorkItemDetail {
-  id: string
-  title: string
-  state: string
-  assignedTo: string
-}
-
-export interface PullRequestDetail {
-  id: number
-  title: string
-  status: 'active' | 'completed' | 'abandoned'
-  repoId: string
-  creatorId: string
-}
-
-export interface EnrichedWorkItem {
-  cardNumber: string
-  workItem: WorkItemDetail | null
-  pullRequests: PullRequestDetail[]
-}
-
-export interface EnrichedRepo {
-  repoName: string
-  repoPath: string
-  currentBranch: string
-  commits: CommitInfo[]
-  cardNumbers: string[]
-  branchCardNumber: string | null
-  enrichedItems: EnrichedWorkItem[]
-}
-
-export interface EnrichedGitActivity {
-  timestamp: string
-  repos: EnrichedRepo[]
-  userUuid: string
-}
-
-export interface AzureMcpConfig {
-  orgUrl: string
-  pat: string
-  defaultProject: string
-}
+export type { AzureMcpConfig }
 
 export interface GeneratorConfig {
   aiProviderApiKey?: string
   azure: AzureMcpConfig
+  /**
+   * Optional shared MCP client (singleton, already connected at startup).
+   * When provided, the generator reuses this client instead of creating
+   * a new connection per enrichment attempt.
+   */
+  mcpClient?: AzureMcpClient
 }

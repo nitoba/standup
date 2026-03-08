@@ -61,7 +61,7 @@ function makeRequest(
 // ---------------------------------------------------------------------------
 
 describe('createInternalRouter — GET /health', () => {
-  it('retorna 200 com status ok e service discord-bot (sem autenticacao)', async () => {
+  it('retorna 200 com status ok e service discord-bot (sem autenticação)', async () => {
     const app = makeRouter()
 
     const res = await app.fetch(

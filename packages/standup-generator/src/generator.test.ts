@@ -1,11 +1,10 @@
+import type { AzureMcpClient, EnrichedWorkItem } from '@standup/azure-devops'
 import type { GatheredGitActivity, GenerateStandupInput } from '@standup/domain'
 import { ExternalServiceError, Result } from '@standup/domain'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AzureMcpClient } from './azure/azure-mcp-client.js'
 import { determineMeetingType } from './prompt/meeting-type.js'
 import { MAX_STANDUP_CONTENT_CHARS } from './prompt/prompt.js'
 import { determineWorkItemStatus } from './prompt/work-item-status.js'
-import type { EnrichedWorkItem } from './types.js'
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -35,11 +34,8 @@ vi.mock('ai', () => ({
   },
 }))
 
-vi.mock('./azure/azure-mcp-client.js', () => ({
+vi.mock('@standup/azure-devops', () => ({
   createAzureMcpClient: vi.fn(),
-}))
-
-vi.mock('./azure/enrich.js', () => ({
   enrichGitActivity: vi.fn(),
 }))
 
@@ -107,6 +103,7 @@ function makeFakeMcpClient(): AzureMcpClient {
       }),
     ),
     listPullRequests: vi.fn().mockResolvedValue(Result.ok([])),
+    listRepositories: vi.fn().mockResolvedValue(Result.ok([])),
   }
 }
 
@@ -266,8 +263,9 @@ describe('generateStandup', () => {
   })
 
   async function setup() {
-    const { createAzureMcpClient } = await import('./azure/azure-mcp-client.js')
-    const { enrichGitActivity } = await import('./azure/enrich.js')
+    const { createAzureMcpClient, enrichGitActivity } = await import(
+      '@standup/azure-devops'
+    )
     const { generateStandup } = await import('./generator.js')
     const { generateText } = await import('ai')
 

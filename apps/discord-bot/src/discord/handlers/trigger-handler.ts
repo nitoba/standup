@@ -18,9 +18,9 @@ export interface TriggerHandlerDeps {
 }
 
 /**
- * Processa os botoes de confirmacao do /standup trigger.
- * - confirm: dispara o trigger manual com as opcoes salvas
- * - cancel: cancela a operacao
+ * Processa os botões de confirmação do /standup trigger.
+ * - confirm: dispara o trigger manual com as opções salvas
+ * - cancel: cancela a operação
  */
 export async function handleTriggerButtonInteraction(
   interaction: ButtonInteraction,
@@ -38,7 +38,7 @@ export async function handleTriggerButtonInteraction(
 
   if (action !== 'confirm' && action !== 'cancel') {
     await interaction.editReply({
-      content: '❌ Acao de trigger desconhecida.',
+      content: '❌ Ação de trigger desconhecida.',
       components: [],
     })
     return
@@ -49,7 +49,7 @@ export async function handleTriggerButtonInteraction(
   if (!pendingRequest) {
     await interaction.editReply({
       content:
-        '⌛ Esta confirmacao expirou. Rode `/standup trigger` novamente para criar uma nova solicitacao.',
+        '⌛ Esta confirmação expirou. Rode `/standup trigger` novamente para criar uma nova solicitação.',
       components: [],
     })
     return
@@ -60,7 +60,7 @@ export async function handleTriggerButtonInteraction(
       requestUserId: pendingRequest.discordUserId,
     })
     await interaction.editReply({
-      content: '❌ Esta confirmacao pertence a outro usuario.',
+      content: '❌ Esta confirmação pertence a outro usuário.',
       components: [],
     })
     return
@@ -69,21 +69,24 @@ export async function handleTriggerButtonInteraction(
   if (action === 'cancel') {
     interactionLogger.info('Manual trigger cancelled by user')
     await interaction.editReply({
-      content: '❌ Operacao cancelada.',
+      content: '❌ Operação cancelada.',
       components: [],
     })
     return
   }
 
-  // Resolve userId from discordUserId
+  // Resolve userId from discordUserId (requires active session)
   const db = getDb(deps.databaseUrl)
   const userRepo = new UserRepository(db)
-  const userIdResult = userRepo.findUserIdByDiscordId(
-    pendingRequest.discordUserId,
-  )
-  if (userIdResult.isErr() || !userIdResult.value) {
+  const userIdResult = userRepo.hasActiveSession(pendingRequest.discordUserId)
+  if (
+    userIdResult.isErr() ||
+    !userIdResult.value ||
+    !userIdResult.value.hasSession
+  ) {
     await interaction.editReply({
-      content: '❌ Usuário não registrado. Use /login primeiro.',
+      content:
+        '❌ Sessão expirada ou usuário não registrado. Use `/login` para reconectar.',
       components: [],
     })
     return
@@ -97,7 +100,7 @@ export async function handleTriggerButtonInteraction(
   })
 
   const result = await triggerStandup(
-    userIdResult.value,
+    userIdResult.value.userId,
     pendingRequest.discordUserId,
     { apiBaseUrl: deps.apiBaseUrl, internalSecret: deps.internalSecret },
     pendingRequest.options,
@@ -116,7 +119,7 @@ export async function handleTriggerButtonInteraction(
 
   if (!result.value.accepted && result.value.reason === 'forbidden') {
     await interaction.editReply({
-      content: '❌ Voce nao esta autorizado a disparar o standup manualmente.',
+      content: '❌ Você não está autorizado a disparar o standup manualmente.',
       components: [],
     })
     return
@@ -129,7 +132,7 @@ export async function handleTriggerButtonInteraction(
 
   await interaction.editReply({
     content:
-      '✅ Trigger manual enviado com sucesso. O job foi aceito e comecou a processar em background.',
+      '✅ Trigger manual enviado com sucesso. O job foi aceito e começou a processar em background.',
     components: [],
   })
 }

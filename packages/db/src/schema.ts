@@ -136,7 +136,7 @@ export const userSettings = sqliteTable('user_settings', {
   reminderCron: text('reminder_cron').notNull().default('20 17 * * 1-5'),
   recoveryCron: text('recovery_cron').notNull().default('0 18 * * 1-5'),
   timezone: text('timezone').notNull().default('America/Sao_Paulo'),
-  reposBasePath: text('repos_base_path').notNull(),
+  selectedRepos: text('selected_repos').notNull().default('[]'),
   gitAuthor: text('git_author').notNull(),
   gitSincePeriod: text('git_since_period').notNull().default('16 hours ago'),
   active: integer('active', { mode: 'boolean' }).notNull().default(true),

@@ -97,7 +97,7 @@ describe('generateAdjustedStandup', () => {
     await generateAdjustedStandup(
       {
         previousContent: '**Standup base**\n- item antigo',
-        instruction: 'Destacar mais impacto de negocio',
+        instruction: 'Destacar mais impacto de negócio',
         extraContext: 'Enfatizar resultado para time de produto',
       },
       baseConfig,
@@ -109,7 +109,7 @@ describe('generateAdjustedStandup', () => {
     expect(prompt.prompt).toContain('Enfatizar resultado para time de produto')
   })
 
-  it('retorna erro quando nao ha API key', async () => {
+  it('retorna erro quando não há API key', async () => {
     const { generateText } = await import('ai')
 
     const result = await generateAdjustedStandup(

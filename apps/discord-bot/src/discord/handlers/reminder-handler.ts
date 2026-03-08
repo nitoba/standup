@@ -104,18 +104,23 @@ export async function handleReminderInteraction(
 
   let result: Result<void, ExternalServiceError>
 
-  // Resolve userId from Discord ID for all actions
+  // Resolve userId from Discord ID for all actions (requires active session)
   const db = getDb(deps.databaseUrl)
   const userRepo = new UserRepository(db)
-  const userIdResult = userRepo.findUserIdByDiscordId(deps.discordUserId)
-  if (userIdResult.isErr() || !userIdResult.value) {
+  const userIdResult = userRepo.hasActiveSession(deps.discordUserId)
+  if (
+    userIdResult.isErr() ||
+    !userIdResult.value ||
+    !userIdResult.value.hasSession
+  ) {
     await interaction.editReply({
-      content: '\u{274C} Usuário não registrado. Use /login primeiro.',
+      content:
+        '\u{274C} Sessão expirada ou usuário não registrado. Use `/login` para reconectar.',
       components: [],
     })
     return
   }
-  const userId = userIdResult.value
+  const userId = userIdResult.value.userId
 
   if (action === 'run-now') {
     result = await postApiTrigger(

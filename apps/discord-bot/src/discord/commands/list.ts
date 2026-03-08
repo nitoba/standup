@@ -46,9 +46,11 @@ export async function handleList(
 
     // Resolve userId from Discord ID to filter standups by ownership
     const userRepo = new UserRepository(db)
-    const userIdResult = userRepo.findUserIdByDiscordId(interaction.user.id)
+    const sessionResult = userRepo.hasActiveSession(interaction.user.id)
     const userId =
-      userIdResult.isOk() && userIdResult.value ? userIdResult.value : undefined
+      sessionResult.isOk() && sessionResult.value?.hasSession
+        ? sessionResult.value.userId
+        : undefined
 
     const result = await repo.list(
       statusFilter ? { status: statusFilter, userId } : { userId },

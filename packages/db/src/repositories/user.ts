@@ -1,8 +1,8 @@
 import { Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, gt } from 'drizzle-orm'
 import type { Db } from '../connection.js'
-import { account, user } from '../schema.js'
+import { account, session, user } from '../schema.js'
 
 const logger = createServiceLogger({
   service: 'db',
@@ -118,6 +118,107 @@ export class UserRepository {
       const message =
         error instanceof Error ? error.message : 'Unknown DB error'
       logger.error('Failed to find user by Discord ID', {
+        discordId,
+        error: message,
+      })
+      return Result.err({ message })
+    }
+  }
+
+  /**
+   * Verifica se o Discord user possui pelo menos uma sessão ativa (não expirada).
+   * Retorna `{ userId, hasSession }` se o account existe, ou `null` se não está registrado.
+   */
+  hasActiveSession(
+    discordId: string,
+  ): Result<
+    { userId: string; hasSession: boolean } | null,
+    { message: string }
+  > {
+    try {
+      // First check if the user is registered at all
+      const accountRow = this.db
+        .select({ userId: account.userId })
+        .from(account)
+        .where(
+          and(
+            eq(account.providerId, 'discord'),
+            eq(account.accountId, discordId),
+          ),
+        )
+        .limit(1)
+        .get()
+
+      if (!accountRow) {
+        return Result.ok(null)
+      }
+
+      // Check for at least one non-expired session
+      const now = new Date()
+      const sessionRow = this.db
+        .select({ id: session.id })
+        .from(session)
+        .where(
+          and(
+            eq(session.userId, accountRow.userId),
+            gt(session.expiresAt, now),
+          ),
+        )
+        .limit(1)
+        .get()
+
+      return Result.ok({
+        userId: accountRow.userId,
+        hasSession: sessionRow !== undefined,
+      })
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown DB error'
+      logger.error('Failed to check active session', {
+        discordId,
+        error: message,
+      })
+      return Result.err({ message })
+    }
+  }
+
+  /**
+   * Deleta todas as sessões do usuário vinculado ao Discord ID.
+   * Equivalente ao hard-delete que Better Auth faz no signOut.
+   * Retorna `true` se as sessões foram deletadas, `null` se o account não existe.
+   */
+  deleteSessionsByDiscordId(
+    discordId: string,
+  ): Result<boolean | null, { message: string }> {
+    try {
+      const accountRow = this.db
+        .select({ userId: account.userId })
+        .from(account)
+        .where(
+          and(
+            eq(account.providerId, 'discord'),
+            eq(account.accountId, discordId),
+          ),
+        )
+        .limit(1)
+        .get()
+
+      if (!accountRow) {
+        return Result.ok(null)
+      }
+
+      this.db.delete(session).where(eq(session.userId, accountRow.userId)).run()
+
+      logger.info('Sessions deleted for user', {
+        discordId,
+        userId: accountRow.userId,
+      })
+
+      return Result.ok(true)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown DB error'
+      logger.error('Failed to delete sessions by Discord ID', {
         discordId,
         error: message,
       })

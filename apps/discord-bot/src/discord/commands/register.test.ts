@@ -73,7 +73,7 @@ describe('buildStandupCommand', () => {
     expect(subNames).toContain('approve')
   })
 
-  it('subcommand services tem opcao service com choices', () => {
+  it('subcommand services tem opção service com choices', () => {
     const cmd = buildStandupCommand()
     const json = cmd.toJSON()
     const options = json.options ?? []

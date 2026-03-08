@@ -1,4 +1,5 @@
-import { resolveReposScanPath, type WorkerEnv } from '@standup/config'
+import type { AzureMcpClient } from '@standup/azure-devops'
+import { type WorkerEnv } from '@standup/config'
 import {
   getDb,
   JobRunRepository,
@@ -16,6 +17,19 @@ const logger = createServiceLogger({
   component: 'scheduler',
 })
 
+/** Parses the JSON-stringified selectedRepos field from user_settings. */
+function parseSelectedRepos(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) {
+      return parsed.filter((r): r is string => typeof r === 'string')
+    }
+    return []
+  } catch {
+    return []
+  }
+}
+
 // Limite de tempo para considerar um job como "travado" (30 min)
 const STALE_RUN_MAX_AGE_MS = 30 * 60 * 1000
 
@@ -26,7 +40,10 @@ const STALE_RUN_MAX_AGE_MS = 30 * 60 * 1000
  * This replaces the previous 3 separate Cron instances with a unified polling approach.
  * Changes to user_settings (cron, timezone, active) are picked up within 60 seconds.
  */
-export function startScheduler(env: WorkerEnv): {
+export function startScheduler(
+  env: WorkerEnv,
+  mcpClient?: AzureMcpClient,
+): {
   pollCron: Cron
   stop: () => void
 } {
@@ -106,25 +123,25 @@ export function startScheduler(env: WorkerEnv): {
       if (isCronDueNow(settings.standupCron, settings.timezone, now)) {
         logger.info('Standup cron triggered', { userId: settings.userId })
 
-        const reposPathResult = resolveReposScanPath(
-          settings.reposBasePath,
-          env.REPOS_ROOT_PATH,
-        )
-        if (reposPathResult.isErr()) {
-          logger.error('Invalid reposBasePath for scheduled standup', {
+        const selectedRepos = parseSelectedRepos(settings.selectedRepos)
+        if (selectedRepos.length === 0) {
+          logger.warn('No repos selected for scheduled standup', {
             userId: settings.userId,
-            error: reposPathResult.error.message,
           })
           continue
         }
 
-        runStandupJob(env, {
-          userId: settings.userId,
-          discordUserId,
-          reposBasePath: reposPathResult.value.absolutePath,
-          gitAuthor: settings.gitAuthor,
-          gitSincePeriod: settings.gitSincePeriod,
-        }).catch((error: unknown) => {
+        runStandupJob(
+          env,
+          {
+            userId: settings.userId,
+            discordUserId,
+            reposRootPath: env.REPOS_ROOT_PATH,
+            selectedRepos,
+            gitAuthor: settings.gitAuthor,
+          },
+          mcpClient,
+        ).catch((error: unknown) => {
           logger.error('Standup job threw unexpectedly', {
             userId: settings.userId,
             error: error instanceof Error ? error.message : String(error),
@@ -178,25 +195,25 @@ export function startScheduler(env: WorkerEnv): {
           date: today,
         })
 
-        const reposPathResult = resolveReposScanPath(
-          settings.reposBasePath,
-          env.REPOS_ROOT_PATH,
-        )
-        if (reposPathResult.isErr()) {
-          logger.error('Invalid reposBasePath for recovery run', {
+        const recoverySelectedRepos = parseSelectedRepos(settings.selectedRepos)
+        if (recoverySelectedRepos.length === 0) {
+          logger.warn('No repos selected for recovery run', {
             userId: settings.userId,
-            error: reposPathResult.error.message,
           })
           continue
         }
 
-        runStandupJob(env, {
-          userId: settings.userId,
-          discordUserId,
-          reposBasePath: reposPathResult.value.absolutePath,
-          gitAuthor: settings.gitAuthor,
-          gitSincePeriod: settings.gitSincePeriod,
-        }).catch((error: unknown) => {
+        runStandupJob(
+          env,
+          {
+            userId: settings.userId,
+            discordUserId,
+            reposRootPath: env.REPOS_ROOT_PATH,
+            selectedRepos: recoverySelectedRepos,
+            gitAuthor: settings.gitAuthor,
+          },
+          mcpClient,
+        ).catch((error: unknown) => {
           logger.error('Recovery job threw unexpectedly', {
             userId: settings.userId,
             error: error instanceof Error ? error.message : String(error),

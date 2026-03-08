@@ -25,9 +25,9 @@ const TEST_DISCORD_USER_ID = 'discord-user-123'
 const TRIGGER_BODY = {
   userId: TEST_USER_ID,
   discordUserId: TEST_DISCORD_USER_ID,
-  reposBasePath: '/tmp/repos',
+  reposRootPath: '/repos',
+  selectedRepos: ['agrotrace-web', 'checkmilk-api'],
   gitAuthor: 'dev@example.com',
-  gitSincePeriod: '16 hours ago',
 }
 
 const triggerStandupJob = vi.fn<(options: StandupJobOptions) => Promise<void>>()
@@ -37,6 +37,8 @@ function makeRouter() {
     internalSecret: INTERNAL_SECRET,
     databaseUrl: ':memory:',
     triggerStandupJob,
+    mcpClient: {} as never,
+    azureProjects: ['AGROTRACE', 'CHECKMILK'],
   })
 }
 
@@ -72,7 +74,7 @@ describe('createInternalRouter', () => {
   // GET /health
   // ---------------------------------------------------------------------------
 
-  it('GET /health retorna 200 com status ok e service worker (sem autenticacao)', async () => {
+  it('GET /health retorna 200 com status ok e service worker (sem autenticação)', async () => {
     const app = makeRouter()
 
     const res = await app.fetch(

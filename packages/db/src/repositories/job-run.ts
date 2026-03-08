@@ -202,7 +202,7 @@ export class JobRunRepository {
 
   /**
    * Busca o run mais recente para (jobName, date).
-   * Usado pelo recovery cron para verificar se o job ja rodou com sucesso.
+   * Usado pelo recovery cron para verificar se o job já rodou com sucesso.
    */
   async findByJobAndDate(
     jobName: string,

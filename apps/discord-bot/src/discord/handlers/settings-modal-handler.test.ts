@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   getDb: vi.fn().mockReturnValue({}),
-  findByDiscordId: vi.fn(),
+  hasActiveSession: vi.fn(),
   upsert: vi.fn(),
   loggerInfo: vi.fn(),
   loggerError: vi.fn(),
@@ -26,7 +26,7 @@ vi.mock('@standup/logger', () => ({
 vi.mock('@standup/db', () => {
   function UserRepository() {
     return {
-      findByDiscordId: mocks.findByDiscordId,
+      hasActiveSession: mocks.hasActiveSession,
     }
   }
 
@@ -46,7 +46,10 @@ vi.mock('../commands/settings.js', () => ({
 import type { ModalSubmitInteraction } from 'discord.js'
 import { handleSettingsModal } from './settings-modal-handler.js'
 
-function makeModalInteraction(fields: Record<string, string>): {
+function makeModalInteraction(
+  textFields: Record<string, string>,
+  selectFields: Record<string, string[]> = {},
+): {
   interaction: ModalSubmitInteraction
   deferReply: ReturnType<typeof vi.fn>
   editReply: ReturnType<typeof vi.fn>
@@ -59,7 +62,8 @@ function makeModalInteraction(fields: Record<string, string>): {
       customId: 'settings-modal:edit',
       user: { id: 'discord-user-123' },
       fields: {
-        getTextInputValue: vi.fn((key: string) => fields[key] ?? ''),
+        getTextInputValue: vi.fn((key: string) => textFields[key] ?? ''),
+        getStringSelectValues: vi.fn((key: string) => selectFields[key] ?? []),
       },
       deferReply,
       editReply,
@@ -69,9 +73,8 @@ function makeModalInteraction(fields: Record<string, string>): {
   }
 }
 
-const env = {
-  DATABASE_URL: ':memory:',
-  REPOS_ROOT_PATH: '/repos',
+const deps = {
+  databaseUrl: ':memory:',
 }
 
 const savedSettings = {
@@ -80,9 +83,8 @@ const savedSettings = {
   reminderCron: '20 17 * * 1-5',
   recoveryCron: '0 18 * * 1-5',
   timezone: 'America/Sao_Paulo',
-  reposBasePath: 'team-a',
+  selectedRepos: '["repo-a","repo-b"]',
   gitAuthor: 'dev@example.com',
-  gitSincePeriod: '16 hours ago',
   active: true,
   snoozedUntil: null,
   cancelledDate: null,
@@ -91,7 +93,9 @@ const savedSettings = {
 describe('handleSettingsModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.findByDiscordId.mockReturnValue(Result.ok({ id: 'user-123' }))
+    mocks.hasActiveSession.mockReturnValue(
+      Result.ok({ userId: 'user-123', hasSession: true }),
+    )
     mocks.upsert.mockReturnValue(Result.ok(savedSettings))
   })
 
@@ -99,16 +103,17 @@ describe('handleSettingsModal', () => {
     vi.restoreAllMocks()
   })
 
-  it('persiste os tres crons e normaliza o repos subpath', async () => {
-    const { interaction, editReply } = makeModalInteraction({
-      'cron-config': '30 17 * * 1-5\n20 17 * * 1-5\n0 18 * * 1-5',
-      timezone: 'America/Sao_Paulo',
-      'repos-path': '/team-a',
-      'git-author': 'dev@example.com',
-      'git-since-period': '16 hours ago',
-    })
+  it('persiste os tres crons e os repos selecionados', async () => {
+    const { interaction, editReply } = makeModalInteraction(
+      {
+        'cron-config': '30 17 * * 1-5\n20 17 * * 1-5\n0 18 * * 1-5',
+        timezone: 'America/Sao_Paulo',
+        'git-author': 'dev@example.com',
+      },
+      { 'selected-repos': ['repo-a', 'repo-b'] },
+    )
 
-    await handleSettingsModal(interaction, env)
+    await handleSettingsModal(interaction, deps)
 
     expect(mocks.upsert).toHaveBeenCalledWith({
       userId: 'user-123',
@@ -116,48 +121,43 @@ describe('handleSettingsModal', () => {
       reminderCron: '20 17 * * 1-5',
       recoveryCron: '0 18 * * 1-5',
       timezone: 'America/Sao_Paulo',
-      reposBasePath: 'team-a',
+      selectedRepos: '["repo-a","repo-b"]',
       gitAuthor: 'dev@example.com',
-      gitSincePeriod: '16 hours ago',
     })
-    expect(mocks.buildSettingsEmbed).toHaveBeenCalledWith(
-      savedSettings,
-      '/repos',
-    )
+    expect(mocks.buildSettingsEmbed).toHaveBeenCalledWith(savedSettings)
     expect(editReply).toHaveBeenCalledWith({
       content: '✅ Configurações salvas com sucesso!',
       embeds: [{ title: 'settings-embed' }],
     })
   })
 
-  it('aceita repos subpath vazio e usa o root inteiro', async () => {
-    const { interaction } = makeModalInteraction({
-      'cron-config': '30 17 * * 1-5\n20 17 * * 1-5\n0 18 * * 1-5',
-      timezone: 'America/Sao_Paulo',
-      'repos-path': '',
-      'git-author': 'dev@example.com',
-      'git-since-period': '16 hours ago',
-    })
+  it('aceita selecao vazia de repos e persiste array vazio', async () => {
+    const { interaction } = makeModalInteraction(
+      {
+        'cron-config': '30 17 * * 1-5\n20 17 * * 1-5\n0 18 * * 1-5',
+        timezone: 'America/Sao_Paulo',
+        'git-author': 'dev@example.com',
+      },
+      { 'selected-repos': [] },
+    )
 
-    await handleSettingsModal(interaction, env)
+    await handleSettingsModal(interaction, deps)
 
     expect(mocks.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        reposBasePath: '',
+        selectedRepos: '[]',
       }),
     )
   })
 
-  it('retorna erro quando o campo de cron nao tem exatamente 3 linhas', async () => {
+  it('retorna erro quando o campo de cron não tem exatamente 3 linhas', async () => {
     const { interaction, editReply } = makeModalInteraction({
       'cron-config': '30 17 * * 1-5\n20 17 * * 1-5',
       timezone: 'America/Sao_Paulo',
-      'repos-path': 'team-a',
       'git-author': 'dev@example.com',
-      'git-since-period': '16 hours ago',
     })
 
-    await handleSettingsModal(interaction, env)
+    await handleSettingsModal(interaction, deps)
 
     expect(mocks.upsert).not.toHaveBeenCalled()
     expect(editReply).toHaveBeenCalledWith({
@@ -166,20 +166,18 @@ describe('handleSettingsModal', () => {
     })
   })
 
-  it('retorna erro quando o repos subpath tenta escapar do root', async () => {
+  it('retorna erro quando git-author esta vazio', async () => {
     const { interaction, editReply } = makeModalInteraction({
       'cron-config': '30 17 * * 1-5\n20 17 * * 1-5\n0 18 * * 1-5',
       timezone: 'America/Sao_Paulo',
-      'repos-path': 'team-a/../secret',
-      'git-author': 'dev@example.com',
-      'git-since-period': '16 hours ago',
+      'git-author': '',
     })
 
-    await handleSettingsModal(interaction, env)
+    await handleSettingsModal(interaction, deps)
 
     expect(mocks.upsert).not.toHaveBeenCalled()
     expect(editReply).toHaveBeenCalledWith({
-      content: '❌ reposBasePath must not contain parent directory segments',
+      content: '❌ O campo "Email do autor git" é obrigatório.',
     })
   })
 })

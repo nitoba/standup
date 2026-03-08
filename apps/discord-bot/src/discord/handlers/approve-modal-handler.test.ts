@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   getDb: vi.fn().mockReturnValue({}),
   repoUpdateCustomEntries: vi.fn(),
   repoUpdateContent: vi.fn(),
-  findUserIdByDiscordId: vi.fn(),
+  hasActiveSession: vi.fn(),
   loggerInfo: vi.fn(),
   loggerError: vi.fn(),
   loggerWarn: vi.fn(),
@@ -41,7 +41,7 @@ vi.mock('@standup/db', () => {
   }
   function UserRepository() {
     return {
-      findUserIdByDiscordId: mocks.findUserIdByDiscordId,
+      hasActiveSession: mocks.hasActiveSession,
     }
   }
   return { getDb: mocks.getDb, StandupRepository, UserRepository }
@@ -108,7 +108,9 @@ const baseRecord = {
 describe('handleApproveModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok('user-123'))
+    mocks.hasActiveSession.mockReturnValue(
+      Result.ok({ userId: 'user-123', hasSession: true }),
+    )
   })
 
   afterEach(() => {
@@ -307,13 +309,13 @@ describe('handleApproveModal', () => {
     await handleApproveModal(interaction, fakeClient, env)
 
     expect(editReply).toHaveBeenCalledWith({
-      content: expect.stringContaining('Erro ao atualizar conteudo'),
+      content: expect.stringContaining('Erro ao atualizar conteúdo'),
       components: [],
     })
     expect(mocks.handleStandupInteraction).not.toHaveBeenCalled()
   })
 
-  it('retorna erro quando approve falha apos merge', async () => {
+  it('retorna erro quando approve falha após merge', async () => {
     mocks.repoUpdateCustomEntries.mockResolvedValue(Result.ok(baseRecord))
     mocks.repoUpdateContent.mockResolvedValue(Result.ok(baseRecord))
     mocks.handleStandupInteraction.mockResolvedValue(
@@ -333,7 +335,7 @@ describe('handleApproveModal', () => {
     })
   })
 
-  it('salva apenas calls diretas quando nao ha reunioes extras', async () => {
+  it('salva apenas calls diretas quando não há reuniões extras', async () => {
     mocks.repoUpdateCustomEntries.mockResolvedValue(Result.ok(baseRecord))
     mocks.repoUpdateContent.mockResolvedValue(Result.ok(baseRecord))
     mocks.handleStandupInteraction.mockResolvedValue(
@@ -362,7 +364,7 @@ describe('handleApproveModal', () => {
   })
 
   it('retorna erro quando actor não pode ser resolvido', async () => {
-    mocks.findUserIdByDiscordId.mockReturnValue(Result.ok(null))
+    mocks.hasActiveSession.mockReturnValue(Result.ok(null))
 
     const { interaction, editReply } = makeModalInteraction(
       'standup-approve-modal:standup-1',
@@ -372,7 +374,8 @@ describe('handleApproveModal', () => {
     await handleApproveModal(interaction, fakeClient, env)
 
     expect(editReply).toHaveBeenCalledWith({
-      content: '❌ Usuário não registrado. Use /login primeiro.',
+      content:
+        '❌ Sessão expirada ou usuário não registrado. Use `/login` para reconectar.',
       components: [],
     })
     expect(mocks.handleStandupInteraction).not.toHaveBeenCalled()

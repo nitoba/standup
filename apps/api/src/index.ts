@@ -35,6 +35,8 @@ const auth = createAuth({
   discordClientSecret: env.DISCORD_CLIENT_SECRET,
   betterAuthSecret: env.BETTER_AUTH_SECRET,
   betterAuthUrl: env.BETTER_AUTH_URL,
+  botInternalUrl: env.BOT_INTERNAL_URL,
+  internalSecret: env.INTERNAL_SECRET,
 })
 
 // ---------------------------------------------------------------------------

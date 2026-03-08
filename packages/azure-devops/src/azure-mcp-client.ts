@@ -5,11 +5,12 @@ import { createServiceLogger } from '@standup/logger'
 import type {
   AzureMcpConfig,
   PullRequestDetail,
+  RepoInfo,
   WorkItemDetail,
-} from '../types.js'
+} from './types.js'
 
 const logger = createServiceLogger({
-  service: 'standup-generator',
+  service: 'azure-devops',
   component: 'azure-mcp-client',
 })
 
@@ -23,6 +24,9 @@ export interface AzureMcpClient {
   listPullRequests(
     repoId: string,
   ): Promise<Result<PullRequestDetail[], ExternalServiceError>>
+  listRepositories(
+    project: string,
+  ): Promise<Result<RepoInfo[], ExternalServiceError>>
 }
 
 export function createAzureMcpClient(config: AzureMcpConfig): AzureMcpClient {
@@ -222,5 +226,46 @@ export function createAzureMcpClient(config: AzureMcpConfig): AzureMcpClient {
     return 'active'
   }
 
-  return { connect, disconnect, getMe, getWorkItem, listPullRequests }
+  async function listRepositories(
+    project: string,
+  ): Promise<Result<RepoInfo[], ExternalServiceError>> {
+    const result = await callTool('list_repositories', { projectId: project })
+    if (result.isErr()) return result
+
+    return Result.tryPromise({
+      try: async () => {
+        const content = result.value as Array<{ type: string; text: string }>
+        const text = content[0]?.text ?? '[]'
+        const parsed = JSON.parse(text) as Array<{
+          id?: string
+          name?: string
+          project?: { name?: string }
+        }>
+
+        return parsed
+          .filter((r) => typeof r.name === 'string' && typeof r.id === 'string')
+          .map((r) => ({
+            id: r.id ?? '',
+            name: r.name ?? '',
+            project: r.project?.name ?? project,
+          })) satisfies RepoInfo[]
+      },
+      catch: (err) => {
+        const message = err instanceof Error ? err.message : String(err)
+        return new ExternalServiceError({
+          service: 'azure-devops',
+          message: `Failed to parse list_repositories response: ${message}`,
+        })
+      },
+    })
+  }
+
+  return {
+    connect,
+    disconnect,
+    getMe,
+    getWorkItem,
+    listPullRequests,
+    listRepositories,
+  }
 }

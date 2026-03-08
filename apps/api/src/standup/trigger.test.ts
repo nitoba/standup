@@ -48,9 +48,8 @@ const deps = {
 const TEST_USER_ID = 'test-user-1'
 const TEST_DISCORD_USER_ID = 'discord-user-123'
 const TEST_SETTINGS = {
-  reposBasePath: 'team-a',
+  selectedRepos: '["agrotrace-web","checkmilk-api"]',
   gitAuthor: 'dev@example.com',
-  gitSincePeriod: '16 hours ago',
 }
 
 function makePostRequest(body: unknown): Request {
@@ -98,8 +97,9 @@ describe('POST /standups/trigger', () => {
       {
         userId: TEST_USER_ID,
         discordUserId: TEST_DISCORD_USER_ID,
-        ...TEST_SETTINGS,
-        reposBasePath: '/repos/team-a',
+        reposRootPath: '/repos',
+        selectedRepos: ['agrotrace-web', 'checkmilk-api'],
+        gitAuthor: 'dev@example.com',
         extraContext: undefined,
         forceRegenerate: undefined,
         rewriteFromStandupId: undefined,
@@ -127,8 +127,9 @@ describe('POST /standups/trigger', () => {
       {
         userId: TEST_USER_ID,
         discordUserId: TEST_DISCORD_USER_ID,
-        ...TEST_SETTINGS,
-        reposBasePath: '/repos/team-a',
+        reposRootPath: '/repos',
+        selectedRepos: ['agrotrace-web', 'checkmilk-api'],
+        gitAuthor: 'dev@example.com',
         extraContext: 'focar no card #1234',
         forceRegenerate: true,
         rewriteFromStandupId: undefined,
@@ -157,8 +158,9 @@ describe('POST /standups/trigger', () => {
       {
         userId: TEST_USER_ID,
         discordUserId: TEST_DISCORD_USER_ID,
-        ...TEST_SETTINGS,
-        reposBasePath: '/repos/team-a',
+        reposRootPath: '/repos',
+        selectedRepos: ['agrotrace-web', 'checkmilk-api'],
+        gitAuthor: 'dev@example.com',
         extraContext: undefined,
         forceRegenerate: true,
         rewriteFromStandupId: 'standup-abc',
@@ -193,11 +195,11 @@ describe('POST /standups/trigger', () => {
     expect(body.error).toBe('Worker unavailable')
   })
 
-  it('retorna 400 quando reposBasePath salvo sai do REPOS_ROOT_PATH', async () => {
+  it('retorna 400 quando selectedRepos está vazio', async () => {
     mocks.findSettingsByUserId.mockReturnValue(
       Result.ok({
         ...TEST_SETTINGS,
-        reposBasePath: '/outside/root',
+        selectedRepos: '[]',
       }),
     )
 

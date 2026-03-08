@@ -1,6 +1,10 @@
 import { getDb, UserRepository, UserSettingsRepository } from '@standup/db'
 import { createServiceLogger, withContext } from '@standup/logger'
 import { type ButtonInteraction, MessageFlags } from 'discord.js'
+import {
+  fetchAvailableRepos,
+  getCachedRepos,
+} from '../../services/fetch-available-repos.js'
 import { buildSettingsEmbed, showSettingsModal } from '../commands/settings.js'
 
 const logger = createServiceLogger({
@@ -12,7 +16,8 @@ export type SettingsButtonAction = 'edit' | 'toggle'
 
 interface SettingsButtonDeps {
   databaseUrl: string
-  reposRootPath: string
+  workerInternalUrl: string
+  internalSecret: string
 }
 
 /**
@@ -33,23 +38,52 @@ export async function handleSettingsButton(
 
   const btnLogger = withContext(logger, { discordId, action })
 
-  const userResult = userRepo.findByDiscordId(discordId)
-  if (userResult.isErr() || !userResult.value) {
-    btnLogger.error('Failed to resolve user')
+  const userResult = userRepo.hasActiveSession(discordId)
+  if (userResult.isErr() || !userResult.value || !userResult.value.hasSession) {
+    btnLogger.error('Failed to resolve user or session expired')
     await interaction.reply({
-      content: '❌ Não foi possível resolver seu usuário.',
+      content:
+        '❌ Sessão expirada ou usuário não registrado. Use `/login` para reconectar.',
       flags: MessageFlags.Ephemeral,
     })
     return
   }
 
-  const userId = userResult.value.id
+  const userId = userResult.value.userId
 
   if (action === 'edit') {
     const result = settingsRepo.findByUserId(userId)
     const currentSettings = result.isOk() ? result.value : null
 
-    await showSettingsModal(interaction, currentSettings, deps.reposRootPath)
+    // Try cached repos first (instant, avoids 3s Discord timeout).
+    // The cache is pre-warmed by handleSettings() when the user runs /standup settings.
+    let availableRepos = getCachedRepos()
+
+    if (availableRepos.length === 0) {
+      // Cache miss — fall back to network call.
+      // This may exceed 3s if MCP is slow, but it's the only option.
+      btnLogger.warn('Repos cache empty, fetching from worker inline')
+      const reposResult = await fetchAvailableRepos({
+        workerInternalUrl: deps.workerInternalUrl,
+        internalSecret: deps.internalSecret,
+      })
+      availableRepos = reposResult.isOk() ? reposResult.value : []
+    }
+
+    if (availableRepos.length === 0) {
+      await interaction.reply({
+        content:
+          '❌ Nao foi possivel carregar a lista de repositorios. O worker pode estar indisponivel. Tente novamente em alguns segundos.',
+        flags: MessageFlags.Ephemeral,
+      })
+      return
+    }
+
+    await showSettingsModal(
+      interaction,
+      availableRepos,
+      currentSettings ?? undefined,
+    )
     return
   }
 
@@ -68,7 +102,7 @@ export async function handleSettingsButton(
     const current = findResult.value
     const upsertResult = settingsRepo.upsert({
       userId,
-      reposBasePath: current.reposBasePath,
+      selectedRepos: current.selectedRepos,
       gitAuthor: current.gitAuthor,
       active: !current.active,
     })
@@ -94,7 +128,7 @@ export async function handleSettingsButton(
       content: updated.active
         ? '✅ Standup automático **ativado**!'
         : '⏸️ Standup automático **desativado**.',
-      embeds: [buildSettingsEmbed(updated, deps.reposRootPath)],
+      embeds: [buildSettingsEmbed(updated)],
       components: [],
     })
   }

@@ -1,4 +1,3 @@
-import { resolveReposScanPath } from '@standup/config'
 import { getDb, UserRepository, UserSettingsRepository } from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import type { Context } from 'hono'
@@ -76,12 +75,25 @@ export async function handleTriggerStandup(
   }
 
   const settings = settingsResult.value
-  const reposPathResult = resolveReposScanPath(
-    settings.reposBasePath,
-    deps.reposRootPath,
-  )
-  if (reposPathResult.isErr()) {
-    return c.json({ error: reposPathResult.error.message }, 400)
+  const selectedRepos: string[] = (() => {
+    try {
+      const parsed = JSON.parse(settings.selectedRepos)
+      if (Array.isArray(parsed)) {
+        return parsed.filter((r): r is string => typeof r === 'string')
+      }
+      return []
+    } catch {
+      return []
+    }
+  })()
+
+  if (selectedRepos.length === 0) {
+    return c.json(
+      {
+        error: 'No repos configured. Select repos via /standup settings first.',
+      },
+      400,
+    )
   }
 
   const result = await triggerStandupJob(
@@ -92,9 +104,9 @@ export async function handleTriggerStandup(
     {
       userId,
       discordUserId,
-      reposBasePath: reposPathResult.value.absolutePath,
+      reposRootPath: deps.reposRootPath,
+      selectedRepos,
       gitAuthor: settings.gitAuthor,
-      gitSincePeriod: settings.gitSincePeriod,
       extraContext: body.extraContext,
       forceRegenerate: body.forceRegenerate,
       rewriteFromStandupId: body.rewriteFromStandupId,

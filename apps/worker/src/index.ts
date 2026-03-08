@@ -1,3 +1,4 @@
+import { createAzureMcpClient } from '@standup/azure-devops'
 import { loadWorkerEnv } from '@standup/config'
 import { Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
@@ -10,7 +11,7 @@ const logger = createServiceLogger({
   component: 'bootstrap',
 })
 
-function bootstrap() {
+async function bootstrap() {
   const envResult = loadWorkerEnv()
   if (Result.isError(envResult)) {
     throw new Error(`Invalid environment: ${envResult.error.message}`)
@@ -18,12 +19,39 @@ function bootstrap() {
 
   const env = envResult.value
 
-  startScheduler(env)
+  // ---------------------------------------------------------------------------
+  // MCP singleton — connect once at startup, reuse across all requests/jobs.
+  // ---------------------------------------------------------------------------
+
+  const mcpClient = createAzureMcpClient({
+    orgUrl: `https://dev.azure.com/${env.AZURE_DEVOPS_ORG}`,
+    pat: env.AZURE_DEVOPS_PAT,
+    defaultProject: env.AZURE_DEVOPS_DEFAULT_PROJECT,
+  })
+
+  const connectResult = await mcpClient.connect()
+  if (connectResult.isErr()) {
+    logger.error('Failed to connect MCP client at startup', {
+      error: connectResult.error.message,
+    })
+    // Non-fatal: the worker can still run; individual requests will fail gracefully.
+    // The generator has its own fallback for when MCP is unavailable.
+  } else {
+    logger.info('MCP client connected (singleton)')
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scheduler + HTTP server
+  // ---------------------------------------------------------------------------
+
+  startScheduler(env, mcpClient)
 
   const internalApp = createInternalRouter({
     internalSecret: env.INTERNAL_SECRET,
     databaseUrl: env.DATABASE_URL,
-    triggerStandupJob: async (opts) => runStandupJob(env, opts),
+    triggerStandupJob: async (opts) => runStandupJob(env, opts, mcpClient),
+    mcpClient,
+    azureProjects: ['AGROTRACE', 'CHECKMILK'],
   })
 
   const server = Bun.serve({

@@ -4,6 +4,10 @@ import { Hono } from 'hono'
 import { internalAuthMiddleware } from './middleware/auth.js'
 import { handleJobFailed, jobFailedBodySchema } from './notify/job-failed.js'
 import {
+  handleLoginComplete,
+  loginCompleteBodySchema,
+} from './notify/login-complete.js'
+import {
   handleStandupReady,
   standupReadyBodySchema,
 } from './notify/standup-ready.js'
@@ -74,6 +78,16 @@ export function createInternalRouter(opts: InternalRouterOptions): Hono {
         client: opts.client,
         workerInternalUrl: opts.workerInternalUrl,
         internalSecret: opts.internalSecret,
+      }),
+  )
+
+  // POST /internal/notify/login-complete
+  app.post(
+    '/internal/notify/login-complete',
+    sValidator('json', loginCompleteBodySchema),
+    (c) =>
+      handleLoginComplete(c, c.req.valid('json'), {
+        client: opts.client,
       }),
   )
 

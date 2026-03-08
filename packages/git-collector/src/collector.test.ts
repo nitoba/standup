@@ -58,12 +58,13 @@ afterAll(async () => {
 
 describe('collectGitActivity', () => {
   describe('Ok path', () => {
-    it('returns empty repos list when basePath has no git repos', async () => {
+    it('returns empty repos list when selectedRepos is empty', async () => {
       const base = join(tmpBase, 'empty')
       await mkdir(base)
 
       const result = await collectGitActivity({
-        reposBasePath: base,
+        reposRootPath: base,
+        selectedRepos: [],
         author: AUTHOR,
         sincePeriod: '1 hour ago',
       })
@@ -84,7 +85,8 @@ describe('collectGitActivity', () => {
       await addCommit(repoPath, 'feat: other person commit')
 
       const result = await collectGitActivity({
-        reposBasePath: base,
+        reposRootPath: base,
+        selectedRepos: ['repo-other'],
         author: AUTHOR,
         sincePeriod: '1 hour ago',
       })
@@ -104,7 +106,8 @@ describe('collectGitActivity', () => {
       await addCommit(repoPath, 'fix: null check', 'utils.ts', 'const x = null')
 
       const result = await collectGitActivity({
-        reposBasePath: base,
+        reposRootPath: base,
+        selectedRepos: ['my-project'],
         author: AUTHOR,
         sincePeriod: '1 hour ago',
       })
@@ -136,7 +139,8 @@ describe('collectGitActivity', () => {
       await $`git -C ${repoPath} commit -m 'feat: add file b'`.quiet()
 
       const result = await collectGitActivity({
-        reposBasePath: base,
+        reposRootPath: base,
+        selectedRepos: ['stats-repo'],
         author: AUTHOR,
         sincePeriod: '1 hour ago',
       })
@@ -169,7 +173,8 @@ describe('collectGitActivity', () => {
       await addCommit(repoPath, 'fix: resolve bug #67890', 'fix.ts', 'y')
 
       const result = await collectGitActivity({
-        reposBasePath: base,
+        reposRootPath: base,
+        selectedRepos: ['card-repo'],
         author: AUTHOR,
         sincePeriod: '1 hour ago',
       })
@@ -195,7 +200,8 @@ describe('collectGitActivity', () => {
       await addCommit(repoPath, 'feat: work on card', 'feature.ts', 'y')
 
       const result = await collectGitActivity({
-        reposBasePath: base,
+        reposRootPath: base,
+        selectedRepos: ['branch-repo'],
         author: AUTHOR,
         sincePeriod: '1 hour ago',
       })
@@ -219,7 +225,8 @@ describe('collectGitActivity', () => {
       await addCommit(repoPath, 'feat: some work', 'src.ts', 'code')
 
       const result = await collectGitActivity({
-        reposBasePath: base,
+        reposRootPath: base,
+        selectedRepos: ['main-repo'],
         author: AUTHOR,
         sincePeriod: '1 hour ago',
       })
@@ -234,7 +241,7 @@ describe('collectGitActivity', () => {
       expect(repo.branchCardNumber).toBeNull()
     })
 
-    it('collects from multiple repos in the same base path', async () => {
+    it('collects from multiple selected repos', async () => {
       const base = join(tmpBase, 'multi-repos')
       await mkdir(base)
 
@@ -245,7 +252,8 @@ describe('collectGitActivity', () => {
       await addCommit(repoB, 'feat: work in b', 'b.ts', 'b')
 
       const result = await collectGitActivity({
-        reposBasePath: base,
+        reposRootPath: base,
+        selectedRepos: ['repo-a', 'repo-b'],
         author: AUTHOR,
         sincePeriod: '1 hour ago',
       })
@@ -257,6 +265,30 @@ describe('collectGitActivity', () => {
 
       const names = result.value.repos.map((r) => r.repoName).sort()
       expect(names).toEqual(['repo-a', 'repo-b'])
+    })
+
+    it('only collects repos in selectedRepos, ignoring others in the root', async () => {
+      const base = join(tmpBase, 'selective')
+      await mkdir(base)
+
+      const repoA = await initRepo(base, 'repo-selected', AUTHOR)
+      const repoB = await initRepo(base, 'repo-ignored', AUTHOR)
+
+      await addCommit(repoA, 'feat: selected work', 'a.ts', 'a')
+      await addCommit(repoB, 'feat: ignored work', 'b.ts', 'b')
+
+      const result = await collectGitActivity({
+        reposRootPath: base,
+        selectedRepos: ['repo-selected'],
+        author: AUTHOR,
+        sincePeriod: '1 hour ago',
+      })
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.repos).toHaveLength(1)
+      expect(result.value.repos[0]?.repoName).toBe('repo-selected')
     })
 
     it('finds commits on remote branches after fetching', async () => {
@@ -283,7 +315,7 @@ describe('collectGitActivity', () => {
       )
       await $`git -C ${originPath} checkout ${defaultBranch}`.quiet()
 
-      // 2. Clone it into the scanned directory (simulates deployed repos)
+      // 2. Clone it into a separate directory (simulates deployed repos)
       const cloneBase = join(tmpBase, 'remote-branch-clones')
       await mkdir(cloneBase)
       await $`git clone ${originPath} ${join(cloneBase, 'cloned-repo')}`.quiet()
@@ -291,7 +323,8 @@ describe('collectGitActivity', () => {
       // The clone has the remote branch as origin/feat/remote-work
       // Without fetch+--all, only the default branch commits would appear
       const result = await collectGitActivity({
-        reposBasePath: cloneBase,
+        reposRootPath: cloneBase,
+        selectedRepos: ['cloned-repo'],
         author: AUTHOR,
         sincePeriod: '1 hour ago',
       })
@@ -317,7 +350,8 @@ describe('collectGitActivity', () => {
       await addCommit(repoPath, 'feat: local work', 'local.ts', 'code')
 
       const result = await collectGitActivity({
-        reposBasePath: base,
+        reposRootPath: base,
+        selectedRepos: ['local-only'],
         author: AUTHOR,
         sincePeriod: '1 hour ago',
       })
@@ -330,45 +364,23 @@ describe('collectGitActivity', () => {
         'feat: local work',
       )
     })
-
-    it('ignores plain directories that are not git repos', async () => {
-      const base = join(tmpBase, 'mixed-dirs')
-      await mkdir(base)
-
-      // plain directory — not a git repo
-      await mkdir(join(base, 'not-a-repo'))
-      await writeFile(join(base, 'not-a-repo', 'file.txt'), 'hello')
-
-      const repoPath = await initRepo(base, 'real-repo', AUTHOR)
-      await addCommit(repoPath, 'feat: real work', 'src.ts', 'code')
-
-      const result = await collectGitActivity({
-        reposBasePath: base,
-        author: AUTHOR,
-        sincePeriod: '1 hour ago',
-      })
-
-      expect(result.status).toBe('ok')
-      if (result.status !== 'ok') return
-
-      expect(result.value.repos).toHaveLength(1)
-      expect(result.value.repos[0]?.repoName).toBe('real-repo')
-    })
   })
 
   describe('Err path', () => {
-    it('returns Err when basePath does not exist', async () => {
+    it('returns ok with empty repos when reposRootPath does not exist (graceful degradation)', async () => {
       const result = await collectGitActivity({
-        reposBasePath: '/tmp/this-path-does-not-exist-standup-test-99999',
+        reposRootPath: '/tmp/this-path-does-not-exist-standup-test-99999',
+        selectedRepos: ['some-repo'],
         author: AUTHOR,
         sincePeriod: '1 hour ago',
       })
 
-      expect(result.status).toBe('error')
-      if (result.status !== 'error') return
+      // The new collector gracefully skips repos whose paths cannot be read
+      // (git fetch fails and git log returns empty) rather than hard-failing.
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
 
-      expect(result.error._tag).toBe('ExternalServiceError')
-      expect(result.error.message).toMatch(/git collection failed/)
+      expect(result.value.repos).toEqual([])
     })
   })
 })

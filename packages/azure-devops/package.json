@@ -1,0 +1,25 @@
+{
+  "name": "@standup/azure-devops",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "lint": "biome check ./src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@standup/domain": "workspace:*",
+    "@standup/logger": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "catalog:tooling",
+    "typescript": "catalog:tooling",
+    "vitest": "catalog:tooling"
+  }
+}

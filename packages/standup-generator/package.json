@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@ai-sdk/groq": "^3.0.29",
-    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@standup/azure-devops": "workspace:*",
     "@standup/config": "workspace:*",
     "@standup/domain": "workspace:*",
     "@standup/logger": "workspace:*",

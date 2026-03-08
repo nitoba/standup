@@ -28,7 +28,7 @@ vi.mock(
 )
 
 const dbMocks = vi.hoisted(() => ({
-  findUserIdByDiscordId: vi.fn(),
+  hasActiveSession: vi.fn(),
   updateSnoozedUntil: vi.fn(),
   updateCancelledDate: vi.fn(),
 }))
@@ -36,7 +36,7 @@ const dbMocks = vi.hoisted(() => ({
 vi.mock('@standup/db', () => ({
   getDb: vi.fn(),
   UserRepository: function UserRepository() {
-    return { findUserIdByDiscordId: dbMocks.findUserIdByDiscordId }
+    return { hasActiveSession: dbMocks.hasActiveSession }
   },
   UserSettingsRepository: function UserSettingsRepository() {
     return {
@@ -211,6 +211,8 @@ describe('Cross-service HTTP contracts', () => {
       internalSecret: INTERNAL_SECRET,
       databaseUrl: ':memory:',
       triggerStandupJob,
+      mcpClient: {},
+      azureProjects: ['AGROTRACE'],
     })
 
     const server = await startHonoServer(workerApp)
@@ -223,9 +225,9 @@ describe('Cross-service HTTP contracts', () => {
         {
           userId: TEST_USER_ID,
           discordUserId: TEST_DISCORD_USER_ID,
-          reposBasePath: '/tmp/repos',
+          reposRootPath: '/tmp/repos',
+          selectedRepos: ['agrotrace-web', 'agrotrace-api'],
           gitAuthor: 'dev@example.com',
-          gitSincePeriod: '16 hours ago',
           extraContext: 'focar em PR review',
           forceRegenerate: true,
         },
@@ -235,9 +237,9 @@ describe('Cross-service HTTP contracts', () => {
       expect(triggerStandupJob).toHaveBeenCalledWith({
         userId: TEST_USER_ID,
         discordUserId: TEST_DISCORD_USER_ID,
-        reposBasePath: '/tmp/repos',
+        reposRootPath: '/tmp/repos',
+        selectedRepos: ['agrotrace-web', 'agrotrace-api'],
         gitAuthor: 'dev@example.com',
-        gitSincePeriod: '16 hours ago',
         extraContext: 'focar em PR review',
         forceRegenerate: true,
       })
@@ -248,7 +250,9 @@ describe('Cross-service HTTP contracts', () => {
 
   it('bot -> worker: actions snooze/cancel usam contratos aceitos pelo router do worker', async () => {
     // Mock DB lookups for the reminder handler
-    dbMocks.findUserIdByDiscordId.mockReturnValue(Result.ok(TEST_USER_ID))
+    dbMocks.hasActiveSession.mockReturnValue(
+      Result.ok({ userId: TEST_USER_ID, hasSession: true }),
+    )
     dbMocks.updateSnoozedUntil.mockResolvedValue(Result.ok(undefined))
     dbMocks.updateCancelledDate.mockResolvedValue(Result.ok(undefined))
 
@@ -256,6 +260,8 @@ describe('Cross-service HTTP contracts', () => {
       internalSecret: INTERNAL_SECRET,
       databaseUrl: ':memory:',
       triggerStandupJob: vi.fn().mockResolvedValue(undefined),
+      mcpClient: {},
+      azureProjects: ['AGROTRACE'],
     })
 
     const server = await startHonoServer(workerApp)

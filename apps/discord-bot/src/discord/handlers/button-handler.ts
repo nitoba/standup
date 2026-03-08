@@ -72,7 +72,7 @@ async function showAdjustModal(
 ): Promise<void> {
   const textInput = new TextInputBuilder()
     .setCustomId('adjust-instruction')
-    .setLabel('Quais alteracoes voce quer no texto?')
+    .setLabel('Quais alterações você quer no texto?')
     .setPlaceholder(
       'Ex: Remover item X, adicionar item Y, deixar mais objetivo e destacar correcoes.',
     )
@@ -101,7 +101,7 @@ async function showApproveModal(
 ): Promise<void> {
   const meetingsInput = new TextInputBuilder()
     .setCustomId('scheduled-meetings')
-    .setLabel('Reunioes extras (cada linha = 1 reuniao)')
+    .setLabel('Reuniões extras (cada linha = 1 reunião)')
     .setPlaceholder('Planning Backend\nRefinamento mobile\nSync com time X')
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(false)
@@ -149,7 +149,6 @@ export async function handleButtonInteraction(
     | 'WORKER_INTERNAL_URL'
     | 'API_BASE_URL'
     | 'INTERNAL_SECRET'
-    | 'REPOS_ROOT_PATH'
   >,
 ): Promise<void> {
   const [namespace, action, standupId] = interaction.customId.split(':')
@@ -188,7 +187,8 @@ export async function handleButtonInteraction(
   if (namespace === 'settings' && action) {
     await handleSettingsButton(interaction, action, {
       databaseUrl: env.DATABASE_URL,
-      reposRootPath: env.REPOS_ROOT_PATH,
+      workerInternalUrl: env.WORKER_INTERNAL_URL,
+      internalSecret: env.INTERNAL_SECRET,
     })
     return
   }
@@ -237,7 +237,7 @@ export async function handleButtonInteraction(
   await updateReviewMessage(interaction, {
     content:
       PROCESSING_MESSAGE[action] ??
-      '⏳ Processando acao solicitada no standup...',
+      '⏳ Processando ação solicitada no standup...',
     components: [],
   })
 
@@ -267,7 +267,7 @@ export async function handleButtonInteraction(
       error: result.error.message,
     })
     await updateReviewMessage(interaction, {
-      content: `\u{274C} Erro ao processar acao: ${result.error.message}`,
+      content: `\u{274C} Erro ao processar ação: ${result.error.message}`,
       components: [],
     })
   }

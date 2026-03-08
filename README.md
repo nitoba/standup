@@ -1,11 +1,11 @@
 # Standup Bot Monorepo
 
-Monorepo com Turborepo para separar servicos independentes:
+Monorepo com Turborepo para separar serviços independentes:
 
 - `apps/api`: API HTTP (Hono)
-- `apps/discord-bot`: bot de revisao/aprovacao no Discord
-- `apps/worker`: scheduler + jobs de geracao/publicacao
-- `packages/*`: modulos de dominio e integracoes compartilhadas
+- `apps/discord-bot`: bot de revisão/aprovação no Discord
+- `apps/worker`: scheduler + jobs de geração/publicação
+- `packages/*`: módulos de domínio e integrações compartilhadas
 
 ## Setup
 
@@ -18,7 +18,7 @@ bun install
 1. Crie um bot de desenvolvimento no Discord Developer Portal.
 2. Convide no servidor de dev com scopes `bot` e `applications.commands`.
 3. Preencha os valores em `.env.local` (token do bot dev, guild, channel, user id).
-4. Rode os 3 servicos em terminais separados:
+4. Rode os 3 serviços em terminais separados:
 
 ```bash
 bun run dev:local:api
@@ -26,7 +26,7 @@ bun run dev:local:worker
 bun run dev:local:bot
 ```
 
-Com `DISCORD_GUILD_ID` preenchido, os slash commands propagam rapido para o servidor de dev.
+Com `DISCORD_GUILD_ID` preenchido, os slash commands propagam rápido para o servidor de dev.
 
 ## Comandos
 
@@ -39,7 +39,7 @@ bun run test
 bun run ci
 ```
 
-## Observacao
+## Observação
 
-A modelagem de banco de dados e migrations vao entrar na Fase 2 (persistence),
-depois que Fase 1 (fundacoes + contratos + testes) estiver 100% verde.
+A modelagem de banco de dados e migrations vão entrar na Fase 2 (persistence),
+depois que Fase 1 (fundações + contratos + testes) estiver 100% verde.

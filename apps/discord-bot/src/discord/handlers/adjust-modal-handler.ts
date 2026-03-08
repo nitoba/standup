@@ -35,33 +35,38 @@ export async function handleAdjustModal(
   await interaction.deferUpdate()
   await updateReviewMessage(interaction, {
     content:
-      '⏳ Solicitacao recebida. Estou preparando uma nova versao do standup com base no texto atual...',
+      '⏳ Solicitação recebida. Estou preparando uma nova versão do standup com base no texto atual...',
     components: [],
   })
 
   if (!rewriteInstruction) {
     await updateReviewMessage(interaction, {
       content:
-        '❌ Informe as alteracoes desejadas para ajustar o standup (ex.: remover item X, adicionar item Y).',
+        '❌ Informe as alterações desejadas para ajustar o standup (ex.: remover item X, adicionar item Y).',
       components: [],
     })
     return
   }
 
-  // Resolve userId from Discord ID
+  // Resolve userId from Discord ID (requires active session)
   const db = getDb(env.DATABASE_URL)
   const userRepo = new UserRepository(db)
-  const userIdResult = userRepo.findUserIdByDiscordId(interaction.user.id)
-  if (userIdResult.isErr() || !userIdResult.value) {
+  const userIdResult = userRepo.hasActiveSession(interaction.user.id)
+  if (
+    userIdResult.isErr() ||
+    !userIdResult.value ||
+    !userIdResult.value.hasSession
+  ) {
     await updateReviewMessage(interaction, {
-      content: '❌ Usuário não registrado. Use /login primeiro.',
+      content:
+        '❌ Sessão expirada ou usuário não registrado. Use `/login` para reconectar.',
       components: [],
     })
     return
   }
 
   const triggerResult = await triggerStandup(
-    userIdResult.value,
+    userIdResult.value.userId,
     interaction.user.id,
     { apiBaseUrl: env.API_BASE_URL, internalSecret: env.INTERNAL_SECRET },
     {
@@ -85,7 +90,7 @@ export async function handleAdjustModal(
 
   if (!triggerResult.value.accepted) {
     await updateReviewMessage(interaction, {
-      content: '❌ Voce nao esta autorizado a disparar ajuste do standup.',
+      content: '❌ Você não está autorizado a disparar ajuste do standup.',
       components: [],
     })
     return
@@ -94,7 +99,7 @@ export async function handleAdjustModal(
   modalLogger.info('Adjusted regeneration triggered successfully')
   await updateReviewMessage(interaction, {
     content:
-      '🛠️ Ajuste solicitado com sucesso. Vou gerar uma nova versao com base no texto anterior e nas alteracoes pedidas.',
+      '🛠️ Ajuste solicitado com sucesso. Vou gerar uma nova versão com base no texto anterior e nas alterações pedidas.',
     components: [],
   })
 }

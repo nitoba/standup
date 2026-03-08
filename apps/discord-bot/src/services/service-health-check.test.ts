@@ -40,7 +40,7 @@ describe('checkRemoteServiceHealth', () => {
     )
   })
 
-  it('retorna ok=false quando status HTTP nao e 2xx', async () => {
+  it('retorna ok=false quando status HTTP não é 2xx', async () => {
     mockFetch.mockResolvedValue(makeResponse(503, { status: 'error' }))
 
     const result = await checkRemoteServiceHealth(
@@ -53,7 +53,7 @@ describe('checkRemoteServiceHealth', () => {
     expect(result.error).toContain('HTTP 503')
   })
 
-  it('retorna ok=false quando payload nao contem status ok', async () => {
+  it('retorna ok=false quando payload não contém status ok', async () => {
     mockFetch.mockResolvedValue(makeResponse(200, { status: 'degraded' }))
 
     const result = await checkRemoteServiceHealth(

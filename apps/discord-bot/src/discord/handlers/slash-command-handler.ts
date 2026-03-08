@@ -41,7 +41,7 @@ export async function handleSlashCommand(
     | 'DISCORD_CHANNEL_ID'
     | 'API_BASE_URL'
     | 'WORKER_INTERNAL_URL'
-    | 'REPOS_ROOT_PATH'
+    | 'INTERNAL_SECRET'
   >,
 ): Promise<void> {
   if (interaction.commandName !== 'standup') return
@@ -81,7 +81,8 @@ export async function handleSlashCommand(
   } else if (sub === 'settings') {
     await handleSettings(interaction, {
       databaseUrl: env.DATABASE_URL,
-      reposRootPath: env.REPOS_ROOT_PATH,
+      workerInternalUrl: env.WORKER_INTERNAL_URL,
+      internalSecret: env.INTERNAL_SECRET,
     })
   }
 }

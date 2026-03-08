@@ -11,6 +11,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@standup/azure-devops": "workspace:*",
     "@standup/config": "workspace:*",
     "@standup/db": "workspace:*",
     "@standup/domain": "workspace:*",

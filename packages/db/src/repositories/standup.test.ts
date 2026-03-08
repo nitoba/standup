@@ -285,7 +285,7 @@ describe('StandupRepository', () => {
   })
 
   describe('updateStatusForUser', () => {
-    it('atualiza status quando o standup pertence ao usuario', async () => {
+    it('atualiza status quando o standup pertence ao usuário', async () => {
       await repo.create(makeInput())
 
       const result = await repo.updateStatusForUser(
@@ -300,7 +300,7 @@ describe('StandupRepository', () => {
       expect(result.value.status).toBe('pending_review')
     })
 
-    it('retorna NotFoundError quando o standup pertence a outro usuario', async () => {
+    it('retorna NotFoundError quando o standup pertence a outro usuário', async () => {
       await repo.create(makeInput())
 
       const result = await repo.updateStatusForUser(
@@ -342,7 +342,7 @@ describe('StandupRepository', () => {
   })
 
   describe('updateContentForUser', () => {
-    it('atualiza o conteudo quando o standup pertence ao usuario', async () => {
+    it('atualiza o conteúdo quando o standup pertence ao usuário', async () => {
       await repo.create(makeInput())
 
       const result = await repo.updateContentForUser(
@@ -357,7 +357,7 @@ describe('StandupRepository', () => {
       expect(result.value.content).toBe('Updated content here')
     })
 
-    it('retorna NotFoundError quando o standup pertence a outro usuario', async () => {
+    it('retorna NotFoundError quando o standup pertence a outro usuário', async () => {
       await repo.create(makeInput())
 
       const result = await repo.updateContentForUser(
@@ -449,7 +449,7 @@ describe('StandupRepository', () => {
   })
 
   describe('updateCustomEntriesForUser', () => {
-    it('salva custom entries quando o standup pertence ao usuario', async () => {
+    it('salva custom entries quando o standup pertence ao usuário', async () => {
       await repo.create(makeInput())
 
       const entries = {
@@ -468,7 +468,7 @@ describe('StandupRepository', () => {
       expect(result.value.customEntries).toEqual(entries)
     })
 
-    it('retorna NotFoundError quando o standup pertence a outro usuario', async () => {
+    it('retorna NotFoundError quando o standup pertence a outro usuário', async () => {
       await repo.create(makeInput())
 
       const result = await repo.updateCustomEntriesForUser(

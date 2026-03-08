@@ -1,4 +1,3 @@
-import { resolveReposScanPath } from '@standup/config'
 import { getDb, UserRepository, UserSettingsRepository } from '@standup/db'
 import {
   ActionRowBuilder,
@@ -7,15 +6,23 @@ import {
   ButtonStyle,
   type ChatInputCommandInteraction,
   EmbedBuilder,
+  LabelBuilder,
   MessageFlags,
   ModalBuilder,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
   TextInputBuilder,
   TextInputStyle,
 } from 'discord.js'
+import {
+  fetchAvailableRepos,
+  type RepoInfo,
+} from '../../services/fetch-available-repos.js'
 
 export interface SettingsHandlerDeps {
   databaseUrl: string
-  reposRootPath: string
+  workerInternalUrl: string
+  internalSecret: string
 }
 
 /**
@@ -30,20 +37,29 @@ export async function handleSettings(
 ): Promise<void> {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
+  // Pre-warm the repos cache while we have 15 minutes (deferred reply).
+  // This way, when the user clicks "Editar", getCachedRepos() returns instantly
+  // and the button handler can call showModal() within Discord's 3s limit.
+  void fetchAvailableRepos({
+    workerInternalUrl: deps.workerInternalUrl,
+    internalSecret: deps.internalSecret,
+  })
+
   const discordId = interaction.user.id
   const db = getDb(deps.databaseUrl)
   const userRepo = new UserRepository(db)
   const settingsRepo = new UserSettingsRepository(db)
 
-  const userResult = userRepo.findByDiscordId(discordId)
-  if (userResult.isErr() || !userResult.value) {
+  const userResult = userRepo.hasActiveSession(discordId)
+  if (userResult.isErr() || !userResult.value || !userResult.value.hasSession) {
     await interaction.editReply({
-      content: '❌ Não foi possível resolver seu usuário.',
+      content:
+        '❌ Sessão expirada ou usuário não registrado. Use `/login` para reconectar.',
     })
     return
   }
 
-  const userId = userResult.value.id
+  const userId = userResult.value.userId
   const result = settingsRepo.findByUserId(userId)
 
   if (result.isErr()) {
@@ -83,59 +99,54 @@ export async function handleSettings(
   )
 
   await interaction.editReply({
-    embeds: [buildSettingsEmbed(settings, deps.reposRootPath)],
+    embeds: [buildSettingsEmbed(settings)],
     components: [rowWithToggle],
   })
 }
 
 /**
  * Opens the settings modal pre-filled with current values (or defaults).
- * Discord modals support max 5 ActionRows (TextInputs).
  *
  * Fields:
  * 1. Crons (3 linhas: standup, reminder, recovery)
  * 2. Timezone
- * 3. Repos Subpath
- * 4. Git Author
- * 5. Git Since Period
+ * 3. Git Author
+ * 4. Git Since Period
+ * 5. Repositórios selecionados (StringSelect multi-select)
  */
-export function showSettingsModal(
+export async function showSettingsModal(
   interaction: ButtonInteraction,
+  availableRepos: RepoInfo[],
   currentSettings?: {
     standupCron: string
     reminderCron: string
     recoveryCron: string
     timezone: string
-    reposBasePath: string
+    selectedRepos: string
     gitAuthor: string
-    gitSincePeriod: string
   } | null,
-  reposRootPath = '/repos',
 ): Promise<void> {
   const defaults = {
     standupCron: '30 17 * * 1-5',
     reminderCron: '20 17 * * 1-5',
     recoveryCron: '0 18 * * 1-5',
     timezone: 'America/Sao_Paulo',
-    reposBasePath: '',
+    selectedRepos: '[]',
     gitAuthor: '',
-    gitSincePeriod: '16 hours ago',
   }
 
-  const resolvedCurrentRepos =
-    currentSettings !== null && currentSettings !== undefined
-      ? resolveReposScanPath(currentSettings.reposBasePath, reposRootPath)
-      : null
+  const values = currentSettings ?? defaults
 
-  const values = currentSettings
-    ? {
-        ...currentSettings,
-        reposBasePath:
-          resolvedCurrentRepos?.isOk() === true
-            ? resolvedCurrentRepos.value.normalizedSubpath
-            : currentSettings.reposBasePath,
-      }
-    : defaults
+  // Parse currently selected repo names
+  let currentSelected: string[] = []
+  try {
+    const parsed = JSON.parse(values.selectedRepos)
+    if (Array.isArray(parsed)) {
+      currentSelected = parsed.filter((r): r is string => typeof r === 'string')
+    }
+  } catch {
+    currentSelected = []
+  }
 
   const cronInput = new TextInputBuilder()
     .setCustomId('cron-config')
@@ -155,15 +166,6 @@ export function showSettingsModal(
     .setRequired(true)
     .setMaxLength(50)
 
-  const reposPathInput = new TextInputBuilder()
-    .setCustomId('repos-path')
-    .setLabel('Subcaminho dos repositórios')
-    .setValue(values.reposBasePath)
-    .setPlaceholder('ibs/repos (vazio = usar o root inteiro)')
-    .setStyle(TextInputStyle.Short)
-    .setRequired(false)
-    .setMaxLength(200)
-
   const gitAuthorInput = new TextInputBuilder()
     .setCustomId('git-author')
     .setLabel('Email do autor git')
@@ -173,13 +175,30 @@ export function showSettingsModal(
     .setRequired(true)
     .setMaxLength(100)
 
-  const gitSinceInput = new TextInputBuilder()
-    .setCustomId('git-since-period')
-    .setLabel('Período de busca git (ex: 16 hours ago)')
-    .setValue(values.gitSincePeriod)
-    .setStyle(TextInputStyle.Short)
+  // Build the repos select menu
+  // Discord limits: 25 options per select, option label max 100 chars, value max 100 chars
+  const repoOptions = availableRepos
+    .slice(0, 25)
+    .map((repo) =>
+      new StringSelectMenuOptionBuilder()
+        .setLabel(`${repo.project}/${repo.name}`.slice(0, 100))
+        .setValue(repo.name.slice(0, 100))
+        .setDescription(`Projeto: ${repo.project}`.slice(0, 100))
+        .setDefault(currentSelected.includes(repo.name)),
+    )
+
+  const reposSelect = new StringSelectMenuBuilder()
+    .setCustomId('selected-repos')
+    .setPlaceholder('Selecione os repositórios a analisar')
+    .setMinValues(1)
+    .setMaxValues(Math.min(repoOptions.length, 25))
     .setRequired(true)
-    .setMaxLength(50)
+    .addOptions(repoOptions)
+
+  const reposLabel = new LabelBuilder()
+    .setLabel('Repositórios a analisar')
+    .setDescription('Selecione um ou mais repositórios da Azure DevOps')
+    .setStringSelectMenuComponent(reposSelect)
 
   const modal = new ModalBuilder()
     .setCustomId('settings-modal:edit')
@@ -187,29 +206,24 @@ export function showSettingsModal(
     .addComponents(
       new ActionRowBuilder<TextInputBuilder>().addComponents(cronInput),
       new ActionRowBuilder<TextInputBuilder>().addComponents(timezoneInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(reposPathInput),
       new ActionRowBuilder<TextInputBuilder>().addComponents(gitAuthorInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(gitSinceInput),
     )
+    .addLabelComponents(reposLabel)
 
   return interaction.showModal(modal)
 }
 
-export function buildSettingsEmbed(
-  settings: {
-    standupCron: string
-    reminderCron: string
-    recoveryCron: string
-    timezone: string
-    reposBasePath: string
-    gitAuthor: string
-    gitSincePeriod: string
-    active: boolean
-    snoozedUntil: number | null
-    cancelledDate: string | null
-  },
-  reposRootPath: string,
-): EmbedBuilder {
+export function buildSettingsEmbed(settings: {
+  standupCron: string
+  reminderCron: string
+  recoveryCron: string
+  timezone: string
+  selectedRepos: string
+  gitAuthor: string
+  active: boolean
+  snoozedUntil: number | null
+  cancelledDate: string | null
+}): EmbedBuilder {
   const statusParts: string[] = []
   if (settings.snoozedUntil && settings.snoozedUntil > Date.now()) {
     const until = new Date(settings.snoozedUntil).toLocaleTimeString('pt-BR')
@@ -219,12 +233,17 @@ export function buildSettingsEmbed(
     statusParts.push(`🚫 Cancelado em ${settings.cancelledDate}`)
   }
 
-  const resolvedRepos = resolveReposScanPath(
-    settings.reposBasePath,
-    reposRootPath,
-  )
-  if (resolvedRepos.isErr()) {
-    statusParts.push('⚠️ Subcaminho inválido. Edite e salve novamente.')
+  let reposDisplay = '`(nenhum selecionado)`'
+  try {
+    const parsed = JSON.parse(settings.selectedRepos)
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      reposDisplay = parsed
+        .filter((r): r is string => typeof r === 'string')
+        .map((r) => `\`${r}\``)
+        .join(', ')
+    }
+  } catch {
+    reposDisplay = '`(inválido)`'
   }
 
   const embed = new EmbedBuilder()
@@ -247,21 +266,12 @@ export function buildSettingsEmbed(
         inline: true,
       },
       { name: 'Timezone', value: settings.timezone, inline: true },
-      {
-        name: 'Repos Root',
-        value: `\`${reposRootPath}\``,
-        inline: true,
-      },
-      {
-        name: 'Repos Subpath',
-        value:
-          resolvedRepos.isOk() && resolvedRepos.value.normalizedSubpath
-            ? `\`${resolvedRepos.value.normalizedSubpath}\``
-            : '`(root)`',
-        inline: true,
-      },
       { name: 'Git Author', value: settings.gitAuthor, inline: true },
-      { name: 'Git Since', value: settings.gitSincePeriod, inline: true },
+      {
+        name: 'Repositórios',
+        value: reposDisplay,
+        inline: false,
+      },
       {
         name: 'Status',
         value: settings.active ? '✅ Ativo' : '❌ Inativo',

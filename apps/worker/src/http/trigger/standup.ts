@@ -10,9 +10,9 @@ const logger = createServiceLogger({
 export interface StandupJobOptions {
   userId: string
   discordUserId: string
-  reposBasePath: string
+  reposRootPath: string
+  selectedRepos: string[]
   gitAuthor: string
-  gitSincePeriod: string
   extraContext?: string
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
@@ -48,24 +48,28 @@ export async function handleTriggerStandup(
   const userId = typeof body.userId === 'string' ? body.userId : undefined
   const discordUserId =
     typeof body.discordUserId === 'string' ? body.discordUserId : undefined
-  const reposBasePath =
-    typeof body.reposBasePath === 'string' ? body.reposBasePath : undefined
+  const reposRootPath =
+    typeof body.reposRootPath === 'string' ? body.reposRootPath : undefined
+  const selectedRepos = Array.isArray(body.selectedRepos)
+    ? (body.selectedRepos as unknown[]).filter(
+        (r): r is string => typeof r === 'string',
+      )
+    : undefined
   const gitAuthor =
     typeof body.gitAuthor === 'string' ? body.gitAuthor : undefined
-  const gitSincePeriod =
-    typeof body.gitSincePeriod === 'string' ? body.gitSincePeriod : undefined
 
   if (
     !userId ||
     !discordUserId ||
-    !reposBasePath ||
-    !gitAuthor ||
-    !gitSincePeriod
+    !reposRootPath ||
+    !selectedRepos ||
+    selectedRepos.length === 0 ||
+    !gitAuthor
   ) {
     return c.json(
       {
         error:
-          'userId, discordUserId, reposBasePath, gitAuthor, and gitSincePeriod are required',
+          'userId, discordUserId, reposRootPath, selectedRepos, and gitAuthor are required',
       },
       400,
     )
@@ -74,9 +78,9 @@ export async function handleTriggerStandup(
   const jobOptions: StandupJobOptions = {
     userId,
     discordUserId,
-    reposBasePath,
+    reposRootPath,
+    selectedRepos,
     gitAuthor,
-    gitSincePeriod,
     ...(typeof body.extraContext === 'string'
       ? { extraContext: body.extraContext }
       : {}),

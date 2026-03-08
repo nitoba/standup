@@ -20,9 +20,10 @@ export interface AuthGuardDeps {
 }
 
 /**
- * Verifica se o usuário do Discord está registrado no sistema.
- * Se não estiver, envia mensagem ephemeral com link de login e retorna false.
- * Se estiver, retorna true e o comando pode prosseguir.
+ * Verifica se o usuário do Discord possui sessão ativa no sistema.
+ * - Se não está registrado: mostra link de login.
+ * - Se está registrado mas sem sessão ativa: informa que a sessão expirou e mostra link de login.
+ * - Se está registrado e com sessão ativa: retorna true e o comando pode prosseguir.
  */
 export async function requireAuth(
   interaction: ChatInputCommandInteraction,
@@ -31,7 +32,7 @@ export async function requireAuth(
   const discordId = interaction.user.id
   const db = getDb(deps.databaseUrl)
   const repo = new UserRepository(db)
-  const result = repo.findByDiscordId(discordId)
+  const result = repo.hasActiveSession(discordId)
 
   if (Result.isError(result)) {
     logger.error('Failed to check user auth', {
@@ -39,33 +40,40 @@ export async function requireAuth(
       error: result.error.message,
     })
     await interaction.reply({
-      content: 'Erro interno ao verificar autenticacao. Tente novamente.',
+      content: 'Erro interno ao verificar autenticação. Tente novamente.',
       flags: MessageFlags.Ephemeral,
     })
     return false
   }
 
-  if (result.value !== null) {
+  // User has active session — authorized
+  if (result.value?.hasSession) {
     return true
   }
 
-  // User not registered — show login link (GET endpoint that initiates OAuth)
+  // Build login link button
   const loginUrl = `${deps.apiBaseUrl}/auth/login/discord`
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setLabel('Login com Discord')
       .setStyle(ButtonStyle.Link)
-      .setURL(loginUrl)
-      .setEmoji('🔗'),
+      .setURL(loginUrl),
   )
 
+  const content =
+    result.value === null
+      ? 'Você precisa conectar sua conta antes de usar este comando.\nUse `/login` ou clique no botão abaixo:'
+      : 'Sua sessão expirou. Use `/login` ou clique no botão abaixo para reconectar:'
+
   await interaction.reply({
-    content:
-      'Voce precisa conectar sua conta antes de usar este comando.\nClique no botao abaixo para fazer login:',
+    content,
     components: [row],
     flags: MessageFlags.Ephemeral,
   })
 
-  logger.info('Auth guard blocked unregistered user', { discordId })
+  logger.info('Auth guard blocked user', {
+    discordId,
+    reason: result.value === null ? 'not_registered' : 'session_expired',
+  })
   return false
 }

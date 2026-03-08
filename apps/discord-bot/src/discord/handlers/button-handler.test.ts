@@ -90,7 +90,7 @@ describe('handleButtonInteraction', () => {
     vi.restoreAllMocks()
   })
 
-  it('ignora botao fora do namespace standup', async () => {
+  it('ignora botão fora do namespace standup', async () => {
     const { interaction, deferUpdate, editReply } = makeInteraction(
       'other:approve:standup-1',
     )
@@ -218,12 +218,12 @@ describe('handleButtonInteraction', () => {
     await handleButtonInteraction(interaction, fakeClient, env)
 
     expect(editReply).toHaveBeenCalledWith({
-      content: '\u{274C} Erro ao processar acao: database unavailable',
+      content: '\u{274C} Erro ao processar ação: database unavailable',
       components: [],
     })
   })
 
-  it('mostra modal de regeneracao em vez de processar imediatamente', async () => {
+  it('mostra modal de regeneração em vez de processar imediatamente', async () => {
     const { interaction, deferUpdate, showModal } = makeInteraction(
       'standup:regenerate:standup-1',
     )
@@ -291,7 +291,7 @@ describe('handleButtonInteraction', () => {
       'adjust-instruction',
     )
     expect(json.components[0]?.components[0]?.label).toBe(
-      'Quais alteracoes voce quer no texto?',
+      'Quais alterações você quer no texto?',
     )
   })
 })
