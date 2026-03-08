@@ -4,9 +4,12 @@ WORKDIR /app
 
 # Root manifest + lockfile — lockfile is used as resolution baseline even without --frozen-lockfile
 COPY package.json bun.lock ./
+COPY tsconfig.base.json ./
 
 # Only the manifests needed by this app and its workspace deps.
 COPY apps/worker/package.json apps/worker/
+COPY apps/worker/tsconfig.json apps/worker/
+COPY packages/azure-devops/package.json packages/azure-devops/
 COPY packages/config/package.json packages/config/
 COPY packages/db/package.json packages/db/
 COPY packages/domain/package.json packages/domain/
@@ -22,6 +25,7 @@ RUN bun install --filter './apps/worker'
 COPY packages/config/src packages/config/src
 COPY packages/db/src packages/db/src
 COPY packages/domain/src packages/domain/src
+COPY packages/azure-devops/src packages/azure-devops/src
 COPY packages/git-collector/src packages/git-collector/src
 COPY packages/logger/src packages/logger/src
 COPY packages/standup-generator/src packages/standup-generator/src
