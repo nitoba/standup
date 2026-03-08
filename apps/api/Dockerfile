@@ -4,11 +4,13 @@ WORKDIR /app
 
 # Root manifest + lockfile — lockfile is used as resolution baseline even without --frozen-lockfile
 COPY package.json bun.lock ./
+COPY tsconfig.base.json ./
 
 # Only the manifests needed by this app and its workspace deps.
 # bun install --filter installs deps for a single workspace without requiring
 # all other workspace members to be present.
 COPY apps/api/package.json apps/api/
+COPY apps/api/tsconfig.json apps/api/
 COPY packages/config/package.json packages/config/
 COPY packages/db/package.json packages/db/
 COPY packages/domain/package.json packages/domain/
