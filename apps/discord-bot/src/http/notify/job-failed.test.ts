@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   notifyJobFailed: vi.fn(),
   notifyStandupReady: vi.fn(),
   sendReminderDm: vi.fn(),
+  sendUserDm: vi.fn(),
 }))
 
 // Necessário pois router.ts importa standup-ready.ts que importa @standup/db (bun:sqlite)
@@ -24,6 +25,10 @@ vi.mock('../../services/job-notification-service.js', () => ({
 // Necessário pois router.ts importa standup-reminder.ts que importa send-reminder-dm.ts
 vi.mock('../../discord/notifications/send-reminder-dm.js', () => ({
   sendReminderDm: mocks.sendReminderDm,
+}))
+
+vi.mock('../../discord/notifications/send-user-dm.js', () => ({
+  sendUserDm: mocks.sendUserDm,
 }))
 
 import { createInternalRouter } from '../router.js'
@@ -59,6 +64,7 @@ describe('POST /internal/notify/job-failed', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.sendUserDm.mockResolvedValue(Result.ok(undefined))
     app = createInternalRouter({
       internalSecret: INTERNAL_SECRET,
       databaseUrl: DATABASE_URL,
@@ -122,5 +128,61 @@ describe('POST /internal/notify/job-failed', () => {
       undefined,
       expect.objectContaining({ discordChannelId: DISCORD_CHANNEL_ID }),
     )
+  })
+
+  it('envia DM ao usuário quando discordUserId está presente', async () => {
+    mocks.notifyJobFailed.mockResolvedValue(Result.ok({ notified: true }))
+
+    const res = await app.fetch(
+      makeRequest({
+        error: 'LLM timeout',
+        context: 'standup-job',
+        discordUserId: 'discord-user-1',
+      }),
+    )
+
+    expect(res.status).toBe(200)
+    expect(mocks.sendUserDm).toHaveBeenCalledOnce()
+    expect(mocks.sendUserDm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discordUserId: 'discord-user-1',
+        color: 0xe74c3c, // EMBED_COLORS.REJECTED
+      }),
+    )
+  })
+
+  it('não envia DM quando discordUserId está ausente', async () => {
+    mocks.notifyJobFailed.mockResolvedValue(Result.ok({ notified: true }))
+
+    const res = await app.fetch(
+      makeRequest({ error: 'LLM timeout', context: 'standup-job' }),
+    )
+
+    expect(res.status).toBe(200)
+    expect(mocks.sendUserDm).not.toHaveBeenCalled()
+  })
+
+  it('retorna 200 mesmo quando DM falha (non-fatal)', async () => {
+    const { ExternalServiceError } = await import('@standup/domain')
+    mocks.notifyJobFailed.mockResolvedValue(Result.ok({ notified: true }))
+    mocks.sendUserDm.mockResolvedValue(
+      Result.err(
+        new ExternalServiceError({
+          service: 'discord',
+          message: 'User has DMs disabled',
+        }),
+      ),
+    )
+
+    const res = await app.fetch(
+      makeRequest({
+        error: 'LLM timeout',
+        discordUserId: 'discord-user-1',
+      }),
+    )
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as { ok: boolean }
+    expect(body.ok).toBe(true) // canal notificado com sucesso, DM falhou mas é non-fatal
   })
 })

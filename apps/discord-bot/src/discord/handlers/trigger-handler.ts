@@ -132,7 +132,7 @@ export async function handleTriggerButtonInteraction(
 
   await interaction.editReply({
     content:
-      '✅ Trigger manual enviado com sucesso. O job foi aceito e começou a processar em background.',
+      '✅ Trigger manual enviado com sucesso. O job foi aceito e está processando em background.\n\nVocê receberá uma DM quando o standup estiver pronto para revisão.',
     components: [],
   })
 }

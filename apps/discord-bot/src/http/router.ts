@@ -5,6 +5,7 @@ import { registerJobFailedRoute } from './routes/job-failed.js'
 import { registerLoginCompleteRoute } from './routes/login-complete.js'
 import { registerStandupReadyRoute } from './routes/standup-ready.js'
 import { registerStandupReminderRoute } from './routes/standup-reminder.js'
+import { registerUserDmRoute } from './routes/user-dm.js'
 
 export interface InternalRouterOptions {
   internalSecret: string
@@ -39,6 +40,7 @@ export function createInternalRouter(opts: InternalRouterOptions): Hono {
 
   registerStandupReadyRoute(app, opts)
   registerJobFailedRoute(app, opts)
+  registerUserDmRoute(app, opts)
   registerStandupReminderRoute(app, opts)
   registerLoginCompleteRoute(app, opts)
 

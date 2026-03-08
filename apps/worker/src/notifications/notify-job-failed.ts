@@ -11,6 +11,8 @@ export interface NotifyJobFailedOptions {
   secret: string
   error: string
   context?: string
+  /** Quando presente, o bot também enviará uma DM direta ao usuário além da notificação no canal. */
+  discordUserId?: string
 }
 
 /**
@@ -31,7 +33,11 @@ export async function notifyJobFailed(
           'content-type': 'application/json',
           'x-internal-secret': opts.secret,
         },
-        body: JSON.stringify({ error: opts.error, context: opts.context }),
+        body: JSON.stringify({
+            error: opts.error,
+            context: opts.context,
+            discordUserId: opts.discordUserId,
+          }),
       })
 
       if (!response.ok) {
@@ -41,6 +47,7 @@ export async function notifyJobFailed(
       logger.info('Job failed notification sent', {
         error: opts.error,
         context: opts.context,
+        discordUserId: opts.discordUserId,
         url,
       })
     },
