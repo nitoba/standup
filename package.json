@@ -32,7 +32,8 @@
     "test": "turbo run test",
     "ci": "turbo run lint typecheck test",
     "db:generate": "turbo run db:generate --filter=@standup/db",
-    "db:migrate": "turbo run db:migrate --filter=@standup/db"
+    "db:migrate": "turbo run db:migrate --filter=@standup/db",
+    "db:studio": "bun run --bun turbo run db:studio --filter=@standup/db"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.5",

@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "bun test src/",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
-    "db:migrate": "bun --env-file=../../.env run ./src/migrate.ts"
+    "db:migrate": "bun --env-file=../../.env run ./src/migrate.ts",
+    "db:studio": "bunx --env-file=../../.env drizzle-kit studio"
   },
   "dependencies": {
     "@standup/config": "workspace:*",
@@ -22,6 +23,7 @@
     "drizzle-orm": "^0.43.1"
   },
   "devDependencies": {
+    "@libsql/client": "^0.17.0",
     "@types/bun": "catalog:tooling",
     "drizzle-kit": "catalog:tooling",
     "typescript": "catalog:tooling"

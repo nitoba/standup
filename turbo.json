@@ -50,6 +50,9 @@
     },
     "db:migrate": {
       "cache": false
+    },
+    "db:studio": {
+      "cache": false
     }
   }
 }
