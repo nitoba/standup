@@ -1,7 +1,7 @@
 import { Result } from '@standup/domain'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { StandupJobOptions } from '../handlers/trigger-standup.js'
 import { createInternalRouter } from './router.js'
-import type { StandupJobOptions } from './trigger/standup.js'
 
 const mocks = vi.hoisted(() => ({
   getDb: vi.fn(),

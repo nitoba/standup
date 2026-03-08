@@ -1,11 +1,11 @@
 import type { AzureMcpClient } from '@standup/azure-devops'
 import { Hono } from 'hono'
+import type { StandupJobOptions } from '../handlers/trigger-standup.js'
 import { internalAuthMiddleware } from './middleware/auth.js'
-import { handleCancelReminder } from './reminder/cancel.js'
-import { handleSnoozeReminder } from './reminder/snooze.js'
-import { handleListRepos } from './repos/list.js'
-import type { StandupJobOptions } from './trigger/standup.js'
-import { handleTriggerStandup } from './trigger/standup.js'
+import { registerReminderCancelRoute } from './routes/reminder-cancel.js'
+import { registerReminderSnoozeRoute } from './routes/reminder-snooze.js'
+import { registerReposListRoute } from './routes/repos-list.js'
+import { registerTriggerStandupRoute } from './routes/trigger-standup.js'
 
 export interface InternalRouterOptions {
   internalSecret: string
@@ -34,26 +34,10 @@ export function createInternalRouter(opts: InternalRouterOptions): Hono {
 
   app.use('/internal/*', internalAuthMiddleware(opts.internalSecret))
 
-  app.post('/internal/trigger/standup', (c) => {
-    return handleTriggerStandup(c, {
-      triggerStandupJob: opts.triggerStandupJob,
-    })
-  })
-
-  app.post('/internal/reminder/snooze', (c) => {
-    return handleSnoozeReminder(c, { databaseUrl: opts.databaseUrl })
-  })
-
-  app.post('/internal/reminder/cancel', (c) => {
-    return handleCancelReminder(c, { databaseUrl: opts.databaseUrl })
-  })
-
-  app.get('/internal/repos/list', (c) => {
-    return handleListRepos(c, {
-      mcpClient: opts.mcpClient,
-      projects: opts.azureProjects,
-    })
-  })
+  registerTriggerStandupRoute(app, opts)
+  registerReminderSnoozeRoute(app, opts)
+  registerReminderCancelRoute(app, opts)
+  registerReposListRoute(app, opts)
 
   return app
 }

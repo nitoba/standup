@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   notifyStandupReady: vi.fn(),
   notifyJobFailed: vi.fn(),
   sendReminderDm: vi.fn(),
+  sendLoginSuccessDm: vi.fn(),
 }))
 
 vi.mock('../services/standup-notification-service.js', () => ({
@@ -21,6 +22,10 @@ vi.mock('../services/job-notification-service.js', () => ({
 
 vi.mock('../discord/notifications/send-reminder-dm.js', () => ({
   sendReminderDm: mocks.sendReminderDm,
+}))
+
+vi.mock('../discord/notifications/send-login-success-dm.js', () => ({
+  sendLoginSuccessDm: mocks.sendLoginSuccessDm,
 }))
 
 import { createInternalRouter } from './router.js'
@@ -57,7 +62,7 @@ function makeRequest(
 }
 
 // ---------------------------------------------------------------------------
-// Tests: auth middleware (aplicado em todas as rotas /internal/*)
+// Tests: GET /health
 // ---------------------------------------------------------------------------
 
 describe('createInternalRouter — GET /health', () => {
@@ -80,6 +85,10 @@ describe('createInternalRouter — GET /health', () => {
     expect(body.uptimeSeconds).toBeGreaterThanOrEqual(0)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Tests: auth middleware (aplicado em todas as rotas /internal/*)
+// ---------------------------------------------------------------------------
 
 describe('createInternalRouter — auth middleware', () => {
   let app: ReturnType<typeof createInternalRouter>
@@ -129,6 +138,50 @@ describe('createInternalRouter — auth middleware', () => {
       makeRequest(
         '/internal/notify/job-failed',
         { error: 'Something failed' },
+        'bad-secret',
+      ),
+    )
+    expect(res.status).toBe(401)
+  })
+
+  it('retorna 401 quando x-internal-secret está ausente em /standup-reminder', async () => {
+    const res = await app.fetch(
+      makeRequest(
+        '/internal/notify/standup-reminder',
+        { nextRunAt: '2026-03-08T17:30:00Z', discordUserId: 'user-123' },
+        null,
+      ),
+    )
+    expect(res.status).toBe(401)
+  })
+
+  it('retorna 401 quando x-internal-secret está incorreto em /standup-reminder', async () => {
+    const res = await app.fetch(
+      makeRequest(
+        '/internal/notify/standup-reminder',
+        { nextRunAt: '2026-03-08T17:30:00Z', discordUserId: 'user-123' },
+        'bad-secret',
+      ),
+    )
+    expect(res.status).toBe(401)
+  })
+
+  it('retorna 401 quando x-internal-secret está ausente em /login-complete', async () => {
+    const res = await app.fetch(
+      makeRequest(
+        '/internal/notify/login-complete',
+        { discordUserId: 'user-123' },
+        null,
+      ),
+    )
+    expect(res.status).toBe(401)
+  })
+
+  it('retorna 401 quando x-internal-secret está incorreto em /login-complete', async () => {
+    const res = await app.fetch(
+      makeRequest(
+        '/internal/notify/login-complete',
+        { discordUserId: 'user-123' },
         'bad-secret',
       ),
     )
