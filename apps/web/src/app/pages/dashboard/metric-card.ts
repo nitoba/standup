@@ -5,7 +5,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class:
-      'metric-card border border-[var(--border)] p-[24px] flex flex-col gap-[12px]',
+      'metric-card border border-[var(--border)] p-[16px] md:p-[24px] flex flex-col gap-[12px]',
   },
   template: `
     <div class="flex items-center gap-[8px]">

@@ -8,67 +8,67 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
   },
   template: `
     <div class="relative h-full w-full bg-[var(--bg-page)] text-[var(--text-primary)]">
-      <!-- Background decorative comments -->
+      <!-- Background decorative comments (hidden on mobile) -->
       <span
-        class="absolute left-[4.17%] top-[8.89%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
+        class="hidden md:block absolute left-[4.17%] top-[8.89%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
         aria-hidden="true"
       >
         // authenticating user...
       </span>
       <span
-        class="absolute left-[62.5%] top-[13.33%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
+        class="hidden md:block absolute left-[62.5%] top-[13.33%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
         aria-hidden="true"
       >
         $ git log --oneline --since=today
       </span>
       <span
-        class="absolute left-[5.56%] top-[44.44%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
+        class="hidden md:block absolute left-[5.56%] top-[44.44%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
         aria-hidden="true"
       >
         // awaiting credentials...
       </span>
       <span
-        class="absolute left-[76.39%] top-[48.89%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
+        class="hidden md:block absolute left-[76.39%] top-[48.89%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
         aria-hidden="true"
       >
         $ cd ~/repos && git fetch --all
       </span>
       <span
-        class="absolute left-[8.33%] top-[80%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
+        class="hidden md:block absolute left-[8.33%] top-[80%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
         aria-hidden="true"
       >
         // loading standup pipeline...
       </span>
       <span
-        class="absolute left-[66.67%] top-[84.44%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
+        class="hidden md:block absolute left-[66.67%] top-[84.44%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
         aria-hidden="true"
       >
         $ standup --generate --publish
       </span>
 
-      <!-- Blinking cursors -->
+      <!-- Blinking cursors (hidden on mobile) -->
       <span
-        class="absolute left-[17.01%] top-[8.89%] h-[14px] w-[7px] bg-[var(--accent-green)] opacity-60 animate-pulse"
+        class="hidden md:block absolute left-[17.01%] top-[8.89%] h-[14px] w-[7px] bg-[var(--accent-green)] opacity-60 animate-pulse"
         aria-hidden="true"
       ></span>
       <span
-        class="absolute left-[92.22%] top-[48.89%] h-[14px] w-[7px] bg-[var(--accent-green)] opacity-60 animate-pulse"
+        class="hidden md:block absolute left-[92.22%] top-[48.89%] h-[14px] w-[7px] bg-[var(--accent-green)] opacity-60 animate-pulse"
         aria-hidden="true"
       ></span>
 
       <!-- Login card -->
       <div
-        class="absolute left-1/2 top-[24.44%] w-[420px] -translate-x-1/2 border border-[var(--border)] p-[40px] flex flex-col gap-[32px] items-center"
+        class="absolute left-1/2 top-[26%] md:top-[24.44%] w-[calc(100%-48px)] md:w-[420px] -translate-x-1/2 border border-[var(--border)] p-[24px] md:p-[40px] flex flex-col gap-[24px] md:gap-[32px] items-center"
       >
         <!-- Logo section -->
         <div class="flex flex-col gap-[8px] items-center w-full">
           <div class="flex items-center gap-[8px]">
             <span
-              class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[28px] font-bold"
+              class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold"
               >></span
             >
             <span
-              class="text-[var(--text-primary)] font-[var(--font-jetbrains)] text-[28px] font-bold"
+              class="text-[var(--text-primary)] font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold"
               >standup_bot</span
             >
           </div>
@@ -101,7 +101,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
         <div class="flex flex-col gap-[16px] items-center w-full">
           <button
             type="button"
-            class="w-full h-[44px] bg-[var(--accent-green)] flex items-center justify-center gap-[8px] text-[#0A0A0A] font-[var(--font-jetbrains)] text-[13px] font-medium cursor-pointer transition-all duration-150 hover:brightness-110 hover:shadow-[0_0_12px_var(--accent-green)] active:brightness-90"
+            class="w-full h-[44px] bg-[var(--accent-green)] flex items-center justify-center gap-[8px] text-[#0A0A0A] font-[var(--font-jetbrains)] text-[12px] md:text-[13px] font-medium cursor-pointer transition-all duration-150 hover:brightness-110 hover:shadow-[0_0_12px_var(--accent-green)] active:brightness-90"
           >
             <span>$</span>
             <span>sign in with discord</span>
@@ -121,15 +121,15 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
         </div>
       </div>
 
-      <!-- Bottom prompt -->
+      <!-- Bottom prompt (hidden on mobile) -->
       <span
-        class="absolute left-[4.17%] top-[93.33%] text-[var(--text-tertiary)] font-[var(--font-jetbrains)] text-[11px]"
+        class="hidden md:block absolute left-[4.17%] top-[93.33%] text-[var(--text-tertiary)] font-[var(--font-jetbrains)] text-[11px]"
         aria-hidden="true"
       >
         visitor@standup-bot:~$
       </span>
       <span
-        class="absolute left-[14.58%] top-[93.44%] h-[14px] w-[7px] bg-[var(--text-tertiary)] opacity-50"
+        class="hidden md:block absolute left-[14.58%] top-[93.44%] h-[14px] w-[7px] bg-[var(--text-tertiary)] opacity-50"
         aria-hidden="true"
       ></span>
     </div>

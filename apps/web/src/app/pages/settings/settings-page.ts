@@ -24,7 +24,7 @@ interface SettingsModel {
   template: `
     <app-sidebar-layout>
       <section
-        class="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] p-[40px] flex flex-col gap-[40px]"
+        class="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] p-[20px] md:p-[40px] flex flex-col gap-[28px] md:gap-[40px]"
       >
         <div class="flex flex-col gap-[8px]">
           <div class="flex items-center gap-[12px]">
@@ -47,7 +47,7 @@ interface SettingsModel {
         <form (submit)="onSubmit($event)" class="flex flex-col gap-[32px]">
           <!-- Schedule section -->
           <div
-            class="border border-[var(--border)] p-[24px] flex flex-col gap-[16px]"
+            class="border border-[var(--border)] p-[16px] md:p-[24px] flex flex-col gap-[16px]"
           >
             <div class="flex items-center gap-[8px]">
               <span
@@ -60,7 +60,7 @@ interface SettingsModel {
               >
             </div>
             <div class="flex flex-col gap-[16px]">
-              <div class="grid grid-cols-2 gap-[24px]">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-[16px] md:gap-[24px]">
                 <div class="flex flex-col gap-[6px]">
                   <label
                     for="standup-cron"
@@ -98,7 +98,7 @@ interface SettingsModel {
                   }
                 </div>
               </div>
-              <div class="grid grid-cols-2 gap-[24px]">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-[16px] md:gap-[24px]">
                 <div class="flex flex-col gap-[6px]">
                   <label
                     for="recovery-cron"
@@ -141,7 +141,7 @@ interface SettingsModel {
 
           <!-- Git configuration section -->
           <div
-            class="border border-[var(--border)] p-[24px] flex flex-col gap-[16px]"
+            class="border border-[var(--border)] p-[16px] md:p-[24px] flex flex-col gap-[16px]"
           >
             <div class="flex items-center gap-[8px]">
               <span
@@ -153,7 +153,7 @@ interface SettingsModel {
                 >git_configuration</span
               >
             </div>
-            <div class="grid grid-cols-2 gap-[24px]">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-[16px] md:gap-[24px]">
               <div class="flex flex-col gap-[6px]">
                 <label
                   for="git-author"
@@ -195,7 +195,7 @@ interface SettingsModel {
 
           <!-- Repositories section -->
           <div
-            class="border border-[var(--border)] p-[24px] flex flex-col gap-[16px]"
+            class="border border-[var(--border)] p-[16px] md:p-[24px] flex flex-col gap-[16px]"
           >
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-[8px]">
@@ -245,7 +245,7 @@ interface SettingsModel {
 
           <!-- Notifications section -->
           <div
-            class="border border-[var(--border)] p-[24px] flex flex-col gap-[16px]"
+            class="border border-[var(--border)] p-[16px] md:p-[24px] flex flex-col gap-[16px]"
           >
             <div class="flex items-center gap-[8px]">
               <span
@@ -317,10 +317,10 @@ interface SettingsModel {
           </div>
 
           <!-- Save button -->
-          <div class="flex items-center justify-end gap-[16px]">
+          <div class="flex items-center justify-end">
             <button
               type="submit"
-              class="bg-[var(--accent-green)] px-[24px] py-[10px] text-[#0A0A0A] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:brightness-110 hover:shadow-[0_0_12px_var(--accent-green)] active:brightness-90"
+              class="w-full md:w-auto h-[44px] md:h-auto bg-[var(--accent-green)] px-[24px] py-[10px] text-[#0A0A0A] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:brightness-110 hover:shadow-[0_0_12px_var(--accent-green)] active:brightness-90"
               [class.opacity-50]="settingsForm().invalid()"
               [class.cursor-not-allowed]="settingsForm().invalid()"
             >
@@ -330,7 +330,7 @@ interface SettingsModel {
 
           <!-- Danger zone -->
           <div
-            class="border border-[color:rgb(239_68_68_/_0.4)] p-[24px] flex flex-col gap-[16px]"
+            class="border border-[color:rgb(239_68_68_/_0.4)] p-[16px] md:p-[24px] flex flex-col gap-[16px]"
           >
             <div class="flex items-center gap-[8px]">
               <span
@@ -342,7 +342,7 @@ interface SettingsModel {
                 >danger_zone</span
               >
             </div>
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-[12px] md:gap-0">
               <div class="flex flex-col gap-[2px]">
                 <span
                   class="text-[var(--text-primary)] font-[var(--font-jetbrains)] text-[13px]"
@@ -355,7 +355,7 @@ interface SettingsModel {
               </div>
               <button
                 type="button"
-                class="border border-[var(--accent-red)] px-[16px] py-[8px] text-[var(--accent-red)] font-[var(--font-jetbrains)] text-[12px] cursor-pointer transition-all duration-150 hover:bg-[var(--accent-red)] hover:text-[var(--bg-page)] active:brightness-90"
+                class="w-full md:w-auto h-[44px] md:h-auto border border-[var(--accent-red)] px-[16px] py-[8px] text-[var(--accent-red)] font-[var(--font-jetbrains)] text-[12px] cursor-pointer transition-all duration-150 hover:bg-[var(--accent-red)] hover:text-[var(--bg-page)] active:brightness-90 shrink-0"
               >
                 $ delete_all
               </button>

@@ -16,7 +16,7 @@ import type { StandupSectionTone, StandupStatus } from '../../types/standup'
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-sidebar-layout>
-      <section class="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] p-[40px] flex flex-col gap-[32px]">
+      <section class="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[32px]">
         <a routerLink="/dashboard" class="text-[var(--text-secondary)] font-[var(--font-jetbrains)] text-[12px] flex items-center gap-[12px] transition-colors duration-150 hover:text-[var(--text-primary)]">
           <span><<</span>
           <span>back to standups</span>
@@ -29,10 +29,10 @@ import type { StandupSectionTone, StandupStatus } from '../../types/standup'
         } @else if (standup.value(); as detail) {
           <div class="flex flex-col gap-[16px]">
             <div class="flex items-center gap-[12px]">
-              <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[32px] font-bold">>></span>
-              <span class="text-[var(--text-primary)] font-[var(--font-jetbrains)] text-[28px] font-bold">standup_detail</span>
+              <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[24px] md:text-[32px] font-bold">>></span>
+              <span class="text-[var(--text-primary)] font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold">standup_detail</span>
             </div>
-            <div class="flex items-center gap-[24px]">
+            <div class="flex flex-wrap items-center gap-[12px] md:gap-[24px]">
               <span class="text-[var(--text-secondary)] font-[var(--font-ibm)] text-[12px]">// {{ detail.date }}</span>
               <div class="flex items-center gap-[8px]">
                 <span class="h-[6px] w-[6px] rounded-full" [class]="statusDotClass(detail.status)"></span>
@@ -40,12 +40,12 @@ import type { StandupSectionTone, StandupStatus } from '../../types/standup'
                   {{ formatStatus(detail.status) }}
                 </span>
               </div>
-              <span class="text-[var(--text-secondary)] font-[var(--font-ibm)] text-[12px]">created: {{ detail.createdAt }}</span>
-              <span class="text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]">id: {{ detail.id }}</span>
+              <span class="hidden md:inline text-[var(--text-secondary)] font-[var(--font-ibm)] text-[12px]">created: {{ detail.createdAt }}</span>
+              <span class="hidden md:inline text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]">id: {{ detail.id }}</span>
             </div>
           </div>
 
-          <div class="bg-[var(--bg-surface)] border border-[var(--border)] p-[24px] flex flex-col gap-[20px]">
+          <div class="bg-[var(--bg-surface)] border border-[var(--border)] p-[16px] md:p-[24px] flex flex-col gap-[16px] md:gap-[20px]">
             @for (section of detail.sections; track section.title) {
               <div class="flex flex-col gap-[8px]">
                 <div class="text-[var(--text-emphasis)] font-[var(--font-jetbrains)] text-[14px] font-bold">{{ section.title }}</div>
@@ -72,24 +72,24 @@ import type { StandupSectionTone, StandupStatus } from '../../types/standup'
             }
           </div>
 
-          <div class="flex items-center gap-[16px]">
+          <div class="flex flex-col md:flex-row items-stretch md:items-center gap-[12px] md:gap-[16px]">
             <button
               type="button"
-              class="bg-[var(--accent-green)] border border-[var(--accent-green)] px-[20px] py-[10px] text-[var(--bg-page)] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:brightness-110 hover:shadow-[0_0_12px_var(--accent-green)] active:brightness-90"
+              class="h-[44px] md:h-auto bg-[var(--accent-green)] border border-[var(--accent-green)] px-[20px] py-[10px] text-[var(--bg-page)] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:brightness-110 hover:shadow-[0_0_12px_var(--accent-green)] active:brightness-90 flex items-center justify-center"
               (click)="approve(detail.id)"
             >
               $ approve
             </button>
             <button
               type="button"
-              class="border border-[var(--accent-red)] px-[20px] py-[10px] text-[var(--accent-red)] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:bg-[var(--accent-red)] hover:text-[var(--bg-page)] active:brightness-90"
+              class="h-[44px] md:h-auto border border-[var(--accent-red)] px-[20px] py-[10px] text-[var(--accent-red)] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:bg-[var(--accent-red)] hover:text-[var(--bg-page)] active:brightness-90 flex items-center justify-center"
               (click)="reject(detail.id)"
             >
               $ reject
             </button>
             <button
               type="button"
-              class="border border-[var(--accent-cyan)] px-[20px] py-[10px] text-[var(--accent-cyan)] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:bg-[var(--accent-cyan)] hover:text-[var(--bg-page)] active:brightness-90"
+              class="h-[44px] md:h-auto border border-[var(--accent-cyan)] px-[20px] py-[10px] text-[var(--accent-cyan)] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:bg-[var(--accent-cyan)] hover:text-[var(--bg-page)] active:brightness-90 flex items-center justify-center"
               (click)="regenerate(detail.id)"
             >
               $ regenerate
