@@ -1,5 +1,13 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core'
-import { RouterLink, RouterLinkActive } from '@angular/router'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+} from '@angular/core'
+import { Router, RouterLink, RouterLinkActive } from '@angular/router'
+
+import { SessionService } from '../services/session.service'
 
 @Component({
   selector: 'app-sidebar-layout',
@@ -46,6 +54,14 @@ import { RouterLink, RouterLinkActive } from '@angular/router'
             <span [class]="navPrefixClass(settingsMobile.isActive)">$</span>
             <span [class]="navLabelClass(settingsMobile.isActive)">settings</span>
           </a>
+          <button
+            type="button"
+            class="flex items-center gap-[8px] px-[12px] py-[8px] text-[var(--accent-red)] font-[var(--font-jetbrains)] text-[13px] cursor-pointer hover:bg-[var(--bg-surface)] transition-all duration-150"
+            (click)="handleSignOut()"
+          >
+            <span>$</span>
+            <span>logout</span>
+          </button>
         </nav>
       }
 
@@ -92,15 +108,19 @@ import { RouterLink, RouterLinkActive } from '@angular/router'
         </div>
 
         <footer class="flex flex-col gap-[16px]">
-          <div class="border border-[var(--border)] p-[16px] flex flex-col gap-[8px]">
-            <span class="text-[var(--accent-amber)] font-[var(--font-jetbrains)] text-[12px]">[!] upgrade available</span>
-            <span class="text-[var(--text-secondary)] font-[var(--font-ibm)] text-[12px]">// premium features unlocked</span>
-          </div>
+          <button
+            type="button"
+            class="flex items-center gap-[8px] px-[12px] py-[8px] text-[var(--accent-red)] font-[var(--font-jetbrains)] text-[13px] cursor-pointer hover:bg-[var(--bg-surface)] transition-all duration-150 w-full"
+            (click)="handleSignOut()"
+          >
+            <span>$</span>
+            <span>logout</span>
+          </button>
 
           <div class="flex items-center gap-[8px]">
             <span class="h-[8px] w-[8px] rounded-full bg-[var(--accent-green)]"></span>
             <div class="flex flex-col gap-[2px]">
-              <span class="text-[var(--text-primary)] font-[var(--font-jetbrains)] text-[13px]">nitoba/</span>
+              <span class="text-[var(--text-primary)] font-[var(--font-jetbrains)] text-[13px]">{{ displayName() }}</span>
               <span class="text-[var(--text-secondary)] font-[var(--font-ibm)] text-[12px]">online</span>
             </div>
           </div>
@@ -114,7 +134,22 @@ import { RouterLink, RouterLinkActive } from '@angular/router'
   `,
 })
 export class SidebarLayout {
+  private readonly sessionService = inject(SessionService)
+  private readonly router = inject(Router)
+
   readonly mobileMenuOpen = signal(false)
+
+  readonly displayName = computed(() => {
+    const user = this.sessionService.user()
+    if (user?.name) return `${user.name}/`
+    if (user?.email) return `${user.email}/`
+    return 'user/'
+  })
+
+  async handleSignOut() {
+    await this.sessionService.signOut()
+    await this.router.navigate(['/login'])
+  }
 
   private readonly navBaseClass =
     'flex items-center gap-[8px] px-[12px] py-[8px] cursor-pointer transition-all duration-150 hover:bg-[var(--bg-surface)]'

@@ -85,7 +85,7 @@ describe('UserSettingsRepository', () => {
     })
 
     it('returns the settings row when it exists', () => {
-      repo.upsert(makeInput())
+      repo.upsert(makeInput({ gitSincePeriod: '12 hours ago' }))
       const result = repo.findByUserId('user-1')
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') return
@@ -95,6 +95,7 @@ describe('UserSettingsRepository', () => {
         '["agrotrace-web","agrotrace-api"]',
       )
       expect(result.value?.gitAuthor).toBe('user@test.com')
+      expect(result.value?.gitSincePeriod).toBe('12 hours ago')
     })
   })
 
@@ -107,6 +108,7 @@ describe('UserSettingsRepository', () => {
       expect(result.value.userId).toBe('user-1')
       expect(result.value.standupCron).toBe('30 17 * * 1-5')
       expect(result.value.timezone).toBe('America/Sao_Paulo')
+      expect(result.value.gitSincePeriod).toBe('16 hours ago')
       expect(result.value.active).toBe(true)
       expect(result.value.snoozedUntil).toBeNull()
       expect(result.value.cancelledDate).toBeNull()
@@ -119,6 +121,7 @@ describe('UserSettingsRepository', () => {
         makeInput({
           standupCron: '0 18 * * 1-5',
           timezone: 'Europe/London',
+          gitSincePeriod: '24 hours ago',
         }),
       )
       expect(result.status).toBe('ok')
@@ -126,6 +129,7 @@ describe('UserSettingsRepository', () => {
 
       expect(result.value.standupCron).toBe('0 18 * * 1-5')
       expect(result.value.timezone).toBe('Europe/London')
+      expect(result.value.gitSincePeriod).toBe('24 hours ago')
     })
 
     it('creates with custom values', () => {
@@ -135,6 +139,7 @@ describe('UserSettingsRepository', () => {
           reminderCron: '50 8 * * 1-5',
           recoveryCron: '30 9 * * 1-5',
           timezone: 'US/Eastern',
+          gitSincePeriod: '2 days ago',
           active: false,
         }),
       )
@@ -145,7 +150,23 @@ describe('UserSettingsRepository', () => {
       expect(result.value.reminderCron).toBe('50 8 * * 1-5')
       expect(result.value.recoveryCron).toBe('30 9 * * 1-5')
       expect(result.value.timezone).toBe('US/Eastern')
+      expect(result.value.gitSincePeriod).toBe('2 days ago')
       expect(result.value.active).toBe(false)
+    })
+
+    it('keeps the existing gitSincePeriod when omitted on update', () => {
+      repo.upsert(makeInput({ gitSincePeriod: '36 hours ago' }))
+
+      const result = repo.upsert(
+        makeInput({
+          standupCron: '15 18 * * 1-5',
+        }),
+      )
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.standupCron).toBe('15 18 * * 1-5')
+      expect(result.value.gitSincePeriod).toBe('36 hours ago')
     })
   })
 

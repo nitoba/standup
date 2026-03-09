@@ -1,18 +1,20 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  effect,
   inject,
   input,
+  signal,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
-
 import { SidebarLayout } from '../../layout/sidebar'
 import { StandupService } from '../../services/standup.service'
 import type { StandupSectionTone, StandupStatus } from '../../types/standup'
+import { AdjustModal } from './adjust-modal'
 
 @Component({
   selector: 'app-standup-detail-page',
-  imports: [SidebarLayout, RouterLink],
+  imports: [SidebarLayout, RouterLink, AdjustModal],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-sidebar-layout>
@@ -76,6 +78,12 @@ import type { StandupSectionTone, StandupStatus } from '../../types/standup'
             <button
               type="button"
               class="h-[44px] md:h-auto bg-[var(--accent-green)] border border-[var(--accent-green)] px-[20px] py-[10px] text-[var(--bg-page)] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:brightness-110 hover:shadow-[0_0_12px_var(--accent-green)] active:brightness-90 flex items-center justify-center"
+              [disabled]="actionLoading()"
+              [class.cursor-not-allowed]="actionLoading()"
+              [class.opacity-50]="actionLoading()"
+              [class.cursor-pointer]="!actionLoading()"
+              [class.hover:brightness-110]="!actionLoading()"
+              [class.hover:shadow-[0_0_12px_var(--accent-green)]]="!actionLoading()"
               (click)="approve(detail.id)"
             >
               $ approve
@@ -83,6 +91,12 @@ import type { StandupSectionTone, StandupStatus } from '../../types/standup'
             <button
               type="button"
               class="h-[44px] md:h-auto border border-[var(--accent-red)] px-[20px] py-[10px] text-[var(--accent-red)] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:bg-[var(--accent-red)] hover:text-[var(--bg-page)] active:brightness-90 flex items-center justify-center"
+              [disabled]="actionLoading()"
+              [class.cursor-not-allowed]="actionLoading()"
+              [class.opacity-50]="actionLoading()"
+              [class.cursor-pointer]="!actionLoading()"
+              [class.hover:bg-[var(--accent-red)]]="!actionLoading()"
+              [class.hover:text-[var(--bg-page)]]="!actionLoading()"
               (click)="reject(detail.id)"
             >
               $ reject
@@ -90,11 +104,45 @@ import type { StandupSectionTone, StandupStatus } from '../../types/standup'
             <button
               type="button"
               class="h-[44px] md:h-auto border border-[var(--accent-cyan)] px-[20px] py-[10px] text-[var(--accent-cyan)] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:bg-[var(--accent-cyan)] hover:text-[var(--bg-page)] active:brightness-90 flex items-center justify-center"
+              [disabled]="actionLoading()"
+              [class.cursor-not-allowed]="actionLoading()"
+              [class.opacity-50]="actionLoading()"
+              [class.cursor-pointer]="!actionLoading()"
+              [class.hover:bg-[var(--accent-cyan)]]="!actionLoading()"
+              [class.hover:text-[var(--bg-page)]]="!actionLoading()"
+              [class.hover:shadow-[0_0_12px_var(--accent-cyan)]]="!actionLoading()"
+              (click)="openAdjustModal()"
+            >
+              $ adjust
+            </button>
+            <button
+              type="button"
+              class="h-[44px] md:h-auto border border-[var(--accent-cyan)] px-[20px] py-[10px] text-[var(--accent-cyan)] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:bg-[var(--accent-cyan)] hover:text-[var(--bg-page)] active:brightness-90 flex items-center justify-center"
+              [disabled]="actionLoading()"
+              [class.cursor-not-allowed]="actionLoading()"
+              [class.opacity-50]="actionLoading()"
+              [class.cursor-pointer]="!actionLoading()"
+              [class.hover:bg-[var(--accent-cyan)]]="!actionLoading()"
+              [class.hover:text-[var(--bg-page)]]="!actionLoading()"
+              [class.hover:shadow-[0_0_12px_var(--accent-cyan)]]="!actionLoading()"
               (click)="regenerate(detail.id)"
             >
               $ regenerate
             </button>
           </div>
+
+          @if (actionFeedback(); as feedback) {
+            <div class="font-[var(--font-ibm)] text-[12px] text-[var(--accent-cyan)] opacity-80">
+              {{ feedback }}
+            </div>
+          }
+
+          <app-adjust-modal
+            [open]="showAdjustModal()"
+            [loading]="actionLoading()"
+            (submitInstruction)="onAdjustSubmit($event)"
+            (close)="closeAdjustModal()"
+          />
         } @else {
           <div class="text-[var(--text-secondary)] font-[var(--font-ibm)] text-[13px]">// standup not found</div>
         }
@@ -104,23 +152,122 @@ import type { StandupSectionTone, StandupStatus } from '../../types/standup'
 })
 export class StandupDetailPage {
   private readonly standupService = inject(StandupService)
+  private readonly queuedFeedbackMessage =
+    '// standup queued for regeneration...'
 
   readonly id = input.required<string>()
-  readonly standup = this.standupService.getStandupById(this.id)
+  readonly standup = this.standupService.selectedStandup
+  readonly actionLoading = signal(false)
+  readonly actionFeedback = signal<string | undefined>(undefined)
+  readonly showAdjustModal = signal(false)
+  readonly feedbackTimeoutId = signal<
+    ReturnType<typeof setTimeout> | undefined
+  >(undefined)
+
+  constructor() {
+    effect(() => {
+      this.standupService.selectStandup(this.id())
+    })
+  }
+
+  openAdjustModal() {
+    if (this.actionLoading()) {
+      return
+    }
+
+    this.showAdjustModal.set(true)
+  }
+
+  closeAdjustModal() {
+    this.showAdjustModal.set(false)
+  }
+
+  setQueuedFeedback() {
+    this.clearQueuedFeedback()
+    this.actionFeedback.set(this.queuedFeedbackMessage)
+
+    this.feedbackTimeoutId.set(
+      setTimeout(() => {
+        this.actionFeedback.set(undefined)
+        this.feedbackTimeoutId.set(undefined)
+      }, 5000),
+    )
+  }
+
+  clearQueuedFeedback() {
+    const timeoutId = this.feedbackTimeoutId()
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId)
+      this.feedbackTimeoutId.set(undefined)
+    }
+
+    this.actionFeedback.set(undefined)
+  }
 
   async approve(id: string) {
-    await this.standupService.approve(id)
-    this.standup.reload()
+    if (this.actionLoading()) {
+      return
+    }
+
+    this.actionLoading.set(true)
+
+    try {
+      await this.standupService.approve(id)
+      this.clearQueuedFeedback()
+      this.standup.reload()
+    } finally {
+      this.actionLoading.set(false)
+    }
   }
 
   async reject(id: string) {
-    await this.standupService.reject(id)
-    this.standup.reload()
+    if (this.actionLoading()) {
+      return
+    }
+
+    this.actionLoading.set(true)
+
+    try {
+      await this.standupService.reject(id)
+      this.clearQueuedFeedback()
+      this.standup.reload()
+    } finally {
+      this.actionLoading.set(false)
+    }
   }
 
   async regenerate(id: string) {
-    await this.standupService.regenerate(id)
-    this.standup.reload()
+    if (this.actionLoading()) {
+      return
+    }
+
+    this.actionLoading.set(true)
+
+    try {
+      await this.standupService.regenerate(id)
+      this.setQueuedFeedback()
+      this.standup.reload()
+    } finally {
+      this.actionLoading.set(false)
+    }
+  }
+
+  async onAdjustSubmit(instruction: string) {
+    const id = this.id()
+    if (!id || this.actionLoading()) {
+      return
+    }
+
+    this.closeAdjustModal()
+    this.actionLoading.set(true)
+
+    try {
+      await this.standupService.adjust(id, instruction)
+      this.setQueuedFeedback()
+      this.standup.reload()
+    } finally {
+      this.actionLoading.set(false)
+    }
   }
 
   statusDotClass(status: StandupStatus) {

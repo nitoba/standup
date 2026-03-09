@@ -120,13 +120,22 @@ describe('PATCH /standups/:id/status', () => {
     expect(mocks.updateStandupStatus).not.toHaveBeenCalled()
   })
 
+  it('retorna 400 quando status é approved', async () => {
+    const res = await app.fetch(
+      makePatchRequest('/standups/standup-xyz/status', { status: 'approved' }),
+    )
+
+    expect(res.status).toBe(400)
+    expect(mocks.updateStandupStatus).not.toHaveBeenCalled()
+  })
+
   it('retorna 404 quando standup não existe', async () => {
     mocks.updateStandupStatus.mockResolvedValue(
       Result.err(new NotFoundError({ resource: 'standup', id: 'standup-xyz' })),
     )
 
     const res = await app.fetch(
-      makePatchRequest('/standups/standup-xyz/status', { status: 'approved' }),
+      makePatchRequest('/standups/standup-xyz/status', { status: 'rejected' }),
     )
 
     expect(res.status).toBe(404)

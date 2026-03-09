@@ -14,14 +14,15 @@ const logger = createServiceLogger({
 })
 
 export const updateStatusBodySchema = z.object({
-  status: StandupStatusSchema,
+  status: StandupStatusSchema.exclude(['approved']),
 })
 
 export type UpdateStatusBody = z.infer<typeof updateStatusBodySchema>
 
 /**
  * PATCH /standups/:id/status
- * Atualiza o status de um standup (aprovação manual sem Discord).
+ * Atualiza o status de um standup para transições diretas/rejeição.
+ * Aprovação segue o fluxo dedicado em POST /standups/:id/approve.
  * A state machine valida as transições permitidas — retorna 409 para transições inválidas.
  */
 export async function handleUpdateStandupStatus(

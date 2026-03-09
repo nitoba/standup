@@ -1,4 +1,7 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { ActivatedRoute } from '@angular/router'
+
+import { SessionService } from '../../services/session.service'
 
 @Component({
   selector: 'app-login-page',
@@ -101,6 +104,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
         <div class="flex flex-col gap-[16px] items-center w-full">
           <button
             type="button"
+            (click)="signIn()"
             class="w-full h-[44px] bg-[var(--accent-green)] flex items-center justify-center gap-[8px] text-[#0A0A0A] font-[var(--font-jetbrains)] text-[12px] md:text-[13px] font-medium cursor-pointer transition-all duration-150 hover:brightness-110 hover:shadow-[0_0_12px_var(--accent-green)] active:brightness-90"
           >
             <span>$</span>
@@ -135,4 +139,13 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
     </div>
   `,
 })
-export class LoginPage {}
+export class LoginPage {
+  private readonly sessionService = inject(SessionService)
+  private readonly route = inject(ActivatedRoute)
+
+  signIn() {
+    const returnUrl =
+      this.route.snapshot.queryParamMap.get('returnUrl') ?? '/dashboard'
+    this.sessionService.signIn(returnUrl)
+  }
+}

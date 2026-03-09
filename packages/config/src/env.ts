@@ -16,6 +16,7 @@ const apiEnvSchema = baseEnvSchema.extend({
   DISCORD_CLIENT_SECRET: z.string().min(1),
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: z.string().default('http://localhost:3333'),
+  CORS_ORIGIN: z.string().default('http://localhost:4200'),
   WORKER_INTERNAL_URL: z.string().default('http://localhost:3335'),
   BOT_INTERNAL_URL: z.string().default('http://localhost:3334'),
 })

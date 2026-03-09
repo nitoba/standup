@@ -1,22 +1,24 @@
 import { type Routes } from '@angular/router'
 
 import { authGuard } from './guards/auth.guard'
+import { noAuthGuard } from './guards/no-auth.guard'
 
 export const routes: Routes = [
   {
     path: 'login',
+    canActivate: [noAuthGuard],
     loadComponent: () =>
       import('./pages/login/login-page').then((m) => m.LoginPage),
   },
   {
     path: 'dashboard',
-    // canActivate: [authGuard],
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./pages/dashboard/dashboard-page').then((m) => m.DashboardPage),
   },
   {
     path: 'standups/:id',
-    // canActivate: [authGuard],
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./pages/standup-detail/standup-detail-page').then(
         (m) => m.StandupDetailPage,
@@ -24,7 +26,7 @@ export const routes: Routes = [
   },
   {
     path: 'settings',
-    // canActivate: [authGuard],
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./pages/settings/settings-page').then((m) => m.SettingsPage),
   },

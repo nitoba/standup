@@ -1,18 +1,87 @@
 import { HttpClient, httpResource } from '@angular/common/http'
-import { computed, Injectable, inject } from '@angular/core'
-import { firstValueFrom } from 'rxjs'
+import { computed, Injectable, inject, signal } from '@angular/core'
+import { firstValueFrom, map } from 'rxjs'
 
 import { METRIC_CHANGES } from '../data/mock-data'
-import type { DashboardMetrics, Standup, StandupStatus } from '../types/standup'
+import type {
+  DashboardMetrics,
+  Standup,
+  StandupSection,
+  StandupSourceRepo,
+  StandupStatus,
+} from '../types/standup'
+
+type ApiEnvelope<T> = { data: T }
+type TriggerAck = { ok: boolean; accepted: boolean }
+type DashboardFilters = {
+  status?: string | null
+  date?: string | null
+  search?: string | null
+}
+
+type StandupDto = {
+  id: string
+  date: string
+  meetingType: string
+  content: string
+  sourceData: string
+  customEntries: unknown
+  status: string
+  userId: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+type SourceDataDto = {
+  repos?: Array<{
+    repoName?: string
+    commits?: Array<{ hash?: string; subject?: string; message?: string }>
+  }>
+}
 
 @Injectable({ providedIn: 'root' })
 export class StandupService {
   private readonly http = inject(HttpClient)
 
-  readonly standups = httpResource<Standup[]>(() => '/api/standups', {
-    defaultValue: [],
-  })
+  // Filter signals that httpResource reacts to
+  private readonly statusFilter = signal<string | undefined>(undefined)
+  private readonly dateFilter = signal<string | undefined>(undefined)
 
+  // Reactive GET — refetches automatically when filter signals change
+  readonly standups = httpResource<Standup[]>(
+    () => {
+      const params: Record<string, string> = {}
+      const status = this.statusFilter()
+      const date = this.dateFilter()
+      if (status && status !== 'all') params['status'] = status
+      if (date && date !== 'all' && date !== 'this_week') params['date'] = date
+      return { url: '/standups', params }
+    },
+    {
+      defaultValue: [],
+      parse: (response) =>
+        (response as ApiEnvelope<StandupDto[]>).data.map((dto) =>
+          this.mapStandup(dto),
+        ),
+    },
+  )
+
+  // Selected standup ID — set by detail page via selectStandup()
+  private readonly selectedStandupId = signal<string | undefined>(undefined)
+
+  // Reactive GET for single standup — refetches when selectedStandupId changes
+  readonly selectedStandup = httpResource<Standup | undefined>(
+    () => {
+      const id = this.selectedStandupId()
+      return id ? `/standups/${id}` : undefined
+    },
+    {
+      parse: (response) =>
+        this.mapStandup((response as ApiEnvelope<StandupDto>).data),
+    },
+  )
+
+  // Metrics derived from the loaded standups list
   readonly metrics = computed<DashboardMetrics>(() => {
     const counts = this.standups.value().reduce(
       (acc, standup) => {
@@ -33,31 +102,147 @@ export class StandupService {
     }
   })
 
-  getStandupById(id: () => string | undefined) {
-    return httpResource<Standup>(() => {
-      const value = id()
-      return value ? `/api/standups/${value}` : undefined
-    })
+  // Dashboard filter update — signals change triggers httpResource refetch
+  setDashboardFilters(filters: DashboardFilters) {
+    this.statusFilter.set(filters.status ?? undefined)
+    this.dateFilter.set(filters.date ?? undefined)
   }
 
-  approve(id: string) {
-    return this.updateStatus(id, 'approved')
+  // Detail page calls this to select which standup to load
+  selectStandup(id: string | undefined) {
+    this.selectedStandupId.set(id)
   }
 
-  reject(id: string) {
-    return this.updateStatus(id, 'rejected')
-  }
-
-  regenerate(id: string) {
-    return this.updateStatus(id, 'pending_review')
-  }
-
-  private async updateStatus(id: string, status: StandupStatus) {
-    await firstValueFrom(
-      this.http.patch(`/api/standups/${id}/status`, {
-        status,
-      }),
+  // Mutations — one-shot operations, firstValueFrom is appropriate
+  async approve(id: string) {
+    const standup = await firstValueFrom(
+      this.http
+        .post<ApiEnvelope<StandupDto>>(`/standups/${id}/approve`, {})
+        .pipe(map((response) => this.mapStandup(response.data))),
     )
     this.standups.reload()
+    return standup
+  }
+
+  async reject(id: string) {
+    const standup = await firstValueFrom(
+      this.http
+        .patch<ApiEnvelope<StandupDto>>(`/standups/${id}/status`, {
+          status: 'rejected',
+        })
+        .pipe(map((response) => this.mapStandup(response.data))),
+    )
+    this.standups.reload()
+    return standup
+  }
+
+  async adjust(id: string, instruction: string) {
+    return firstValueFrom(
+      this.http.post<TriggerAck>('/standups/trigger', {
+        forceRegenerate: true,
+        rewriteFromStandupId: id,
+        rewriteInstruction: instruction,
+      }),
+    )
+  }
+
+  async regenerate(id: string) {
+    return firstValueFrom(
+      this.http.post<TriggerAck>('/standups/trigger', {
+        forceRegenerate: true,
+        rewriteFromStandupId: id,
+      }),
+    )
+  }
+
+  // All the private mapping methods stay exactly the same
+  private mapStandup(standup: StandupDto): Standup {
+    return {
+      id: standup.id,
+      date: standup.date,
+      status: this.mapStatus(standup.status),
+      createdAt: this.formatTimestamp(standup.createdAt),
+      contentPreview: this.buildContentPreview(standup.content),
+      sections: this.parseSections(standup.content),
+      sources: this.parseSources(standup.sourceData),
+    }
+  }
+
+  private mapStatus(status: string): StandupStatus {
+    if (status === 'rejected') return 'rejected'
+    if (status === 'approved' || status === 'published') return 'approved'
+    return 'pending_review'
+  }
+
+  private buildContentPreview(content: string) {
+    const preview = content
+      .split('\n')
+      .map((line) => line.trim())
+      .find((line) => line.startsWith('- '))
+    return preview ? preview.slice(2) : content.trim()
+  }
+
+  private parseSections(content: string): StandupSection[] {
+    const lines = content.split('\n').map((line) => line.trim())
+    const sections: StandupSection[] = []
+    let currentSection: StandupSection | null = null
+    for (const line of lines) {
+      if (!line) continue
+      if (line.startsWith('## ')) {
+        currentSection = {
+          title: line,
+          tone: this.resolveSectionTone(line),
+          items: [],
+        }
+        sections.push(currentSection)
+        continue
+      }
+      if (line.startsWith('- ')) {
+        if (!currentSection) {
+          currentSection = { title: '## resumo', tone: 'default', items: [] }
+          sections.push(currentSection)
+        }
+        currentSection.items.push(line)
+      }
+    }
+    return sections
+  }
+
+  private resolveSectionTone(title: string): StandupSection['tone'] {
+    const normalizedTitle = title.toLowerCase()
+    if (normalizedTitle.includes('andamento')) return 'cyan'
+    if (normalizedTitle.includes('bloqueio')) return 'muted'
+    return 'default'
+  }
+
+  private parseSources(sourceData: string): StandupSourceRepo[] {
+    try {
+      const parsed = JSON.parse(sourceData) as SourceDataDto
+      return (parsed.repos ?? []).map((repo) => ({
+        name: this.formatRepoName(repo.repoName),
+        commits: (repo.commits ?? []).map((commit) => ({
+          hash: commit.hash ?? '',
+          message: commit.subject ?? commit.message ?? '',
+        })),
+      }))
+    } catch {
+      return []
+    }
+  }
+
+  private formatRepoName(repoName?: string) {
+    const trimmedName = repoName?.trim() ?? ''
+    if (!trimmedName) return 'unknown/'
+    return trimmedName.endsWith('/') ? trimmedName : `${trimmedName}/`
+  }
+
+  private formatTimestamp(timestamp: number) {
+    const date = new Date(timestamp)
+    const year = date.getUTCFullYear()
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(date.getUTCDate()).padStart(2, '0')
+    const hours = String(date.getUTCHours()).padStart(2, '0')
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day} ${hours}:${minutes}`
   }
 }

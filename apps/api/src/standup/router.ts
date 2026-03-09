@@ -1,5 +1,11 @@
 import { sValidator } from '@hono/standard-validator'
+import type {
+  ExternalServiceError,
+  Result,
+  StandupRecord,
+} from '@standup/domain'
 import { Hono } from 'hono'
+import { approveBodySchema, handleApproveStandup } from './approve.js'
 import { handleGetStandupById } from './get-by-id.js'
 import { handleListStandups, listQuerySchema } from './list.js'
 import { handleTriggerStandup, triggerBodySchema } from './trigger.js'
@@ -13,6 +19,9 @@ export interface StandupRouterDeps {
   reposRootPath: string
   workerInternalUrl: string
   internalSecret: string
+  publishApprovedStandup?: (
+    record: StandupRecord,
+  ) => Promise<Result<void, ExternalServiceError>>
 }
 
 /**
@@ -51,7 +60,7 @@ export function createStandupRouter(deps: StandupRouterDeps): Hono {
     return handleGetStandupById(c, c.req.param('id'), deps.databaseUrl, userId)
   })
 
-  // PATCH /standups/:id/status — aprovação manual (state machine valida transição)
+  // PATCH /standups/:id/status — transições diretas/rejeição (aprovação tem rota dedicada)
   app.patch(
     '/standups/:id/status',
     sValidator('json', updateStatusBodySchema),
@@ -65,6 +74,29 @@ export function createStandupRouter(deps: StandupRouterDeps): Hono {
         c.req.param('id'),
         c.req.valid('json'),
         deps.databaseUrl,
+        userId,
+      )
+    },
+  )
+
+  // POST /standups/:id/approve — fluxo dedicado de aprovação + publicação
+  app.post(
+    '/standups/:id/approve',
+    sValidator('json', approveBodySchema),
+    async (c) => {
+      const userId = getUserId(c)
+      if (!userId) {
+        return c.json({ error: 'Unauthorized' }, 401)
+      }
+
+      return handleApproveStandup(
+        c,
+        c.req.param('id'),
+        c.req.valid('json'),
+        {
+          databaseUrl: deps.databaseUrl,
+          publishApprovedStandup: deps.publishApprovedStandup,
+        },
         userId,
       )
     },

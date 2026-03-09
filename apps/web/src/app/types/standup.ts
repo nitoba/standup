@@ -1,4 +1,97 @@
-export type StandupStatus = 'approved' | 'pending_review' | 'rejected'
+export type StandupStatus =
+  | 'draft'
+  | 'pending_review'
+  | 'approved'
+  | 'rejected'
+  | 'published'
+
+export interface ApiDataResponseDto<T> {
+  data: T
+}
+
+export interface StandupCustomEntriesDto {
+  scheduledMeetings: string[]
+  directCalls: string[]
+}
+
+export interface StandupDto {
+  id: string
+  date: string
+  meetingType: string
+  content: string
+  sourceData: string
+  customEntries: StandupCustomEntriesDto | null
+  status: StandupStatus
+  userId: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+export type StandupListResponseDto = ApiDataResponseDto<StandupDto[]>
+
+export type StandupDetailResponseDto = ApiDataResponseDto<StandupDto>
+
+export interface ApproveStandupResponseDto
+  extends ApiDataResponseDto<StandupDto> {
+  warning?: string
+}
+
+export interface SettingsDto {
+  standupCron: string
+  reminderCron: string
+  recoveryCron: string
+  timezone: string
+  gitAuthor: string
+  gitSincePeriod: string
+  selectedRepos: string[]
+  active: boolean
+  snoozedUntil: number | null
+  cancelledDate: string | null
+}
+
+export type GetSettingsResponseDto = ApiDataResponseDto<SettingsDto>
+
+export type UpdateSettingsResponseDto = ApiDataResponseDto<SettingsDto>
+
+export interface SessionUserDto {
+  id: string
+  email?: string | null
+  name?: string | null
+  image?: string | null
+  [key: string]: unknown
+}
+
+export interface SessionRecordDto {
+  id: string
+  userId: string
+  expiresAt: string
+  [key: string]: unknown
+}
+
+export interface SessionDto {
+  session: SessionRecordDto
+  user: SessionUserDto
+}
+
+export interface SnoozeReminderAckDto {
+  ok: boolean
+  snoozedUntil: string
+}
+
+export interface CancelTodayReminderAckDto {
+  ok: boolean
+  cancelledDate: string
+}
+
+export interface ReminderAcceptedDto {
+  ok: true
+  accepted: true
+}
+
+export type SnoozeReminderResponseDto = ApiDataResponseDto<SnoozeReminderAckDto>
+
+export type CancelTodayReminderResponseDto =
+  ApiDataResponseDto<CancelTodayReminderAckDto>
 
 export type StandupSectionTone = 'default' | 'cyan' | 'muted'
 
@@ -23,7 +116,12 @@ export interface Standup {
   date: string
   status: StandupStatus
   createdAt: string
+  updatedAt?: string
+  meetingType?: string
+  content?: string
   contentPreview: string
+  customEntries?: StandupCustomEntriesDto | null
+  userId?: string | null
   sections: StandupSection[]
   sources: StandupSourceRepo[]
 }

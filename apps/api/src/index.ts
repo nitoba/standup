@@ -2,11 +2,18 @@ import { loadApiEnv } from '@standup/config'
 import { Result } from '@standup/domain'
 import { createServiceLogger, withContext } from '@standup/logger'
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import { createAuth } from './auth/auth.js'
 import { handleAuthCallback } from './auth/callback-page.js'
 import { handleDiscordLogin } from './auth/login-redirect.js'
 import { sessionAuthMiddleware } from './auth/middleware.js'
 import { requestLogger } from './http/middleware.js'
+import { handleCancelTodayReminder } from './reminders/cancel-today.js'
+import { handleRunNowReminder } from './reminders/run-now.js'
+import { handleSnoozeReminder } from './reminders/snooze.js'
+import { handleListRepos } from './repos/list.js'
+import { handleGetMeSettings } from './settings/get-me.js'
+import { handlePutMySettings } from './settings/put-me.js'
 import { createStandupRouter } from './standup/router.js'
 
 type AppContext = {
@@ -35,9 +42,47 @@ const auth = createAuth({
   discordClientSecret: env.DISCORD_CLIENT_SECRET,
   betterAuthSecret: env.BETTER_AUTH_SECRET,
   betterAuthUrl: env.BETTER_AUTH_URL,
+  corsOrigin: env.CORS_ORIGIN,
   botInternalUrl: env.BOT_INTERNAL_URL,
   internalSecret: env.INTERNAL_SECRET,
 })
+
+const sessionMiddleware = sessionAuthMiddleware(auth, env.INTERNAL_SECRET)
+
+const standupRouter = createStandupRouter({
+  databaseUrl: env.DATABASE_URL,
+  reposRootPath: env.REPOS_ROOT_PATH,
+  workerInternalUrl: env.WORKER_INTERNAL_URL,
+  internalSecret: env.INTERNAL_SECRET,
+})
+
+const settingsRouter = new Hono<AppContext>()
+settingsRouter.get('/me', (c) => handleGetMeSettings(c, env.DATABASE_URL))
+settingsRouter.put('/me', (c) =>
+  handlePutMySettings(c, { databaseUrl: env.DATABASE_URL }),
+)
+
+const remindersRouter = new Hono<AppContext>()
+remindersRouter.post('/run-now', (c) =>
+  handleRunNowReminder(c, {
+    databaseUrl: env.DATABASE_URL,
+    reposRootPath: env.REPOS_ROOT_PATH,
+    workerInternalUrl: env.WORKER_INTERNAL_URL,
+    internalSecret: env.INTERNAL_SECRET,
+  }),
+)
+remindersRouter.post('/snooze', (c) =>
+  handleSnoozeReminder(c, {
+    workerInternalUrl: env.WORKER_INTERNAL_URL,
+    internalSecret: env.INTERNAL_SECRET,
+  }),
+)
+remindersRouter.post('/cancel-today', (c) =>
+  handleCancelTodayReminder(c, {
+    workerInternalUrl: env.WORKER_INTERNAL_URL,
+    internalSecret: env.INTERNAL_SECRET,
+  }),
+)
 
 // ---------------------------------------------------------------------------
 // Bootstrap
@@ -46,6 +91,15 @@ const auth = createAuth({
 const app = new Hono<AppContext>()
 
 app.use('*', requestLogger(logger))
+app.use(
+  '*',
+  cors({
+    origin: env.CORS_ORIGIN,
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization', 'x-internal-secret'],
+    credentials: true,
+  }),
+)
 
 // ---------------------------------------------------------------------------
 // Health / readiness (public, no auth)
@@ -78,17 +132,20 @@ app.get('/auth/login/discord', handleDiscordLogin(auth))
 // Protected domain routes
 // ---------------------------------------------------------------------------
 
-app.use('/standups/*', sessionAuthMiddleware(auth, env.INTERNAL_SECRET))
+app.use('/standups/*', sessionMiddleware)
+app.use('/settings/*', sessionMiddleware)
+app.use('/repos', sessionMiddleware)
+app.use('/reminders/*', sessionMiddleware)
 
-app.route(
-  '/',
-  createStandupRouter({
-    databaseUrl: env.DATABASE_URL,
-    reposRootPath: env.REPOS_ROOT_PATH,
+app.route('/', standupRouter)
+app.route('/settings', settingsRouter)
+app.get('/repos', (c) =>
+  handleListRepos(c, {
     workerInternalUrl: env.WORKER_INTERNAL_URL,
     internalSecret: env.INTERNAL_SECRET,
   }),
 )
+app.route('/reminders', remindersRouter)
 
 // ---------------------------------------------------------------------------
 // Error handler — catch-all para erros não tratados pelos handlers

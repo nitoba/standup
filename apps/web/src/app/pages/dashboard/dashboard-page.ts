@@ -49,14 +49,14 @@ import { StandupTable } from './standup-table'
           </div>
 
           <app-filter-bar
-            (statusChange)="statusFilter.set($event)"
-            (dateChange)="dateFilter.set($event)"
-            (searchChange)="searchFilter.set($event)"
+            (statusChange)="onStatusChange($event)"
+            (dateChange)="onDateChange($event)"
+            (searchChange)="onSearchChange($event)"
           />
 
           <app-standup-table
             [standups]="visibleStandups()"
-            [total]="filteredStandups().length"
+            [total]="searchFilteredStandups().length"
             (viewStandup)="openStandup($event)"
           />
         }
@@ -72,18 +72,10 @@ export class DashboardPage {
   readonly dateFilter = signal('this_week')
   readonly searchFilter = signal('')
 
-  readonly filteredStandups = computed(() => {
+  readonly searchFilteredStandups = computed(() => {
     const search = this.searchFilter().trim().toLowerCase()
 
     return this.standupService.standups.value().filter((standup) => {
-      const matchesStatus =
-        this.statusFilter() === 'all'
-          ? true
-          : standup.status === this.statusFilter()
-      const matchesDate =
-        this.dateFilter() === 'this_week'
-          ? standup.date >= '2026-03-03'
-          : standup.date === this.dateFilter()
       const matchesSearch =
         search.length === 0
           ? true
@@ -91,11 +83,13 @@ export class DashboardPage {
               .toLowerCase()
               .includes(search)
 
-      return matchesStatus && matchesDate && matchesSearch
+      return matchesSearch
     })
   })
 
-  readonly visibleStandups = computed(() => this.filteredStandups().slice(0, 5))
+  readonly visibleStandups = computed(() =>
+    this.searchFilteredStandups().slice(0, 5),
+  )
 
   readonly metricCards = computed(() => {
     const metrics = this.standupService.metrics()
@@ -138,5 +132,25 @@ export class DashboardPage {
 
   openStandup(id: string) {
     void this.router.navigate(['/standups', id])
+  }
+
+  onStatusChange(value: string) {
+    this.statusFilter.set(value)
+    this.standupService.setDashboardFilters({
+      status: this.statusFilter(),
+      date: this.dateFilter(),
+    })
+  }
+
+  onDateChange(value: string) {
+    this.dateFilter.set(value)
+    this.standupService.setDashboardFilters({
+      status: this.statusFilter(),
+      date: this.dateFilter(),
+    })
+  }
+
+  onSearchChange(value: string) {
+    this.searchFilter.set(value)
   }
 }

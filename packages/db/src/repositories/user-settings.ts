@@ -18,6 +18,7 @@ export interface UpsertUserSettingsInput {
   /** JSON-stringified array of selected repo names, e.g. '["repo-a","repo-b"]' */
   selectedRepos?: string
   gitAuthor: string
+  gitSincePeriod?: string
   active?: boolean
 }
 
@@ -75,6 +76,7 @@ export class UserSettingsRepository {
           timezone: input.timezone ?? 'America/Sao_Paulo',
           selectedRepos: input.selectedRepos ?? '[]',
           gitAuthor: input.gitAuthor,
+          gitSincePeriod: input.gitSincePeriod ?? '16 hours ago',
           active: input.active ?? true,
           createdAt: now,
           updatedAt: now,
@@ -96,6 +98,9 @@ export class UserSettingsRepository {
               selectedRepos: input.selectedRepos,
             }),
             gitAuthor: input.gitAuthor,
+            ...(input.gitSincePeriod !== undefined && {
+              gitSincePeriod: input.gitSincePeriod,
+            }),
             ...(input.active !== undefined && { active: input.active }),
             updatedAt: now,
           },
