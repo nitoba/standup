@@ -1,0 +1,138 @@
+import { ChangeDetectionStrategy, Component } from '@angular/core'
+
+@Component({
+  selector: 'app-login-page',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    class: 'block h-screen w-screen overflow-hidden',
+  },
+  template: `
+    <div class="relative h-full w-full bg-[var(--bg-page)] text-[var(--text-primary)]">
+      <!-- Background decorative comments -->
+      <span
+        class="absolute left-[4.17%] top-[8.89%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
+        aria-hidden="true"
+      >
+        // authenticating user...
+      </span>
+      <span
+        class="absolute left-[62.5%] top-[13.33%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
+        aria-hidden="true"
+      >
+        $ git log --oneline --since=today
+      </span>
+      <span
+        class="absolute left-[5.56%] top-[44.44%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
+        aria-hidden="true"
+      >
+        // awaiting credentials...
+      </span>
+      <span
+        class="absolute left-[76.39%] top-[48.89%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
+        aria-hidden="true"
+      >
+        $ cd ~/repos && git fetch --all
+      </span>
+      <span
+        class="absolute left-[8.33%] top-[80%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
+        aria-hidden="true"
+      >
+        // loading standup pipeline...
+      </span>
+      <span
+        class="absolute left-[66.67%] top-[84.44%] text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]"
+        aria-hidden="true"
+      >
+        $ standup --generate --publish
+      </span>
+
+      <!-- Blinking cursors -->
+      <span
+        class="absolute left-[17.01%] top-[8.89%] h-[14px] w-[7px] bg-[var(--accent-green)] opacity-60 animate-pulse"
+        aria-hidden="true"
+      ></span>
+      <span
+        class="absolute left-[92.22%] top-[48.89%] h-[14px] w-[7px] bg-[var(--accent-green)] opacity-60 animate-pulse"
+        aria-hidden="true"
+      ></span>
+
+      <!-- Login card -->
+      <div
+        class="absolute left-1/2 top-[24.44%] w-[420px] -translate-x-1/2 border border-[var(--border)] p-[40px] flex flex-col gap-[32px] items-center"
+      >
+        <!-- Logo section -->
+        <div class="flex flex-col gap-[8px] items-center w-full">
+          <div class="flex items-center gap-[8px]">
+            <span
+              class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[28px] font-bold"
+              >></span
+            >
+            <span
+              class="text-[var(--text-primary)] font-[var(--font-jetbrains)] text-[28px] font-bold"
+              >standup_bot</span
+            >
+          </div>
+          <div
+            class="text-center text-[var(--text-secondary)] font-[var(--font-ibm)] text-[13px] w-full"
+          >
+            automate your daily standups from git commits
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="h-[1px] w-full bg-[var(--border)]"></div>
+
+        <!-- How it works -->
+        <div class="flex flex-col gap-[12px] items-center w-full">
+          <div
+            class="text-[var(--text-secondary)] font-[var(--font-jetbrains)] text-[12px]"
+          >
+            // how it works
+          </div>
+          <div
+            class="text-center text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px] leading-[1.6] w-full"
+          >
+            collect commits → enrich with azure devops → generate standup via ai
+            → review and publish on discord
+          </div>
+        </div>
+
+        <!-- Sign in button -->
+        <div class="flex flex-col gap-[16px] items-center w-full">
+          <button
+            type="button"
+            class="w-full h-[44px] bg-[var(--accent-green)] flex items-center justify-center gap-[8px] text-[#0A0A0A] font-[var(--font-jetbrains)] text-[13px] font-medium cursor-pointer transition-all duration-150 hover:brightness-110 hover:shadow-[0_0_12px_var(--accent-green)] active:brightness-90"
+          >
+            <span>$</span>
+            <span>sign in with discord</span>
+          </button>
+          <div
+            class="text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[11px]"
+          >
+            // discord oauth2 — no password required
+          </div>
+        </div>
+
+        <!-- Version -->
+        <div
+          class="text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[11px]"
+        >
+          v1.0.0 — built with bun + hono + drizzle
+        </div>
+      </div>
+
+      <!-- Bottom prompt -->
+      <span
+        class="absolute left-[4.17%] top-[93.33%] text-[var(--text-tertiary)] font-[var(--font-jetbrains)] text-[11px]"
+        aria-hidden="true"
+      >
+        visitor@standup-bot:~$
+      </span>
+      <span
+        class="absolute left-[14.58%] top-[93.44%] h-[14px] w-[7px] bg-[var(--text-tertiary)] opacity-50"
+        aria-hidden="true"
+      ></span>
+    </div>
+  `,
+})
+export class LoginPage {}

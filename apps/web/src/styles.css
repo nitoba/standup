@@ -1,3 +1,25 @@
-/* You can add global styles to this file, and also import other style files */
+@import "tailwindcss";
 
-@import 'tailwindcss';
+@theme {
+  --bg-page: #0a0a0a;
+  --bg-surface: #0f0f0f;
+  --bg-active: #1f1f1f;
+  --border: #2a2a2a;
+  --text-primary: #fafafa;
+  --text-secondary: #6b7280;
+  --text-tertiary: #4b5563;
+  --text-emphasis: #ffffff;
+  --accent-green: #10b981;
+  --accent-cyan: #06b6d4;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 40px;
+
+  --font-jetbrains: "JetBrains Mono", monospace;
+  --font-ibm: "IBM Plex Mono", monospace;
+}

@@ -1,11 +1,18 @@
+import { provideHttpClient, withInterceptors } from '@angular/common/http'
 import {
   type ApplicationConfig,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core'
-import { provideRouter } from '@angular/router'
+import { provideRouter, withComponentInputBinding } from '@angular/router'
 
 import { routes } from './app.routes'
+import { authInterceptor } from './interceptors/auth.interceptor'
+import { mockApiInterceptor } from './interceptors/mock-api.interceptor'
 
 export const appConfig: ApplicationConfig = {
-  providers: [provideBrowserGlobalErrorListeners(), provideRouter(routes)],
+  providers: [
+    provideBrowserGlobalErrorListeners(),
+    provideHttpClient(withInterceptors([authInterceptor, mockApiInterceptor])),
+    provideRouter(routes, withComponentInputBinding()),
+  ],
 }
