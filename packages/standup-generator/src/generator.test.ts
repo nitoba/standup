@@ -10,8 +10,10 @@ import { determineWorkItemStatus } from './prompt/work-item-status.js'
 // Mocks
 // ---------------------------------------------------------------------------
 
-vi.mock('@ai-sdk/groq', () => ({
-  createGroq: vi.fn(() => (_model: string) => ({ modelId: _model })),
+vi.mock('@ai-sdk/google', () => ({
+  createGoogleGenerativeAI: vi.fn(() => (_model: string) => ({
+    modelId: _model,
+  })),
 }))
 
 vi.mock('ai', () => ({
@@ -30,7 +32,7 @@ vi.mock('ai', () => ({
     },
   }),
   Output: {
-    json: vi.fn(() => ({})),
+    object: vi.fn(() => ({})),
   },
 }))
 
