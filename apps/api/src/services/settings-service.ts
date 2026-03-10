@@ -29,7 +29,7 @@ export interface UpsertSettingsInput {
   recoveryCron: string
   timezone: string
   gitAuthor: string
-  gitSincePeriod: string
+  gitSincePeriod?: string
   selectedRepos: string[]
   active?: boolean
 }
@@ -114,7 +114,7 @@ export function upsertUserSettings(
     recoveryCron: input.recoveryCron,
     timezone: input.timezone,
     gitAuthor: input.gitAuthor,
-    gitSincePeriod: input.gitSincePeriod,
+    gitSincePeriod: input.gitSincePeriod ?? DEFAULT_SETTINGS.gitSincePeriod,
     selectedRepos: JSON.stringify(input.selectedRepos),
     ...(input.active !== undefined && { active: input.active }),
   }

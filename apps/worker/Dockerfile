@@ -38,20 +38,23 @@ COPY packages/observability/src packages/observability/src
 COPY packages/standup-generator/src packages/standup-generator/src
 COPY apps/worker/src apps/worker/src
 
+# TARGETARCH is injected by Docker (amd64, arm64, etc.)
+ARG TARGETARCH
 RUN bun build \
   --compile \
   --minify \
   --sourcemap \
   --bytecode \
-  --target=bun-linux-arm64 \
+  --target=bun-linux-$([ "$TARGETARCH" = "amd64" ] && echo "x64" || echo "$TARGETARCH") \
   --no-compile-autoload-dotenv \
   apps/worker/src/index.ts \
   --outfile /app/bin/worker
 
-# Stage 2: minimal runtime — debian-slim + git.
-# arm64 target requires glibc (Bun has no arm64-musl build), so Alpine is not an option.
-# debian-slim provides glibc + ca-certificates; git is needed by @standup/git-collector.
-FROM debian:12-slim AS runtime
+# Stage 2: runtime — oven/bun image (includes bunx for Azure MCP server) + git.
+# The worker spawns `bunx @tiberriver256/mcp-server-azure-devops` as a subprocess
+# for Azure DevOps enrichment, so the Bun runtime must be present at runtime.
+# oven/bun is based on debian and includes glibc, so the compiled binary runs fine.
+FROM oven/bun:1.3.9 AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   git ca-certificates \

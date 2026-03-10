@@ -37,12 +37,14 @@ COPY packages/logger/src packages/logger/src
 COPY packages/observability/src packages/observability/src
 COPY apps/api/src apps/api/src
 
+# TARGETARCH is injected by Docker (amd64, arm64, etc.)
+ARG TARGETARCH
 RUN bun build \
   --compile \
   --minify \
   --sourcemap \
   --bytecode \
-  --target=bun-linux-arm64 \
+  --target=bun-linux-$([ "$TARGETARCH" = "amd64" ] && echo "x64" || echo "$TARGETARCH") \
   --no-compile-autoload-dotenv \
   apps/api/src/index.ts \
   --outfile /app/bin/api

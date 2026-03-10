@@ -18,7 +18,7 @@ export const putMySettingsBodySchema = z.object({
   recoveryCron: requiredString('recoveryCron'),
   timezone: requiredString('timezone'),
   gitAuthor: requiredString('gitAuthor'),
-  gitSincePeriod: requiredString('gitSincePeriod'),
+  gitSincePeriod: z.string().trim().min(1).optional(),
   selectedRepos: z
     .array(z.string().trim().min(1, 'selectedRepos entries must be non-empty'))
     .min(1, 'selectedRepos must include at least one repo'),

@@ -33,12 +33,14 @@ COPY packages/logger/src packages/logger/src
 COPY packages/observability/src packages/observability/src
 COPY apps/discord-bot/src apps/discord-bot/src
 
+# TARGETARCH is injected by Docker (amd64, arm64, etc.)
+ARG TARGETARCH
 RUN bun build \
   --compile \
   --minify \
   --sourcemap \
   --bytecode \
-  --target=bun-linux-arm64 \
+  --target=bun-linux-$([ "$TARGETARCH" = "amd64" ] && echo "x64" || echo "$TARGETARCH") \
   --no-compile-autoload-dotenv \
   apps/discord-bot/src/index.ts \
   --outfile /app/bin/discord-bot

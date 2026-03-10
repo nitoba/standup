@@ -122,12 +122,13 @@ services:
       - standup-data:/app/data
       # Git repositories: bind-mounted read-only from host.
       # HOST_REPOS_ROOT_PATH points to the host path; inside the container the runtime root is /repos.
-      - ${HOST_REPOS_ROOT_PATH:-/home/nitoba/Documents/repos/ibs/repos}:/repos:ro
+      - ${HOST_REPOS_ROOT_PATH:-/home/nitoba/Documents/repos/ibs/repos}:/repos:ro,z
     env_file: .env.local
     environment:
       WORKER_INTERNAL_PORT: "3335"
       DATABASE_URL: /app/data/standup.db
       BOT_INTERNAL_URL: http://standup-discord-bot:3334
+      API_INTERNAL_URL: http://standup-api:3333
       REPOS_ROOT_PATH: /repos
       OTEL_EXPORTER_OTLP_ENDPOINT: http://standup-jaeger:4318
     networks:

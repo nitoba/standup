@@ -23,6 +23,7 @@ COPY packages/db/package.json packages/db/
 COPY packages/domain/package.json packages/domain/
 COPY packages/git-collector/package.json packages/git-collector/
 COPY packages/logger/package.json packages/logger/
+COPY packages/observability/package.json packages/observability/
 COPY packages/standup-generator/package.json packages/standup-generator/
 
 # Install dependencies scoped to @standup/web.
@@ -49,10 +50,15 @@ RUN rm -rf /usr/share/nginx/html/*
 # Copy the Angular build output
 COPY --from=builder /app/apps/web/dist/web/browser /usr/share/nginx/html
 
-# Copy custom nginx config
-COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx config as a template — ${DNS_RESOLVER} is replaced at startup
+COPY apps/web/nginx.conf /etc/nginx/templates/default.conf.template
+
+# Entrypoint: extracts DNS resolver from /etc/resolv.conf, substitutes only
+# ${DNS_RESOLVER} in the nginx template (preserving nginx's own $variables),
+# then starts nginx. Works on Docker (127.0.0.11) and Podman (aardvark-dns).
+COPY apps/web/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 80
 
-# nginx runs in foreground (required for Docker)
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/docker-entrypoint.sh"]

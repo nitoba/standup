@@ -20,6 +20,7 @@ COPY packages/db/package.json packages/db/
 COPY packages/domain/package.json packages/domain/
 COPY packages/git-collector/package.json packages/git-collector/
 COPY packages/logger/package.json packages/logger/
+COPY packages/observability/package.json packages/observability/
 COPY packages/standup-generator/package.json packages/standup-generator/
 
 # --filter installs only the db package and its dependencies
