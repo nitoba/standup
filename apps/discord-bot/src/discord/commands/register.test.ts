@@ -122,6 +122,38 @@ describe('buildStandupCommand', () => {
     expect(statusOption?.choices?.length).toBeGreaterThan(0)
   })
 
+  it('subcommand list tem opção search opcional', () => {
+    const cmd = buildStandupCommand()
+    const json = cmd.toJSON()
+    const options = json.options ?? []
+
+    const listSub = options.find((o) => o.name === 'list')
+
+    // @ts-expect-error — toJSON() retorna estrutura genérica
+    const listOptions: unknown[] = listSub?.options ?? []
+    const searchOption = (
+      listOptions as Array<{ name: string; required?: boolean }>
+    ).find((o) => o.name === 'search')
+    expect(searchOption).toBeDefined()
+    expect(searchOption?.required).not.toBe(true)
+  })
+
+  it('subcommand list tem opção page opcional', () => {
+    const cmd = buildStandupCommand()
+    const json = cmd.toJSON()
+    const options = json.options ?? []
+
+    const listSub = options.find((o) => o.name === 'list')
+
+    // @ts-expect-error — toJSON() retorna estrutura genérica
+    const listOptions: unknown[] = listSub?.options ?? []
+    const pageOption = (
+      listOptions as Array<{ name: string; required?: boolean }>
+    ).find((o) => o.name === 'page')
+    expect(pageOption).toBeDefined()
+    expect(pageOption?.required).not.toBe(true)
+  })
+
   it('subcommand approve tem opção id obrigatória', () => {
     const cmd = buildStandupCommand()
     const json = cmd.toJSON()

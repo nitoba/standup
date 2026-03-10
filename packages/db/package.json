@@ -13,8 +13,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "bun test src/",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
-    "db:migrate": "bun --env-file=../../.env run ./src/migrate.ts",
-    "db:studio": "bunx --env-file=../../.env drizzle-kit studio"
+    "db:migrate": "bun --env-file=../../.env.local run ./src/migrate.ts",
+    "db:studio": "bunx --env-file=../../.env.local drizzle-kit studio"
   },
   "dependencies": {
     "@standup/config": "workspace:*",

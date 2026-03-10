@@ -74,6 +74,22 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
+  # web — Angular SPA served via nginx + reverse proxy to API
+  # ---------------------------------------------------------------------------
+  web:
+    container_name: standup-web
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "${WEB_PORT:-4200}:80"
+    networks:
+      - internal
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  # ---------------------------------------------------------------------------
   # worker — cron scheduler + standup job pipeline + internal HTTP trigger
   # ---------------------------------------------------------------------------
   worker:

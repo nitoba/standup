@@ -11,7 +11,7 @@ import {
   transitionStandupStatus,
 } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq, gte, like, or, type SQL, sql } from 'drizzle-orm'
 import type { Db } from '../connection.js'
 import type { NewStandupRow } from '../schema.js'
 import { standups } from '../schema.js'
@@ -51,6 +51,7 @@ function toRecord(row: typeof standups.$inferSelect): StandupRecord {
     customEntries: parseCustomEntries(row.customEntries),
     status: row.status as StandupStatus,
     userId: row.userId,
+    dmMessageId: row.dmMessageId ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }
@@ -69,10 +70,86 @@ export interface CreateStandupInput {
   userId: string
 }
 
+export interface ReplaceGeneratedStandupInput {
+  meetingType: string
+  content: string
+  sourceData: string
+}
+
 export interface ListStandupFilters {
   status?: StandupStatus
   date?: string
   userId?: string
+  search?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface StandupListSummary {
+  total: number
+  approved: number
+  pending: number
+  rejected: number
+}
+
+export interface PaginatedStandupList {
+  items: StandupRecord[]
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+  summary: StandupListSummary
+}
+
+function buildListConditions(filters?: ListStandupFilters): SQL<unknown>[] {
+  const conditions: SQL<unknown>[] = []
+
+  if (filters?.status) {
+    if (filters.status === 'approved') {
+      const approvedCondition = or(
+        eq(standups.status, 'approved'),
+        eq(standups.status, 'published'),
+      )
+      if (approvedCondition) {
+        conditions.push(approvedCondition)
+      }
+    } else {
+      conditions.push(eq(standups.status, filters.status))
+    }
+  }
+
+  if (filters?.date) {
+    if (filters.date === 'this_week') {
+      const startOfToday = new Date()
+      startOfToday.setHours(0, 0, 0, 0)
+      startOfToday.setDate(startOfToday.getDate() - 6)
+      const year = startOfToday.getFullYear()
+      const month = String(startOfToday.getMonth() + 1).padStart(2, '0')
+      const day = String(startOfToday.getDate()).padStart(2, '0')
+      conditions.push(gte(standups.date, `${year}-${month}-${day}`))
+    } else {
+      conditions.push(eq(standups.date, filters.date))
+    }
+  }
+
+  if (filters?.userId) {
+    conditions.push(eq(standups.userId, filters.userId))
+  }
+
+  const search = filters?.search?.trim()
+  if (search) {
+    const term = `%${search}%`
+    const searchCondition = or(
+      like(standups.id, term),
+      like(standups.date, term),
+      like(standups.content, term),
+    )
+    if (searchCondition) {
+      conditions.push(searchCondition)
+    }
+  }
+
+  return conditions
 }
 
 // ---------------------------------------------------------------------------
@@ -172,20 +249,62 @@ export class StandupRepository {
 
   async list(
     filters?: ListStandupFilters,
-  ): Promise<Result<StandupRecord[], DbError>> {
+  ): Promise<Result<PaginatedStandupList, DbError>> {
     try {
-      const conditions = []
-      if (filters?.status) conditions.push(eq(standups.status, filters.status))
-      if (filters?.date) conditions.push(eq(standups.date, filters.date))
-      if (filters?.userId) conditions.push(eq(standups.userId, filters.userId))
+      const conditions = buildListConditions(filters)
+      const page = Math.max(filters?.page ?? 1, 1)
+      const pageSize = Math.max(filters?.pageSize ?? 20, 1)
+      const offset = (page - 1) * pageSize
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
-      const rows = await this.db
+      const totalQuery = this.db
+        .select({ count: sql<number>`count(*)` })
+        .from(standups)
+
+      const summaryQuery = this.db
+        .select({
+          total: sql<number>`count(*)`,
+          approved: sql<number>`sum(case when ${standups.status} in ('approved', 'published') then 1 else 0 end)`,
+          pending: sql<number>`sum(case when ${standups.status} = 'pending_review' then 1 else 0 end)`,
+          rejected: sql<number>`sum(case when ${standups.status} = 'rejected' then 1 else 0 end)`,
+        })
+        .from(standups)
+
+      const rowsQuery = this.db
         .select()
         .from(standups)
-        .where(conditions.length > 0 ? and(...conditions) : undefined)
-        .all()
+        .orderBy(desc(standups.date), desc(standups.createdAt))
+        .limit(pageSize)
+        .offset(offset)
 
-      return Result.ok(rows.map(toRecord))
+      const totalRow = whereClause
+        ? await totalQuery.where(whereClause).get()
+        : await totalQuery.get()
+
+      const summaryRow = whereClause
+        ? await summaryQuery.where(whereClause).get()
+        : await summaryQuery.get()
+
+      const rows = whereClause
+        ? await rowsQuery.where(whereClause).all()
+        : await rowsQuery.all()
+
+      const total = totalRow?.count ?? 0
+      const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize)
+
+      return Result.ok({
+        items: rows.map(toRecord),
+        page,
+        pageSize,
+        total,
+        totalPages,
+        summary: {
+          total: summaryRow?.total ?? 0,
+          approved: summaryRow?.approved ?? 0,
+          pending: summaryRow?.pending ?? 0,
+          rejected: summaryRow?.rejected ?? 0,
+        },
+      })
     } catch (error) {
       return this.dbErr('list', error)
     }
@@ -352,6 +471,62 @@ export class StandupRepository {
       })
     } catch (error) {
       return this.dbErr('updateCustomEntriesForUser', error)
+    }
+  }
+
+  async replaceGeneratedForUser(
+    id: string,
+    userId: string,
+    input: ReplaceGeneratedStandupInput,
+  ): Promise<Result<StandupRecord, NotFoundError | DbError>> {
+    try {
+      const found = await this.findByIdForUser(id, userId)
+      if (found.isErr()) return found
+
+      const now = Date.now()
+      await this.db
+        .update(standups)
+        .set({
+          meetingType: input.meetingType,
+          content: input.content,
+          sourceData: input.sourceData,
+          customEntries: null,
+          status: 'draft',
+          updatedAt: now,
+        })
+        .where(and(eq(standups.id, id), eq(standups.userId, userId)))
+
+      return Result.ok({
+        ...found.value,
+        meetingType: input.meetingType,
+        content: input.content,
+        sourceData: input.sourceData,
+        customEntries: null,
+        status: 'draft',
+        updatedAt: now,
+      })
+    } catch (error) {
+      return this.dbErr('replaceGeneratedForUser', error)
+    }
+  }
+
+  async updateDmMessageId(
+    id: string,
+    dmMessageId: string,
+  ): Promise<Result<StandupRecord, NotFoundError | DbError>> {
+    try {
+      const found = await this.findById(id)
+      if (found.isErr()) return found
+
+      const now = Date.now()
+      await this.db
+        .update(standups)
+        .set({ dmMessageId, updatedAt: now })
+        .where(eq(standups.id, id))
+
+      return Result.ok({ ...found.value, dmMessageId, updatedAt: now })
+    } catch (error) {
+      return this.dbErr('updateDmMessageId', error)
     }
   }
 

@@ -60,10 +60,21 @@ export async function notifyStandupReady(
     return Result.ok({ standupId, dmSent: false, transitioned: false })
   }
 
-  logger.info('Review DM sent successfully', {
-    standupId,
-    messageId: dmResult.value.messageId,
-  })
+  const { messageId } = dmResult.value
+  logger.info('Review DM sent successfully', { standupId, messageId })
+
+  // Persistir dmMessageId — non-fatal: se falhar, o standup ainda pode ser aprovado
+  const saveMessageIdResult = await repo.updateDmMessageId(standupId, messageId)
+  if (saveMessageIdResult.isErr()) {
+    logger.warn(
+      'Failed to save dmMessageId — DM was sent but ID not persisted',
+      {
+        standupId,
+        messageId,
+        error: saveMessageIdResult.error.message,
+      },
+    )
+  }
 
   // Transicionar draft → pending_review — non-fatal
   const transitionResult = await repo.updateStatus(standupId, 'pending_review')

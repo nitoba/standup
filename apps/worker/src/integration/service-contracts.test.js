@@ -1,7 +1,12 @@
 import { createServer } from 'node:http'
 import { Result } from '@standup/domain'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { Hono } from 'hono'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { handleCancelTodayReminder } from '../../../api/src/reminders/cancel-today.js'
+import { handleSnoozeReminder as handleApiSnoozeReminder } from '../../../api/src/reminders/snooze.js'
+import { handleListRepos as handleApiListRepos } from '../../../api/src/repos/list.js'
 import { triggerStandupJob as triggerStandupFromApi } from '../../../api/src/services/standup-trigger-service.js'
+import { createStandupRouter as createApiStandupRouter } from '../../../api/src/standup/router.js'
 import { handleReminderInteraction } from '../../../discord-bot/src/discord/handlers/reminder-handler.js'
 import { createInternalRouter as createBotRouter } from '../../../discord-bot/src/http/router.js'
 import { createInternalRouter as createWorkerRouter } from '../http/router.js'
@@ -9,8 +14,13 @@ import { notifyStandupReady } from '../notifications/notify-standup-ready.js'
 import { notifyStandupReminder } from '../notifications/notify-standup-reminder.js'
 
 const mocks = vi.hoisted(() => ({
+  approveStandup: vi.fn(),
   notifyStandupReady: vi.fn(),
   sendReminderDm: vi.fn(),
+}))
+
+vi.mock('../../../api/src/services/standup-approve-service.js', () => ({
+  approveStandup: mocks.approveStandup,
 }))
 
 vi.mock(
@@ -26,6 +36,11 @@ vi.mock(
     sendReminderDm: mocks.sendReminderDm,
   }),
 )
+
+// Necessário pois bot router importa standup-status-changed handler → standup-sync-service → @standup/db
+vi.mock('../../../discord-bot/src/services/standup-sync-service.js', () => ({
+  syncStandupStatus: vi.fn().mockResolvedValue({ isErr: () => false }),
+}))
 
 const dbMocks = vi.hoisted(() => ({
   hasActiveSession: vi.fn(),
@@ -49,6 +64,50 @@ vi.mock('@standup/db', () => ({
 const INTERNAL_SECRET = 'test-secret'
 const TEST_USER_ID = 'test-user-1'
 const TEST_DISCORD_USER_ID = 'discord-user-1'
+
+function createApiApp(workerInternalUrl) {
+  const app = new Hono()
+
+  app.use('*', async (c, next) => {
+    c.set('user', { id: TEST_USER_ID })
+    return next()
+  })
+
+  app.get('/repos', (c) =>
+    handleApiListRepos(c, {
+      workerInternalUrl,
+      internalSecret: INTERNAL_SECRET,
+    }),
+  )
+
+  app.post('/reminders/snooze', (c) =>
+    handleApiSnoozeReminder(c, {
+      workerInternalUrl,
+      internalSecret: INTERNAL_SECRET,
+    }),
+  )
+
+  app.post('/reminders/cancel-today', (c) =>
+    handleCancelTodayReminder(c, {
+      workerInternalUrl,
+      internalSecret: INTERNAL_SECRET,
+    }),
+  )
+
+  app.route(
+    '/',
+    createApiStandupRouter({
+      databaseUrl: ':memory:',
+      reposRootPath: '/tmp/repos',
+      workerInternalUrl,
+      internalSecret: INTERNAL_SECRET,
+      botInternalUrl: 'http://localhost:3334',
+      eventBus: { subscribe: vi.fn(), emit: vi.fn(), emitToAll: vi.fn() },
+    }),
+  )
+
+  return app
+}
 
 function readRequestBody(req) {
   return new Promise((resolve, reject) => {
@@ -130,7 +189,13 @@ async function startHonoServer(app) {
   }
 }
 
+beforeEach(() => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-03-09T17:48:50.203Z'))
+})
+
 afterEach(() => {
+  vi.useRealTimers()
   vi.clearAllMocks()
 })
 
@@ -246,6 +311,151 @@ describe('Cross-service HTTP contracts', () => {
     } finally {
       await server.close()
     }
+  })
+
+  it('api -> worker: GET /repos usa contrato aceito pelo router do worker', async () => {
+    const listRepositories = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Result.ok([
+          { id: 'repo-1', name: 'agrotrace-web', project: 'AGROTRACE' },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        Result.ok([
+          { id: 'repo-2', name: 'checkmilk-api', project: 'CHECKMILK' },
+        ]),
+      )
+
+    const workerApp = createWorkerRouter({
+      internalSecret: INTERNAL_SECRET,
+      databaseUrl: ':memory:',
+      triggerStandupJob: vi.fn().mockResolvedValue(undefined),
+      mcpClient: { listRepositories },
+      azureProjects: ['AGROTRACE', 'CHECKMILK'],
+    })
+
+    const workerServer = await startHonoServer(workerApp)
+    try {
+      const apiApp = createApiApp(workerServer.baseUrl)
+      const response = await apiApp.request('/repos')
+
+      expect(response.status).toBe(200)
+      expect(await response.json()).toEqual({
+        data: [
+          { id: 'repo-1', name: 'agrotrace-web', project: 'AGROTRACE' },
+          { id: 'repo-2', name: 'checkmilk-api', project: 'CHECKMILK' },
+        ],
+      })
+      expect(listRepositories).toHaveBeenNthCalledWith(1, 'AGROTRACE')
+      expect(listRepositories).toHaveBeenNthCalledWith(2, 'CHECKMILK')
+    } finally {
+      await workerServer.close()
+    }
+  })
+
+  it('api -> worker: reminder proxy routes usam contratos aceitos pelo router do worker', async () => {
+    dbMocks.updateSnoozedUntil.mockResolvedValue(Result.ok(undefined))
+    dbMocks.updateCancelledDate.mockResolvedValue(Result.ok(undefined))
+
+    const workerApp = createWorkerRouter({
+      internalSecret: INTERNAL_SECRET,
+      databaseUrl: ':memory:',
+      triggerStandupJob: vi.fn().mockResolvedValue(undefined),
+      mcpClient: {},
+      azureProjects: ['AGROTRACE'],
+    })
+
+    const workerServer = await startHonoServer(workerApp)
+    try {
+      const apiApp = createApiApp(workerServer.baseUrl)
+
+      const snoozeResponse = await apiApp.request('/reminders/snooze', {
+        method: 'POST',
+      })
+
+      expect(snoozeResponse.status).toBe(200)
+      expect(await snoozeResponse.json()).toEqual({
+        data: {
+          ok: true,
+          snoozedUntil: '2026-03-09T18:03:50.203Z',
+        },
+      })
+      expect(dbMocks.updateSnoozedUntil).toHaveBeenCalledWith(
+        TEST_USER_ID,
+        Date.parse('2026-03-09T18:03:50.203Z'),
+      )
+
+      const cancelResponse = await apiApp.request('/reminders/cancel-today', {
+        method: 'POST',
+      })
+
+      expect(cancelResponse.status).toBe(200)
+      expect(await cancelResponse.json()).toEqual({
+        data: {
+          ok: true,
+          cancelledDate: '2026-03-09',
+        },
+      })
+      expect(dbMocks.updateCancelledDate).toHaveBeenCalledWith(
+        TEST_USER_ID,
+        '2026-03-09',
+      )
+    } finally {
+      await workerServer.close()
+    }
+  })
+
+  it('client -> api: approve route transitions standup to approved and returns 200', async () => {
+    const approvedRecord = {
+      id: 'standup-approve-1',
+      date: '2026-03-09',
+      meetingType: 'daily',
+      content: 'conteudo aprovado',
+      sourceData: '{}',
+      customEntries: { directCalls: ['Sync com produto'] },
+      status: 'approved',
+      userId: TEST_USER_ID,
+      createdAt: 1,
+      updatedAt: 2,
+      dmMessageId: null,
+    }
+
+    mocks.approveStandup.mockImplementation(
+      async (standupId, userId, _deps, customEntries) => {
+        expect(standupId).toBe('standup-approve-1')
+        expect(userId).toBe(TEST_USER_ID)
+        expect(customEntries).toEqual({
+          scheduledMeetings: [],
+          directCalls: ['Sync com produto'],
+        })
+
+        return Result.ok({ kind: 'success', standup: approvedRecord })
+      },
+    )
+
+    const apiApp = createApiApp('http://worker-not-used')
+    const response = await apiApp.fetch(
+      new Request('http://localhost/standups/standup-approve-1/approve', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          customEntries: {
+            scheduledMeetings: [],
+            directCalls: ['Sync com produto'],
+          },
+        }),
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ data: approvedRecord })
+    expect(mocks.approveStandup).toHaveBeenCalledWith(
+      'standup-approve-1',
+      TEST_USER_ID,
+      expect.objectContaining({ databaseUrl: ':memory:' }),
+      { scheduledMeetings: [], directCalls: ['Sync com produto'] },
+    )
   })
 
   it('bot -> worker: actions snooze/cancel usam contratos aceitos pelo router do worker', async () => {

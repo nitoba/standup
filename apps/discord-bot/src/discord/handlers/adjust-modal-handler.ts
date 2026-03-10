@@ -73,6 +73,7 @@ export async function handleAdjustModal(
       forceRegenerate: true,
       rewriteFromStandupId: standupId,
       rewriteInstruction,
+      replaceStandupId: standupId,
     },
   )
 

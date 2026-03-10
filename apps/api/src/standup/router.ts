@@ -1,5 +1,8 @@
 import { sValidator } from '@hono/standard-validator'
 import { Hono } from 'hono'
+import type { EventBus } from '../sse/event-bus.js'
+import { handleStandupEvents } from '../sse/sse-handler.js'
+import { approveBodySchema, handleApproveStandup } from './approve.js'
 import { handleGetStandupById } from './get-by-id.js'
 import { handleListStandups, listQuerySchema } from './list.js'
 import { handleTriggerStandup, triggerBodySchema } from './trigger.js'
@@ -13,6 +16,8 @@ export interface StandupRouterDeps {
   reposRootPath: string
   workerInternalUrl: string
   internalSecret: string
+  botInternalUrl: string
+  eventBus: EventBus
 }
 
 /**
@@ -42,6 +47,10 @@ export function createStandupRouter(deps: StandupRouterDeps): Hono {
     return handleListStandups(c, c.req.valid('query'), deps.databaseUrl, userId)
   })
 
+  // GET /standups/events — SSE stream para notificações em tempo real
+  // DEVE ficar antes de /standups/:id para não ser capturado pelo param route
+  app.get('/standups/events', (c) => handleStandupEvents(c, deps.eventBus))
+
   // GET /standups/:id — detalhe por ID
   app.get('/standups/:id', async (c) => {
     const userId = getUserId(c)
@@ -51,7 +60,7 @@ export function createStandupRouter(deps: StandupRouterDeps): Hono {
     return handleGetStandupById(c, c.req.param('id'), deps.databaseUrl, userId)
   })
 
-  // PATCH /standups/:id/status — aprovação manual (state machine valida transição)
+  // PATCH /standups/:id/status — transições diretas/rejeição (aprovação tem rota dedicada)
   app.patch(
     '/standups/:id/status',
     sValidator('json', updateStatusBodySchema),
@@ -65,6 +74,34 @@ export function createStandupRouter(deps: StandupRouterDeps): Hono {
         c.req.param('id'),
         c.req.valid('json'),
         deps.databaseUrl,
+        userId,
+        {
+          botInternalUrl: deps.botInternalUrl,
+          internalSecret: deps.internalSecret,
+        },
+      )
+    },
+  )
+
+  // POST /standups/:id/approve — fluxo dedicado de aprovação + publicação via bot
+  app.post(
+    '/standups/:id/approve',
+    sValidator('json', approveBodySchema),
+    async (c) => {
+      const userId = getUserId(c)
+      if (!userId) {
+        return c.json({ error: 'Unauthorized' }, 401)
+      }
+
+      return handleApproveStandup(
+        c,
+        c.req.param('id'),
+        c.req.valid('json'),
+        {
+          databaseUrl: deps.databaseUrl,
+          botInternalUrl: deps.botInternalUrl,
+          internalSecret: deps.internalSecret,
+        },
         userId,
       )
     },

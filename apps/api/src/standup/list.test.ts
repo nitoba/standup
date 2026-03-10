@@ -38,7 +38,22 @@ const standupRecord = {
   sourceData: '{}',
   status: 'draft' as const,
   createdAt: 1000,
+  dmMessageId: null,
   updatedAt: 1000,
+}
+
+const paginatedStandupResult = {
+  items: [standupRecord],
+  page: 1,
+  pageSize: 20,
+  total: 1,
+  totalPages: 1,
+  summary: {
+    total: 1,
+    approved: 0,
+    pending: 0,
+    rejected: 0,
+  },
 }
 
 function makeGetRequest(url: string): Request {
@@ -59,6 +74,12 @@ describe('GET /standups', () => {
       reposRootPath: '/repos',
       workerInternalUrl: WORKER_INTERNAL_URL,
       internalSecret: INTERNAL_SECRET,
+      botInternalUrl: 'http://localhost:3334',
+      eventBus: {
+        subscribe: vi.fn(),
+        emit: vi.fn(),
+        emitToAll: vi.fn(),
+      } as unknown as import('../sse/event-bus.js').EventBus,
     })
     app = new Hono<{ Variables: { user: Record<string, unknown> } }>()
     app.use('*', async (c, next) => {
@@ -73,50 +94,120 @@ describe('GET /standups', () => {
   })
 
   it('retorna array vazio quando não há standups', async () => {
-    mocks.listStandups.mockResolvedValue(Result.ok([]))
+    mocks.listStandups.mockResolvedValue(
+      Result.ok({
+        ...paginatedStandupResult,
+        items: [],
+        total: 0,
+        totalPages: 0,
+        summary: { total: 0, approved: 0, pending: 0, rejected: 0 },
+      }),
+    )
 
     const res = await app.fetch(makeGetRequest('/standups'))
 
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { data: unknown[] }
+    const body = (await res.json()) as {
+      data: unknown[]
+      pagination: { total: number }
+    }
     expect(body.data).toEqual([])
     expect(mocks.listStandups).toHaveBeenCalledWith(
-      { status: undefined, date: undefined, userId: TEST_USER_ID },
+      {
+        status: undefined,
+        date: undefined,
+        search: undefined,
+        page: 1,
+        pageSize: 20,
+        userId: TEST_USER_ID,
+      },
       { databaseUrl: DATABASE_URL },
     )
+    expect(body.pagination.total).toBe(0)
   })
 
   it('retorna todos os standups sem filtros', async () => {
-    mocks.listStandups.mockResolvedValue(Result.ok([standupRecord]))
+    mocks.listStandups.mockResolvedValue(Result.ok(paginatedStandupResult))
 
     const res = await app.fetch(makeGetRequest('/standups'))
 
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { data: (typeof standupRecord)[] }
+    const body = (await res.json()) as {
+      data: (typeof standupRecord)[]
+      pagination: {
+        page: number
+        pageSize: number
+        total: number
+        totalPages: number
+      }
+      summary: { total: number }
+    }
     expect(body.data).toHaveLength(1)
     expect(body.data[0]?.id).toBe('standup-abc')
+    expect(body.pagination).toEqual({
+      page: 1,
+      pageSize: 20,
+      total: 1,
+      totalPages: 1,
+    })
+    expect(body.summary.total).toBe(1)
   })
 
   it('passa filtro de status para o service', async () => {
-    mocks.listStandups.mockResolvedValue(Result.ok([standupRecord]))
+    mocks.listStandups.mockResolvedValue(Result.ok(paginatedStandupResult))
 
     const res = await app.fetch(makeGetRequest('/standups?status=draft'))
 
     expect(res.status).toBe(200)
     expect(mocks.listStandups).toHaveBeenCalledWith(
-      { status: 'draft', date: undefined, userId: TEST_USER_ID },
+      {
+        status: 'draft',
+        date: undefined,
+        search: undefined,
+        page: 1,
+        pageSize: 20,
+        userId: TEST_USER_ID,
+      },
       { databaseUrl: DATABASE_URL },
     )
   })
 
   it('passa filtro de date para o service', async () => {
-    mocks.listStandups.mockResolvedValue(Result.ok([standupRecord]))
+    mocks.listStandups.mockResolvedValue(Result.ok(paginatedStandupResult))
 
     const res = await app.fetch(makeGetRequest('/standups?date=2026-03-04'))
 
     expect(res.status).toBe(200)
     expect(mocks.listStandups).toHaveBeenCalledWith(
-      { status: undefined, date: '2026-03-04', userId: TEST_USER_ID },
+      {
+        status: undefined,
+        date: '2026-03-04',
+        search: undefined,
+        page: 1,
+        pageSize: 20,
+        userId: TEST_USER_ID,
+      },
+      { databaseUrl: DATABASE_URL },
+    )
+  })
+
+  it('passa paginação e search para o service', async () => {
+    mocks.listStandups.mockResolvedValue(Result.ok(paginatedStandupResult))
+
+    const res = await app.fetch(
+      makeGetRequest('/standups?search=retry&page=2&pageSize=5'),
+    )
+
+    expect(res.status).toBe(200)
+    expect(mocks.listStandups).toHaveBeenCalledWith(
+      {
+        status: undefined,
+        date: undefined,
+        search: 'retry',
+        page: 2,
+        pageSize: 5,
+        userId: TEST_USER_ID,
+      },
       { databaseUrl: DATABASE_URL },
     )
   })

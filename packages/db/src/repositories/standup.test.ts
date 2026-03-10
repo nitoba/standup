@@ -30,6 +30,7 @@ async function setupTables(db: Db): Promise<void> {
       custom_entries TEXT,
       status      TEXT NOT NULL DEFAULT 'draft',
       user_id     TEXT REFERENCES user(id),
+      dm_message_id TEXT,
       created_at  INTEGER NOT NULL,
       updated_at  INTEGER NOT NULL
     )
@@ -177,7 +178,8 @@ describe('StandupRepository', () => {
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') return
 
-      expect(result.value).toHaveLength(3)
+      expect(result.value.items).toHaveLength(3)
+      expect(result.value.total).toBe(3)
     })
 
     it('filters by status', async () => {
@@ -190,8 +192,35 @@ describe('StandupRepository', () => {
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') return
 
-      expect(result.value).toHaveLength(1)
-      expect(result.value[0]?.id).toBe('p2')
+      expect(result.value.items).toHaveLength(1)
+      expect(result.value.items[0]?.id).toBe('p2')
+    })
+
+    it('treats approved filter as approved plus published', async () => {
+      const approved = await repo.create(makeInput({ id: 'approved-1' }))
+      const published = await repo.create(makeInput({ id: 'published-1' }))
+      await repo.create(makeInput({ id: 'draft-1' }))
+
+      if (approved.status === 'ok') {
+        await repo.updateStatus('approved-1', 'pending_review')
+        await repo.updateStatus('approved-1', 'approved')
+      }
+
+      if (published.status === 'ok') {
+        await repo.updateStatus('published-1', 'pending_review')
+        await repo.updateStatus('published-1', 'approved')
+        await repo.updateStatus('published-1', 'published')
+      }
+
+      const result = await repo.list({ status: 'approved' })
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.items.map((item) => item.id).sort()).toEqual([
+        'approved-1',
+        'published-1',
+      ])
     })
 
     it('filters by date', async () => {
@@ -204,7 +233,51 @@ describe('StandupRepository', () => {
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') return
 
-      expect(result.value).toHaveLength(2)
+      expect(result.value.items).toHaveLength(2)
+    })
+
+    it('supports pagination and reports summary', async () => {
+      await repo.create(makeInput({ id: 'page-1', date: '2026-03-10' }))
+      await repo.create(makeInput({ id: 'page-2', date: '2026-03-09' }))
+      await repo.create(makeInput({ id: 'page-3', date: '2026-03-08' }))
+
+      await repo.updateStatus('page-1', 'pending_review')
+      await repo.updateStatus('page-2', 'pending_review')
+      await repo.updateStatus('page-2', 'approved')
+      await repo.updateStatus('page-3', 'pending_review')
+      await repo.updateStatus('page-3', 'rejected')
+
+      const result = await repo.list({ page: 2, pageSize: 1 })
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.items).toHaveLength(1)
+      expect(result.value.page).toBe(2)
+      expect(result.value.pageSize).toBe(1)
+      expect(result.value.total).toBe(3)
+      expect(result.value.totalPages).toBe(3)
+      expect(result.value.summary).toEqual({
+        total: 3,
+        approved: 1,
+        pending: 1,
+        rejected: 1,
+      })
+    })
+
+    it('supports search filter', async () => {
+      await repo.create(
+        makeInput({ id: 'search-1', content: 'Implemented pagination' }),
+      )
+      await repo.create(makeInput({ id: 'search-2', content: 'Updated docs' }))
+
+      const result = await repo.list({ search: 'pagination' })
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.items).toHaveLength(1)
+      expect(result.value.items[0]?.id).toBe('search-1')
     })
   })
 
@@ -477,6 +550,64 @@ describe('StandupRepository', () => {
         {
           scheduledMeetings: ['Planning Backend'],
           directCalls: [],
+        },
+      )
+
+      expect(result.status).toBe('error')
+      if (result.status !== 'error') return
+
+      expect(result.error._tag).toBe('NotFoundError')
+    })
+  })
+
+  describe('replaceGeneratedForUser', () => {
+    it('substitui o conteúdo gerado mantendo o mesmo registro', async () => {
+      await repo.create(makeInput())
+      await repo.updateStatus('test-id-1', 'pending_review')
+      await repo.updateCustomEntries('test-id-1', {
+        scheduledMeetings: ['Planning'],
+        directCalls: ['Sync'],
+      })
+
+      const result = await repo.replaceGeneratedForUser(
+        'test-id-1',
+        'test-user-1',
+        {
+          meetingType: 'Start of week meeting',
+          content: '**Standup atualizado**\n\n- item novo',
+          sourceData: '{"repos":[]}',
+        },
+      )
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.id).toBe('test-id-1')
+      expect(result.value.createdAt).toBeGreaterThan(0)
+      expect(result.value.status).toBe('draft')
+      expect(result.value.customEntries).toBeNull()
+      expect(result.value.content).toContain('item novo')
+
+      const found = await repo.findById('test-id-1')
+      expect(found.status).toBe('ok')
+      if (found.status !== 'ok') return
+
+      expect(found.value.id).toBe('test-id-1')
+      expect(found.value.status).toBe('draft')
+      expect(found.value.customEntries).toBeNull()
+      expect(found.value.sourceData).toBe('{"repos":[]}')
+    })
+
+    it('retorna NotFoundError quando o standup pertence a outro usuário', async () => {
+      await repo.create(makeInput())
+
+      const result = await repo.replaceGeneratedForUser(
+        'test-id-1',
+        'other-user',
+        {
+          meetingType: 'Daily standup',
+          content: 'novo conteúdo',
+          sourceData: '{}',
         },
       )
 

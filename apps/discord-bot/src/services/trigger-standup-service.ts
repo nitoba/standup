@@ -10,6 +10,7 @@ export interface TriggerStandupOptions {
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
   rewriteInstruction?: string
+  replaceStandupId?: string
 }
 
 export type TriggerStandupOutcome =
@@ -41,6 +42,7 @@ export async function triggerStandup(
           forceRegenerate: options?.forceRegenerate,
           rewriteFromStandupId: options?.rewriteFromStandupId,
           rewriteInstruction: options?.rewriteInstruction,
+          replaceStandupId: options?.replaceStandupId,
         }),
       })
 

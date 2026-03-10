@@ -136,6 +136,7 @@ describe('handleRegenerateModal', () => {
       { apiBaseUrl: 'http://localhost:3333', internalSecret: 'test-secret' },
       {
         forceRegenerate: true,
+        replaceStandupId: 'standup-1',
         extraContext: 'Focar mais no card #1234',
       },
     )
@@ -175,7 +176,7 @@ describe('handleRegenerateModal', () => {
       expect.any(String),
       'user-123',
       { apiBaseUrl: 'http://localhost:3333', internalSecret: 'test-secret' },
-      { forceRegenerate: true },
+      { forceRegenerate: true, replaceStandupId: 'standup-1' },
     )
   })
 

@@ -17,6 +17,7 @@ import {
   generateStandup,
 } from '@standup/standup-generator'
 import { notifyJobFailed } from '../notifications/notify-job-failed.js'
+import { notifyStandupGenerated } from '../notifications/notify-standup-generated.js'
 import { notifyStandupReady } from '../notifications/notify-standup-ready.js'
 import { notifyUserDm } from '../notifications/notify-user-dm.js'
 
@@ -48,6 +49,7 @@ export interface StandupJobOptions {
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
   rewriteInstruction?: string
+  replaceStandupId?: string
 }
 
 type ResolveAdjustmentError = DbError | NotFoundError | ValidationError
@@ -58,6 +60,39 @@ interface StandupAdjustmentRequest {
   previousContent: string
   sourceData: string
   meetingType: string
+}
+
+async function saveGeneratedStandup(
+  standupRepo: StandupRepository,
+  options: StandupJobOptions,
+  input: {
+    date: string
+    meetingType: string
+    content: string
+    sourceData: string
+  },
+): Promise<Result<{ id: string }, DbError | NotFoundError>> {
+  const replaceStandupId = options.replaceStandupId?.trim()
+  if (replaceStandupId) {
+    return standupRepo.replaceGeneratedForUser(
+      replaceStandupId,
+      options.userId,
+      {
+        meetingType: input.meetingType,
+        content: input.content,
+        sourceData: input.sourceData,
+      },
+    )
+  }
+
+  return standupRepo.create({
+    id: Bun.randomUUIDv7(),
+    date: input.date,
+    meetingType: input.meetingType,
+    content: input.content,
+    sourceData: input.sourceData,
+    userId: options.userId,
+  })
 }
 
 function buildGenerationExtraContext(
@@ -149,7 +184,7 @@ export async function runStandupJob(
           title: '⏳ Standup já em processamento',
           message:
             'Seu standup já está sendo gerado em background. Você receberá uma DM assim que estiver pronto para revisão.',
-          color: DM_COLORS.INFO,
+          color: DM_COLORS.WARNING,
         })
         if (dmResult.isErr()) {
           jobLogger.warn('Failed to send lock-held DM to user', {
@@ -184,6 +219,27 @@ export async function runStandupJob(
       error: lockResult.error.message,
     })
     return
+  }
+
+  // ---------------------------------------------------------------------------
+  // Lock adquirido — notificar usuário que a geração começou (feedback imediato)
+  // ---------------------------------------------------------------------------
+
+  if (options.discordUserId) {
+    const startDmResult = await notifyUserDm({
+      botInternalUrl: env.BOT_INTERNAL_URL,
+      secret: env.INTERNAL_SECRET,
+      discordUserId: options.discordUserId,
+      title: '⏳ Standup já em processamento',
+      message:
+        'Seu standup já está sendo gerado em background. Você receberá uma DM assim que estiver pronto para revisão.',
+      color: DM_COLORS.INFO,
+    })
+    if (startDmResult.isErr()) {
+      jobLogger.warn('Failed to send start DM to user — non-fatal', {
+        error: startDmResult.error.message,
+      })
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -226,15 +282,19 @@ export async function runStandupJob(
         baseStandupId: adjustmentRequest.standupId,
       })
 
+      const replaceStandupId =
+        options.replaceStandupId?.trim() || adjustmentRequest.standupId
       const record = yield* Result.await(
-        standupRepo.create({
-          id: Bun.randomUUIDv7(),
-          date: today,
-          meetingType: adjustmentRequest.meetingType,
-          content: adjusted.content,
-          sourceData: adjustmentRequest.sourceData,
-          userId: options.userId,
-        }),
+        saveGeneratedStandup(
+          standupRepo,
+          { ...options, replaceStandupId },
+          {
+            date: today,
+            meetingType: adjustmentRequest.meetingType,
+            content: adjusted.content,
+            sourceData: adjustmentRequest.sourceData,
+          },
+        ),
       )
 
       jobLogger.info('Adjusted standup draft saved', {
@@ -258,6 +318,15 @@ export async function runStandupJob(
         jobLogger.info('Bot notified', { standupId: record.id })
       }
 
+      // Notify API to push SSE event to web client — fire-and-forget
+      await notifyStandupGenerated({
+        apiInternalUrl: env.API_INTERNAL_URL,
+        internalSecret: env.INTERNAL_SECRET,
+        userId: options.userId,
+        standupId: record.id,
+        date: today,
+      })
+
       return Result.ok(record.id)
     }
 
@@ -267,7 +336,7 @@ export async function runStandupJob(
         reposRootPath: options.reposRootPath,
         selectedRepos: options.selectedRepos,
         author: options.gitAuthor,
-        sincePeriod: '16 hours ago',
+        sincePeriod: '8 hours ago',
       }),
     )
 
@@ -318,13 +387,11 @@ export async function runStandupJob(
 
     // Step 3: Persist as draft
     const record = yield* Result.await(
-      standupRepo.create({
-        id: Bun.randomUUIDv7(),
+      saveGeneratedStandup(standupRepo, options, {
         date: today,
         meetingType,
         content: generated.content,
         sourceData: JSON.stringify(gitActivity),
-        userId: options.userId,
       }),
     )
 
@@ -348,6 +415,15 @@ export async function runStandupJob(
     } else {
       jobLogger.info('Bot notified', { standupId: record.id })
     }
+
+    // Step 5: Notify API to push SSE event to web client — fire-and-forget
+    await notifyStandupGenerated({
+      apiInternalUrl: env.API_INTERNAL_URL,
+      internalSecret: env.INTERNAL_SECRET,
+      userId: options.userId,
+      standupId: record.id,
+      date: today,
+    })
 
     return Result.ok(record.id)
   })

@@ -29,6 +29,8 @@ export async function handleList(
   interaction: ChatInputCommandInteraction,
   deps: { databaseUrl: string },
 ): Promise<void> {
+  const page = interaction.options.getInteger('page') ?? 1
+  const search = interaction.options.getString('search')?.trim() || undefined
   const statusFilter = interaction.options.getString(
     'status',
   ) as StandupStatus | null
@@ -36,6 +38,8 @@ export async function handleList(
   logger.info('Received /standup list command', {
     userId: interaction.user.id,
     statusFilter,
+    search,
+    page,
   })
 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral })
@@ -53,7 +57,9 @@ export async function handleList(
         : undefined
 
     const result = await repo.list(
-      statusFilter ? { status: statusFilter, userId } : { userId },
+      statusFilter
+        ? { status: statusFilter, userId, search, page, pageSize: 10 }
+        : { userId, search, page, pageSize: 10 },
     )
 
     if (result.isErr()) {
@@ -63,19 +69,20 @@ export async function handleList(
       return
     }
 
-    const records = result.value
-    if (records.length === 0) {
+    const { items, total, totalPages } = result.value
+    if (items.length === 0) {
       const filterMsg = statusFilter
         ? ` com status "${standupStatusLabel(statusFilter)}"`
         : ''
+      const searchMsg = search ? ` para busca "${search}"` : ''
       await interaction.editReply(
-        `\u{1F4ED} Nenhum standup encontrado${filterMsg}.`,
+        `\u{1F4ED} Nenhum standup encontrado${filterMsg}${searchMsg}.`,
       )
       return
     }
 
     // Exibir até 10 standups como embeds (limite do Discord)
-    const embeds = records.slice(0, 10).map((record) => ({
+    const embeds = items.map((record) => ({
       title: `Standup de ${record.date}`,
       color: EMBED_COLORS.REVIEW,
       fields: [
@@ -96,7 +103,7 @@ export async function handleList(
         },
       ],
       footer: {
-        text: `standup-bot | ${records.length} standup(s) encontrado(s)`,
+        text: `standup-bot | página ${page}/${totalPages || 1} | ${total} standup(s) encontrado(s)${search ? ` | busca: ${search}` : ''}`,
       },
     }))
 

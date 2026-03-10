@@ -198,6 +198,25 @@ describe('createInternalRouter', () => {
     })
   })
 
+  it('passa replaceStandupId ao triggerStandupJob quando fornecido', async () => {
+    const app = makeRouter()
+
+    const res = await app.fetch(
+      makeRequest('/internal/trigger/standup', INTERNAL_SECRET, {
+        ...TRIGGER_BODY,
+        forceRegenerate: true,
+        replaceStandupId: 'standup-abc',
+      }),
+    )
+
+    expect(res.status).toBe(202)
+    expect(triggerStandupJob).toHaveBeenCalledWith({
+      ...TRIGGER_BODY,
+      forceRegenerate: true,
+      replaceStandupId: 'standup-abc',
+    })
+  })
+
   // ---------------------------------------------------------------------------
   // POST /internal/reminder/snooze
   // ---------------------------------------------------------------------------

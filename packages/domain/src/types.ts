@@ -55,6 +55,7 @@ export interface StandupRecord {
   customEntries: CustomEntries | null
   status: StandupStatus
   userId: string | null
+  dmMessageId: string | null
   createdAt: number
   updatedAt: number
 }

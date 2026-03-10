@@ -43,6 +43,7 @@ const standupRecord = {
   sourceData: '{}',
   status: 'draft' as const,
   createdAt: 1000,
+  dmMessageId: null,
   updatedAt: 1000,
 }
 
@@ -68,6 +69,12 @@ describe('PATCH /standups/:id/status', () => {
       reposRootPath: '/repos',
       workerInternalUrl: WORKER_INTERNAL_URL,
       internalSecret: INTERNAL_SECRET,
+      botInternalUrl: 'http://localhost:3334',
+      eventBus: {
+        subscribe: vi.fn(),
+        emit: vi.fn(),
+        emitToAll: vi.fn(),
+      } as unknown as import('../sse/event-bus.js').EventBus,
     })
     app = new Hono<{ Variables: { user: Record<string, unknown> } }>()
     app.use('*', async (c, next) => {
@@ -120,13 +127,22 @@ describe('PATCH /standups/:id/status', () => {
     expect(mocks.updateStandupStatus).not.toHaveBeenCalled()
   })
 
+  it('retorna 400 quando status é approved', async () => {
+    const res = await app.fetch(
+      makePatchRequest('/standups/standup-xyz/status', { status: 'approved' }),
+    )
+
+    expect(res.status).toBe(400)
+    expect(mocks.updateStandupStatus).not.toHaveBeenCalled()
+  })
+
   it('retorna 404 quando standup não existe', async () => {
     mocks.updateStandupStatus.mockResolvedValue(
       Result.err(new NotFoundError({ resource: 'standup', id: 'standup-xyz' })),
     )
 
     const res = await app.fetch(
-      makePatchRequest('/standups/standup-xyz/status', { status: 'approved' }),
+      makePatchRequest('/standups/standup-xyz/status', { status: 'rejected' }),
     )
 
     expect(res.status).toBe(404)

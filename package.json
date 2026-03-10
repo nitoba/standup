@@ -22,10 +22,11 @@
   },
   "scripts": {
     "dev": "turbo run dev",
-    "dev:local": "turbo run dev:local --filter=@standup/api --filter=@standup/worker --filter=@standup/discord-bot",
+    "dev:local": "turbo run dev:local --filter=@standup/api --filter=@standup/worker --filter=@standup/discord-bot --filter=@standup/web",
     "dev:local:api": "bun run --cwd apps/api dev:local",
     "dev:local:worker": "bun run --cwd apps/worker dev:local",
     "dev:local:bot": "bun run --cwd apps/discord-bot dev:local",
+    "dev:local:web": "bun run --cwd apps/web dev:local",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

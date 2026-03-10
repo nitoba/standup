@@ -290,7 +290,7 @@ jobs:
                   { "name": "Build", "value": "⏳ Running...", "inline": true },
                   { "name": "Deploy", "value": "⏳ Pending", "inline": true },
                   { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Images", "value": ($api_img + "\n⏳  **standup-bot** — building...\n⏳  **standup-worker** — pending\n⏳  **standup-migrate** — pending"), "inline": false },
+                  { "name": "Images", "value": ($api_img + "\n⏳  **standup-bot** — building...\n⏳  **standup-worker** — pending\n⏳  **standup-migrate** — pending\n⏳  **standup-web** — pending"), "inline": false },
                   { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
                 ],
                 "footer": { "text": "Standup Bot CI/CD" },
@@ -367,7 +367,7 @@ jobs:
                   { "name": "Build", "value": "⏳ Running...", "inline": true },
                   { "name": "Deploy", "value": "⏳ Pending", "inline": true },
                   { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Images", "value": ($api_img + "\n" + $bot_img + "\n⏳  **standup-worker** — building...\n⏳  **standup-migrate** — pending"), "inline": false },
+                  { "name": "Images", "value": ($api_img + "\n" + $bot_img + "\n⏳  **standup-worker** — building...\n⏳  **standup-migrate** — pending\n⏳  **standup-web** — pending"), "inline": false },
                   { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
                 ],
                 "footer": { "text": "Standup Bot CI/CD" },
@@ -449,7 +449,7 @@ jobs:
                   { "name": "Build", "value": "⏳ Running...", "inline": true },
                   { "name": "Deploy", "value": "⏳ Pending", "inline": true },
                   { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Images", "value": ($api_img + "\n" + $bot_img + "\n" + $worker_img + "\n⏳  **standup-migrate** — building..."), "inline": false },
+                  { "name": "Images", "value": ($api_img + "\n" + $bot_img + "\n" + $worker_img + "\n⏳  **standup-migrate** — building...\n⏳  **standup-web** — pending"), "inline": false },
                   { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
                 ],
                 "footer": { "text": "Standup Bot CI/CD" },
@@ -482,6 +482,93 @@ jobs:
           cache-from: type=gha,scope=migrate
           cache-to: type=gha,mode=max,scope=migrate
 
+      # ── Discord: Migrate image built ─────────────────────────
+      - name: "Notify: Migrate image built"
+        if: always() && needs.quality.outputs.message_id
+        continue-on-error: true
+        run: |
+          MSG_ID="${{ needs.quality.outputs.message_id }}"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+
+          API_OUT="${{ steps.build-api.outcome }}"
+          BOT_OUT="${{ steps.build-bot.outcome }}"
+          WORKER_OUT="${{ steps.build-worker.outcome }}"
+          MIGRATE_OUT="${{ steps.build-migrate.outcome }}"
+
+          if [ "$API_OUT" = "success" ]; then API_IMG="✅  **standup-api** — built"
+          else API_IMG="❌  **standup-api** — failed"; fi
+
+          if [ "$BOT_OUT" = "success" ]; then BOT_IMG="✅  **standup-bot** — built"
+          else BOT_IMG="❌  **standup-bot** — failed"; fi
+
+          if [ "$WORKER_OUT" = "success" ]; then WORKER_IMG="✅  **standup-worker** — built"
+          else WORKER_IMG="❌  **standup-worker** — failed"; fi
+
+          if [ "$MIGRATE_OUT" = "success" ]; then MIGRATE_IMG="✅  **standup-migrate** — built"
+          else MIGRATE_IMG="❌  **standup-migrate** — failed"; fi
+
+          payload=$(jq -n \
+            --arg sha "$SHORT_SHA" \
+            --arg commit_url "$COMMIT_URL" \
+            --arg branch "${GITHUB_REF_NAME}" \
+            --arg actor "${GITHUB_ACTOR}" \
+            --arg run_url "$RUN_URL" \
+            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg api_img "$API_IMG" \
+            --arg bot_img "$BOT_IMG" \
+            --arg worker_img "$WORKER_IMG" \
+            --arg migrate_img "$MIGRATE_IMG" \
+            '{
+              "embeds": [{
+                "title": "Standup CI/CD Pipeline",
+                "description": ("Build em andamento para [`" + $sha + "`](" + $commit_url + ") em `" + $branch + "`"),
+                "color": 15105570,
+                "fields": [
+                  { "name": "Commit", "value": ("[`" + $sha + "`](" + $commit_url + ")"), "inline": true },
+                  { "name": "Branch", "value": ("`" + $branch + "`"), "inline": true },
+                  { "name": "Actor", "value": $actor, "inline": true },
+                  { "name": "\u200b", "value": "\u200b", "inline": false },
+                  { "name": "Quality", "value": "✅ Passed", "inline": true },
+                  { "name": "Build", "value": "⏳ Running...", "inline": true },
+                  { "name": "Deploy", "value": "⏳ Pending", "inline": true },
+                  { "name": "\u200b", "value": "\u200b", "inline": false },
+                  { "name": "Images", "value": ($api_img + "\n" + $bot_img + "\n" + $worker_img + "\n" + $migrate_img + "\n⏳  **standup-web** — building..."), "inline": false },
+                  { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
+                ],
+                "footer": { "text": "Standup Bot CI/CD" },
+                "timestamp": $ts
+              }]
+            }')
+
+          curl -sS -X PATCH "${DISCORD_DEPLOY_WEBHOOK_URL}/messages/${MSG_ID}" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
+
+      - name: Meta (web)
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/nitoba/standup-web
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest
+
+      - name: Build & push (web)
+        id: build-web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: |
+            service=standup-web
+            ${{ steps.meta-web.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
       # ── Discord: Build Complete ────────────────────────────────
       - name: "Notify: Build complete"
         if: always() && needs.quality.outputs.message_id
@@ -496,6 +583,7 @@ jobs:
           BOT_OUT="${{ steps.build-bot.outcome }}"
           WORKER_OUT="${{ steps.build-worker.outcome }}"
           MIGRATE_OUT="${{ steps.build-migrate.outcome }}"
+          WEB_OUT="${{ steps.build-web.outcome }}"
 
           if [ "$API_OUT" = "success" ]; then API_IMG="✅  **standup-api**"
           else API_IMG="❌  **standup-api** — failed"; fi
@@ -509,13 +597,16 @@ jobs:
           if [ "$MIGRATE_OUT" = "success" ]; then MIGRATE_IMG="✅  **standup-migrate**"
           else MIGRATE_IMG="❌  **standup-migrate** — failed"; fi
 
+          if [ "$WEB_OUT" = "success" ]; then WEB_IMG="✅  **standup-web**"
+          else WEB_IMG="❌  **standup-web** — failed"; fi
+
           ALL_BUILD_OK="true"
-          for outcome in "$API_OUT" "$BOT_OUT" "$WORKER_OUT" "$MIGRATE_OUT"; do
+          for outcome in "$API_OUT" "$BOT_OUT" "$WORKER_OUT" "$MIGRATE_OUT" "$WEB_OUT"; do
             if [ "$outcome" != "success" ]; then ALL_BUILD_OK="false"; break; fi
           done
 
           if [ "$ALL_BUILD_OK" = "true" ]; then
-            BUILD_SUMMARY="✅ 4 images"
+            BUILD_SUMMARY="✅ 5 images"
             COLOR=15105570
             DESC="Build concluido. Deploy em andamento para [\`${SHORT_SHA}\`](${COMMIT_URL})"
             DEPLOY_STATUS="⏳ Running..."
@@ -541,6 +632,7 @@ jobs:
             --arg bot_img "$BOT_IMG" \
             --arg worker_img "$WORKER_IMG" \
             --arg migrate_img "$MIGRATE_IMG" \
+            --arg web_img "$WEB_IMG" \
             '{
               "embeds": [{
                 "title": "Standup CI/CD Pipeline",
@@ -555,7 +647,7 @@ jobs:
                   { "name": "Build", "value": $build_summary, "inline": true },
                   { "name": "Deploy", "value": $deploy_status, "inline": true },
                   { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Images", "value": ($api_img + "\n" + $bot_img + "\n" + $worker_img + "\n" + $migrate_img), "inline": false },
+                  { "name": "Images", "value": ($api_img + "\n" + $bot_img + "\n" + $worker_img + "\n" + $migrate_img + "\n" + $web_img), "inline": false },
                   { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
                 ],
                 "footer": { "text": "Standup Bot CI/CD" },
@@ -665,6 +757,9 @@ jobs:
       - name: Validate Kamal config (Worker)
         run: kamal config -c config/deploy.worker.yml
 
+      - name: Validate Kamal config (Web)
+        run: kamal config -c config/deploy.web.yml
+
       # ── Discord: Deploy Started ────────────────────────────────
       - name: "Notify: Deploy started"
         id: notify-deploy-start
@@ -694,10 +789,10 @@ jobs:
                   { "name": "Actor", "value": $actor, "inline": true },
                   { "name": "\u200b", "value": "\u200b", "inline": false },
                   { "name": "Quality", "value": "✅ Passed", "inline": true },
-                  { "name": "Build", "value": "✅ 4 images", "inline": true },
+                  { "name": "Build", "value": "✅ 5 images", "inline": true },
                   { "name": "Deploy", "value": "⏳ Running...", "inline": true },
                   { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Deploy Progress", "value": "⏳  **standup-api** — pending\n⏳  **standup-bot** — pending\n⏳  **standup-worker** — pending", "inline": false },
+                  { "name": "Deploy Progress", "value": "⏳  **standup-api** — pending\n⏳  **standup-bot** — pending\n⏳  **standup-worker** — pending\n⏳  **standup-web** — pending", "inline": false },
                   { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
                 ],
                 "footer": { "text": "Standup Bot CI/CD" },
@@ -777,10 +872,10 @@ jobs:
                   { "name": "Actor", "value": $actor, "inline": true },
                   { "name": "\u200b", "value": "\u200b", "inline": false },
                   { "name": "Quality", "value": "✅ Passed", "inline": true },
-                  { "name": "Build", "value": "✅ 4 images", "inline": true },
+                  { "name": "Build", "value": "✅ 5 images", "inline": true },
                   { "name": "Migrations", "value": "✅ Applied", "inline": true },
                   { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Deploy Progress", "value": ($api_status + "\n⏳  **standup-bot** — deploying...\n⏳  **standup-worker** — pending"), "inline": false },
+                  { "name": "Deploy Progress", "value": ($api_status + "\n⏳  **standup-bot** — deploying...\n⏳  **standup-worker** — pending\n⏳  **standup-web** — pending"), "inline": false },
                   { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
                 ],
                 "footer": { "text": "Standup Bot CI/CD" },
@@ -842,10 +937,10 @@ jobs:
                   { "name": "Actor", "value": $actor, "inline": true },
                   { "name": "\u200b", "value": "\u200b", "inline": false },
                   { "name": "Quality", "value": "✅ Passed", "inline": true },
-                  { "name": "Build", "value": "✅ 4 images", "inline": true },
+                  { "name": "Build", "value": "✅ 5 images", "inline": true },
                   { "name": "Migrations", "value": "✅ Applied", "inline": true },
                   { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Deploy Progress", "value": ($api_status + "\n" + $bot_status + "\n⏳  **standup-worker** — deploying..."), "inline": false },
+                  { "name": "Deploy Progress", "value": ($api_status + "\n" + $bot_status + "\n⏳  **standup-worker** — deploying...\n⏳  **standup-web** — pending"), "inline": false },
                   { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
                 ],
                 "footer": { "text": "Standup Bot CI/CD" },
@@ -868,8 +963,7 @@ jobs:
             --version "sha-${DEPLOY_VERSION}" \
             --skip-hooks
 
-      # ── Discord: Final Status ──────────────────────────────────
-      - name: "Notify: Deploy finished"
+      - name: "Notify: Worker deployed"
         if: always() && needs.quality.outputs.message_id
         continue-on-error: true
         run: |
@@ -893,13 +987,90 @@ jobs:
           elif [ "$WORKER_OUTCOME" = "skipped" ]; then WORKER_STATUS="⏭️  **standup-worker** — skipped"
           else WORKER_STATUS="❌  **standup-worker** — failed"; fi
 
+          payload=$(jq -n \
+            --arg sha "$SHORT_SHA" \
+            --arg commit_url "$COMMIT_URL" \
+            --arg branch "${GITHUB_REF_NAME}" \
+            --arg actor "${GITHUB_ACTOR}" \
+            --arg run_url "$RUN_URL" \
+            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg api_status "$API_STATUS" \
+            --arg bot_status "$BOT_STATUS" \
+            --arg worker_status "$WORKER_STATUS" \
+            '{
+              "embeds": [{
+                "title": "Standup CI/CD Pipeline",
+                "description": ("**Deploy em andamento** para [`" + $sha + "`](" + $commit_url + ") em `" + $branch + "`"),
+                "color": 15105570,
+                "fields": [
+                  { "name": "Commit", "value": ("[`" + $sha + "`](" + $commit_url + ")"), "inline": true },
+                  { "name": "Branch", "value": ("`" + $branch + "`"), "inline": true },
+                  { "name": "Actor", "value": $actor, "inline": true },
+                  { "name": "\u200b", "value": "\u200b", "inline": false },
+                  { "name": "Quality", "value": "✅ Passed", "inline": true },
+                  { "name": "Build", "value": "✅ 5 images", "inline": true },
+                  { "name": "Migrations", "value": "✅ Applied", "inline": true },
+                  { "name": "\u200b", "value": "\u200b", "inline": false },
+                  { "name": "Deploy Progress", "value": ($api_status + "\n" + $bot_status + "\n" + $worker_status + "\n⏳  **standup-web** — deploying..."), "inline": false },
+                  { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
+                ],
+                "footer": { "text": "Standup Bot CI/CD" },
+                "timestamp": $ts
+              }]
+            }')
+
+          curl -sS -X PATCH "${DISCORD_DEPLOY_WEBHOOK_URL}/messages/${MSG_ID}" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
+
+      # ── Deploy: Web ────────────────────────────────────────────
+      - name: Deploy Web
+        id: deploy-web
+        if: always() && steps.deploy-api.outcome == 'success'
+        run: |
+          kamal deploy \
+            -c config/deploy.web.yml \
+            --skip-push \
+            --version "sha-${DEPLOY_VERSION}" \
+            --skip-hooks
+
+      # ── Discord: Final Status ──────────────────────────────────
+      - name: "Notify: Deploy finished"
+        if: always() && needs.quality.outputs.message_id
+        continue-on-error: true
+        run: |
+          MSG_ID="${{ needs.quality.outputs.message_id }}"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+
+          API_OUTCOME="${{ steps.deploy-api.outcome }}"
+          BOT_OUTCOME="${{ steps.deploy-bot.outcome }}"
+          WORKER_OUTCOME="${{ steps.deploy-worker.outcome }}"
+          WEB_OUTCOME="${{ steps.deploy-web.outcome }}"
+
+          if [ "$API_OUTCOME" = "success" ]; then API_STATUS="✅  **standup-api** — deployed"
+          else API_STATUS="❌  **standup-api** — failed"; fi
+
+          if [ "$BOT_OUTCOME" = "success" ]; then BOT_STATUS="✅  **standup-bot** — deployed"
+          elif [ "$BOT_OUTCOME" = "skipped" ]; then BOT_STATUS="⏭️  **standup-bot** — skipped"
+          else BOT_STATUS="❌  **standup-bot** — failed"; fi
+
+          if [ "$WORKER_OUTCOME" = "success" ]; then WORKER_STATUS="✅  **standup-worker** — deployed"
+          elif [ "$WORKER_OUTCOME" = "skipped" ]; then WORKER_STATUS="⏭️  **standup-worker** — skipped"
+          else WORKER_STATUS="❌  **standup-worker** — failed"; fi
+
+          if [ "$WEB_OUTCOME" = "success" ]; then WEB_STATUS="✅  **standup-web** — deployed"
+          elif [ "$WEB_OUTCOME" = "skipped" ]; then WEB_STATUS="⏭️  **standup-web** — skipped"
+          else WEB_STATUS="❌  **standup-web** — failed"; fi
+
           MIGRATION_OUTCOME="${{ steps.migrations.outcome }}"
           if [ "$MIGRATION_OUTCOME" = "success" ]; then MIGRATION_STATUS="✅ Applied"
           else MIGRATION_STATUS="❌ Failed"; fi
 
           # Determine overall status
           ALL_OK="true"
-          for outcome in "$API_OUTCOME" "$BOT_OUTCOME" "$WORKER_OUTCOME"; do
+          for outcome in "$API_OUTCOME" "$BOT_OUTCOME" "$WORKER_OUTCOME" "$WEB_OUTCOME"; do
             if [ "$outcome" != "success" ]; then ALL_OK="false"; break; fi
           done
 
@@ -930,6 +1101,7 @@ jobs:
             --arg api_status "$API_STATUS" \
             --arg bot_status "$BOT_STATUS" \
             --arg worker_status "$WORKER_STATUS" \
+            --arg web_status "$WEB_STATUS" \
             '{
               "content": $content,
               "embeds": [{
@@ -942,10 +1114,10 @@ jobs:
                   { "name": "Actor", "value": $actor, "inline": true },
                   { "name": "\u200b", "value": "\u200b", "inline": false },
                   { "name": "Quality", "value": "✅ Passed", "inline": true },
-                  { "name": "Build", "value": "✅ 4 images", "inline": true },
+                  { "name": "Build", "value": "✅ 5 images", "inline": true },
                   { "name": "Migrations", "value": $migration_status, "inline": true },
                   { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Services Deployed", "value": ($api_status + "\n" + $bot_status + "\n" + $worker_status), "inline": false },
+                  { "name": "Services Deployed", "value": ($api_status + "\n" + $bot_status + "\n" + $worker_status + "\n" + $web_status), "inline": false },
                   { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
                 ],
                 "footer": { "text": "Standup Bot CI/CD" },

@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   generateAdjusted: vi.fn(),
   determineMeetingType: vi.fn().mockReturnValue(''),
   repoCreate: vi.fn(),
+  repoReplaceGeneratedForUser: vi.fn(),
   repoFindByIdForUser: vi.fn(),
   getDb: vi.fn().mockReturnValue({}),
   acquireLock: vi.fn(),
@@ -47,6 +48,7 @@ vi.mock('@standup/db', () => {
   function StandupRepository() {
     return {
       create: mocks.repoCreate,
+      replaceGeneratedForUser: mocks.repoReplaceGeneratedForUser,
       findByIdForUser: mocks.repoFindByIdForUser,
     }
   }
@@ -66,6 +68,10 @@ vi.mock('../notifications/notify-job-failed.js', () => ({
 
 vi.mock('../notifications/notify-user-dm.js', () => ({
   notifyUserDm: mocks.notifyUserDm,
+}))
+
+vi.mock('../notifications/notify-standup-generated.js', () => ({
+  notifyStandupGenerated: vi.fn().mockResolvedValue(undefined),
 }))
 
 // Mock Bun.sleep para evitar delays reais nos testes de retry.
@@ -94,6 +100,7 @@ const baseEnv: WorkerEnv = {
   AZURE_DEVOPS_PAT: 'pat-test',
   AZURE_DEVOPS_DEFAULT_PROJECT: 'AGROTRACE',
   BOT_INTERNAL_URL: 'http://localhost:3334',
+  API_INTERNAL_URL: 'http://localhost:3333',
   WORKER_INTERNAL_PORT: 3335,
   INTERNAL_SECRET: 'test-secret',
   REPOS_ROOT_PATH: '/repos',
@@ -138,6 +145,7 @@ const savedRecord = {
   sourceData: JSON.stringify(gitActivityWithCommits),
   status: 'draft' as const,
   createdAt: 1000,
+  dmMessageId: null,
   updatedAt: 1000,
 }
 
@@ -171,6 +179,7 @@ describe('runStandupJob', () => {
     mocks.releaseLock.mockResolvedValue(Result.ok(undefined)) // configurado aqui onde Result ja esta disponivel
     mocks.sleep.mockResolvedValue(undefined)
     mocks.notifyUserDm.mockResolvedValue(Result.ok(undefined))
+    mocks.repoReplaceGeneratedForUser.mockResolvedValue(Result.ok(savedRecord))
   })
 
   afterEach(() => {
@@ -265,7 +274,7 @@ describe('runStandupJob', () => {
       expect(mocks.notifyUserDm).toHaveBeenCalledWith(
         expect.objectContaining({
           discordUserId: 'test-discord-1',
-          color: 0x3498db,
+          color: 0xf39c12, // WARNING âmbar — já em processamento
         }),
       )
     })
@@ -340,7 +349,6 @@ describe('runStandupJob', () => {
       mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
       mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
       mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
-      mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(savedRecord))
       mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
 
       await runStandupJob(baseEnv, baseOptions)
@@ -390,11 +398,20 @@ describe('runStandupJob', () => {
 
       await runStandupJob(baseEnv, baseOptions)
 
-      expect(mocks.notifyUserDm).toHaveBeenCalledOnce()
-      expect(mocks.notifyUserDm).toHaveBeenCalledWith(
+      // 2 DMs: 1ª = "gerando em background" (INFO azul), 2ª = "nenhuma atividade" (WARNING âmbar)
+      expect(mocks.notifyUserDm).toHaveBeenCalledTimes(2)
+      expect(mocks.notifyUserDm).toHaveBeenNthCalledWith(
+        1,
         expect.objectContaining({
           discordUserId: 'test-discord-1',
-          color: 0xf39c12, // WARNING âmbar
+          color: 0x3498db, // INFO azul — gerando
+        }),
+      )
+      expect(mocks.notifyUserDm).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          discordUserId: 'test-discord-1',
+          color: 0xf39c12, // WARNING âmbar — nenhuma atividade
         }),
       )
     })
@@ -403,7 +420,6 @@ describe('runStandupJob', () => {
       mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
       mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
       mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
-      mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(savedRecord))
       mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
 
       await runStandupJob(baseEnv, baseOptions)
@@ -523,7 +539,9 @@ describe('runStandupJob', () => {
 
     it('ajusta em cima do standup anterior sem coletar git novamente', async () => {
       mocks.generateAdjusted.mockResolvedValue(Result.ok(generatedStandup))
-      mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
+      mocks.repoReplaceGeneratedForUser.mockResolvedValue(
+        Result.ok(savedRecord),
+      )
       mocks.repoFindByIdForUser.mockResolvedValue(
         Result.ok({
           ...savedRecord,
@@ -544,6 +562,16 @@ describe('runStandupJob', () => {
         'standup-abc',
         'test-user-1',
       )
+      expect(mocks.repoReplaceGeneratedForUser).toHaveBeenCalledWith(
+        'standup-abc',
+        'test-user-1',
+        {
+          meetingType: savedRecord.meetingType,
+          content: generatedStandup.content,
+          sourceData: savedRecord.sourceData,
+        },
+      )
+      expect(mocks.repoCreate).not.toHaveBeenCalled()
       expect(mocks.collect).not.toHaveBeenCalled()
       expect(mocks.generate).not.toHaveBeenCalled()
       expect(mocks.generateAdjusted).toHaveBeenCalledOnce()
@@ -559,6 +587,38 @@ describe('runStandupJob', () => {
       )
       expect(input.previousContent).toContain('Standup base')
       expect(input.extraContext).toBe('Deixar mais objetivo')
+    })
+
+    it('reutiliza o mesmo standup quando force regenerate recebe replaceStandupId', async () => {
+      mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
+      mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
+      mocks.repoReplaceGeneratedForUser.mockResolvedValue(
+        Result.ok(savedRecord),
+      )
+      mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
+
+      await runStandupJob(baseEnv, {
+        ...baseOptions,
+        forceRegenerate: true,
+        replaceStandupId: 'standup-abc',
+      })
+
+      expect(mocks.repoReplaceGeneratedForUser).toHaveBeenCalledWith(
+        'standup-abc',
+        'test-user-1',
+        {
+          meetingType: '',
+          content: generatedStandup.content,
+          sourceData: JSON.stringify(gitActivityWithCommits),
+        },
+      )
+      expect(mocks.repoCreate).not.toHaveBeenCalled()
+      expect(mocks.notifyStandupReady).toHaveBeenCalledWith({
+        botInternalUrl: baseEnv.BOT_INTERNAL_URL,
+        standupId: savedRecord.id,
+        discordUserId: 'test-discord-1',
+        secret: baseEnv.INTERNAL_SECRET,
+      })
     })
 
     it('falha quando rewriteInstruction e enviado sem rewriteFromStandupId', async () => {

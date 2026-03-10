@@ -76,20 +76,28 @@ export class JobRunRepository {
 
       if (existing) {
         if (existing.status === 'running') {
-          logger.warn('Lock already held', {
-            jobName: input.jobName,
-            date: input.date,
-            existingId: existing.id,
-          })
-          return Result.err(
-            new LockAlreadyHeldError({
+          if (input.forceRegenerate) {
+            // forceRegenerate ignora lock preso — trata como failed e permite nova execução
+            logger.warn('Force regenerate — overriding stuck running lock', {
               jobName: input.jobName,
               date: input.date,
-            }),
-          )
-        }
-
-        if (existing.status === 'success') {
+              existingId: existing.id,
+            })
+            await this.db.delete(jobRuns).where(eq(jobRuns.id, existing.id))
+          } else {
+            logger.warn('Lock already held', {
+              jobName: input.jobName,
+              date: input.date,
+              existingId: existing.id,
+            })
+            return Result.err(
+              new LockAlreadyHeldError({
+                jobName: input.jobName,
+                date: input.date,
+              }),
+            )
+          }
+        } else if (existing.status === 'success') {
           if (input.forceRegenerate) {
             logger.info('Force regenerate — deleting previous success', {
               jobName: input.jobName,
@@ -109,10 +117,10 @@ export class JobRunRepository {
               }),
             )
           }
+        } else {
+          // status === 'failed': permite re-tentar — deleta o registro anterior
+          await this.db.delete(jobRuns).where(eq(jobRuns.id, existing.id))
         }
-
-        // status === 'failed': permite re-tentar — deleta o registro anterior
-        await this.db.delete(jobRuns).where(eq(jobRuns.id, existing.id))
       }
 
       // Cria o registro de lock

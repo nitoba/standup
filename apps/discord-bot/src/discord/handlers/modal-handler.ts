@@ -91,6 +91,7 @@ export async function handleRegenerateModal(
   // Step 3: Trigger new generation via API (full regenerate)
   const triggerOptions: TriggerStandupOptions = {
     forceRegenerate: true,
+    replaceStandupId: standupId,
     ...(extraContext ? { extraContext } : {}),
   }
 

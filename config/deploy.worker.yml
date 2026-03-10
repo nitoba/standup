@@ -54,6 +54,7 @@ env:
     DATABASE_URL: /app/data/standup.db
     REPOS_ROOT_PATH: /repos
     BOT_INTERNAL_URL: http://standup-bot:3334
+    API_INTERNAL_URL: http://standup-api:3333
     AZURE_DEVOPS_DEFAULT_PROJECT: AGROTRACE
   secret:
     - AI_PROVIDER_API_KEY

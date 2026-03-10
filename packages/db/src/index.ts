@@ -8,6 +8,8 @@ export { JobRunRepository } from './repositories/job-run.js'
 export type {
   CreateStandupInput,
   ListStandupFilters,
+  PaginatedStandupList,
+  StandupListSummary,
 } from './repositories/standup.js'
 export { StandupRepository } from './repositories/standup.js'
 export type { UserWithAccount } from './repositories/user.js'

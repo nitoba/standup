@@ -16,6 +16,7 @@ export interface AuthDeps {
   discordClientSecret: string
   betterAuthSecret: string
   betterAuthUrl: string
+  corsOrigin: string
   botInternalUrl: string
   internalSecret: string
 }
@@ -31,6 +32,7 @@ export function createAuth(deps: AuthDeps) {
     database: drizzleAdapter(db, { provider: 'sqlite' }),
     secret: deps.betterAuthSecret,
     baseURL: deps.betterAuthUrl,
+    trustedOrigins: [deps.corsOrigin],
     socialProviders: {
       discord: {
         clientId: deps.discordClientId,
