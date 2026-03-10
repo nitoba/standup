@@ -13,6 +13,7 @@ COPY apps/web/tsconfig.app.json apps/web/
 COPY apps/web/angular.json apps/web/
 COPY apps/web/.postcssrc.json apps/web/
 COPY packages/config/package.json packages/config/
+COPY packages/domain/package.json packages/domain/
 
 # Install dependencies scoped to @standup/web.
 # --frozen-lockfile is incompatible with partial workspace installs.
