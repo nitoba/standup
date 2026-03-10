@@ -233,12 +233,12 @@ export class DashboardPage {
 
   async triggerGeneration(extraContext?: string) {
     try {
-      await this.standupService.trigger(extraContext)
-      toast(
+      this.standupService.trigger(extraContext)
+      toast.success(
         'Solicitação aceita — você será notificado quando o standup estiver pronto.',
       )
     } catch {
-      toast('Falha ao disparar geração do standup')
+      toast.error('Falha ao disparar geração do standup')
     }
   }
 

@@ -3,7 +3,11 @@ import type { GatheredGitActivity, GenerateStandupInput } from '@standup/domain'
 import { ExternalServiceError, Result } from '@standup/domain'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { determineMeetingType } from './prompt/meeting-type.js'
-import { MAX_STANDUP_CONTENT_CHARS } from './prompt/prompt.js'
+import {
+  buildSystemPrompt,
+  buildUserMessage,
+  MAX_STANDUP_CONTENT_CHARS,
+} from './prompt/prompt.js'
 import { determineWorkItemStatus } from './prompt/work-item-status.js'
 
 // ---------------------------------------------------------------------------
@@ -252,6 +256,56 @@ describe('determineWorkItemStatus', () => {
       ],
     }
     expect(determineWorkItemStatus(item)).toBe('in_progress')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Unit tests: prompt builders
+// ---------------------------------------------------------------------------
+
+describe('prompt builders', () => {
+  it('instructs the model to omit card numbers for activities without work items', () => {
+    const systemPrompt = buildSystemPrompt()
+
+    expect(systemPrompt).toContain(
+      'NÃO invente número de card e NÃO use prefixo `#`',
+    )
+    expect(systemPrompt).toContain(
+      'crie um título baseado nos commits, arquivos e contexto coletado',
+    )
+  })
+
+  it('includes explicit fallback instructions when a repo has no associated work items', () => {
+    const prompt = buildUserMessage(makeInput(), {
+      timestamp: '2026-03-04T17:00:00.000Z',
+      userUuid: 'user-uuid-123',
+      repos: [
+        {
+          repoName: 'agrotrace-web',
+          repoPath: '/repos/agrotrace-web',
+          currentBranch: 'feat/melhorias-sem-card',
+          commits: [
+            {
+              hash: 'abc12345',
+              subject: 'refactor: extrair serviço de standup',
+              body: '',
+              filesChanged: 2,
+              insertions: 10,
+              deletions: 3,
+              files: ['src/services/standup.ts'],
+            },
+          ],
+          cardNumbers: [],
+          branchCardNumber: null,
+          enrichedItems: [],
+        },
+      ],
+    })
+
+    expect(prompt).toContain('### Sem work items associados (commits diretos)')
+    expect(prompt).toContain(
+      'sem incluir número de card ou prefixo #',
+    )
   })
 })
 

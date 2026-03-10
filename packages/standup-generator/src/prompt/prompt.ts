@@ -33,6 +33,13 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
 \t➜ **Melhorias Técnicas:**
 \t\t➜ <descrição da melhoria>
 
+**✅ Done (sem card associado):**
+➜ <título-gerado-com-base-nos-dados-coletados>
+\t➜ **Correções:**
+\t\t➜ <descrição da correção>
+\t➜ **Melhorias Técnicas:**
+\t\t➜ <descrição da melhoria>
+
 **🚧 (In Progress):**
 ➜ #<número-card> - <título-do-card>
 \t➜ **Correções:**
@@ -51,6 +58,9 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
 - Use \`➜\` para bullets aninhados (não use \`-\` ou \`*\`)
 - Títulos dos cards vêm do Azure DevOps, não dos commits
 - Se não houver título do Azure DevOps, crie um título descritivo baseado nos commits
+- Se uma atividade não estiver atrelada a nenhum card/work item, NÃO invente número de card e NÃO use prefixo \`#\`
+- Para atividades sem card/work item, crie um título baseado nos commits, arquivos e contexto coletado
+- Para atividades sem card/work item, descreva o que foi feito normalmente nas seções **Correções** e/ou **Melhorias Técnicas**
 - Inclua caminhos de arquivo quando relevante (ex: \`src/services/geo.ts\`)
 - Liste migration files explicitamente quando presentes
 - Mencione novos componentes/serviços criados com seus caminhos
@@ -127,6 +137,9 @@ export function buildUserMessage(
       }
     } else {
       sections.push('### Sem work items associados (commits diretos)')
+      sections.push(
+        '### Instrução para commits sem card: gerar título e descrições a partir dos commits/arquivos sem incluir número de card ou prefixo #',
+      )
       sections.push('')
     }
   }

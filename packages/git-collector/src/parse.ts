@@ -2,6 +2,9 @@
  * Pure parsing utilities for git output — no I/O, fully testable.
  */
 
+const RECORD_SEPARATOR = '\x1e'
+const FIELD_SEPARATOR = '\x1f'
+
 export interface CommitBlock {
   hash: string
   subject: string
@@ -16,14 +19,38 @@ export interface CommitStats {
 }
 
 /**
- * Parses raw `git log --pretty=format:"%h%n%s%n%b%n---"` output into commit blocks.
+ * Parses raw git log output into commit blocks.
+ *
+ * Preferred format:
+ *   --pretty=format:%x1e%h%x1f%s%x1f%b
+ *
+ * Legacy fallback:
+ *   --pretty=format:"%h%n%s%n%b%n---"
  */
 export function parseCommitBlocks(raw: string): CommitBlock[] {
+  if (!raw.trim()) return []
+
+  if (raw.includes(RECORD_SEPARATOR)) {
+    return raw
+      .split(RECORD_SEPARATOR)
+      .map((record) => record.trim())
+      .filter(Boolean)
+      .map((record) => {
+        const [hash = '', subject = '', ...bodyParts] =
+          record.split(FIELD_SEPARATOR)
+
+        return {
+          hash: hash.trim(),
+          subject: subject.trim(),
+          body: bodyParts.join(FIELD_SEPARATOR).trim(),
+        }
+      })
+  }
+
   const trimmed = raw
     .trim()
     .replace(/\n?---\s*$/, '')
     .trim()
-  if (!trimmed) return []
 
   const blocks = trimmed.split('\n---\n').filter((b) => b.trim())
   return blocks.map((block) => {

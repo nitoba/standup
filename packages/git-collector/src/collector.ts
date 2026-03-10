@@ -8,6 +8,7 @@ import { ExternalServiceError, Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import { $ } from 'bun'
 import {
+  type CommitBlock,
   extractBranchCardNumber,
   extractCardNumbers,
   parseCommitBlocks,
@@ -18,6 +19,28 @@ const logger = createServiceLogger({
   service: 'git-collector',
   component: 'collector',
 })
+
+const MERGE_COMMIT_SUBJECT_PATTERNS = [
+  /^Merged PR \d+:/i,
+  /^Merge pull request #\d+/i,
+  /^Merge branch /i,
+  /^Merge remote-tracking branch /i,
+]
+
+function isRelevantCommitBlock(block: CommitBlock): boolean {
+  const hash = block.hash.trim()
+  const subject = block.subject.trim()
+
+  if (!/^[0-9a-f]{7,40}$/i.test(hash)) {
+    return false
+  }
+
+  if (!subject) {
+    return false
+  }
+
+  return !MERGE_COMMIT_SUBJECT_PATTERNS.some((pattern) => pattern.test(subject))
+}
 
 export interface CollectOptions {
   /** Absolute path to the root directory where all repos are cloned. */
@@ -54,15 +77,24 @@ async function processRepo(
   const currentBranch = branchResult.stdout.toString().trim()
 
   const logResult =
-    await $`git -C ${repoPath} log --all --author=${options.author} --since=${options.sincePeriod} --pretty=format:"%h%n%s%n%b%n---"`
+    await $`git -C ${repoPath} log --all --no-merges --author=${options.author} --since=${options.sincePeriod} --pretty=format:%x1e%h%x1f%s%x1f%b`
       .quiet()
       .nothrow()
   const logOutput = logResult.stdout.toString()
 
   const commitBlocks = parseCommitBlocks(logOutput)
+  const relevantCommitBlocks = commitBlocks.filter(isRelevantCommitBlock)
+
+  if (relevantCommitBlocks.length !== commitBlocks.length) {
+    logger.debug('filtered non-relevant commits from standup collection', {
+      repo: repoName,
+      totalCommitBlocks: commitBlocks.length,
+      keptCommitBlocks: relevantCommitBlocks.length,
+    })
+  }
 
   const commits: CommitInfo[] = await Promise.all(
-    commitBlocks.map(async (block) => {
+    relevantCommitBlocks.map(async (block) => {
       const showResult =
         await $`git -C ${repoPath} show --stat --format="" ${block.hash}`
           .quiet()

@@ -7,6 +7,20 @@ import {
 } from './parse.js'
 
 describe('parseCommitBlocks', () => {
+  it('parses the collector log format with control-character separators', () => {
+    const raw =
+      '\x1eabc1234\x1ffeat: add login screen\x1fBody line 1\n---\nBody line 2'
+
+    const result = parseCommitBlocks(raw)
+
+    expect(result).toHaveLength(1)
+    expect(result[0]).toEqual({
+      hash: 'abc1234',
+      subject: 'feat: add login screen',
+      body: 'Body line 1\n---\nBody line 2',
+    })
+  })
+
   it('parses a single commit block', () => {
     const raw = 'abc1234\nfeat: add login screen\nCloses #12345\n---'
     const result = parseCommitBlocks(raw)

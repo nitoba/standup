@@ -448,9 +448,9 @@ export class SettingsPage {
       this.saving.set(true)
       try {
         await this.settingsService.saveSettings(this.settingsModel())
-        toast('Settings salvas')
+        toast.success('Settings salvas')
       } catch {
-        toast('Falha ao salvar settings')
+        toast.error('Falha ao salvar settings')
       } finally {
         this.saving.set(false)
       }

@@ -151,7 +151,7 @@ export class StandupService {
 
     if (event.step === 'no_activity') {
       this.activeProgress.set(undefined)
-      toast('Nenhuma atividade encontrada para gerar o standup de hoje.')
+      toast.info('Nenhuma atividade encontrada para gerar o standup de hoje.')
       this.standups.reload()
     }
   }
@@ -162,12 +162,12 @@ export class StandupService {
     if (this.selectedStandupId()) {
       this.selectedStandup.reload()
     }
-    toast('Standup gerado e pronto para revisão!')
+    toast.success('Standup gerado e pronto para revisão!')
   }
 
   private handleFailedEvent(event: StandupFailedEvent) {
     this.activeProgress.set(undefined)
-    toast(`Falha ao gerar standup: ${event.message}`)
+    toast.error(`Falha ao gerar standup: ${event.message}`)
   }
 
   // Dashboard filter update — signals change triggers httpResource refetch

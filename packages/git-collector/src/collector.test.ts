@@ -30,9 +30,14 @@ async function addCommit(
   message: string,
   fileName = 'file.txt',
   content = 'hello',
+  body?: string,
 ): Promise<void> {
   await writeFile(join(repoPath, fileName), content)
   await $`git -C ${repoPath} add .`.quiet()
+  if (body) {
+    await $`git -C ${repoPath} commit -m ${message} -m ${body}`.quiet()
+    return
+  }
   await $`git -C ${repoPath} commit -m ${message}`.quiet()
 }
 
@@ -364,6 +369,46 @@ describe('collectGitActivity', () => {
       expect(result.value.repos[0]?.commits[0]?.subject).toBe(
         'feat: local work',
       )
+    })
+
+    it('ignores merged PR commits and malformed commit fragments when building standup activity', async () => {
+      const base = join(tmpBase, 'ignore-merged-pr-noise')
+      await mkdir(base)
+
+      const repoPath = await initRepo(base, 'noise-repo', AUTHOR)
+      await addCommit(
+        repoPath,
+        'feat: implementar abas do dashboard #12345',
+        'feature.ts',
+        'export const feature = true',
+      )
+      await addCommit(
+        repoPath,
+        'Merged PR 10313: fix(db): resolve erro de coluna duplicada',
+        'merge-noise.md',
+        'merge noise',
+        'Related work items: #99999\n---\n**Work Item Relacionado**: #88888',
+      )
+
+      const result = await collectGitActivity({
+        reposRootPath: base,
+        selectedRepos: ['noise-repo'],
+        author: AUTHOR,
+        sincePeriod: '1 hour ago',
+      })
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      const repo = result.value.repos[0]
+      expect(repo).toBeDefined()
+      if (!repo) return
+
+      expect(repo.commits).toHaveLength(1)
+      expect(repo.commits[0]?.subject).toBe(
+        'feat: implementar abas do dashboard #12345',
+      )
+      expect(repo.cardNumbers).toEqual(['12345'])
     })
   })
 

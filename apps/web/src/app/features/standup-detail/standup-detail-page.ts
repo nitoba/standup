@@ -11,6 +11,7 @@ import { toast } from 'ngx-sonner'
 import { SidebarLayout } from '../../core/layout/sidebar'
 import { ZardButtonComponent } from '../../shared/components/button'
 import { ZardDialogService } from '../../shared/components/dialog'
+import { JsonViewerComponent } from '../../shared/components/json-viewer/json-viewer.component'
 import type {
   Standup,
   StandupCustomEntriesDto,
@@ -22,7 +23,12 @@ import { ApproveDialogContent } from './components/approve-dialog/approve-dialog
 
 @Component({
   selector: 'app-standup-detail-page',
-  imports: [SidebarLayout, RouterLink, ZardButtonComponent],
+  imports: [
+    SidebarLayout,
+    RouterLink,
+    ZardButtonComponent,
+    JsonViewerComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-sidebar-layout>
@@ -75,28 +81,16 @@ import { ApproveDialogContent } from './components/approve-dialog/approve-dialog
           <div class="border border-border p-[20px] flex flex-col gap-[20px]">
             <div class="flex flex-col gap-[8px] md:flex-row md:items-center md:justify-between">
               <div class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-bold">datasource</div>
-              <div class="flex flex-col gap-[8px] md:flex-row">
-                <button
-                  type="button"
-                  z-button
-                  zType="outline"
-                  zSize="sm"
-                  [zDisabled]="actionLoading()"
-                  (click)="toggleDatasource()"
-                >
-                  {{ showFullDatasource() ? '$ collapse datasource' : '$ expand datasource' }}
-                </button>
-                <button
-                  type="button"
-                  z-button
-                  zType="outline"
-                  zSize="sm"
-                  [zDisabled]="actionLoading()"
-                  (click)="copyToClipboard(detail.sourceData ?? '', 'datasource copied')"
-                >
-                  $ copy datasource
-                </button>
-              </div>
+              <button
+                type="button"
+                z-button
+                zType="outline"
+                zSize="sm"
+                [zDisabled]="actionLoading()"
+                (click)="copyToClipboard(detail.sourceData ?? '', 'datasource copied')"
+              >
+                $ copy datasource
+              </button>
             </div>
 
             @if (detail.sources.length > 0) {
@@ -117,17 +111,54 @@ import { ApproveDialogContent } from './components/approve-dialog/approve-dialog
 
             <div class="border border-border bg-card p-[16px] flex flex-col gap-[12px]">
               <div class="flex items-center justify-between gap-[12px]">
-                <span class="font-[var(--font-jetbrains)] text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
-                  {{ showFullDatasource() ? 'full json' : 'preview' }}
-                </span>
-                @if (!showFullDatasource()) {
-                  <span class="font-[var(--font-ibm)] text-[12px] text-muted-foreground/70">
+                <div class="flex items-center gap-[12px]">
+                  <span class="font-[var(--font-jetbrains)] text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
+                    {{ showFullDatasource() ? 'full json' : 'preview' }}
+                  </span>
+                  <span
+                    class="font-[var(--font-ibm)] text-[12px] text-muted-foreground/70 transition-opacity duration-300"
+                    [style.opacity]="showFullDatasource() ? '0' : '1'"
+                    aria-hidden="true"
+                  >
                     {{ datasourceLineCount(detail.sourceData ?? '') }} lines
                   </span>
-                }
+                </div>
+                <button
+                  type="button"
+                  z-button
+                  zType="outline"
+                  zSize="sm"
+                  [zDisabled]="actionLoading()"
+                  (click)="toggleDatasource()"
+                >
+                  {{ showFullDatasource() ? '$ collapse' : '$ expand' }}
+                </button>
               </div>
 
-              <pre class="m-0 whitespace-pre-wrap break-words font-[var(--font-ibm)] text-[12px] leading-[1.7] text-muted-foreground">{{ showFullDatasource() ? detail.sourceData : previewDatasource(detail.sourceData ?? '') }}</pre>
+              <!-- grid-rows trick: animates height from 0 to auto smoothly -->
+              <div
+                class="grid transition-[grid-template-rows] duration-300 ease-in-out"
+                [style.grid-template-rows]="showFullDatasource() ? '1fr' : '0fr'"
+              >
+                <div class="overflow-hidden">
+                  <app-json-viewer
+                    [value]="detail.sourceData"
+                    ariaLabel="datasource JSON completo"
+                  />
+                </div>
+              </div>
+
+              <div
+                class="grid transition-[grid-template-rows] duration-300 ease-in-out"
+                [style.grid-template-rows]="showFullDatasource() ? '0fr' : '1fr'"
+              >
+                <div class="overflow-hidden">
+                  <app-json-viewer
+                    [value]="previewDatasource(detail.sourceData ?? '')"
+                    ariaLabel="datasource JSON preview"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -253,7 +284,7 @@ export class StandupDetailPage {
         id,
         customEntries ?? null,
       )
-      toast(result.warning ?? 'Standup aprovado')
+      toast.success(result.warning ?? 'Standup aprovado')
       this.standup.reload()
     } finally {
       this.actionLoading.set(false)
@@ -269,7 +300,7 @@ export class StandupDetailPage {
 
     try {
       await this.standupService.reject(id)
-      toast('Standup rejeitado')
+      toast.success('Standup rejeitado')
       this.standup.reload()
     } finally {
       this.actionLoading.set(false)
@@ -294,7 +325,7 @@ export class StandupDetailPage {
   regenerate(id: string) {
     // fire-and-forget: SSE event will trigger selectedStandup.reload() when ready
     void this.standupService.regenerate(id)
-    toast('Solicitação aceita')
+    toast.success('Solicitação aceita')
   }
 
   submitAdjustInstruction(instruction: string) {
@@ -303,21 +334,21 @@ export class StandupDetailPage {
 
     // fire-and-forget: SSE event will trigger selectedStandup.reload() when ready
     void this.standupService.adjust(id, instruction)
-    toast('Solicitação aceita')
+    toast.success('Solicitação aceita')
   }
 
   async copyToClipboard(content: string, feedback: string) {
     const clipboard = globalThis.navigator?.clipboard
     if (!clipboard || !content.trim()) {
-      toast('Clipboard indisponivel')
+      toast.error('Clipboard indisponivel')
       return
     }
 
     try {
       await clipboard.writeText(content)
-      toast(feedback)
+      toast.success(feedback)
     } catch {
-      toast('Clipboard indisponivel')
+      toast.error('Clipboard indisponivel')
     }
   }
 
