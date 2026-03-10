@@ -13,13 +13,46 @@ import { FilterBar } from './filter-bar'
 import { MetricCard } from './metric-card'
 import { StandupTable } from './standup-table'
 
+function formatDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function startOfToday(now: Date) {
+  const today = new Date(now)
+  today.setHours(0, 0, 0, 0)
+
+  return today
+}
+
+function minusDays(date: Date, days: number) {
+  const nextDate = new Date(date)
+  nextDate.setDate(nextDate.getDate() - days)
+
+  return nextDate
+}
+
+function resolveDateFilter(value: string, now = new Date()) {
+  if (value === 'all_time') return undefined
+  if (value === 'this_week') return 'this_week'
+
+  const today = startOfToday(now)
+  if (value === 'today') return formatDate(today)
+  if (value === 'yesterday') return formatDate(minusDays(today, 1))
+
+  return value
+}
+
 @Component({
   selector: 'app-dashboard-page',
   imports: [SidebarLayout, MetricCard, StandupTable, FilterBar],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-sidebar-layout>
-      <section class="min-h-screen bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[40px]">
+      <section class="min-h-full bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[40px]">
         <div class="flex flex-col gap-[8px]">
           <div class="flex items-center gap-[12px]">
             <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[24px] md:text-[32px] font-bold">>></span>
@@ -68,8 +101,8 @@ export class DashboardPage {
   readonly standupService = inject(StandupService)
   private readonly router = inject(Router)
 
-  readonly statusFilter = signal('all')
-  readonly dateFilter = signal('this_week')
+  readonly statusFilter = signal<string | undefined>(undefined)
+  readonly dateFilter = signal<string | undefined>(undefined)
   readonly searchFilter = signal('')
 
   readonly searchFilteredStandups = computed(() => {
@@ -87,9 +120,7 @@ export class DashboardPage {
     })
   })
 
-  readonly visibleStandups = computed(() =>
-    this.searchFilteredStandups().slice(0, 5),
-  )
+  readonly visibleStandups = computed(() => this.searchFilteredStandups())
 
   readonly metricCards = computed(() => {
     const metrics = this.standupService.metrics()
@@ -135,7 +166,8 @@ export class DashboardPage {
   }
 
   onStatusChange(value: string) {
-    this.statusFilter.set(value)
+    const nextStatus = value === 'all' ? undefined : value
+    this.statusFilter.set(nextStatus)
     this.standupService.setDashboardFilters({
       status: this.statusFilter(),
       date: this.dateFilter(),
@@ -143,7 +175,7 @@ export class DashboardPage {
   }
 
   onDateChange(value: string) {
-    this.dateFilter.set(value)
+    this.dateFilter.set(resolveDateFilter(value))
     this.standupService.setDashboardFilters({
       status: this.statusFilter(),
       date: this.dateFilter(),

@@ -1,52 +1,59 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   output,
   signal,
 } from '@angular/core'
-import { ZardButtonComponent } from '../../shared/components/button'
+import {
+  ZardComboboxComponent,
+  type ZardComboboxOption,
+} from '../../shared/components/combobox'
 import { ZardInputDirective } from '../../shared/components/input'
 
-type DateSelection = 'this_week' | 'today' | 'yesterday'
+type DateSelection = 'all_time' | 'this_week' | 'today' | 'yesterday'
+type StatusSelection = 'all' | 'pending_review' | 'approved' | 'rejected'
 
 @Component({
   selector: 'app-filter-bar',
-  imports: [ZardButtonComponent, ZardInputDirective],
+  imports: [ZardComboboxComponent, ZardInputDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex flex-col gap-[16px]">
       <div class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]">// filters</div>
-      <div class="flex flex-wrap items-center gap-[8px] md:gap-[16px]">
-        <button
-          type="button"
-          z-button
-          zType="outline"
-          zSize="sm"
-          (click)="cycleStatus()"
-        >
-          <span class="text-muted-foreground">/</span>
-          <span>status: {{ status() }}</span>
-        </button>
+      <div class="flex flex-wrap items-center gap-[10px] md:gap-[12px]">
+        <z-combobox
+          zWidth="full"
+          class="w-full md:w-[210px]"
+          [options]="statusOptions"
+          [value]="status()"
+          [searchable]="false"
+          placeholder="select status"
+          ariaLabel="Standup status filter"
+          emptyText="No status available."
+          (zValueChange)="onStatusSelected($event)"
+        />
 
-        <button
-          type="button"
-          z-button
-          zType="outline"
-          zSize="sm"
-          (click)="cycleDate()"
-        >
-          <span class="text-muted-foreground">/</span>
-          <span>date: {{ displayDateLabel(date()) }}</span>
-        </button>
+        <z-combobox
+          zWidth="full"
+          class="w-full md:w-[210px]"
+          [options]="dateOptions"
+          [value]="date()"
+          [searchable]="false"
+          placeholder="select date"
+          ariaLabel="Standup date filter"
+          emptyText="No date filter available."
+          (zValueChange)="onDateSelected($event)"
+        />
 
-        <div class="w-full md:flex-1 border border-border bg-card px-[12px] md:px-[16px] py-[6px] md:py-[8px] flex items-center gap-[8px] transition-colors duration-150 focus-within:border-[var(--accent-green)]">
+        <div class="h-[44px] w-full border border-border bg-card px-[12px] md:w-[250px] md:px-[14px] lg:w-[280px] flex items-center gap-[8px] transition-colors duration-150 focus-within:border-[var(--accent-green)]">
           <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] md:text-[13px]">/</span>
           <input
             type="text"
             z-input
             zBorderless
             placeholder="search standups..."
-            class="flex-1"
+            class="flex-1 text-[12px] md:text-[13px]"
             aria-label="Search standups"
             [value]="search()"
             (input)="updateSearch(asInputValue($event))"
@@ -57,15 +64,28 @@ type DateSelection = 'this_week' | 'today' | 'yesterday'
   `,
 })
 export class FilterBar {
-  readonly statusChange = output<string>()
-  readonly dateChange = output<string>()
+  readonly statusChange = output<StatusSelection>()
+  readonly dateChange = output<DateSelection>()
   readonly searchChange = output<string>()
 
-  readonly status = signal<'all' | 'pending_review' | 'approved' | 'rejected'>(
-    'all',
-  )
-  readonly date = signal<DateSelection>('this_week')
+  readonly status = signal<StatusSelection>('all')
+  readonly date = signal<DateSelection>('all_time')
   readonly search = signal('')
+  readonly statusOptions: ZardComboboxOption[] = [
+    { value: 'all', label: 'status: all' },
+    { value: 'pending_review', label: 'status: pending_review' },
+    { value: 'approved', label: 'status: approved' },
+    { value: 'rejected', label: 'status: rejected' },
+  ]
+  readonly dateOptions: ZardComboboxOption[] = [
+    { value: 'all_time', label: 'date: all_time' },
+    { value: 'this_week', label: 'date: this_week' },
+    { value: 'today', label: `date: ${this.resolveDateValue('today')}` },
+    {
+      value: 'yesterday',
+      label: `date: ${this.resolveDateValue('yesterday')}`,
+    },
+  ]
 
   formatDate(date: Date) {
     const year = date.getFullYear()
@@ -90,6 +110,10 @@ export class FilterBar {
   }
 
   resolveDateValue(selection: DateSelection, now = new Date()) {
+    if (selection === 'all_time') {
+      return 'all_time'
+    }
+
     if (selection === 'this_week') {
       return 'this_week'
     }
@@ -102,35 +126,51 @@ export class FilterBar {
   }
 
   displayDateLabel(selection: DateSelection) {
-    return selection === 'this_week'
-      ? 'this_week'
-      : this.resolveDateValue(selection)
+    return selection === 'all_time'
+      ? 'all_time'
+      : selection === 'this_week'
+        ? 'this_week'
+        : this.resolveDateValue(selection)
   }
 
-  cycleStatus() {
-    const next =
-      this.status() === 'all'
-        ? 'pending_review'
-        : this.status() === 'pending_review'
-          ? 'approved'
-          : this.status() === 'approved'
-            ? 'rejected'
-            : 'all'
+  onStatusSelected(value: string | null) {
+    if (value === null) {
+      this.status.set('all')
+      this.statusChange.emit('all')
+      return
+    }
 
-    this.status.set(next)
-    this.statusChange.emit(next)
+    if (
+      value !== 'all' &&
+      value !== 'pending_review' &&
+      value !== 'approved' &&
+      value !== 'rejected'
+    ) {
+      return
+    }
+
+    this.status.set(value)
+    this.statusChange.emit(value)
   }
 
-  cycleDate() {
-    const next =
-      this.date() === 'this_week'
-        ? 'today'
-        : this.date() === 'today'
-          ? 'yesterday'
-          : 'this_week'
+  onDateSelected(value: string | null) {
+    if (value === null) {
+      this.date.set('all_time')
+      this.dateChange.emit('all_time')
+      return
+    }
 
-    this.date.set(next)
-    this.dateChange.emit(this.resolveDateValue(next))
+    if (
+      value !== 'all_time' &&
+      value !== 'this_week' &&
+      value !== 'today' &&
+      value !== 'yesterday'
+    ) {
+      return
+    }
+
+    this.date.set(value)
+    this.dateChange.emit(value)
   }
 
   updateSearch(value: string) {

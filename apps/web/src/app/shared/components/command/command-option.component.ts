@@ -3,25 +3,24 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
   ElementRef,
+  effect,
   inject,
   input,
   signal,
   ViewEncapsulation,
-} from '@angular/core';
+} from '@angular/core'
 
-import type { ClassValue } from 'clsx';
-
-import type { ZardCommandOptionGroupComponent } from '@/shared/components/command/command-option-group.component';
-import { ZardCommandComponent } from '@/shared/components/command/command.component';
+import type { ClassValue } from 'clsx'
+import { ZardCommandComponent } from '@/shared/components/command/command.component'
 import {
   commandItemVariants,
   commandShortcutVariants,
   type ZardCommandItemVariants,
-} from '@/shared/components/command/command.variants';
-import { ZardIconComponent, type ZardIcon } from '@/shared/components/icon';
-import { mergeClasses } from '@/shared/utils/merge-classes';
+} from '@/shared/components/command/command.variants'
+import type { ZardCommandOptionGroupComponent } from '@/shared/components/command/command-option-group.component'
+import { type ZardIcon, ZardIconComponent } from '@/shared/components/icon'
+import { mergeClasses } from '@/shared/utils/merge-classes'
 
 @Component({
   selector: 'z-command-option',
@@ -40,7 +39,7 @@ import { mergeClasses } from '@/shared/utils/merge-classes';
         (mouseenter)="onMouseEnter()"
       >
         @if (zIcon()) {
-          <div z-icon [zType]="zIcon()!" class="mr-2 flex shrink-0 items-center justify-center"></div>
+          <div z-icon [zType]="zIcon()!" class="mr-2 flex shrink-0 items-center justify-center text-muted-foreground"></div>
         }
         <span class="flex-1">{{ zLabel() }}</span>
         @if (zShortcut()) {
@@ -54,88 +53,94 @@ import { mergeClasses } from '@/shared/utils/merge-classes';
   exportAs: 'zCommandOption',
 })
 export class ZardCommandOptionComponent {
-  private readonly elementRef = inject(ElementRef);
-  private readonly parentCommandComponent = inject(ZardCommandComponent, { optional: true });
+  private readonly elementRef = inject(ElementRef)
+  private readonly parentCommandComponent = inject(ZardCommandComponent, {
+    optional: true,
+  })
 
-  readonly zValue = input.required<unknown>();
-  readonly zLabel = input.required<string>();
-  readonly zCommand = input<string>('');
-  readonly zIcon = input<ZardIcon>();
-  readonly zShortcut = input<string>('');
-  readonly zDisabled = input(false, { transform: booleanAttribute });
-  readonly variant = input<ZardCommandItemVariants>('default');
-  readonly class = input<ClassValue>('');
-  readonly parentCommand = input<ZardCommandComponent | null>(null);
-  readonly commandGroup = input<ZardCommandOptionGroupComponent | null>(null);
+  readonly zValue = input.required<unknown>()
+  readonly zLabel = input.required<string>()
+  readonly zCommand = input<string>('')
+  readonly zIcon = input<ZardIcon>()
+  readonly zShortcut = input<string>('')
+  readonly zDisabled = input(false, { transform: booleanAttribute })
+  readonly variant = input<ZardCommandItemVariants>('default')
+  readonly class = input<ClassValue>('')
+  readonly parentCommand = input<ZardCommandComponent | null>(null)
+  readonly commandGroup = input<ZardCommandOptionGroupComponent | null>(null)
 
-  readonly isSelected = signal(false);
+  readonly isSelected = signal(false)
 
   protected readonly classes = computed(() => {
-    const baseClasses = commandItemVariants({ variant: this.variant() });
-    const selectedClasses = this.isSelected() ? 'bg-accent text-accent-foreground' : '';
-    return mergeClasses(baseClasses, selectedClasses, this.class());
-  });
+    const baseClasses = commandItemVariants({ variant: this.variant() })
+    const selectedClasses = this.isSelected()
+      ? 'border-border bg-accent text-foreground'
+      : ''
+    return mergeClasses(baseClasses, selectedClasses, this.class())
+  })
 
-  protected readonly shortcutClasses = computed(() => mergeClasses(commandShortcutVariants()));
+  protected readonly shortcutClasses = computed(() =>
+    mergeClasses(commandShortcutVariants()),
+  )
 
   private get commandComponent() {
-    let parent = this.parentCommand();
-    parent ||= this.parentCommandComponent;
-    return parent;
+    let parent = this.parentCommand()
+    parent ||= this.parentCommandComponent
+    return parent
   }
 
   protected readonly isOptionVisible = computed(() => {
-    const parent = this.commandComponent;
+    const parent = this.commandComponent
 
     if (!parent) {
-      return true;
+      return true
     }
     /*
       If no search term, show this option, otherwise check
       if this option is included in the filtered list
      */
-    return !parent.searchTerm() || parent.filteredOptions().includes(this);
-  });
+    return !parent.searchTerm() || parent.filteredOptions().includes(this)
+  })
 
   constructor() {
-    effect(onCleanup => {
-      const cmd = this.parentCommand();
-      const grp = this.commandGroup();
+    effect((onCleanup) => {
+      const cmd = this.parentCommand()
+      const grp = this.commandGroup()
 
       if (cmd) {
-        cmd.registerOption(this);
-        onCleanup(() => cmd.unregisterOption(this));
+        cmd.registerOption(this)
+        onCleanup(() => cmd.unregisterOption(this))
       }
 
       if (grp) {
-        grp.registerOption(this);
-        onCleanup(() => grp.unregisterOption(this));
+        grp.registerOption(this)
+        onCleanup(() => grp.unregisterOption(this))
       }
-    });
+    })
   }
 
   onClick() {
     if (this.zDisabled()) {
-      return;
+      return
     }
 
-    this.commandComponent?.selectOption(this);
+    this.commandComponent?.selectOption(this)
   }
 
   onMouseEnter() {
     if (this.zDisabled()) {
-      return;
+      return
     }
     // Visual feedback for hover
   }
 
   setSelected(selected: boolean) {
-    this.isSelected.set(selected);
+    this.isSelected.set(selected)
   }
 
   focus() {
-    const element = this.elementRef.nativeElement;
-    element.focus();
-    element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const element = this.elementRef.nativeElement
+    element.focus()
+    element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
 }

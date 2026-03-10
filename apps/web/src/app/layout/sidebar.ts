@@ -1,22 +1,30 @@
+import { DOCUMENT } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core'
 import { Router, RouterLink, RouterLinkActive } from '@angular/router'
 import { SessionService } from '../services/session.service'
 import { ZardButtonComponent } from '../shared/components/button'
+import { ThemeToggleComponent } from '../shared/components/theme-toggle'
 
 @Component({
   selector: 'app-sidebar-layout',
-  imports: [RouterLink, RouterLinkActive, ZardButtonComponent],
+  imports: [
+    RouterLink,
+    RouterLinkActive,
+    ZardButtonComponent,
+    ThemeToggleComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="min-h-screen w-full bg-background text-foreground flex flex-col md:flex-row">
+    <div class="h-dvh w-full overflow-hidden bg-background text-foreground flex flex-col md:flex-row">
       <!-- Mobile top bar -->
-      <header class="flex md:hidden items-center justify-between h-[56px] px-[20px] border-b border-border bg-background">
+      <header class="relative z-50 flex shrink-0 md:hidden items-center justify-between h-[56px] px-[20px] border-b border-border bg-background">
         <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[18px] font-medium">> standup_bot</span>
         <button
           type="button"
@@ -34,7 +42,7 @@ import { ZardButtonComponent } from '../shared/components/button'
 
       <!-- Mobile slide-out nav -->
       @if (mobileMenuOpen()) {
-        <nav class="flex md:hidden flex-col gap-[4px] px-[20px] py-[12px] border-b border-border bg-card">
+        <nav class="fixed inset-x-0 top-[56px] bottom-0 z-40 flex shrink-0 md:hidden flex-col gap-[4px] overflow-y-auto border-b border-border bg-background/95 px-[20px] py-[12px] backdrop-blur-sm">
           <a
             routerLink="/dashboard"
             routerLinkActive
@@ -57,6 +65,7 @@ import { ZardButtonComponent } from '../shared/components/button'
             <span [class]="navPrefixClass(settingsMobile.isActive)">$</span>
             <span [class]="navLabelClass(settingsMobile.isActive)">settings</span>
           </a>
+          <app-theme-toggle showLabel fullWidth class="mt-2" />
           <button
             type="button"
             z-button
@@ -72,7 +81,7 @@ import { ZardButtonComponent } from '../shared/components/button'
       }
 
       <!-- Desktop sidebar -->
-      <aside class="hidden md:flex w-[240px] border-r border-border bg-background px-[24px] py-[32px] flex-col justify-between shrink-0">
+      <aside class="hidden md:flex h-full w-[240px] border-r border-border bg-background px-[24px] py-[32px] flex-col justify-between shrink-0">
         <div class="flex flex-col gap-[32px]">
           <div class="flex items-center gap-[8px]">
             <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[20px] font-bold">>></span>
@@ -114,6 +123,8 @@ import { ZardButtonComponent } from '../shared/components/button'
               <span>$</span>
               <span>reports</span>
             </button>
+
+            <app-theme-toggle showLabel fullWidth class="pt-2" />
           </nav>
         </div>
 
@@ -141,17 +152,33 @@ import { ZardButtonComponent } from '../shared/components/button'
         </footer>
       </aside>
 
-      <main class="flex-1 overflow-auto">
+      <main class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         <ng-content></ng-content>
       </main>
     </div>
   `,
 })
 export class SidebarLayout {
+  private readonly document = inject(DOCUMENT)
   private readonly sessionService = inject(SessionService)
   private readonly router = inject(Router)
 
   readonly mobileMenuOpen = signal(false)
+
+  constructor() {
+    effect((onCleanup) => {
+      if (!this.mobileMenuOpen()) {
+        return
+      }
+
+      const previousOverflow = this.document.body.style.overflow
+      this.document.body.style.overflow = 'hidden'
+
+      onCleanup(() => {
+        this.document.body.style.overflow = previousOverflow
+      })
+    })
+  }
 
   readonly displayName = computed(() => {
     const user = this.sessionService.user()

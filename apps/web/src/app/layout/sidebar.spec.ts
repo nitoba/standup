@@ -151,4 +151,31 @@ describe('SidebarLayout', () => {
     const mobileNav = fixture.nativeElement.querySelector('nav') as HTMLElement
     expect(mobileNav.textContent).toContain('logout')
   })
+
+  it('locks body scroll while mobile menu is open', async () => {
+    const mockSession = createMockSessionService()
+
+    await TestBed.configureTestingModule({
+      imports: [SidebarLayout],
+      providers: [
+        provideRouter([]),
+        { provide: SessionService, useValue: mockSession },
+      ],
+    }).compileComponents()
+
+    const fixture = TestBed.createComponent(SidebarLayout)
+    fixture.detectChanges()
+
+    expect(document.body.style.overflow).toBe('')
+
+    fixture.componentInstance.mobileMenuOpen.set(true)
+    fixture.detectChanges()
+
+    expect(document.body.style.overflow).toBe('hidden')
+
+    fixture.componentInstance.mobileMenuOpen.set(false)
+    fixture.detectChanges()
+
+    expect(document.body.style.overflow).toBe('')
+  })
 })

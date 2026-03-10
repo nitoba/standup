@@ -66,7 +66,7 @@ function getActionButtons(
 
 async function createFixture(options?: {
   status?: StandupStatus
-  approve?: () => Promise<unknown>
+  approve?: (customEntries?: unknown) => Promise<unknown>
   reject?: () => Promise<unknown>
   adjust?: (id: string, instruction: string) => Promise<unknown>
   regenerate?: () => Promise<unknown>
@@ -87,7 +87,7 @@ async function createFixture(options?: {
   const standupService = {
     selectStandup: vi.fn(),
     selectedStandup: standupResource,
-    approve: vi.fn(options?.approve ?? (async () => {})),
+    approve: vi.fn(options?.approve ?? (async () => ({ standup: detail() }))),
     reject: vi.fn(options?.reject ?? (async () => {})),
     adjust: vi.fn(options?.adjust ?? (async () => {})),
     regenerate: vi.fn(options?.regenerate ?? (async () => {})),
@@ -259,6 +259,80 @@ describe('StandupDetailPage', () => {
     expect(buttons.regenerate.textContent).toContain('$ regenerate')
   })
 
+  it('opens the approve dialog when the approve button is clicked', async () => {
+    const { fixture, dialogService } = await createFixture()
+
+    getActionButtons(fixture).approve.click()
+    fixture.detectChanges()
+
+    expect(dialogService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        zTitle: '// aprovar standup',
+        zDescription:
+          '// opcionalmente adicione reunioes extras e calls diretas',
+        zHideFooter: true,
+      }),
+    )
+  })
+
+  it('calls approve with custom entries when the approve dialog submits', async () => {
+    const { fixture, dialogService, standupService, standupResource } =
+      await createFixture()
+    const standupId = standupResource.value()?.id ?? STANDUP_ID
+
+    getActionButtons(fixture).approve.click()
+    fixture.detectChanges()
+
+    const config = dialogService.create.mock.calls[0]?.[0] as {
+      zData: {
+        onSubmit(payload: {
+          customEntries: {
+            scheduledMeetings: string[]
+            directCalls: string[]
+          } | null
+        }): void
+      }
+    }
+
+    config.zData.onSubmit({
+      customEntries: {
+        scheduledMeetings: ['Planning Backend'],
+        directCalls: ['Call com Joao'],
+      },
+    })
+    await settleFixture(fixture)
+
+    expect(standupService.approve).toHaveBeenCalledWith(standupId, {
+      scheduledMeetings: ['Planning Backend'],
+      directCalls: ['Call com Joao'],
+    })
+    expect(standupResource.reload).toHaveBeenCalledOnce()
+    expect(toastMock).toHaveBeenCalledWith('Standup aprovado')
+  })
+
+  it('shows warning toast returned by approve flow', async () => {
+    const { fixture, dialogService } = await createFixture({
+      approve: async () => ({
+        standup: createStandupDetail(),
+        warning: 'Standup aprovado, mas a publicacao falhou',
+      }),
+    })
+
+    getActionButtons(fixture).approve.click()
+    fixture.detectChanges()
+
+    const config = dialogService.create.mock.calls[0]?.[0] as {
+      zData: { onSubmit(payload: { customEntries: null }): void }
+    }
+
+    config.zData.onSubmit({ customEntries: null })
+    await settleFixture(fixture)
+
+    expect(toastMock).toHaveBeenCalledWith(
+      'Standup aprovado, mas a publicacao falhou',
+    )
+  })
+
   it('opens the adjust modal when the adjust button is clicked', async () => {
     const { fixture, dialogService } = await createFixture()
 
@@ -298,23 +372,23 @@ describe('StandupDetailPage', () => {
   })
 
   it('disables all action buttons while an action is in flight', async () => {
-    const approveDeferred = createDeferred<void>()
+    const rejectDeferred = createDeferred<void>()
     const { fixture, standupService, standupResource } = await createFixture({
-      approve: () => approveDeferred.promise,
+      reject: () => rejectDeferred.promise,
     })
 
     const { approve, reject, adjust, regenerate } = getActionButtons(fixture)
 
-    approve.click()
+    reject.click()
     fixture.detectChanges()
 
-    expect(standupService.approve).toHaveBeenCalledWith(STANDUP_ID)
+    expect(standupService.reject).toHaveBeenCalledWith(STANDUP_ID)
     expect(approve.disabled).toBe(true)
     expect(reject.disabled).toBe(true)
     expect(adjust.disabled).toBe(true)
     expect(regenerate.disabled).toBe(true)
 
-    approveDeferred.resolve()
+    rejectDeferred.resolve()
     await settleFixture(fixture)
 
     expect(standupResource.reload).toHaveBeenCalledOnce()
@@ -333,18 +407,8 @@ describe('StandupDetailPage', () => {
     expect(toastMock).toHaveBeenCalledWith('Standup enviado para regeneracao')
   })
 
-  it('shows a toast after approve and reject actions', async () => {
-    const { fixture, standupService, standupResource } = await createFixture()
-
-    getActionButtons(fixture).approve.click()
-    await settleFixture(fixture)
-
-    expect(toastMock).toHaveBeenCalledWith('Standup aprovado')
-
-    toastMock.mockReset()
-    standupService.approve.mockClear()
-    standupService.reject.mockClear()
-    standupResource.reload.mockClear()
+  it('shows a toast after reject action', async () => {
+    const { fixture } = await createFixture()
 
     getActionButtons(fixture).reject.click()
     await settleFixture(fixture)

@@ -111,7 +111,7 @@ export interface ZardComboboxGroup {
             <z-command-input [placeholder]="searchPlaceholder()" #commandInputRef />
           }
 
-          <z-command-list id="combobox-listbox" role="listbox">
+            <z-command-list id="combobox-listbox" role="listbox" class="bg-card">
             @if (emptyText()) {
               <z-command-empty>
                 <z-empty [zDescription]="emptyText()" />
@@ -173,7 +173,7 @@ export interface ZardComboboxGroup {
       >
         {{ option.label }}
         @if (option.value === currentValue()) {
-          <z-icon zType="check" class="ml-auto" />
+          <z-icon zType="check" class="ml-auto text-[var(--accent-green)]" />
         }
       </z-command-option>
     </ng-template>

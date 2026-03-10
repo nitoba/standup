@@ -11,7 +11,7 @@ import {
   transitionStandupStatus,
 } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, or } from 'drizzle-orm'
 import type { Db } from '../connection.js'
 import type { NewStandupRow } from '../schema.js'
 import { standups } from '../schema.js'
@@ -181,7 +181,16 @@ export class StandupRepository {
   ): Promise<Result<StandupRecord[], DbError>> {
     try {
       const conditions = []
-      if (filters?.status) conditions.push(eq(standups.status, filters.status))
+      if (filters?.status) {
+        conditions.push(
+          filters.status === 'approved'
+            ? or(
+                eq(standups.status, 'approved'),
+                eq(standups.status, 'published'),
+              )
+            : eq(standups.status, filters.status),
+        )
+      }
       if (filters?.date) conditions.push(eq(standups.date, filters.date))
       if (filters?.userId) conditions.push(eq(standups.userId, filters.userId))
 

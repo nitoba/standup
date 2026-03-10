@@ -37,7 +37,7 @@ import { ZardSwitchComponent } from '../../shared/components/switch'
   template: `
     <app-sidebar-layout>
       <section
-        class="min-h-screen bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[28px] md:gap-[40px]"
+        class="min-h-full bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[28px] md:gap-[40px]"
       >
         <div class="flex flex-col gap-[8px]">
           <div class="flex items-center gap-[12px]">
@@ -85,7 +85,7 @@ import { ZardSwitchComponent } from '../../shared/components/switch'
           <form (submit)="onSubmit($event)" class="flex flex-col gap-[32px]">
             <!-- Schedule section -->
             <div
-              class="border border-border bg-card rounded-lg p-[16px] md:p-[24px] flex flex-col gap-[16px]"
+              class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]"
             >
               <div class="flex items-center gap-[8px]">
                 <span
@@ -207,7 +207,7 @@ import { ZardSwitchComponent } from '../../shared/components/switch'
 
             <!-- Git configuration section -->
             <div
-              class="border border-border bg-card rounded-lg p-[16px] md:p-[24px] flex flex-col gap-[16px]"
+              class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]"
             >
               <div class="flex items-center gap-[8px]">
                 <span
@@ -275,7 +275,7 @@ import { ZardSwitchComponent } from '../../shared/components/switch'
 
             <!-- Selected repositories section -->
             <div
-              class="border border-border bg-card rounded-lg p-[16px] md:p-[24px] flex flex-col gap-[16px]"
+              class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]"
             >
               <div class="flex items-center gap-[8px]">
                 <span
@@ -323,7 +323,7 @@ import { ZardSwitchComponent } from '../../shared/components/switch'
 
             <!-- Automation section -->
             <div
-              class="border border-border bg-card rounded-lg p-[16px] md:p-[24px] flex flex-col gap-[16px]"
+              class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]"
             >
               <div class="flex items-center gap-[8px]">
                 <span

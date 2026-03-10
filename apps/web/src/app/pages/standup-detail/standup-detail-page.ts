@@ -12,8 +12,13 @@ import { SidebarLayout } from '../../layout/sidebar'
 import { StandupService } from '../../services/standup.service'
 import { ZardButtonComponent } from '../../shared/components/button'
 import { ZardDialogService } from '../../shared/components/dialog'
-import type { StandupStatus } from '../../types/standup'
+import type {
+  Standup,
+  StandupCustomEntriesDto,
+  StandupStatus,
+} from '../../types/standup'
 import { AdjustDialogContent } from './adjust-dialog-content'
+import { ApproveDialogContent } from './approve-dialog-content'
 
 @Component({
   selector: 'app-standup-detail-page',
@@ -21,7 +26,7 @@ import { AdjustDialogContent } from './adjust-dialog-content'
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-sidebar-layout>
-      <section class="min-h-screen bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[32px]">
+      <section class="min-h-full bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[32px]">
         <a routerLink="/dashboard" class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] flex items-center gap-[12px] transition-colors duration-150 hover:text-foreground">
           <span><<</span>
           <span>back to standups</span>
@@ -50,7 +55,7 @@ import { AdjustDialogContent } from './adjust-dialog-content'
             </div>
           </div>
 
-          <div class="bg-card border border-border rounded-lg p-[16px] md:p-[24px] flex flex-col gap-[16px] md:gap-[20px]">
+          <div class="bg-card border border-border p-[16px] md:p-[24px] flex flex-col gap-[16px] md:gap-[20px]">
             <div class="flex flex-col gap-[8px] md:flex-row md:items-center md:justify-between">
               <div class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-bold">generated_content</div>
               <button
@@ -67,7 +72,7 @@ import { AdjustDialogContent } from './adjust-dialog-content'
             <pre class="m-0 whitespace-pre-wrap break-words font-[var(--font-ibm)] text-[13px] leading-[1.7] text-foreground">{{ detail.content }}</pre>
           </div>
 
-          <div class="border border-border rounded-lg p-[20px] flex flex-col gap-[20px]">
+          <div class="border border-border p-[20px] flex flex-col gap-[20px]">
             <div class="flex flex-col gap-[8px] md:flex-row md:items-center md:justify-between">
               <div class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-bold">datasource</div>
               <div class="flex flex-col gap-[8px] md:flex-row">
@@ -134,7 +139,7 @@ import { AdjustDialogContent } from './adjust-dialog-content'
                 zType="default"
                 class="w-full md:w-auto"
                 [zDisabled]="actionLoading()"
-                (click)="approve(detail.id)"
+                (click)="openApproveModal(detail)"
               >
                 $ approve
               </button>
@@ -216,7 +221,29 @@ export class StandupDetailPage {
     this.showFullDatasource.update((current) => !current)
   }
 
-  async approve(id: string) {
+  openApproveModal(detail: Standup) {
+    if (this.actionLoading()) {
+      return
+    }
+
+    this.dialogService.create({
+      zTitle: '// aprovar standup',
+      zDescription: '// opcionalmente adicione reunioes extras e calls diretas',
+      zContent: ApproveDialogContent,
+      zHideFooter: true,
+      zWidth: '720px',
+      zData: {
+        initialEntries: detail.customEntries ?? null,
+        onSubmit: (payload: {
+          customEntries: StandupCustomEntriesDto | null
+        }) => {
+          void this.approve(detail.id, payload.customEntries)
+        },
+      },
+    })
+  }
+
+  async approve(id: string, customEntries?: StandupCustomEntriesDto | null) {
     if (this.actionLoading()) {
       return
     }
@@ -224,8 +251,11 @@ export class StandupDetailPage {
     this.actionLoading.set(true)
 
     try {
-      await this.standupService.approve(id)
-      toast('Standup aprovado')
+      const result = await this.standupService.approve(
+        id,
+        customEntries ?? null,
+      )
+      toast(result.warning ?? 'Standup aprovado')
       this.standup.reload()
     } finally {
       this.actionLoading.set(false)

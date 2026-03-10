@@ -156,17 +156,30 @@ describe('StandupService', () => {
   })
 
   it('approves via the dedicated endpoint and reloads dashboard data', async () => {
-    const approvePromise = service.approve('7f3a2b1c')
+    const approvePromise = service.approve('7f3a2b1c', {
+      scheduledMeetings: ['Planning Backend'],
+      directCalls: ['Call com Joao'],
+    })
 
     const approveRequest = httpMock.expectOne('/standups/7f3a2b1c/approve')
     expect(approveRequest.request.method).toBe('POST')
-    expect(approveRequest.request.body).toEqual({})
+    expect(approveRequest.request.body).toEqual({
+      customEntries: {
+        scheduledMeetings: ['Planning Backend'],
+        directCalls: ['Call com Joao'],
+      },
+    })
     approveRequest.flush({
       data: makeStandupDto({ id: '7f3a2b1c', status: 'published' }),
     })
 
     await expect(approvePromise).resolves.toEqual(
-      expect.objectContaining({ id: '7f3a2b1c', status: 'approved' }),
+      expect.objectContaining({
+        standup: expect.objectContaining({
+          id: '7f3a2b1c',
+          status: 'approved',
+        }),
+      }),
     )
 
     // approve calls standups.reload() which fires a new GET

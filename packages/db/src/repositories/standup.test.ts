@@ -194,6 +194,33 @@ describe('StandupRepository', () => {
       expect(result.value[0]?.id).toBe('p2')
     })
 
+    it('treats approved filter as approved plus published', async () => {
+      const approved = await repo.create(makeInput({ id: 'approved-1' }))
+      const published = await repo.create(makeInput({ id: 'published-1' }))
+      await repo.create(makeInput({ id: 'draft-1' }))
+
+      if (approved.status === 'ok') {
+        await repo.updateStatus('approved-1', 'pending_review')
+        await repo.updateStatus('approved-1', 'approved')
+      }
+
+      if (published.status === 'ok') {
+        await repo.updateStatus('published-1', 'pending_review')
+        await repo.updateStatus('published-1', 'approved')
+        await repo.updateStatus('published-1', 'published')
+      }
+
+      const result = await repo.list({ status: 'approved' })
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.map((item) => item.id).sort()).toEqual([
+        'approved-1',
+        'published-1',
+      ])
+    })
+
     it('filters by date', async () => {
       await repo.create(makeInput({ id: 'd1', date: '10/03/2026' }))
       await repo.create(makeInput({ id: 'd2', date: '10/03/2026' }))

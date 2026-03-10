@@ -1,11 +1,13 @@
 import { HttpClient, httpResource } from '@angular/common/http'
 import { computed, Injectable, inject, signal } from '@angular/core'
-import { firstValueFrom, map } from 'rxjs'
+import { filter, firstValueFrom, map } from 'rxjs'
 
 import { METRIC_CHANGES } from '../data/mock-data'
 import type {
+  ApproveStandupResponseDto,
   DashboardMetrics,
   Standup,
+  StandupCustomEntriesDto,
   StandupSection,
   StandupSourceRepo,
   StandupStatus,
@@ -114,11 +116,18 @@ export class StandupService {
   }
 
   // Mutations — one-shot operations, firstValueFrom is appropriate
-  async approve(id: string) {
+  async approve(id: string, customEntries?: StandupCustomEntriesDto | null) {
     const standup = await firstValueFrom(
       this.http
-        .post<ApiEnvelope<StandupDto>>(`/standups/${id}/approve`, {})
-        .pipe(map((response) => this.mapStandup(response.data))),
+        .post<ApproveStandupResponseDto>(`/standups/${id}/approve`, {
+          customEntries: customEntries ?? null,
+        })
+        .pipe(
+          map((response) => ({
+            standup: this.mapStandup(response.data),
+            warning: response.warning,
+          })),
+        ),
     )
     this.standups.reload()
     return standup
@@ -166,9 +175,40 @@ export class StandupService {
       content: standup.content,
       sourceData: this.formatSourceData(standup.sourceData),
       contentPreview: this.buildContentPreview(standup.content),
+      customEntries: this.parseCustomEntries(standup.customEntries),
       sections: this.parseSections(standup.content),
       sources: this.parseSources(standup.sourceData),
     }
+  }
+
+  private parseCustomEntries(
+    customEntries: unknown,
+  ): StandupCustomEntriesDto | null {
+    if (!customEntries || typeof customEntries !== 'object') {
+      return null
+    }
+
+    const maybeEntries = customEntries as {
+      scheduledMeetings?: unknown
+      directCalls?: unknown
+    }
+
+    const scheduledMeetings = Array.isArray(maybeEntries.scheduledMeetings)
+      ? maybeEntries.scheduledMeetings.filter(
+          (value): value is string => typeof value === 'string',
+        )
+      : []
+    const directCalls = Array.isArray(maybeEntries.directCalls)
+      ? maybeEntries.directCalls.filter(
+          (value): value is string => typeof value === 'string',
+        )
+      : []
+
+    if (scheduledMeetings.length === 0 && directCalls.length === 0) {
+      return null
+    }
+
+    return { scheduledMeetings, directCalls }
   }
 
   private mapStatus(status: string): StandupStatus {

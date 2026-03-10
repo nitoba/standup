@@ -107,12 +107,14 @@ describe('DashboardPage', () => {
     const filterBar = getFilterBar(fixture)
     expect(filterBar).not.toBeNull()
 
-    ;(filterBar.componentInstance as FilterBar).cycleStatus()
+    ;(filterBar.componentInstance as FilterBar).onStatusSelected(
+      'pending_review',
+    )
     fixture.detectChanges()
 
     expect(setDashboardFiltersSpy).toHaveBeenCalledWith({
       status: 'pending_review',
-      date: 'this_week',
+      date: undefined,
     })
 
     TestBed.tick()
@@ -128,7 +130,7 @@ describe('DashboardPage', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date('2026-03-09T12:00:00Z'))
 
-    ;(refreshedFilterBar.componentInstance as FilterBar).cycleDate()
+    ;(refreshedFilterBar.componentInstance as FilterBar).onDateSelected('today')
     fixture.detectChanges()
 
     expect(setDashboardFiltersSpy).toHaveBeenLastCalledWith({
@@ -162,6 +164,29 @@ describe('DashboardPage', () => {
     expect(setDashboardFiltersSpy).toHaveBeenCalledTimes(2)
     httpMock.expectNone(() => true)
     expect(element.textContent).toContain('// showing 1-0 of 0 standups')
+
+    ;(finalFilterBar.componentInstance as FilterBar).onStatusSelected('all')
+    ;(finalFilterBar.componentInstance as FilterBar).onDateSelected('all_time')
+    fixture.detectChanges()
+
+    expect(setDashboardFiltersSpy).toHaveBeenNthCalledWith(3, {
+      status: undefined,
+      date: '2026-03-09',
+    })
+    expect(setDashboardFiltersSpy).toHaveBeenNthCalledWith(4, {
+      status: undefined,
+      date: undefined,
+    })
+
+    fixture.componentInstance.onSearchChange('')
+    fixture.detectChanges()
+
+    TestBed.tick()
+    httpMock.expectOne('/standups').flush({ data: allStandupDtos })
+    await appRef.whenStable()
+    fixture.detectChanges()
+
+    expect(element.textContent).toContain('// showing 1-142 of 142 standups')
   })
 })
 
