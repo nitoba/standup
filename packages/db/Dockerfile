@@ -22,6 +22,10 @@ COPY packages/git-collector/package.json packages/git-collector/
 COPY packages/logger/package.json packages/logger/
 COPY packages/standup-generator/package.json packages/standup-generator/
 
+# Strip root devDependencies (turbo, biome, drizzle-kit etc.) — CI-only tools
+# that include platform-specific binaries and are not needed for the app build.
+RUN sed -i '/"devDependencies"/,/}/d' package.json
+
 # --filter installs only the db package and its dependencies
 RUN bun install --filter './packages/db'
 
