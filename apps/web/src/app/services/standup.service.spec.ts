@@ -42,7 +42,7 @@ describe('StandupService', () => {
 
     // httpResource fires initial request on creation
     TestBed.tick()
-    httpMock.expectOne('/api/standups').flush({ data: [] })
+    httpMock.expectOne('/standups').flush({ data: [] })
     await appRef.whenStable()
   })
 
@@ -55,7 +55,7 @@ describe('StandupService', () => {
     service.standups.reload()
     TestBed.tick()
 
-    const request = httpMock.expectOne('/api/standups')
+    const request = httpMock.expectOne('/standups')
     expect(request.request.method).toBe('GET')
     request.flush({
       data: [
@@ -124,7 +124,7 @@ describe('StandupService', () => {
 
     const request = httpMock.expectOne(
       (req) =>
-        req.url === '/api/standups' &&
+        req.url === '/standups' &&
         req.params.get('status') === 'approved' &&
         req.params.get('date') === '2026-03-09',
     )
@@ -144,7 +144,7 @@ describe('StandupService', () => {
     service.selectStandup('7f3a2b1c')
     TestBed.tick()
 
-    const request = httpMock.expectOne('/api/standups/7f3a2b1c')
+    const request = httpMock.expectOne('/standups/7f3a2b1c')
     expect(request.request.method).toBe('GET')
     request.flush({ data: makeStandupDto({ id: '7f3a2b1c' }) })
 
@@ -158,7 +158,7 @@ describe('StandupService', () => {
   it('approves via the dedicated endpoint and reloads dashboard data', async () => {
     const approvePromise = service.approve('7f3a2b1c')
 
-    const approveRequest = httpMock.expectOne('/api/standups/7f3a2b1c/approve')
+    const approveRequest = httpMock.expectOne('/standups/7f3a2b1c/approve')
     expect(approveRequest.request.method).toBe('POST')
     expect(approveRequest.request.body).toEqual({})
     approveRequest.flush({
@@ -171,7 +171,7 @@ describe('StandupService', () => {
 
     // approve calls standups.reload() which fires a new GET
     TestBed.tick()
-    httpMock.expectOne('/api/standups').flush({
+    httpMock.expectOne('/standups').flush({
       data: [makeStandupDto({ id: '7f3a2b1c', status: 'published' })],
     })
     await appRef.whenStable()
@@ -180,7 +180,7 @@ describe('StandupService', () => {
   it('rejects through the status endpoint and reloads dashboard data', async () => {
     const rejectPromise = service.reject('7f3a2b1c')
 
-    const rejectRequest = httpMock.expectOne('/api/standups/7f3a2b1c/status')
+    const rejectRequest = httpMock.expectOne('/standups/7f3a2b1c/status')
     expect(rejectRequest.request.method).toBe('PATCH')
     expect(rejectRequest.request.body).toEqual({ status: 'rejected' })
     rejectRequest.flush({
@@ -193,7 +193,7 @@ describe('StandupService', () => {
 
     // reject calls standups.reload()
     TestBed.tick()
-    httpMock.expectOne('/api/standups').flush({
+    httpMock.expectOne('/standups').flush({
       data: [makeStandupDto({ id: '7f3a2b1c', status: 'rejected' })],
     })
     await appRef.whenStable()
@@ -205,13 +205,14 @@ describe('StandupService', () => {
       'Remove the blocker section and add the deployment fix',
     )
 
-    const request = httpMock.expectOne('/api/standups/trigger')
+    const request = httpMock.expectOne('/standups/trigger')
     expect(request.request.method).toBe('POST')
     expect(request.request.body).toEqual({
       forceRegenerate: true,
       rewriteFromStandupId: '7f3a2b1c',
       rewriteInstruction:
         'Remove the blocker section and add the deployment fix',
+      replaceStandupId: '7f3a2b1c',
     })
     request.flush(
       { ok: true, accepted: true },
@@ -224,11 +225,11 @@ describe('StandupService', () => {
   it('returns the accepted acknowledgement when forcing regeneration', async () => {
     const regeneratePromise = service.regenerate('7f3a2b1c')
 
-    const request = httpMock.expectOne('/api/standups/trigger')
+    const request = httpMock.expectOne('/standups/trigger')
     expect(request.request.method).toBe('POST')
     expect(request.request.body).toEqual({
       forceRegenerate: true,
-      rewriteFromStandupId: '7f3a2b1c',
+      replaceStandupId: '7f3a2b1c',
     })
     request.flush(
       { ok: true, accepted: true },

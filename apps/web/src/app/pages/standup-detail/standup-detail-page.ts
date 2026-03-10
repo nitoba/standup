@@ -7,165 +7,188 @@ import {
   signal,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
+import { toast } from 'ngx-sonner'
 import { SidebarLayout } from '../../layout/sidebar'
 import { StandupService } from '../../services/standup.service'
-import type { StandupSectionTone, StandupStatus } from '../../types/standup'
-import { AdjustModal } from './adjust-modal'
+import { ZardButtonComponent } from '../../shared/components/button'
+import { ZardDialogService } from '../../shared/components/dialog'
+import type { StandupStatus } from '../../types/standup'
+import { AdjustDialogContent } from './adjust-dialog-content'
 
 @Component({
   selector: 'app-standup-detail-page',
-  imports: [SidebarLayout, RouterLink, AdjustModal],
+  imports: [SidebarLayout, RouterLink, ZardButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-sidebar-layout>
-      <section class="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[32px]">
-        <a routerLink="/dashboard" class="text-[var(--text-secondary)] font-[var(--font-jetbrains)] text-[12px] flex items-center gap-[12px] transition-colors duration-150 hover:text-[var(--text-primary)]">
+      <section class="min-h-screen bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[32px]">
+        <a routerLink="/dashboard" class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] flex items-center gap-[12px] transition-colors duration-150 hover:text-foreground">
           <span><<</span>
           <span>back to standups</span>
         </a>
 
         @if (standup.isLoading()) {
-          <div class="text-[var(--text-secondary)] font-[var(--font-ibm)] text-[13px]">// loading standup detail...</div>
+          <div class="text-muted-foreground font-[var(--font-ibm)] text-[13px]">// loading standup detail...</div>
         } @else if (standup.error()) {
           <div class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[13px]">// standup not found</div>
         } @else if (standup.value(); as detail) {
           <div class="flex flex-col gap-[16px]">
             <div class="flex items-center gap-[12px]">
               <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[24px] md:text-[32px] font-bold">>></span>
-              <span class="text-[var(--text-primary)] font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold">standup_detail</span>
+              <span class="text-foreground font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold">standup_detail</span>
             </div>
             <div class="flex flex-wrap items-center gap-[12px] md:gap-[24px]">
-              <span class="text-[var(--text-secondary)] font-[var(--font-ibm)] text-[12px]">// {{ detail.date }}</span>
+              <span class="text-muted-foreground font-[var(--font-ibm)] text-[12px]">// {{ detail.date }}</span>
               <div class="flex items-center gap-[8px]">
                 <span class="h-[6px] w-[6px] rounded-full" [class]="statusDotClass(detail.status)"></span>
                 <span class="font-[var(--font-jetbrains)] text-[12px]" [class]="statusTextClass(detail.status)">
                   {{ formatStatus(detail.status) }}
                 </span>
               </div>
-              <span class="hidden md:inline text-[var(--text-secondary)] font-[var(--font-ibm)] text-[12px]">created: {{ detail.createdAt }}</span>
-              <span class="hidden md:inline text-[var(--text-tertiary)] font-[var(--font-ibm)] text-[12px]">id: {{ detail.id }}</span>
+              <span class="hidden md:inline text-muted-foreground font-[var(--font-ibm)] text-[12px]">created: {{ detail.createdAt }}</span>
+              <span class="hidden md:inline text-muted-foreground/70 font-[var(--font-ibm)] text-[12px]">id: {{ detail.id }}</span>
             </div>
           </div>
 
-          <div class="bg-[var(--bg-surface)] border border-[var(--border)] p-[16px] md:p-[24px] flex flex-col gap-[16px] md:gap-[20px]">
-            @for (section of detail.sections; track section.title) {
-              <div class="flex flex-col gap-[8px]">
-                <div class="text-[var(--text-emphasis)] font-[var(--font-jetbrains)] text-[14px] font-bold">{{ section.title }}</div>
-                @for (item of section.items; track item) {
-                  <div class="font-[var(--font-ibm)] text-[13px] leading-[1.6]" [class]="sectionToneClass(section.tone)">
-                    {{ item }}
-                  </div>
-                }
-              </div>
-            }
+          <div class="bg-card border border-border rounded-lg p-[16px] md:p-[24px] flex flex-col gap-[16px] md:gap-[20px]">
+            <div class="flex flex-col gap-[8px] md:flex-row md:items-center md:justify-between">
+              <div class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-bold">generated_content</div>
+              <button
+                type="button"
+                z-button
+                zType="outline"
+                zSize="sm"
+                [zDisabled]="actionLoading()"
+                (click)="copyToClipboard(detail.content ?? '', 'generated content copied')"
+              >
+                $ copy generated
+              </button>
+            </div>
+            <pre class="m-0 whitespace-pre-wrap break-words font-[var(--font-ibm)] text-[13px] leading-[1.7] text-foreground">{{ detail.content }}</pre>
           </div>
 
-          <div class="border border-[var(--border)] p-[20px] flex flex-col gap-[20px]">
-            @for (repo of detail.sources; track repo.name) {
-              <div class="flex flex-col gap-[8px]">
-                <div class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[13px] font-medium">{{ repo.name }}</div>
-                @for (commit of repo.commits; track commit.hash) {
-                  <div class="flex gap-[12px] pl-[16px]">
-                    <span class="text-[var(--text-tertiary)] font-[var(--font-jetbrains)] text-[12px]">{{ commit.hash }}</span>
-                    <span class="text-[var(--text-primary)] font-[var(--font-ibm)] text-[12px]">{{ commit.message }}</span>
+          <div class="border border-border rounded-lg p-[20px] flex flex-col gap-[20px]">
+            <div class="flex flex-col gap-[8px] md:flex-row md:items-center md:justify-between">
+              <div class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-bold">datasource</div>
+              <div class="flex flex-col gap-[8px] md:flex-row">
+                <button
+                  type="button"
+                  z-button
+                  zType="outline"
+                  zSize="sm"
+                  [zDisabled]="actionLoading()"
+                  (click)="toggleDatasource()"
+                >
+                  {{ showFullDatasource() ? '$ collapse datasource' : '$ expand datasource' }}
+                </button>
+                <button
+                  type="button"
+                  z-button
+                  zType="outline"
+                  zSize="sm"
+                  [zDisabled]="actionLoading()"
+                  (click)="copyToClipboard(detail.sourceData ?? '', 'datasource copied')"
+                >
+                  $ copy datasource
+                </button>
+              </div>
+            </div>
+
+            @if (detail.sources.length > 0) {
+              <div class="flex flex-col gap-[20px]">
+                @for (repo of detail.sources; track repo.name) {
+                  <div class="flex flex-col gap-[8px]">
+                    <div class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[13px] font-medium">{{ repo.name }}</div>
+                    @for (commit of repo.commits; track commit.hash) {
+                      <div class="flex gap-[12px] pl-[16px]">
+                        <span class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[12px]">{{ commit.hash }}</span>
+                        <span class="text-foreground font-[var(--font-ibm)] text-[12px]">{{ commit.message }}</span>
+                      </div>
+                    }
                   </div>
                 }
               </div>
             }
+
+            <div class="border border-border bg-card p-[16px] flex flex-col gap-[12px]">
+              <div class="flex items-center justify-between gap-[12px]">
+                <span class="font-[var(--font-jetbrains)] text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
+                  {{ showFullDatasource() ? 'full json' : 'preview' }}
+                </span>
+                @if (!showFullDatasource()) {
+                  <span class="font-[var(--font-ibm)] text-[12px] text-muted-foreground/70">
+                    {{ datasourceLineCount(detail.sourceData ?? '') }} lines
+                  </span>
+                }
+              </div>
+
+              <pre class="m-0 whitespace-pre-wrap break-words font-[var(--font-ibm)] text-[12px] leading-[1.7] text-muted-foreground">{{ showFullDatasource() ? detail.sourceData : previewDatasource(detail.sourceData ?? '') }}</pre>
+            </div>
           </div>
 
           <div class="flex flex-col md:flex-row items-stretch md:items-center gap-[12px] md:gap-[16px]">
+            @if (!isApproved(detail.status)) {
+              <button
+                type="button"
+                z-button
+                zType="default"
+                class="w-full md:w-auto"
+                [zDisabled]="actionLoading()"
+                (click)="approve(detail.id)"
+              >
+                $ approve
+              </button>
+              <button
+                type="button"
+                z-button
+                zType="destructive"
+                class="w-full md:w-auto"
+                [zDisabled]="actionLoading()"
+                (click)="reject(detail.id)"
+              >
+                $ reject
+              </button>
+              <button
+                type="button"
+                z-button
+                zType="secondary"
+                class="w-full md:w-auto"
+                [zDisabled]="actionLoading()"
+                (click)="openAdjustModal()"
+              >
+                $ adjust
+              </button>
+            }
             <button
               type="button"
-              class="h-[44px] md:h-auto bg-[var(--accent-green)] border border-[var(--accent-green)] px-[20px] py-[10px] text-[var(--bg-page)] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:brightness-110 hover:shadow-[0_0_12px_var(--accent-green)] active:brightness-90 flex items-center justify-center"
-              [disabled]="actionLoading()"
-              [class.cursor-not-allowed]="actionLoading()"
-              [class.opacity-50]="actionLoading()"
-              [class.cursor-pointer]="!actionLoading()"
-              [class.hover:brightness-110]="!actionLoading()"
-              [class.hover:shadow-[0_0_12px_var(--accent-green)]]="!actionLoading()"
-              (click)="approve(detail.id)"
-            >
-              $ approve
-            </button>
-            <button
-              type="button"
-              class="h-[44px] md:h-auto border border-[var(--accent-red)] px-[20px] py-[10px] text-[var(--accent-red)] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:bg-[var(--accent-red)] hover:text-[var(--bg-page)] active:brightness-90 flex items-center justify-center"
-              [disabled]="actionLoading()"
-              [class.cursor-not-allowed]="actionLoading()"
-              [class.opacity-50]="actionLoading()"
-              [class.cursor-pointer]="!actionLoading()"
-              [class.hover:bg-[var(--accent-red)]]="!actionLoading()"
-              [class.hover:text-[var(--bg-page)]]="!actionLoading()"
-              (click)="reject(detail.id)"
-            >
-              $ reject
-            </button>
-            <button
-              type="button"
-              class="h-[44px] md:h-auto border border-[var(--accent-cyan)] px-[20px] py-[10px] text-[var(--accent-cyan)] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:bg-[var(--accent-cyan)] hover:text-[var(--bg-page)] active:brightness-90 flex items-center justify-center"
-              [disabled]="actionLoading()"
-              [class.cursor-not-allowed]="actionLoading()"
-              [class.opacity-50]="actionLoading()"
-              [class.cursor-pointer]="!actionLoading()"
-              [class.hover:bg-[var(--accent-cyan)]]="!actionLoading()"
-              [class.hover:text-[var(--bg-page)]]="!actionLoading()"
-              [class.hover:shadow-[0_0_12px_var(--accent-cyan)]]="!actionLoading()"
-              (click)="openAdjustModal()"
-            >
-              $ adjust
-            </button>
-            <button
-              type="button"
-              class="h-[44px] md:h-auto border border-[var(--accent-cyan)] px-[20px] py-[10px] text-[var(--accent-cyan)] font-[var(--font-jetbrains)] text-[12px] font-medium cursor-pointer transition-all duration-150 hover:bg-[var(--accent-cyan)] hover:text-[var(--bg-page)] active:brightness-90 flex items-center justify-center"
-              [disabled]="actionLoading()"
-              [class.cursor-not-allowed]="actionLoading()"
-              [class.opacity-50]="actionLoading()"
-              [class.cursor-pointer]="!actionLoading()"
-              [class.hover:bg-[var(--accent-cyan)]]="!actionLoading()"
-              [class.hover:text-[var(--bg-page)]]="!actionLoading()"
-              [class.hover:shadow-[0_0_12px_var(--accent-cyan)]]="!actionLoading()"
+              z-button
+              zType="secondary"
+              class="w-full md:w-auto"
+              [zDisabled]="actionLoading()"
               (click)="regenerate(detail.id)"
             >
               $ regenerate
             </button>
           </div>
-
-          @if (actionFeedback(); as feedback) {
-            <div class="font-[var(--font-ibm)] text-[12px] text-[var(--accent-cyan)] opacity-80">
-              {{ feedback }}
-            </div>
-          }
-
-          <app-adjust-modal
-            [open]="showAdjustModal()"
-            [loading]="actionLoading()"
-            (submitInstruction)="onAdjustSubmit($event)"
-            (close)="closeAdjustModal()"
-          />
         } @else {
-          <div class="text-[var(--text-secondary)] font-[var(--font-ibm)] text-[13px]">// standup not found</div>
+          <div class="text-muted-foreground font-[var(--font-ibm)] text-[13px]">// standup not found</div>
         }
       </section>
     </app-sidebar-layout>
   `,
 })
 export class StandupDetailPage {
+  private readonly dialogService = inject(ZardDialogService)
   private readonly standupService = inject(StandupService)
-  private readonly queuedFeedbackMessage =
-    '// standup queued for regeneration...'
 
   readonly id = input.required<string>()
   readonly standup = this.standupService.selectedStandup
   readonly actionLoading = signal(false)
-  readonly actionFeedback = signal<string | undefined>(undefined)
-  readonly showAdjustModal = signal(false)
-  readonly feedbackTimeoutId = signal<
-    ReturnType<typeof setTimeout> | undefined
-  >(undefined)
+  readonly showFullDatasource = signal(false)
 
   constructor() {
     effect(() => {
+      this.showFullDatasource.set(false)
       this.standupService.selectStandup(this.id())
     })
   }
@@ -175,33 +198,22 @@ export class StandupDetailPage {
       return
     }
 
-    this.showAdjustModal.set(true)
+    this.dialogService.create({
+      zTitle: '// adjust standup',
+      zDescription: '// rewrite instructions',
+      zContent: AdjustDialogContent,
+      zHideFooter: true,
+      zWidth: '720px',
+      zData: {
+        onSubmit: (instruction: string) => {
+          void this.submitAdjustInstruction(instruction)
+        },
+      },
+    })
   }
 
-  closeAdjustModal() {
-    this.showAdjustModal.set(false)
-  }
-
-  setQueuedFeedback() {
-    this.clearQueuedFeedback()
-    this.actionFeedback.set(this.queuedFeedbackMessage)
-
-    this.feedbackTimeoutId.set(
-      setTimeout(() => {
-        this.actionFeedback.set(undefined)
-        this.feedbackTimeoutId.set(undefined)
-      }, 5000),
-    )
-  }
-
-  clearQueuedFeedback() {
-    const timeoutId = this.feedbackTimeoutId()
-    if (timeoutId !== undefined) {
-      clearTimeout(timeoutId)
-      this.feedbackTimeoutId.set(undefined)
-    }
-
-    this.actionFeedback.set(undefined)
+  toggleDatasource() {
+    this.showFullDatasource.update((current) => !current)
   }
 
   async approve(id: string) {
@@ -213,7 +225,7 @@ export class StandupDetailPage {
 
     try {
       await this.standupService.approve(id)
-      this.clearQueuedFeedback()
+      toast('Standup aprovado')
       this.standup.reload()
     } finally {
       this.actionLoading.set(false)
@@ -229,7 +241,7 @@ export class StandupDetailPage {
 
     try {
       await this.standupService.reject(id)
-      this.clearQueuedFeedback()
+      toast('Standup rejeitado')
       this.standup.reload()
     } finally {
       this.actionLoading.set(false)
@@ -245,29 +257,70 @@ export class StandupDetailPage {
 
     try {
       await this.standupService.regenerate(id)
-      this.setQueuedFeedback()
+      toast('Standup enviado para regeneracao')
       this.standup.reload()
     } finally {
       this.actionLoading.set(false)
     }
   }
 
-  async onAdjustSubmit(instruction: string) {
+  async submitAdjustInstruction(instruction: string) {
     const id = this.id()
     if (!id || this.actionLoading()) {
       return
     }
 
-    this.closeAdjustModal()
     this.actionLoading.set(true)
 
     try {
       await this.standupService.adjust(id, instruction)
-      this.setQueuedFeedback()
+      toast('Ajuste enviado para regeneracao')
       this.standup.reload()
     } finally {
       this.actionLoading.set(false)
     }
+  }
+
+  async copyToClipboard(content: string, feedback: string) {
+    const clipboard = globalThis.navigator?.clipboard
+    if (!clipboard || !content.trim()) {
+      toast('Clipboard indisponivel')
+      return
+    }
+
+    try {
+      await clipboard.writeText(content)
+      toast(feedback)
+    } catch {
+      toast('Clipboard indisponivel')
+    }
+  }
+
+  isApproved(status: StandupStatus) {
+    return status === 'approved'
+  }
+
+  previewDatasource(sourceData: string) {
+    const trimmed = sourceData.trim()
+    if (!trimmed) {
+      return '{}'
+    }
+
+    const lines = trimmed.split('\n')
+    if (lines.length <= 8) {
+      return trimmed
+    }
+
+    return `${lines.slice(0, 8).join('\n')}\n...`
+  }
+
+  datasourceLineCount(sourceData: string) {
+    const trimmed = sourceData.trim()
+    if (!trimmed) {
+      return 0
+    }
+
+    return trimmed.split('\n').length
   }
 
   statusDotClass(status: StandupStatus) {
@@ -285,11 +338,5 @@ export class StandupDetailPage {
   formatStatus(status: StandupStatus) {
     if (status === 'pending_review') return '[pending_review]'
     return status === 'approved' ? '[approved]' : '[rejected]'
-  }
-
-  sectionToneClass(tone: StandupSectionTone) {
-    if (tone === 'cyan') return 'text-[var(--accent-cyan)]'
-    if (tone === 'muted') return 'text-[var(--text-secondary)]'
-    return 'text-[var(--text-primary)]'
   }
 }

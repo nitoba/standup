@@ -8,6 +8,14 @@ import { TestBed } from '@angular/core/testing'
 import { provideRouter } from '@angular/router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+const { toastMock } = vi.hoisted(() => ({
+  toastMock: vi.fn(),
+}))
+
+vi.mock('ngx-sonner', () => ({
+  toast: toastMock,
+}))
+
 import { SettingsPage } from './settings-page'
 
 function buildMockSettings() {
@@ -57,8 +65,8 @@ describe('SettingsPage', () => {
 
   function flushInitialLoad() {
     TestBed.tick()
-    httpMock.expectOne('/api/settings/me').flush({ data: buildMockSettings() })
-    httpMock.expectOne('/api/repos').flush({ data: buildMockRepos() })
+    httpMock.expectOne('/settings/me').flush({ data: buildMockSettings() })
+    httpMock.expectOne('/repos').flush({ data: buildMockRepos() })
   }
 
   async function renderAndLoad() {
@@ -72,6 +80,7 @@ describe('SettingsPage', () => {
   afterEach(() => {
     httpMock.verify()
     vi.useRealTimers()
+    toastMock.mockReset()
   })
 
   it('shows loading state while fetching settings', async () => {
@@ -96,14 +105,14 @@ describe('SettingsPage', () => {
     const standupCron = el.querySelector<HTMLInputElement>('#standup-cron')
     const reminderCron = el.querySelector<HTMLInputElement>('#reminder-cron')
     const recoveryCron = el.querySelector<HTMLInputElement>('#recovery-cron')
-    const timezone = el.querySelector<HTMLInputElement>('#timezone')
+    const timezone = el.querySelector<HTMLElement>('#timezone')
     const gitAuthor = el.querySelector<HTMLInputElement>('#git-author')
     const gitSince = el.querySelector<HTMLInputElement>('#git-since-period')
 
     expect(standupCron?.value).toBe('30 17 * * 1-5')
     expect(reminderCron?.value).toBe('20 17 * * 1-5')
     expect(recoveryCron?.value).toBe('0 18 * * 1-5')
-    expect(timezone?.value).toBe('america/sao_paulo')
+    expect(timezone?.textContent).toContain('america/sao_paulo')
     expect(gitAuthor?.value).toBe('nitoba')
     expect(gitSince?.value).toBe('16 hours ago')
   })
@@ -168,9 +177,7 @@ describe('SettingsPage', () => {
     expect(toggle.getAttribute('aria-checked')).toBe('false')
   })
 
-  it('saves settings through the API and shows success feedback', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-
+  it('saves settings through the API and shows success toast', async () => {
     const fixture = await renderAndLoad()
     const el = fixture.nativeElement as HTMLElement
 
@@ -186,7 +193,7 @@ describe('SettingsPage', () => {
 
     // Flush the PUT request
     TestBed.tick()
-    const putReq = httpMock.expectOne('/api/settings/me')
+    const putReq = httpMock.expectOne('/settings/me')
     expect(putReq.request.method).toBe('PUT')
     expect(putReq.request.body).toEqual({
       standupCron: '30 17 * * 1-5',
@@ -202,26 +209,20 @@ describe('SettingsPage', () => {
     await appRef.whenStable()
     fixture.detectChanges()
 
-    // Should show success feedback
-    expect(el.textContent).toContain('// settings saved')
+    expect(toastMock).toHaveBeenCalledWith('Settings salvas')
     expect(submitBtn.disabled).toBe(false)
     expect(submitBtn.textContent).toContain('$ save_settings')
-
-    // Feedback disappears after 3 seconds
-    vi.advanceTimersByTime(3000)
-    fixture.detectChanges()
-    expect(el.textContent).not.toContain('// settings saved')
   })
 
   it('shows error state when load fails and allows retry', async () => {
     const fixture = await renderPage()
 
     TestBed.tick()
-    httpMock.expectOne('/api/settings/me').flush('Server Error', {
+    httpMock.expectOne('/settings/me').flush('Server Error', {
       status: 500,
       statusText: 'Internal Server Error',
     })
-    httpMock.expectOne('/api/repos').flush('Server Error', {
+    httpMock.expectOne('/repos').flush('Server Error', {
       status: 500,
       statusText: 'Internal Server Error',
     })
@@ -245,8 +246,8 @@ describe('SettingsPage', () => {
 
     // Flush retry requests
     TestBed.tick()
-    httpMock.expectOne('/api/settings/me').flush({ data: buildMockSettings() })
-    httpMock.expectOne('/api/repos').flush({ data: buildMockRepos() })
+    httpMock.expectOne('/settings/me').flush({ data: buildMockSettings() })
+    httpMock.expectOne('/repos').flush({ data: buildMockRepos() })
     await appRef.whenStable()
     fixture.detectChanges()
 
@@ -255,7 +256,7 @@ describe('SettingsPage', () => {
     expect(el.textContent).not.toContain('// failed to load settings')
   })
 
-  it('shows save error feedback when PUT fails', async () => {
+  it('shows save error toast when PUT fails', async () => {
     const fixture = await renderAndLoad()
     const el = fixture.nativeElement as HTMLElement
 
@@ -266,14 +267,14 @@ describe('SettingsPage', () => {
     fixture.detectChanges()
 
     TestBed.tick()
-    httpMock.expectOne('/api/settings/me').flush('Server Error', {
+    httpMock.expectOne('/settings/me').flush('Server Error', {
       status: 500,
       statusText: 'Internal Server Error',
     })
     await appRef.whenStable()
     fixture.detectChanges()
 
-    expect(el.textContent).toContain('// failed to save settings')
+    expect(toastMock).toHaveBeenCalledWith('Falha ao salvar settings')
     expect(submitBtn.disabled).toBe(false)
   })
 

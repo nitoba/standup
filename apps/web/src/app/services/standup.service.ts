@@ -50,11 +50,11 @@ export class StandupService {
   // Reactive GET — refetches automatically when filter signals change
   readonly standups = httpResource<Standup[]>(
     () => {
-      const params: Record<string, string> = {}
+      const params: { status?: string; date?: string } = {}
       const status = this.statusFilter()
       const date = this.dateFilter()
-      if (status && status !== 'all') params['status'] = status
-      if (date && date !== 'all' && date !== 'this_week') params['date'] = date
+      if (status && status !== 'all') params.status = status
+      if (date && date !== 'all' && date !== 'this_week') params.date = date
       return { url: '/standups', params }
     },
     {
@@ -142,6 +142,7 @@ export class StandupService {
         forceRegenerate: true,
         rewriteFromStandupId: id,
         rewriteInstruction: instruction,
+        replaceStandupId: id,
       }),
     )
   }
@@ -150,7 +151,7 @@ export class StandupService {
     return firstValueFrom(
       this.http.post<TriggerAck>('/standups/trigger', {
         forceRegenerate: true,
-        rewriteFromStandupId: id,
+        replaceStandupId: id,
       }),
     )
   }
@@ -162,6 +163,8 @@ export class StandupService {
       date: standup.date,
       status: this.mapStatus(standup.status),
       createdAt: this.formatTimestamp(standup.createdAt),
+      content: standup.content,
+      sourceData: this.formatSourceData(standup.sourceData),
       contentPreview: this.buildContentPreview(standup.content),
       sections: this.parseSections(standup.content),
       sources: this.parseSources(standup.sourceData),
@@ -227,6 +230,14 @@ export class StandupService {
       }))
     } catch {
       return []
+    }
+  }
+
+  private formatSourceData(sourceData: string) {
+    try {
+      return JSON.stringify(JSON.parse(sourceData), null, 2)
+    } catch {
+      return sourceData
     }
   }
 

@@ -33,6 +33,7 @@ describe('DashboardPage', () => {
   let appRef: ApplicationRef
 
   async function renderDashboard() {
+    TestBed.resetTestingModule()
     await TestBed.configureTestingModule({
       imports: [DashboardPage],
       providers: [
@@ -63,7 +64,7 @@ describe('DashboardPage', () => {
   it('renders the dashboard header', async () => {
     const fixture = await renderDashboard()
     TestBed.tick()
-    httpMock.expectOne('/api/standups').flush({
+    httpMock.expectOne('/standups').flush({
       data: buildMockStandupDtos(buildMockStandups()),
     })
     await appRef.whenStable()
@@ -92,7 +93,7 @@ describe('DashboardPage', () => {
     })
 
     TestBed.tick()
-    httpMock.expectOne('/api/standups').flush({ data: allStandupDtos })
+    httpMock.expectOne('/standups').flush({ data: allStandupDtos })
     await appRef.whenStable()
     fixture.detectChanges()
 
@@ -116,7 +117,7 @@ describe('DashboardPage', () => {
 
     TestBed.tick()
     httpMock
-      .expectOne('/api/standups?status=pending_review')
+      .expectOne('/standups?status=pending_review')
       .flush({ data: buildMockStandupDtos(pendingStandups) })
     await appRef.whenStable()
     fixture.detectChanges()
@@ -137,7 +138,7 @@ describe('DashboardPage', () => {
 
     TestBed.tick()
     const filteredRequest = httpMock.expectOne(
-      '/api/standups?status=pending_review&date=2026-03-09',
+      '/standups?status=pending_review&date=2026-03-09',
     )
     filteredRequest.flush({ data: buildMockStandupDtos(pendingTodayStandups) })
     await appRef.whenStable()

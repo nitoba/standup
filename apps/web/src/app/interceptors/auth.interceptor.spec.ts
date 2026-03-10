@@ -22,6 +22,7 @@ describe('authInterceptor', () => {
   }
 
   beforeEach(() => {
+    TestBed.resetTestingModule()
     router.navigate.mockReset()
     router.navigate.mockResolvedValue(true)
     sessionService.clearSession.mockReset()

@@ -8,12 +8,9 @@ const betterAuthMocks = vi.hoisted(() => ({
   signOut: vi.fn(),
 }))
 
-vi.mock('better-auth/client', () => ({
-  createAuthClient: betterAuthMocks.createAuthClient,
-}))
-
 import {
   BETTER_AUTH_CLIENT,
+  BETTER_AUTH_CLIENT_MODULE_LOADER,
   type BetterAuthClient,
   type SessionData,
   SessionService,
@@ -46,6 +43,7 @@ describe('SessionService', () => {
   }
 
   beforeEach(() => {
+    TestBed.resetTestingModule()
     betterAuthMocks.createAuthClient.mockReset()
     betterAuthMocks.getSession.mockReset()
     betterAuthMocks.signInSocial.mockReset()
@@ -136,7 +134,16 @@ describe('SessionService', () => {
 
   it('creates the default Better Auth browser adapter from better-auth/client', async () => {
     TestBed.resetTestingModule()
-    TestBed.configureTestingModule({})
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: BETTER_AUTH_CLIENT_MODULE_LOADER,
+          useValue: async () => ({
+            createAuthClient: betterAuthMocks.createAuthClient,
+          }),
+        },
+      ],
+    })
 
     const client = TestBed.inject(BETTER_AUTH_CLIENT) as BetterAuthClient
     const session = makeSession()

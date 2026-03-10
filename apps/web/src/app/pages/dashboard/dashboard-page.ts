@@ -19,19 +19,19 @@ import { StandupTable } from './standup-table'
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-sidebar-layout>
-      <section class="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[40px]">
+      <section class="min-h-screen bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[40px]">
         <div class="flex flex-col gap-[8px]">
           <div class="flex items-center gap-[12px]">
             <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[24px] md:text-[32px] font-bold">>></span>
-            <span class="text-[var(--text-primary)] font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold">standups</span>
+            <span class="text-foreground font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold">standups</span>
           </div>
-          <div class="text-[var(--text-secondary)] font-[var(--font-ibm)] text-[14px]">
+          <div class="text-muted-foreground font-[var(--font-ibm)] text-[14px]">
             // daily standup reports overview
           </div>
         </div>
 
         @if (standupService.standups.isLoading()) {
-          <div class="text-[var(--text-secondary)] font-[var(--font-ibm)] text-[13px]">// loading standups...</div>
+          <div class="text-muted-foreground font-[var(--font-ibm)] text-[13px]">// loading standups...</div>
         } @else if (standupService.standups.error()) {
           <div class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[13px]">// failed to load standups</div>
         } @else {
@@ -99,9 +99,9 @@ export class DashboardPage {
         label: 'total_standups',
         value: metrics.total.count,
         change: metrics.total.change,
-        dotColor: 'bg-[var(--text-secondary)]',
-        valueColor: 'text-[var(--text-primary)]',
-        changeColor: 'text-[var(--text-secondary)]',
+        dotColor: 'bg-muted-foreground',
+        valueColor: 'text-foreground',
+        changeColor: 'text-muted-foreground',
       },
       {
         label: 'approved',
@@ -117,7 +117,7 @@ export class DashboardPage {
         change: metrics.pending.change,
         dotColor: 'bg-[var(--accent-cyan)]',
         valueColor: 'text-[var(--accent-cyan)]',
-        changeColor: 'text-[var(--text-secondary)]',
+        changeColor: 'text-muted-foreground',
       },
       {
         label: 'rejected',
@@ -125,7 +125,7 @@ export class DashboardPage {
         change: metrics.rejected.change,
         dotColor: 'bg-[var(--accent-amber)]',
         valueColor: 'text-[var(--accent-amber)]',
-        changeColor: 'text-[var(--text-secondary)]',
+        changeColor: 'text-muted-foreground',
       },
     ]
   })

@@ -119,6 +119,7 @@ export interface Standup {
   updatedAt?: string
   meetingType?: string
   content?: string
+  sourceData?: string
   contentPreview: string
   customEntries?: StandupCustomEntriesDto | null
   userId?: string | null

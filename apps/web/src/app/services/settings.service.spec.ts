@@ -16,6 +16,7 @@ describe('SettingsService', () => {
   let httpMock: HttpTestingController
 
   beforeEach(() => {
+    TestBed.resetTestingModule()
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting()],
     })
@@ -44,7 +45,7 @@ describe('SettingsService', () => {
 
     const loadPromise = service.loadSettings()
 
-    const request = httpMock.expectOne('/api/settings/me')
+    const request = httpMock.expectOne('/settings/me')
     expect(request.request.method).toBe('GET')
     request.flush({ data: settings })
 
@@ -61,7 +62,7 @@ describe('SettingsService', () => {
 
     const loadPromise = service.loadRepos()
 
-    const request = httpMock.expectOne('/api/repos')
+    const request = httpMock.expectOne('/repos')
     expect(request.request.method).toBe('GET')
     request.flush({ data: repos })
 
@@ -89,7 +90,7 @@ describe('SettingsService', () => {
 
     const savePromise = service.saveSettings(payload)
 
-    const request = httpMock.expectOne('/api/settings/me')
+    const request = httpMock.expectOne('/settings/me')
     expect(request.request.method).toBe('PUT')
     expect(request.request.body).toEqual(payload)
     request.flush({ data: saved })

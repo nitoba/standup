@@ -117,7 +117,9 @@ describe('approveStandup', () => {
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
       expect(result.value.kind).toBe('success')
-      expect(result.value.standup).toEqual(publishedRecord)
+      if (result.value.kind === 'success') {
+        expect(result.value.standup).toEqual(publishedRecord)
+      }
     }
     expect(mocks.getDb).toHaveBeenCalledWith(DATABASE_URL)
     expect(mocks.repoFindByIdForUser).toHaveBeenCalledWith(
@@ -175,8 +177,10 @@ describe('approveStandup', () => {
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
       expect(result.value.kind).toBe('publish_failed')
-      expect(result.value.standup).toEqual(approvedRecord)
-      expect(result.value.error.service).toBe('discord')
+      if (result.value.kind === 'publish_failed') {
+        expect(result.value.standup).toEqual(approvedRecord)
+        expect(result.value.error.service).toBe('discord')
+      }
     }
     expect(mocks.repoUpdateCustomEntriesForUser).not.toHaveBeenCalled()
     expect(mocks.repoUpdateContentForUser).not.toHaveBeenCalled()
@@ -215,7 +219,9 @@ describe('approveStandup', () => {
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
       expect(result.value.kind).toBe('success')
-      expect(result.value.standup).toEqual(approvedRecord)
+      if (result.value.kind === 'success') {
+        expect(result.value.standup).toEqual(approvedRecord)
+      }
     }
     expect(publishApprovedStandup).toHaveBeenCalledWith(approvedRecord)
     expect(mocks.repoUpdateStatusForUser).toHaveBeenNthCalledWith(
@@ -254,7 +260,9 @@ describe('approveStandup', () => {
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
       expect(result.value.kind).toBe('invalid_transition')
-      expect(result.value.error).toBe(invalidTransition)
+      if (result.value.kind === 'invalid_transition') {
+        expect(result.value.error).toBe(invalidTransition)
+      }
     }
     expect(publishApprovedStandup).not.toHaveBeenCalled()
   })
@@ -276,7 +284,9 @@ describe('approveStandup', () => {
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
       expect(result.value.kind).toBe('not_found')
-      expect(result.value.error).toBe(notFound)
+      if (result.value.kind === 'not_found') {
+        expect(result.value.error).toBe(notFound)
+      }
     }
     expect(mocks.repoUpdateStatusForUser).not.toHaveBeenCalled()
     expect(publishApprovedStandup).not.toHaveBeenCalled()

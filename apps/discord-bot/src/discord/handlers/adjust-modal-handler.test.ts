@@ -108,6 +108,7 @@ describe('handleAdjustModal', () => {
         forceRegenerate: true,
         rewriteFromStandupId: 'standup-1',
         rewriteInstruction: 'Remover item antigo e adicionar item novo',
+        replaceStandupId: 'standup-1',
       },
     )
     expect(editReply).toHaveBeenCalledWith(

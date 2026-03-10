@@ -17,6 +17,7 @@ export interface StandupJobOptions {
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
   rewriteInstruction?: string
+  replaceStandupId?: string
 }
 
 export interface TriggerStandupHandlerDeps {
@@ -92,6 +93,9 @@ export async function handleTriggerStandup(
       : {}),
     ...(typeof body.rewriteInstruction === 'string'
       ? { rewriteInstruction: body.rewriteInstruction }
+      : {}),
+    ...(typeof body.replaceStandupId === 'string'
+      ? { replaceStandupId: body.replaceStandupId }
       : {}),
   }
 

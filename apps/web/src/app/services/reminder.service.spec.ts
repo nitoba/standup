@@ -12,6 +12,7 @@ describe('ReminderService', () => {
   let httpMock: HttpTestingController
 
   beforeEach(() => {
+    TestBed.resetTestingModule()
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting()],
     })
@@ -28,7 +29,7 @@ describe('ReminderService', () => {
 
     const runNowPromise = service.runNow()
 
-    const request = httpMock.expectOne('/api/reminders/run-now')
+    const request = httpMock.expectOne('/reminders/run-now')
     expect(request.request.method).toBe('POST')
     expect(request.request.body).toEqual({})
     request.flush(
@@ -44,7 +45,7 @@ describe('ReminderService', () => {
 
     const snoozePromise = service.snooze()
 
-    const request = httpMock.expectOne('/api/reminders/snooze')
+    const request = httpMock.expectOne('/reminders/snooze')
     expect(request.request.method).toBe('POST')
     expect(request.request.body).toEqual({})
     request.flush({
@@ -65,7 +66,7 @@ describe('ReminderService', () => {
 
     const cancelPromise = service.cancelToday()
 
-    const request = httpMock.expectOne('/api/reminders/cancel-today')
+    const request = httpMock.expectOne('/reminders/cancel-today')
     expect(request.request.method).toBe('POST')
     expect(request.request.body).toEqual({})
     request.flush({

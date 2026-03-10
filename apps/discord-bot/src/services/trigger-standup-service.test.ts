@@ -49,6 +49,7 @@ describe('triggerStandup', () => {
           forceRegenerate: undefined,
           rewriteFromStandupId: undefined,
           rewriteInstruction: undefined,
+          replaceStandupId: undefined,
         }),
       },
     )
@@ -80,6 +81,7 @@ describe('triggerStandup', () => {
           forceRegenerate: true,
           rewriteFromStandupId: undefined,
           rewriteInstruction: undefined,
+          replaceStandupId: undefined,
         }),
       },
     )
@@ -115,6 +117,42 @@ describe('triggerStandup', () => {
           forceRegenerate: true,
           rewriteFromStandupId: 'standup-abc',
           rewriteInstruction: 'Remover item X e adicionar item Y',
+          replaceStandupId: undefined,
+        }),
+      },
+    )
+  })
+
+  it('envia replaceStandupId para preservar o mesmo registro', async () => {
+    mockFetch.mockResolvedValue(response(202))
+
+    const result = await triggerStandup(
+      'test-user-1',
+      'user-123',
+      { apiBaseUrl: 'http://localhost:3333', internalSecret: 'test-secret' },
+      {
+        forceRegenerate: true,
+        replaceStandupId: 'standup-abc',
+      },
+    )
+
+    expect(result.isOk()).toBe(true)
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:3333/standups/trigger',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-internal-secret': 'test-secret',
+        },
+        body: JSON.stringify({
+          userId: 'test-user-1',
+          discordUserId: 'user-123',
+          extraContext: undefined,
+          forceRegenerate: true,
+          rewriteFromStandupId: undefined,
+          rewriteInstruction: undefined,
+          replaceStandupId: 'standup-abc',
         }),
       },
     )

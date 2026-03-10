@@ -104,6 +104,7 @@ describe('worker-facade-service', () => {
           forceRegenerate: undefined,
           rewriteFromStandupId: undefined,
           rewriteInstruction: undefined,
+          replaceStandupId: undefined,
         }),
       },
     )

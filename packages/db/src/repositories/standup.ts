@@ -69,6 +69,12 @@ export interface CreateStandupInput {
   userId: string
 }
 
+export interface ReplaceGeneratedStandupInput {
+  meetingType: string
+  content: string
+  sourceData: string
+}
+
 export interface ListStandupFilters {
   status?: StandupStatus
   date?: string
@@ -352,6 +358,42 @@ export class StandupRepository {
       })
     } catch (error) {
       return this.dbErr('updateCustomEntriesForUser', error)
+    }
+  }
+
+  async replaceGeneratedForUser(
+    id: string,
+    userId: string,
+    input: ReplaceGeneratedStandupInput,
+  ): Promise<Result<StandupRecord, NotFoundError | DbError>> {
+    try {
+      const found = await this.findByIdForUser(id, userId)
+      if (found.isErr()) return found
+
+      const now = Date.now()
+      await this.db
+        .update(standups)
+        .set({
+          meetingType: input.meetingType,
+          content: input.content,
+          sourceData: input.sourceData,
+          customEntries: null,
+          status: 'draft',
+          updatedAt: now,
+        })
+        .where(and(eq(standups.id, id), eq(standups.userId, userId)))
+
+      return Result.ok({
+        ...found.value,
+        meetingType: input.meetingType,
+        content: input.content,
+        sourceData: input.sourceData,
+        customEntries: null,
+        status: 'draft',
+        updatedAt: now,
+      })
+    } catch (error) {
+      return this.dbErr('replaceGeneratedForUser', error)
     }
   }
 

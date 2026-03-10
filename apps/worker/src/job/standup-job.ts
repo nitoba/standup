@@ -48,6 +48,7 @@ export interface StandupJobOptions {
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
   rewriteInstruction?: string
+  replaceStandupId?: string
 }
 
 type ResolveAdjustmentError = DbError | NotFoundError | ValidationError
@@ -58,6 +59,39 @@ interface StandupAdjustmentRequest {
   previousContent: string
   sourceData: string
   meetingType: string
+}
+
+async function saveGeneratedStandup(
+  standupRepo: StandupRepository,
+  options: StandupJobOptions,
+  input: {
+    date: string
+    meetingType: string
+    content: string
+    sourceData: string
+  },
+): Promise<Result<{ id: string }, DbError | NotFoundError>> {
+  const replaceStandupId = options.replaceStandupId?.trim()
+  if (replaceStandupId) {
+    return standupRepo.replaceGeneratedForUser(
+      replaceStandupId,
+      options.userId,
+      {
+        meetingType: input.meetingType,
+        content: input.content,
+        sourceData: input.sourceData,
+      },
+    )
+  }
+
+  return standupRepo.create({
+    id: Bun.randomUUIDv7(),
+    date: input.date,
+    meetingType: input.meetingType,
+    content: input.content,
+    sourceData: input.sourceData,
+    userId: options.userId,
+  })
 }
 
 function buildGenerationExtraContext(
@@ -226,15 +260,19 @@ export async function runStandupJob(
         baseStandupId: adjustmentRequest.standupId,
       })
 
+      const replaceStandupId =
+        options.replaceStandupId?.trim() || adjustmentRequest.standupId
       const record = yield* Result.await(
-        standupRepo.create({
-          id: Bun.randomUUIDv7(),
-          date: today,
-          meetingType: adjustmentRequest.meetingType,
-          content: adjusted.content,
-          sourceData: adjustmentRequest.sourceData,
-          userId: options.userId,
-        }),
+        saveGeneratedStandup(
+          standupRepo,
+          { ...options, replaceStandupId },
+          {
+            date: today,
+            meetingType: adjustmentRequest.meetingType,
+            content: adjusted.content,
+            sourceData: adjustmentRequest.sourceData,
+          },
+        ),
       )
 
       jobLogger.info('Adjusted standup draft saved', {
@@ -318,13 +356,11 @@ export async function runStandupJob(
 
     // Step 3: Persist as draft
     const record = yield* Result.await(
-      standupRepo.create({
-        id: Bun.randomUUIDv7(),
+      saveGeneratedStandup(standupRepo, options, {
         date: today,
         meetingType,
         content: generated.content,
         sourceData: JSON.stringify(gitActivity),
-        userId: options.userId,
       }),
     )
 

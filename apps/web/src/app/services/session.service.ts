@@ -7,6 +7,7 @@ import {
 } from '@angular/core'
 
 import { environment } from '../../environments/environment'
+import { loadBetterAuthClientModule } from './better-auth-client-loader'
 
 type BetterAuthSessionResult = {
   data?: unknown
@@ -31,6 +32,8 @@ type BetterAuthClientModule = {
     baseURL?: string
   }): BetterAuthBrowserClientInstance
 }
+
+type BetterAuthClientModuleLoader = () => Promise<BetterAuthClientModule>
 
 export interface SessionUser {
   id: string
@@ -62,9 +65,19 @@ export const BETTER_AUTH_CLIENT = new InjectionToken<BetterAuthClient>(
   'BETTER_AUTH_CLIENT',
   {
     providedIn: 'root',
-    factory: () => createBetterAuthBrowserClient(),
+    factory: () =>
+      createBetterAuthBrowserClient(inject(BETTER_AUTH_CLIENT_MODULE_LOADER)),
   },
 )
+
+export const BETTER_AUTH_CLIENT_MODULE_LOADER =
+  new InjectionToken<BetterAuthClientModuleLoader>(
+    'BETTER_AUTH_CLIENT_MODULE_LOADER',
+    {
+      providedIn: 'root',
+      factory: () => importBetterAuthClient,
+    },
+  )
 
 @Injectable({ providedIn: 'root' })
 export class SessionService {
@@ -112,17 +125,18 @@ export class SessionService {
   }
 }
 
-function createBetterAuthBrowserClient(): BetterAuthClient {
+function createBetterAuthBrowserClient(
+  loadModule: BetterAuthClientModuleLoader,
+): BetterAuthClient {
   let authClientPromise: Promise<BetterAuthBrowserClientInstance> | null = null
 
   const getAuthClient = async () => {
-    authClientPromise ??= importBetterAuthClient().then(
-      ({ createAuthClient }) =>
-        createAuthClient(
-          environment.apiBaseUrl
-            ? { baseURL: environment.apiBaseUrl }
-            : undefined,
-        ),
+    authClientPromise ??= loadModule().then(({ createAuthClient }) =>
+      createAuthClient(
+        environment.apiBaseUrl
+          ? { baseURL: environment.apiBaseUrl }
+          : undefined,
+      ),
     )
 
     return authClientPromise
@@ -161,7 +175,7 @@ function createBetterAuthBrowserClient(): BetterAuthClient {
 }
 
 const importBetterAuthClient = () =>
-  import('better-auth/client') as Promise<BetterAuthClientModule>
+  loadBetterAuthClientModule() as Promise<BetterAuthClientModule>
 
 function readSessionData(payload: unknown): SessionData | null {
   if (!payload || typeof payload !== 'object') {

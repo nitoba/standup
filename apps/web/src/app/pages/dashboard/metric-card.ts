@@ -5,12 +5,12 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class:
-      'metric-card border border-[var(--border)] p-[16px] md:p-[24px] flex flex-col gap-[12px]',
+      'metric-card border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[12px]',
   },
   template: `
     <div class="flex items-center gap-[8px]">
       <span class="h-[6px] w-[6px] rounded-full" [class]="dotColor()"></span>
-      <span class="text-[var(--text-secondary)] font-[var(--font-jetbrains)] text-[12px]">{{ label() }}</span>
+      <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]">{{ label() }}</span>
     </div>
     <div class="font-[var(--font-jetbrains)] text-[28px] font-bold" [class]="valueColor()">
       {{ value() }}

@@ -14,6 +14,7 @@ export const triggerBodySchema = z.object({
   forceRegenerate: z.boolean().optional(),
   rewriteFromStandupId: z.string().optional(),
   rewriteInstruction: z.string().optional(),
+  replaceStandupId: z.string().optional(),
   // Internal calls provide userId/discordUserId explicitly
   userId: z.string().optional(),
   discordUserId: z.string().optional(),
@@ -111,6 +112,7 @@ export async function handleTriggerStandup(
       forceRegenerate: body.forceRegenerate,
       rewriteFromStandupId: body.rewriteFromStandupId,
       rewriteInstruction: body.rewriteInstruction,
+      replaceStandupId: body.replaceStandupId,
     },
   )
 

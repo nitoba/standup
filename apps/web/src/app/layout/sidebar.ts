@@ -6,21 +6,24 @@ import {
   signal,
 } from '@angular/core'
 import { Router, RouterLink, RouterLinkActive } from '@angular/router'
-
 import { SessionService } from '../services/session.service'
+import { ZardButtonComponent } from '../shared/components/button'
 
 @Component({
   selector: 'app-sidebar-layout',
-  imports: [RouterLink, RouterLinkActive],
+  imports: [RouterLink, RouterLinkActive, ZardButtonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="min-h-screen w-full bg-[var(--bg-page)] text-[var(--text-primary)] flex flex-col md:flex-row">
+    <div class="min-h-screen w-full bg-background text-foreground flex flex-col md:flex-row">
       <!-- Mobile top bar -->
-      <header class="flex md:hidden items-center justify-between h-[56px] px-[20px] border-b border-[var(--border)]">
+      <header class="flex md:hidden items-center justify-between h-[56px] px-[20px] border-b border-border bg-background">
         <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[18px] font-medium">> standup_bot</span>
         <button
           type="button"
-          class="text-[var(--text-secondary)] font-[var(--font-jetbrains)] text-[14px] cursor-pointer"
+          z-button
+          zType="ghost"
+          zSize="sm"
+          class="px-2"
           aria-label="Toggle navigation menu"
           [attr.aria-expanded]="mobileMenuOpen()"
           (click)="mobileMenuOpen.set(!mobileMenuOpen())"
@@ -31,7 +34,7 @@ import { SessionService } from '../services/session.service'
 
       <!-- Mobile slide-out nav -->
       @if (mobileMenuOpen()) {
-        <nav class="flex md:hidden flex-col gap-[4px] px-[20px] py-[12px] border-b border-[var(--border)] bg-[var(--bg-surface)]">
+        <nav class="flex md:hidden flex-col gap-[4px] px-[20px] py-[12px] border-b border-border bg-card">
           <a
             routerLink="/dashboard"
             routerLinkActive
@@ -56,7 +59,10 @@ import { SessionService } from '../services/session.service'
           </a>
           <button
             type="button"
-            class="flex items-center gap-[8px] px-[12px] py-[8px] text-[var(--accent-red)] font-[var(--font-jetbrains)] text-[13px] cursor-pointer hover:bg-[var(--bg-surface)] transition-all duration-150"
+            z-button
+            zType="destructive"
+            zSize="sm"
+            class="justify-start"
             (click)="handleSignOut()"
           >
             <span>$</span>
@@ -66,11 +72,11 @@ import { SessionService } from '../services/session.service'
       }
 
       <!-- Desktop sidebar -->
-      <aside class="hidden md:flex w-[240px] border-r border-[var(--border)] px-[24px] py-[32px] flex-col justify-between shrink-0">
+      <aside class="hidden md:flex w-[240px] border-r border-border bg-background px-[24px] py-[32px] flex-col justify-between shrink-0">
         <div class="flex flex-col gap-[32px]">
           <div class="flex items-center gap-[8px]">
             <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[20px] font-bold">>></span>
-            <span class="text-[var(--text-primary)] font-[var(--font-jetbrains)] text-[18px] font-medium">standup_bot</span>
+            <span class="text-foreground font-[var(--font-jetbrains)] text-[18px] font-medium">standup_bot</span>
           </div>
 
           <nav class="flex flex-col gap-[4px]">
@@ -98,7 +104,11 @@ import { SessionService } from '../services/session.service'
 
             <button
               type="button"
-              class="flex items-center gap-[8px] px-[12px] py-[8px] text-[var(--text-secondary)] font-[var(--font-jetbrains)] text-[13px] cursor-not-allowed opacity-50"
+              z-button
+              zType="outline"
+              zSize="sm"
+              [zDisabled]="true"
+              class="justify-start opacity-50"
               aria-disabled="true"
             >
               <span>$</span>
@@ -110,7 +120,11 @@ import { SessionService } from '../services/session.service'
         <footer class="flex flex-col gap-[16px]">
           <button
             type="button"
-            class="flex items-center gap-[8px] px-[12px] py-[8px] text-[var(--accent-red)] font-[var(--font-jetbrains)] text-[13px] cursor-pointer hover:bg-[var(--bg-surface)] transition-all duration-150 w-full"
+            z-button
+            zType="destructive"
+            zSize="sm"
+            zFull
+            class="justify-start"
             (click)="handleSignOut()"
           >
             <span>$</span>
@@ -120,8 +134,8 @@ import { SessionService } from '../services/session.service'
           <div class="flex items-center gap-[8px]">
             <span class="h-[8px] w-[8px] rounded-full bg-[var(--accent-green)]"></span>
             <div class="flex flex-col gap-[2px]">
-              <span class="text-[var(--text-primary)] font-[var(--font-jetbrains)] text-[13px]">{{ displayName() }}</span>
-              <span class="text-[var(--text-secondary)] font-[var(--font-ibm)] text-[12px]">online</span>
+              <span class="text-foreground font-[var(--font-jetbrains)] text-[13px]">{{ displayName() }}</span>
+              <span class="text-muted-foreground font-[var(--font-ibm)] text-[12px]">online</span>
             </div>
           </div>
         </footer>
@@ -152,9 +166,8 @@ export class SidebarLayout {
   }
 
   private readonly navBaseClass =
-    'flex items-center gap-[8px] px-[12px] py-[8px] cursor-pointer transition-all duration-150 hover:bg-[var(--bg-surface)]'
-  private readonly navActiveClass =
-    ' bg-[var(--bg-active)] hover:bg-[var(--bg-active)]'
+    'flex items-center gap-[8px] px-[12px] py-[8px] cursor-pointer transition-all duration-150 hover:bg-accent/30'
+  private readonly navActiveClass = ' bg-accent hover:bg-accent'
   private readonly navPrefixBaseClass =
     'font-[var(--font-jetbrains)] text-[13px]'
   private readonly navLabelBaseClass =
@@ -167,10 +180,10 @@ export class SidebarLayout {
   }
 
   navPrefixClass(isActive: boolean) {
-    return `${this.navPrefixBaseClass} ${isActive ? 'text-[var(--accent-green)]' : 'text-[var(--text-secondary)]'}`
+    return `${this.navPrefixBaseClass} ${isActive ? 'text-[var(--accent-green)]' : 'text-muted-foreground'}`
   }
 
   navLabelClass(isActive: boolean) {
-    return `${this.navLabelBaseClass} ${isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`
+    return `${this.navLabelBaseClass} ${isActive ? 'text-foreground' : 'text-muted-foreground'}`
   }
 }

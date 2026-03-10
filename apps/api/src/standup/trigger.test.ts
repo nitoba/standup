@@ -104,6 +104,7 @@ describe('POST /standups/trigger', () => {
         forceRegenerate: undefined,
         rewriteFromStandupId: undefined,
         rewriteInstruction: undefined,
+        replaceStandupId: undefined,
       },
     )
   })
@@ -134,6 +135,7 @@ describe('POST /standups/trigger', () => {
         forceRegenerate: true,
         rewriteFromStandupId: undefined,
         rewriteInstruction: undefined,
+        replaceStandupId: undefined,
       },
     )
   })
@@ -165,6 +167,38 @@ describe('POST /standups/trigger', () => {
         forceRegenerate: true,
         rewriteFromStandupId: 'standup-abc',
         rewriteInstruction: 'Remover seção X e incluir seção Y',
+        replaceStandupId: undefined,
+      },
+    )
+  })
+
+  it('propaga replaceStandupId ao triggerStandupJob', async () => {
+    mocks.triggerStandupJob.mockResolvedValue(Result.ok(undefined))
+
+    const res = await app.fetch(
+      makePostRequest({
+        forceRegenerate: true,
+        replaceStandupId: 'standup-abc',
+      }),
+    )
+
+    expect(res.status).toBe(202)
+    expect(mocks.triggerStandupJob).toHaveBeenCalledWith(
+      {
+        workerInternalUrl: deps.workerInternalUrl,
+        internalSecret: deps.internalSecret,
+      },
+      {
+        userId: TEST_USER_ID,
+        discordUserId: TEST_DISCORD_USER_ID,
+        reposRootPath: '/repos',
+        selectedRepos: ['agrotrace-web', 'checkmilk-api'],
+        gitAuthor: 'dev@example.com',
+        extraContext: undefined,
+        forceRegenerate: true,
+        rewriteFromStandupId: undefined,
+        rewriteInstruction: undefined,
+        replaceStandupId: 'standup-abc',
       },
     )
   })

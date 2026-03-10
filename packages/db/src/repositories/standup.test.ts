@@ -486,4 +486,62 @@ describe('StandupRepository', () => {
       expect(result.error._tag).toBe('NotFoundError')
     })
   })
+
+  describe('replaceGeneratedForUser', () => {
+    it('substitui o conteúdo gerado mantendo o mesmo registro', async () => {
+      await repo.create(makeInput())
+      await repo.updateStatus('test-id-1', 'pending_review')
+      await repo.updateCustomEntries('test-id-1', {
+        scheduledMeetings: ['Planning'],
+        directCalls: ['Sync'],
+      })
+
+      const result = await repo.replaceGeneratedForUser(
+        'test-id-1',
+        'test-user-1',
+        {
+          meetingType: 'Start of week meeting',
+          content: '**Standup atualizado**\n\n- item novo',
+          sourceData: '{"repos":[]}',
+        },
+      )
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.id).toBe('test-id-1')
+      expect(result.value.createdAt).toBeGreaterThan(0)
+      expect(result.value.status).toBe('draft')
+      expect(result.value.customEntries).toBeNull()
+      expect(result.value.content).toContain('item novo')
+
+      const found = await repo.findById('test-id-1')
+      expect(found.status).toBe('ok')
+      if (found.status !== 'ok') return
+
+      expect(found.value.id).toBe('test-id-1')
+      expect(found.value.status).toBe('draft')
+      expect(found.value.customEntries).toBeNull()
+      expect(found.value.sourceData).toBe('{"repos":[]}')
+    })
+
+    it('retorna NotFoundError quando o standup pertence a outro usuário', async () => {
+      await repo.create(makeInput())
+
+      const result = await repo.replaceGeneratedForUser(
+        'test-id-1',
+        'other-user',
+        {
+          meetingType: 'Daily standup',
+          content: 'novo conteúdo',
+          sourceData: '{}',
+        },
+      )
+
+      expect(result.status).toBe('error')
+      if (result.status !== 'error') return
+
+      expect(result.error._tag).toBe('NotFoundError')
+    })
+  })
 })

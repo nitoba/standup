@@ -115,6 +115,7 @@ export async function runStandupNow(
         forceRegenerate: options.forceRegenerate,
         rewriteFromStandupId: options.rewriteFromStandupId,
         rewriteInstruction: options.rewriteInstruction,
+        replaceStandupId: options.replaceStandupId,
       }),
     },
     'Failed to trigger standup job',

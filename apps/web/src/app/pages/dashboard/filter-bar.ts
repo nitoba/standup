@@ -4,40 +4,49 @@ import {
   output,
   signal,
 } from '@angular/core'
+import { ZardButtonComponent } from '../../shared/components/button'
+import { ZardInputDirective } from '../../shared/components/input'
 
 type DateSelection = 'this_week' | 'today' | 'yesterday'
 
 @Component({
   selector: 'app-filter-bar',
+  imports: [ZardButtonComponent, ZardInputDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex flex-col gap-[16px]">
-      <div class="text-[var(--text-secondary)] font-[var(--font-jetbrains)] text-[12px]">// filters</div>
+      <div class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]">// filters</div>
       <div class="flex flex-wrap items-center gap-[8px] md:gap-[16px]">
         <button
           type="button"
-          class="border border-[var(--border)] px-[12px] md:px-[16px] py-[6px] md:py-[8px] flex items-center gap-[8px] font-[var(--font-jetbrains)] text-[12px] md:text-[13px] text-[var(--text-primary)] cursor-pointer transition-colors duration-150 hover:border-[var(--text-secondary)] hover:bg-[var(--bg-surface)]"
+          z-button
+          zType="outline"
+          zSize="sm"
           (click)="cycleStatus()"
         >
-          <span class="text-[var(--text-secondary)]">/</span>
+          <span class="text-muted-foreground">/</span>
           <span>status: {{ status() }}</span>
         </button>
 
         <button
           type="button"
-          class="border border-[var(--border)] px-[12px] md:px-[16px] py-[6px] md:py-[8px] flex items-center gap-[8px] font-[var(--font-jetbrains)] text-[12px] md:text-[13px] text-[var(--text-primary)] cursor-pointer transition-colors duration-150 hover:border-[var(--text-secondary)] hover:bg-[var(--bg-surface)]"
+          z-button
+          zType="outline"
+          zSize="sm"
           (click)="cycleDate()"
         >
-          <span class="text-[var(--text-secondary)]">/</span>
+          <span class="text-muted-foreground">/</span>
           <span>date: {{ displayDateLabel(date()) }}</span>
         </button>
 
-        <div class="w-full md:flex-1 border border-[var(--border)] px-[12px] md:px-[16px] py-[6px] md:py-[8px] flex items-center gap-[8px] transition-colors duration-150 focus-within:border-[var(--accent-green)]">
-          <span class="text-[var(--text-secondary)] font-[var(--font-jetbrains)] text-[12px] md:text-[13px]">/</span>
+        <div class="w-full md:flex-1 border border-border bg-card px-[12px] md:px-[16px] py-[6px] md:py-[8px] flex items-center gap-[8px] transition-colors duration-150 focus-within:border-[var(--accent-green)]">
+          <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] md:text-[13px]">/</span>
           <input
             type="text"
+            z-input
+            zBorderless
             placeholder="search standups..."
-            class="flex-1 bg-transparent font-[var(--font-jetbrains)] text-[12px] md:text-[13px] text-[var(--text-tertiary)] outline-none"
+            class="flex-1"
             aria-label="Search standups"
             [value]="search()"
             (input)="updateSearch(asInputValue($event))"

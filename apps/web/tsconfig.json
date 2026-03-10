@@ -8,7 +8,13 @@
     "noPropertyAccessFromIndexSignature": true,
     "isolatedModules": true,
     "importHelpers": true,
-    "module": "preserve"
+    "module": "preserve",
+    "baseUrl": "./",
+    "paths": {
+      "@/*": [
+        "src/app/*"
+      ]
+    }
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
