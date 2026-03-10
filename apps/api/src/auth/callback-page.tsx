@@ -1,11 +1,14 @@
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import type { Context } from 'hono'
 import type { FC } from 'hono/jsx'
 
-// Embed avatar as base64 data URI so no static file route is needed
-const avatarPath = join(import.meta.dir, '../public/avatar.webp')
-const AVATAR_DATA_URI = `data:image/webp;base64,${readFileSync(avatarPath).toString('base64')}`
+// `import ... with { type: "file" }` makes bun bundle the asset into the
+// compiled binary (bun build --compile).  At runtime the import resolves to
+// the embedded file path, so readFileSync works both locally and in the
+// standalone executable without any external file dependency.
+import avatarFilePath from '../public/avatar.webp' with { type: 'file' }
+
+const AVATAR_DATA_URI = `data:image/webp;base64,${readFileSync(avatarFilePath).toString('base64')}`
 
 const STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
