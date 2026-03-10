@@ -177,7 +177,8 @@ describe('StandupRepository', () => {
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') return
 
-      expect(result.value).toHaveLength(3)
+      expect(result.value.items).toHaveLength(3)
+      expect(result.value.total).toBe(3)
     })
 
     it('filters by status', async () => {
@@ -190,8 +191,8 @@ describe('StandupRepository', () => {
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') return
 
-      expect(result.value).toHaveLength(1)
-      expect(result.value[0]?.id).toBe('p2')
+      expect(result.value.items).toHaveLength(1)
+      expect(result.value.items[0]?.id).toBe('p2')
     })
 
     it('treats approved filter as approved plus published', async () => {
@@ -215,7 +216,7 @@ describe('StandupRepository', () => {
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') return
 
-      expect(result.value.map((item) => item.id).sort()).toEqual([
+      expect(result.value.items.map((item) => item.id).sort()).toEqual([
         'approved-1',
         'published-1',
       ])
@@ -231,7 +232,51 @@ describe('StandupRepository', () => {
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') return
 
-      expect(result.value).toHaveLength(2)
+      expect(result.value.items).toHaveLength(2)
+    })
+
+    it('supports pagination and reports summary', async () => {
+      await repo.create(makeInput({ id: 'page-1', date: '2026-03-10' }))
+      await repo.create(makeInput({ id: 'page-2', date: '2026-03-09' }))
+      await repo.create(makeInput({ id: 'page-3', date: '2026-03-08' }))
+
+      await repo.updateStatus('page-1', 'pending_review')
+      await repo.updateStatus('page-2', 'pending_review')
+      await repo.updateStatus('page-2', 'approved')
+      await repo.updateStatus('page-3', 'pending_review')
+      await repo.updateStatus('page-3', 'rejected')
+
+      const result = await repo.list({ page: 2, pageSize: 1 })
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.items).toHaveLength(1)
+      expect(result.value.page).toBe(2)
+      expect(result.value.pageSize).toBe(1)
+      expect(result.value.total).toBe(3)
+      expect(result.value.totalPages).toBe(3)
+      expect(result.value.summary).toEqual({
+        total: 3,
+        approved: 1,
+        pending: 1,
+        rejected: 1,
+      })
+    })
+
+    it('supports search filter', async () => {
+      await repo.create(
+        makeInput({ id: 'search-1', content: 'Implemented pagination' }),
+      )
+      await repo.create(makeInput({ id: 'search-2', content: 'Updated docs' }))
+
+      const result = await repo.list({ search: 'pagination' })
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value.items).toHaveLength(1)
+      expect(result.value.items[0]?.id).toBe('search-1')
     })
   })
 

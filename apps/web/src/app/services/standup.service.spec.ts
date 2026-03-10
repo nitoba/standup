@@ -25,6 +25,40 @@ type StandupDto = {
   updatedAt: number
 }
 
+function makeListResponse(
+  data: StandupDto[],
+  overrides?: Partial<{
+    page: number
+    pageSize: number
+    total: number
+    totalPages: number
+    summary: {
+      total: number
+      approved: number
+      pending: number
+      rejected: number
+    }
+  }>,
+) {
+  return {
+    data,
+    pagination: {
+      page: overrides?.page ?? 1,
+      pageSize: overrides?.pageSize ?? 20,
+      total: overrides?.total ?? data.length,
+      totalPages: overrides?.totalPages ?? (data.length === 0 ? 0 : 1),
+    },
+    summary: overrides?.summary ?? {
+      total: data.length,
+      approved: data.filter(
+        (item) => item.status === 'approved' || item.status === 'published',
+      ).length,
+      pending: data.filter((item) => item.status === 'pending_review').length,
+      rejected: data.filter((item) => item.status === 'rejected').length,
+    },
+  }
+}
+
 describe('StandupService', () => {
   let service: StandupService
   let httpMock: HttpTestingController
@@ -42,7 +76,9 @@ describe('StandupService', () => {
 
     // httpResource fires initial request on creation
     TestBed.tick()
-    httpMock.expectOne('/standups').flush({ data: [] })
+    httpMock
+      .expectOne('/standups?page=1&pageSize=20')
+      .flush(makeListResponse([]))
     await appRef.whenStable()
   })
 
@@ -55,10 +91,10 @@ describe('StandupService', () => {
     service.standups.reload()
     TestBed.tick()
 
-    const request = httpMock.expectOne('/standups')
+    const request = httpMock.expectOne('/standups?page=1&pageSize=20')
     expect(request.request.method).toBe('GET')
-    request.flush({
-      data: [
+    request.flush(
+      makeListResponse([
         makeStandupDto({
           id: '7f3a2b1c',
           status: 'pending_review',
@@ -78,12 +114,12 @@ describe('StandupService', () => {
             ],
           }),
         }),
-      ],
-    })
+      ]),
+    )
 
     await appRef.whenStable()
 
-    expect(service.standups.value()).toEqual([
+    expect(service.standups.value().items).toEqual([
       expect.objectContaining({
         id: '7f3a2b1c',
         status: 'pending_review',
@@ -129,15 +165,81 @@ describe('StandupService', () => {
         req.params.get('date') === '2026-03-09',
     )
     expect(request.request.method).toBe('GET')
-    request.flush({
-      data: [makeStandupDto({ id: 'standup-2', status: 'approved' })],
-    })
+    request.flush(
+      makeListResponse([
+        makeStandupDto({ id: 'standup-2', status: 'approved' }),
+      ]),
+    )
 
     await appRef.whenStable()
 
-    expect(service.standups.value()).toEqual([
+    expect(service.standups.value().items).toEqual([
       expect.objectContaining({ id: 'standup-2', status: 'approved' }),
     ])
+  })
+
+  it('updates metrics and pagination from paginated response', async () => {
+    service.standups.reload()
+    TestBed.tick()
+
+    const request = httpMock.expectOne('/standups?page=1&pageSize=20')
+    request.flush(
+      makeListResponse(
+        [makeStandupDto({ id: 'standup-2', status: 'approved' })],
+        {
+          total: 42,
+          totalPages: 3,
+          summary: { total: 42, approved: 20, pending: 18, rejected: 4 },
+        },
+      ),
+    )
+
+    await appRef.whenStable()
+
+    expect(service.pagination()).toEqual({
+      page: 1,
+      pageSize: 20,
+      total: 42,
+      totalPages: 3,
+    })
+    expect(service.metrics()).toEqual({
+      total: { count: 42, change: '++ 12 this_week' },
+      approved: { count: 20, change: '++ 8 this_week' },
+      pending: { count: 18, change: '++ 3 today' },
+      rejected: { count: 4, change: '++ 1 today' },
+    })
+  })
+
+  it('changes page size and resets to first page', async () => {
+    service.setDashboardPage(3)
+    service.setDashboardPageSize(50)
+    TestBed.tick()
+
+    const request = httpMock.expectOne('/standups?page=1&pageSize=50')
+    request.flush(
+      makeListResponse([], { pageSize: 50, total: 0, totalPages: 0 }),
+    )
+
+    await appRef.whenStable()
+
+    expect(service.pagination()).toEqual({
+      page: 1,
+      pageSize: 50,
+      total: 0,
+      totalPages: 0,
+    })
+  })
+
+  it('passes search to the paginated list request', async () => {
+    service.setDashboardFilters({ search: 'retry' })
+    TestBed.tick()
+
+    const request = httpMock.expectOne(
+      '/standups?page=1&pageSize=20&search=retry',
+    )
+    request.flush(makeListResponse([]))
+
+    await appRef.whenStable()
   })
 
   it('loads standup detail when selectStandup is called', async () => {
@@ -184,9 +286,13 @@ describe('StandupService', () => {
 
     // approve calls standups.reload() which fires a new GET
     TestBed.tick()
-    httpMock.expectOne('/standups').flush({
-      data: [makeStandupDto({ id: '7f3a2b1c', status: 'published' })],
-    })
+    httpMock
+      .expectOne('/standups?page=1&pageSize=20')
+      .flush(
+        makeListResponse([
+          makeStandupDto({ id: '7f3a2b1c', status: 'published' }),
+        ]),
+      )
     await appRef.whenStable()
   })
 
@@ -206,9 +312,13 @@ describe('StandupService', () => {
 
     // reject calls standups.reload()
     TestBed.tick()
-    httpMock.expectOne('/standups').flush({
-      data: [makeStandupDto({ id: '7f3a2b1c', status: 'rejected' })],
-    })
+    httpMock
+      .expectOne('/standups?page=1&pageSize=20')
+      .flush(
+        makeListResponse([
+          makeStandupDto({ id: '7f3a2b1c', status: 'rejected' }),
+        ]),
+      )
     await appRef.whenStable()
   })
 

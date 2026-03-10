@@ -75,6 +75,8 @@ function makeInteraction(
   overrides: Partial<{
     userId: string
     statusOption: string | null
+    pageOption: number | null
+    searchOption: string | null
     idOption: string
     forceRegenerateOption: boolean | null
     extraContextOption: string | null
@@ -88,6 +90,7 @@ function makeInteraction(
         .fn()
         .mockImplementation((name: string, required?: boolean) => {
           if (name === 'status') return overrides.statusOption ?? null
+          if (name === 'search') return overrides.searchOption ?? null
           if (name === 'id') return overrides.idOption ?? 'standup-abc'
           if (name === 'extra-context')
             return overrides.extraContextOption ?? null
@@ -99,6 +102,10 @@ function makeInteraction(
         if (name === 'force-regenerate') {
           return overrides.forceRegenerateOption ?? null
         }
+        return null
+      }),
+      getInteger: vi.fn().mockImplementation((name: string) => {
+        if (name === 'page') return overrides.pageOption ?? null
         return null
       }),
     },
@@ -198,7 +205,16 @@ describe('handleList', () => {
   afterEach(() => vi.restoreAllMocks())
 
   it('lista standups sem filtro e exibe embeds', async () => {
-    mocks.repoList.mockResolvedValue(Result.ok([standupRecord]))
+    mocks.repoList.mockResolvedValue(
+      Result.ok({
+        items: [standupRecord],
+        page: 1,
+        pageSize: 10,
+        total: 1,
+        totalPages: 1,
+        summary: { total: 1, approved: 0, pending: 1, rejected: 0 },
+      }),
+    )
     const interaction = makeInteraction({ statusOption: null })
 
     await handleList(interaction, { databaseUrl: DATABASE_URL })
@@ -216,19 +232,69 @@ describe('handleList', () => {
   })
 
   it('lista standups com filtro de status', async () => {
-    mocks.repoList.mockResolvedValue(Result.ok([standupRecord]))
-    const interaction = makeInteraction({ statusOption: 'pending_review' })
+    mocks.repoList.mockResolvedValue(
+      Result.ok({
+        items: [standupRecord],
+        page: 2,
+        pageSize: 10,
+        total: 11,
+        totalPages: 2,
+        summary: { total: 11, approved: 0, pending: 11, rejected: 0 },
+      }),
+    )
+    const interaction = makeInteraction({
+      statusOption: 'pending_review',
+      pageOption: 2,
+    })
 
     await handleList(interaction, { databaseUrl: DATABASE_URL })
 
     expect(mocks.repoList).toHaveBeenCalledWith({
       status: 'pending_review',
       userId: 'resolved-user-id',
+      search: undefined,
+      page: 2,
+      pageSize: 10,
     })
   })
 
+  it('lista standups com busca textual', async () => {
+    mocks.repoList.mockResolvedValue(
+      Result.ok({
+        items: [standupRecord],
+        page: 1,
+        pageSize: 10,
+        total: 1,
+        totalPages: 1,
+        summary: { total: 1, approved: 0, pending: 1, rejected: 0 },
+      }),
+    )
+    const interaction = makeInteraction({ searchOption: 'retry' })
+
+    await handleList(interaction, { databaseUrl: DATABASE_URL })
+
+    expect(mocks.repoList).toHaveBeenCalledWith({
+      userId: 'resolved-user-id',
+      search: 'retry',
+      page: 1,
+      pageSize: 10,
+    })
+    expect(mocks.interactionEditReply).toHaveBeenCalledWith(
+      expect.objectContaining({ embeds: expect.any(Array) }),
+    )
+  })
+
   it('responde com mensagem de lista vazia quando não há standups', async () => {
-    mocks.repoList.mockResolvedValue(Result.ok([]))
+    mocks.repoList.mockResolvedValue(
+      Result.ok({
+        items: [],
+        page: 1,
+        pageSize: 10,
+        total: 0,
+        totalPages: 0,
+        summary: { total: 0, approved: 0, pending: 0, rejected: 0 },
+      }),
+    )
     const interaction = makeInteraction({ statusOption: null })
 
     await handleList(interaction, { databaseUrl: DATABASE_URL })

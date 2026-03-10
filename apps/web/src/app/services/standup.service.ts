@@ -1,6 +1,6 @@
 import { HttpClient, httpResource } from '@angular/common/http'
 import { computed, Injectable, inject, signal } from '@angular/core'
-import { filter, firstValueFrom, map } from 'rxjs'
+import { firstValueFrom, map } from 'rxjs'
 
 import { METRIC_CHANGES } from '../data/mock-data'
 import type {
@@ -8,6 +8,8 @@ import type {
   DashboardMetrics,
   Standup,
   StandupCustomEntriesDto,
+  StandupListResponseDto,
+  StandupPage,
   StandupSection,
   StandupSourceRepo,
   StandupStatus,
@@ -45,26 +47,47 @@ type SourceDataDto = {
 export class StandupService {
   private readonly http = inject(HttpClient)
 
-  // Filter signals that httpResource reacts to
+  private readonly DEFAULT_PAGE_SIZE = 20
+
   private readonly statusFilter = signal<string | undefined>(undefined)
   private readonly dateFilter = signal<string | undefined>(undefined)
+  private readonly searchFilter = signal<string | undefined>(undefined)
+  private readonly page = signal(1)
+  private readonly pageSize = signal(this.DEFAULT_PAGE_SIZE)
 
-  // Reactive GET — refetches automatically when filter signals change
-  readonly standups = httpResource<Standup[]>(
+  readonly standups = httpResource<StandupPage>(
     () => {
-      const params: { status?: string; date?: string } = {}
+      const params: {
+        status?: string
+        date?: string
+        search?: string
+        page: string
+        pageSize: string
+      } = {
+        page: String(this.page()),
+        pageSize: String(this.pageSize()),
+      }
       const status = this.statusFilter()
       const date = this.dateFilter()
+      const search = this.searchFilter()
       if (status && status !== 'all') params.status = status
-      if (date && date !== 'all' && date !== 'this_week') params.date = date
+      if (date && date !== 'all') params.date = date
+      if (search) params.search = search
       return { url: '/standups', params }
     },
     {
-      defaultValue: [],
+      defaultValue: {
+        items: [],
+        pagination: {
+          page: 1,
+          pageSize: this.DEFAULT_PAGE_SIZE,
+          total: 0,
+          totalPages: 0,
+        },
+        summary: { total: 0, approved: 0, pending: 0, rejected: 0 },
+      },
       parse: (response) =>
-        (response as ApiEnvelope<StandupDto[]>).data.map((dto) =>
-          this.mapStandup(dto),
-        ),
+        this.mapStandupPage(response as StandupListResponseDto),
     },
   )
 
@@ -85,16 +108,7 @@ export class StandupService {
 
   // Metrics derived from the loaded standups list
   readonly metrics = computed<DashboardMetrics>(() => {
-    const counts = this.standups.value().reduce(
-      (acc, standup) => {
-        acc.total += 1
-        if (standup.status === 'approved') acc.approved += 1
-        if (standup.status === 'pending_review') acc.pending += 1
-        if (standup.status === 'rejected') acc.rejected += 1
-        return acc
-      },
-      { total: 0, approved: 0, pending: 0, rejected: 0 },
-    )
+    const counts = this.standups.value().summary
 
     return {
       total: { count: counts.total, change: METRIC_CHANGES.total },
@@ -108,7 +122,20 @@ export class StandupService {
   setDashboardFilters(filters: DashboardFilters) {
     this.statusFilter.set(filters.status ?? undefined)
     this.dateFilter.set(filters.date ?? undefined)
+    this.searchFilter.set(filters.search?.trim() || undefined)
+    this.page.set(1)
   }
+
+  setDashboardPage(page: number) {
+    this.page.set(Math.max(page, 1))
+  }
+
+  setDashboardPageSize(pageSize: number) {
+    this.pageSize.set(Math.max(pageSize, 1))
+    this.page.set(1)
+  }
+
+  readonly pagination = computed(() => this.standups.value().pagination)
 
   // Detail page calls this to select which standup to load
   selectStandup(id: string | undefined) {
@@ -163,6 +190,14 @@ export class StandupService {
         replaceStandupId: id,
       }),
     )
+  }
+
+  private mapStandupPage(response: StandupListResponseDto): StandupPage {
+    return {
+      items: response.data.map((dto) => this.mapStandup(dto)),
+      pagination: response.pagination,
+      summary: response.summary,
+    }
   }
 
   // All the private mapping methods stay exactly the same

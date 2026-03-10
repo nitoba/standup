@@ -50,7 +50,21 @@ describe('standup types', () => {
       sources,
     }
 
-    const listResponse: StandupListResponseDto = { data: [dto] }
+    const listResponse: StandupListResponseDto = {
+      data: [dto],
+      pagination: {
+        page: 1,
+        pageSize: 20,
+        total: 1,
+        totalPages: 1,
+      },
+      summary: {
+        total: 1,
+        approved: 1,
+        pending: 0,
+        rejected: 0,
+      },
+    }
 
     const approveResponse: ApproveStandupResponseDto = {
       data: dto,
@@ -105,6 +119,7 @@ describe('standup types', () => {
     }
 
     expect(listResponse.data[0]?.status).toBe('published')
+    expect(listResponse.pagination.totalPages).toBe(1)
     expect(standup.updatedAt).toContain('17:40')
     expect(approveResponse.warning).toBe('Channel not found')
     expect(settingsResponse.data.selectedRepos).toEqual(['repo-a'])

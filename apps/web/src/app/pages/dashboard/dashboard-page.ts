@@ -82,15 +82,24 @@ function resolveDateFilter(value: string, now = new Date()) {
           </div>
 
           <app-filter-bar
+            [status]="selectedStatus()"
+            [date]="selectedDate()"
+            [search]="searchFilter()"
+            [pageSize]="selectedPageSize()"
             (statusChange)="onStatusChange($event)"
             (dateChange)="onDateChange($event)"
             (searchChange)="onSearchChange($event)"
+            (pageSizeChange)="onPageSizeChange($event)"
           />
 
           <app-standup-table
             [standups]="visibleStandups()"
-            [total]="searchFilteredStandups().length"
+            [total]="pagination().total"
+            [page]="pagination().page"
+            [pageSize]="pagination().pageSize"
+            [totalPages]="pagination().totalPages"
             (viewStandup)="openStandup($event)"
+            (pageChange)="onPageChange($event)"
           />
         }
       </section>
@@ -104,23 +113,33 @@ export class DashboardPage {
   readonly statusFilter = signal<string | undefined>(undefined)
   readonly dateFilter = signal<string | undefined>(undefined)
   readonly searchFilter = signal('')
+  readonly pageSizeFilter = signal(20)
 
-  readonly searchFilteredStandups = computed(() => {
-    const search = this.searchFilter().trim().toLowerCase()
+  readonly selectedStatus = computed(
+    () =>
+      (this.statusFilter() as
+        | 'pending_review'
+        | 'approved'
+        | 'rejected'
+        | undefined) ?? 'all',
+  )
+  readonly selectedDate = computed(() => {
+    const date = this.dateFilter()
+    if (!date) return 'all_time' as const
+    if (date === 'this_week') return 'this_week' as const
 
-    return this.standupService.standups.value().filter((standup) => {
-      const matchesSearch =
-        search.length === 0
-          ? true
-          : `${standup.id} ${standup.contentPreview}`
-              .toLowerCase()
-              .includes(search)
-
-      return matchesSearch
-    })
+    const today = resolveDateFilter('today')
+    const yesterday = resolveDateFilter('yesterday')
+    if (date === today) return 'today' as const
+    if (date === yesterday) return 'yesterday' as const
+    return 'all_time' as const
   })
+  readonly selectedPageSize = this.pageSizeFilter.asReadonly()
 
-  readonly visibleStandups = computed(() => this.searchFilteredStandups())
+  readonly visibleStandups = computed(
+    () => this.standupService.standups.value().items,
+  )
+  readonly pagination = this.standupService.pagination
 
   readonly metricCards = computed(() => {
     const metrics = this.standupService.metrics()
@@ -171,6 +190,7 @@ export class DashboardPage {
     this.standupService.setDashboardFilters({
       status: this.statusFilter(),
       date: this.dateFilter(),
+      search: this.searchFilter(),
     })
   }
 
@@ -179,10 +199,30 @@ export class DashboardPage {
     this.standupService.setDashboardFilters({
       status: this.statusFilter(),
       date: this.dateFilter(),
+      search: this.searchFilter(),
     })
   }
 
   onSearchChange(value: string) {
     this.searchFilter.set(value)
+    this.standupService.setDashboardFilters({
+      status: this.statusFilter(),
+      date: this.dateFilter(),
+      search: this.searchFilter(),
+    })
+  }
+
+  onPageChange(page: number) {
+    this.standupService.setDashboardPage(page)
+  }
+
+  onPageSizeChange(pageSize: number) {
+    this.pageSizeFilter.set(pageSize)
+    this.standupService.setDashboardPageSize(pageSize)
+    this.standupService.setDashboardFilters({
+      status: this.statusFilter(),
+      date: this.dateFilter(),
+      search: this.searchFilter(),
+    })
   }
 }

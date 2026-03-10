@@ -1,4 +1,4 @@
-import type { ListStandupFilters } from '@standup/db'
+import type { ListStandupFilters, PaginatedStandupList } from '@standup/db'
 import { getDb, StandupRepository } from '@standup/db'
 import type { StandupRecord, StandupStatus } from '@standup/domain'
 import {
@@ -23,7 +23,7 @@ export interface StandupServiceDeps {
 export async function listStandups(
   filters: ListStandupFilters,
   deps: StandupServiceDeps,
-): Promise<Result<StandupRecord[], DbError>> {
+): Promise<Result<PaginatedStandupList, DbError>> {
   const db = getDb(deps.databaseUrl)
   const repo = new StandupRepository(db)
   return repo.list(filters)

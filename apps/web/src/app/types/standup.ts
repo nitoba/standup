@@ -9,6 +9,20 @@ export interface ApiDataResponseDto<T> {
   data: T
 }
 
+export interface PaginationDto {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}
+
+export interface StandupSummaryDto {
+  total: number
+  approved: number
+  pending: number
+  rejected: number
+}
+
 export interface StandupCustomEntriesDto {
   scheduledMeetings: string[]
   directCalls: string[]
@@ -27,7 +41,11 @@ export interface StandupDto {
   updatedAt: number
 }
 
-export type StandupListResponseDto = ApiDataResponseDto<StandupDto[]>
+export interface StandupListResponseDto
+  extends ApiDataResponseDto<StandupDto[]> {
+  pagination: PaginationDto
+  summary: StandupSummaryDto
+}
 
 export type StandupDetailResponseDto = ApiDataResponseDto<StandupDto>
 
@@ -137,4 +155,24 @@ export interface DashboardMetrics {
   approved: DashboardMetric
   pending: DashboardMetric
   rejected: DashboardMetric
+}
+
+export interface StandupPagination {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}
+
+export interface StandupSummary {
+  total: number
+  approved: number
+  pending: number
+  rejected: number
+}
+
+export interface StandupPage {
+  items: Standup[]
+  pagination: StandupPagination
+  summary: StandupSummary
 }

@@ -90,6 +90,17 @@ export function buildStandupCommand(): SlashCommandBuilder {
             .setName('status')
             .setDescription('Filtrar por status')
             .addChoices(...STATUS_CHOICES),
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName('search')
+            .setDescription('Buscar por ID, data ou conteúdo'),
+        )
+        .addIntegerOption((opt) =>
+          opt
+            .setName('page')
+            .setDescription('Página da listagem')
+            .setMinValue(1),
         ),
     )
     .addSubcommand((sub) =>

@@ -2,8 +2,8 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  input,
   output,
-  signal,
 } from '@angular/core'
 import {
   ZardComboboxComponent,
@@ -46,6 +46,18 @@ type StatusSelection = 'all' | 'pending_review' | 'approved' | 'rejected'
           (zValueChange)="onDateSelected($event)"
         />
 
+        <z-combobox
+          zWidth="full"
+          class="w-full md:w-[170px]"
+          [options]="pageSizeOptions"
+          [value]="pageSizeValue()"
+          [searchable]="false"
+          placeholder="page size"
+          ariaLabel="Standup page size"
+          emptyText="No page size available."
+          (zValueChange)="onPageSizeSelected($event)"
+        />
+
         <div class="h-[44px] w-full border border-border bg-card px-[12px] md:w-[250px] md:px-[14px] lg:w-[280px] flex items-center gap-[8px] transition-colors duration-150 focus-within:border-[var(--accent-green)]">
           <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] md:text-[13px]">/</span>
           <input
@@ -64,13 +76,16 @@ type StatusSelection = 'all' | 'pending_review' | 'approved' | 'rejected'
   `,
 })
 export class FilterBar {
+  readonly status = input<StatusSelection>('all')
+  readonly date = input<DateSelection>('all_time')
+  readonly search = input('')
+  readonly pageSize = input(20)
+
   readonly statusChange = output<StatusSelection>()
   readonly dateChange = output<DateSelection>()
   readonly searchChange = output<string>()
-
-  readonly status = signal<StatusSelection>('all')
-  readonly date = signal<DateSelection>('all_time')
-  readonly search = signal('')
+  readonly pageSizeChange = output<number>()
+  readonly pageSizeValue = computed(() => `${this.pageSize()}`)
   readonly statusOptions: ZardComboboxOption[] = [
     { value: 'all', label: 'status: all' },
     { value: 'pending_review', label: 'status: pending_review' },
@@ -85,6 +100,11 @@ export class FilterBar {
       value: 'yesterday',
       label: `date: ${this.resolveDateValue('yesterday')}`,
     },
+  ]
+  readonly pageSizeOptions: ZardComboboxOption[] = [
+    { value: '10', label: 'page size: 10' },
+    { value: '20', label: 'page size: 20' },
+    { value: '50', label: 'page size: 50' },
   ]
 
   formatDate(date: Date) {
@@ -135,7 +155,6 @@ export class FilterBar {
 
   onStatusSelected(value: string | null) {
     if (value === null) {
-      this.status.set('all')
       this.statusChange.emit('all')
       return
     }
@@ -149,13 +168,11 @@ export class FilterBar {
       return
     }
 
-    this.status.set(value)
     this.statusChange.emit(value)
   }
 
   onDateSelected(value: string | null) {
     if (value === null) {
-      this.date.set('all_time')
       this.dateChange.emit('all_time')
       return
     }
@@ -169,13 +186,20 @@ export class FilterBar {
       return
     }
 
-    this.date.set(value)
     this.dateChange.emit(value)
   }
 
   updateSearch(value: string) {
-    this.search.set(value)
     this.searchChange.emit(value)
+  }
+
+  onPageSizeSelected(value: string | null) {
+    const resolved = value === null ? 20 : Number(value)
+    if (![10, 20, 50].includes(resolved)) {
+      return
+    }
+
+    this.pageSizeChange.emit(resolved)
   }
 
   asInputValue(event: Event): string {

@@ -64,9 +64,12 @@ describe('DashboardPage', () => {
   it('renders the dashboard header', async () => {
     const fixture = await renderDashboard()
     TestBed.tick()
-    httpMock.expectOne('/standups').flush({
-      data: buildMockStandupDtos(buildMockStandups()),
-    })
+    httpMock.expectOne('/standups?page=1&pageSize=20').flush(
+      makeListResponse(buildMockStandupDtos(buildMockStandups()), {
+        total: 142,
+        totalPages: 8,
+      }),
+    )
     await appRef.whenStable()
     fixture.detectChanges()
 
@@ -93,7 +96,9 @@ describe('DashboardPage', () => {
     })
 
     TestBed.tick()
-    httpMock.expectOne('/standups').flush({ data: allStandupDtos })
+    httpMock
+      .expectOne('/standups?page=1&pageSize=20')
+      .flush(makeListResponse(allStandupDtos, { total: 142, totalPages: 8 }))
     await appRef.whenStable()
     fixture.detectChanges()
 
@@ -115,12 +120,18 @@ describe('DashboardPage', () => {
     expect(setDashboardFiltersSpy).toHaveBeenCalledWith({
       status: 'pending_review',
       date: undefined,
+      search: '',
     })
 
     TestBed.tick()
     httpMock
-      .expectOne('/standups?status=pending_review')
-      .flush({ data: buildMockStandupDtos(pendingStandups) })
+      .expectOne('/standups?page=1&pageSize=20&status=pending_review')
+      .flush(
+        makeListResponse(buildMockStandupDtos(pendingStandups), {
+          total: pendingStandups.length,
+          totalPages: 1,
+        }),
+      )
     await appRef.whenStable()
     fixture.detectChanges()
 
@@ -136,19 +147,25 @@ describe('DashboardPage', () => {
     expect(setDashboardFiltersSpy).toHaveBeenLastCalledWith({
       status: 'pending_review',
       date: '2026-03-09',
+      search: '',
     })
 
     TestBed.tick()
     const filteredRequest = httpMock.expectOne(
-      '/standups?status=pending_review&date=2026-03-09',
+      '/standups?page=1&pageSize=20&status=pending_review&date=2026-03-09',
     )
-    filteredRequest.flush({ data: buildMockStandupDtos(pendingTodayStandups) })
+    filteredRequest.flush(
+      makeListResponse(buildMockStandupDtos(pendingTodayStandups), {
+        total: pendingTodayStandups.length,
+        totalPages: 1,
+      }),
+    )
     await appRef.whenStable()
     fixture.detectChanges()
     vi.useRealTimers()
 
     const element = fixture.nativeElement as HTMLElement
-    expect(element.textContent).toContain('// showing 1-1 of 1 standups')
+    expect(element.textContent).toContain('// showing 1-1')
 
     const finalFilterBar = getFilterBar(fixture)
     expect(finalFilterBar).not.toBeNull()
@@ -161,37 +178,102 @@ describe('DashboardPage', () => {
     fixture.detectChanges()
 
     expect(fixture.componentInstance.searchFilter()).toBe('no-match')
-    expect(setDashboardFiltersSpy).toHaveBeenCalledTimes(2)
-    httpMock.expectNone(() => true)
-    expect(element.textContent).toContain('// showing 1-0 of 0 standups')
+    expect(setDashboardFiltersSpy).toHaveBeenCalledTimes(3)
+    TestBed.tick()
+    httpMock
+      .expectOne(
+        '/standups?page=1&pageSize=20&status=pending_review&date=2026-03-09&search=no-match',
+      )
+      .flush(
+        makeListResponse([], {
+          total: 0,
+          totalPages: 0,
+        }),
+      )
+    await appRef.whenStable()
+    fixture.detectChanges()
+    expect(element.textContent).toContain('// showing 0-0')
 
-    ;(finalFilterBar.componentInstance as FilterBar).onStatusSelected('all')
-    ;(finalFilterBar.componentInstance as FilterBar).onDateSelected('all_time')
+    const resetFilterBar = getFilterBar(fixture)
+    expect(resetFilterBar).not.toBeNull()
+
+    ;(resetFilterBar.componentInstance as FilterBar).onStatusSelected('all')
+    ;(resetFilterBar.componentInstance as FilterBar).onDateSelected('all_time')
     fixture.detectChanges()
 
     expect(setDashboardFiltersSpy).toHaveBeenNthCalledWith(3, {
-      status: undefined,
+      status: 'pending_review',
       date: '2026-03-09',
+      search: 'no-match',
     })
     expect(setDashboardFiltersSpy).toHaveBeenNthCalledWith(4, {
       status: undefined,
-      date: undefined,
+      date: '2026-03-09',
+      search: 'no-match',
     })
+    expect(setDashboardFiltersSpy).toHaveBeenNthCalledWith(5, {
+      status: undefined,
+      date: undefined,
+      search: 'no-match',
+    })
+
+    TestBed.tick()
+    httpMock.expectOne('/standups?page=1&pageSize=20&search=no-match').flush(
+      makeListResponse([], {
+        total: 0,
+        totalPages: 0,
+      }),
+    )
+    await appRef.whenStable()
+    fixture.detectChanges()
 
     fixture.componentInstance.onSearchChange('')
     fixture.detectChanges()
 
     TestBed.tick()
-    httpMock.expectOne('/standups').flush({ data: allStandupDtos })
+    httpMock
+      .expectOne('/standups?page=1&pageSize=20')
+      .flush(makeListResponse(allStandupDtos, { total: 142, totalPages: 8 }))
     await appRef.whenStable()
     fixture.detectChanges()
 
-    expect(element.textContent).toContain('// showing 1-142 of 142 standups')
+    expect(element.textContent).toContain('// showing 1-20')
+    expect(element.textContent).toContain('page 1 of 8')
+    expect(element.textContent).toContain('142 total')
   })
 })
 
 function buildMockStandupDtos(standups: ReturnType<typeof buildMockStandups>) {
   return standups.map((standup, index) => toStandupDto(standup, index))
+}
+
+function makeListResponse(
+  standups: StandupDto[],
+  overrides?: Partial<{
+    total: number
+    totalPages: number
+    page: number
+    pageSize: number
+  }>,
+) {
+  return {
+    data: standups,
+    pagination: {
+      page: overrides?.page ?? 1,
+      pageSize: overrides?.pageSize ?? 20,
+      total: overrides?.total ?? standups.length,
+      totalPages: overrides?.totalPages ?? (standups.length === 0 ? 0 : 1),
+    },
+    summary: {
+      total: overrides?.total ?? standups.length,
+      approved: standups.filter(
+        (item) => item.status === 'approved' || item.status === 'published',
+      ).length,
+      pending: standups.filter((item) => item.status === 'pending_review')
+        .length,
+      rejected: standups.filter((item) => item.status === 'rejected').length,
+    },
+  }
 }
 
 function toStandupDto(
