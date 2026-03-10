@@ -27,7 +27,9 @@ COPY packages/standup-generator/package.json packages/standup-generator/
 
 # Install dependencies scoped to @standup/web.
 # --frozen-lockfile is incompatible with partial workspace installs.
-RUN bun install --filter './apps/web'
+# --ignore-scripts prevents optional native binaries (e.g. lmdb from @angular/build)
+# from failing the install on linux/arm64 in CI — they are not needed for ng build.
+RUN bun install --filter './apps/web' --ignore-scripts
 
 # Copy source for the app
 COPY apps/web/src apps/web/src
