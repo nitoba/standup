@@ -1034,6 +1034,22 @@ jobs:
             --version "sha-${DEPLOY_VERSION}" \
             --skip-hooks
 
+      # ── Reload cloudflared ────────────────────────────────────
+      # The cloudflared tunnel on the Mac host loads routes at startup only.
+      # After adding a new public hostname in the Cloudflare dashboard it must
+      # be restarted to pick up the change.  We do this on every deploy so
+      # new services are always reachable without manual intervention.
+      - name: Reload cloudflared
+        if: always() && steps.deploy-web.outcome != 'skipped'
+        continue-on-error: true
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=no \
+              ${{ secrets.DEPLOY_USER }}@${{ secrets.MAC_HOST }} \
+            "launchctl stop com.cloudflare.cloudflared && \
+             sleep 2 && \
+             launchctl start com.cloudflare.cloudflared"
+
       # ── Discord: Final Status ──────────────────────────────────
       - name: "Notify: Deploy finished"
         if: always() && needs.quality.outputs.message_id
