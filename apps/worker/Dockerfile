@@ -6,7 +6,12 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY tsconfig.base.json ./
 
-# Only the manifests needed by this app and its workspace deps.
+# All workspace member manifests so bun can resolve the full workspace graph.
+# --filter only installs deps for the target app, but bun still needs every
+# workspace member's package.json to reconcile the lockfile.
+COPY apps/api/package.json apps/api/
+COPY apps/discord-bot/package.json apps/discord-bot/
+COPY apps/web/package.json apps/web/
 COPY apps/worker/package.json apps/worker/
 COPY apps/worker/tsconfig.json apps/worker/
 COPY packages/azure-devops/package.json packages/azure-devops/
