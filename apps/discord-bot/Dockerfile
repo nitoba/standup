@@ -18,6 +18,7 @@ COPY packages/db/package.json packages/db/
 COPY packages/domain/package.json packages/domain/
 COPY packages/git-collector/package.json packages/git-collector/
 COPY packages/logger/package.json packages/logger/
+COPY packages/observability/package.json packages/observability/
 COPY packages/standup-generator/package.json packages/standup-generator/
 
 # --filter restricts installation to @standup/discord-bot and its workspace dependencies.
@@ -29,6 +30,7 @@ COPY packages/config/src packages/config/src
 COPY packages/db/src packages/db/src
 COPY packages/domain/src packages/domain/src
 COPY packages/logger/src packages/logger/src
+COPY packages/observability/src packages/observability/src
 COPY apps/discord-bot/src apps/discord-bot/src
 
 RUN bun build \

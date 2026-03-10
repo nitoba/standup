@@ -20,6 +20,7 @@ COPY packages/db/package.json packages/db/
 COPY packages/domain/package.json packages/domain/
 COPY packages/git-collector/package.json packages/git-collector/
 COPY packages/logger/package.json packages/logger/
+COPY packages/observability/package.json packages/observability/
 COPY packages/standup-generator/package.json packages/standup-generator/
 
 # --filter restricts installation to @standup/worker and its workspace dependencies.
@@ -33,6 +34,7 @@ COPY packages/domain/src packages/domain/src
 COPY packages/azure-devops/src packages/azure-devops/src
 COPY packages/git-collector/src packages/git-collector/src
 COPY packages/logger/src packages/logger/src
+COPY packages/observability/src packages/observability/src
 COPY packages/standup-generator/src packages/standup-generator/src
 COPY apps/worker/src apps/worker/src
 

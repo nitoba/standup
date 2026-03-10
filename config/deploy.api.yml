@@ -53,6 +53,9 @@ env:
     BETTER_AUTH_URL: https://api.nitodev.com.br
     # Internal communication via Docker network aliases on the "kamal" network.
     WORKER_INTERNAL_URL: http://standup-worker:3335
+    # OpenTelemetry — Jaeger runs on the host; containers reach it via host.docker.internal.
+    # Remove or leave empty to disable tracing (zero overhead when unset).
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://host.docker.internal:4318
   secret:
     - DISCORD_CLIENT_ID
     - DISCORD_CLIENT_SECRET

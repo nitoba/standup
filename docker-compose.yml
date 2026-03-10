@@ -20,7 +20,7 @@ services:
       dockerfile: packages/db/Dockerfile
     volumes:
       - standup-data:/app/data
-    env_file: .env
+    env_file: .env.local
     environment:
       DATABASE_URL: /app/data/standup.db
     networks:
@@ -39,15 +39,18 @@ services:
       - "${PORT:-3333}:3333"
     volumes:
       - standup-data:/app/data
-    env_file: .env
+    env_file: .env.local
     environment:
       PORT: "3333"
       DATABASE_URL: /app/data/standup.db
       REPOS_ROOT_PATH: /repos
       WORKER_INTERNAL_URL: http://standup-worker:3335
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://standup-jaeger:4318
     networks:
       - internal
     restart: unless-stopped
+    depends_on:
+      - jaeger
     # Note: healthcheck via CMD-SHELL is not possible in distroless (no shell).
     # Liveness is monitored via restart: unless-stopped + the /health endpoint
     # exposed on PORT (accessible from the host or a reverse proxy).
@@ -62,16 +65,19 @@ services:
       dockerfile: apps/discord-bot/Dockerfile
     volumes:
       - standup-data:/app/data
-    env_file: .env
+    env_file: .env.local
     environment:
       BOT_INTERNAL_PORT: "3334"
       DATABASE_URL: /app/data/standup.db
       REPOS_ROOT_PATH: /repos
       API_BASE_URL: http://standup-api:3333
       WORKER_INTERNAL_URL: http://standup-worker:3335
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://standup-jaeger:4318
     networks:
       - internal
     restart: unless-stopped
+    depends_on:
+      - jaeger
 
   # ---------------------------------------------------------------------------
   # web — Angular SPA served via nginx + reverse proxy to API
@@ -90,6 +96,21 @@ services:
       - api
 
   # ---------------------------------------------------------------------------
+  # jaeger — distributed tracing backend (OTLP receiver + UI)
+  # ---------------------------------------------------------------------------
+  jaeger:
+    container_name: standup-jaeger
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "4318:4318" # OTLP HTTP receiver
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    networks:
+      - internal
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
   # worker — cron scheduler + standup job pipeline + internal HTTP trigger
   # ---------------------------------------------------------------------------
   worker:
@@ -102,15 +123,18 @@ services:
       # Git repositories: bind-mounted read-only from host.
       # HOST_REPOS_ROOT_PATH points to the host path; inside the container the runtime root is /repos.
       - ${HOST_REPOS_ROOT_PATH:-/home/nitoba/Documents/repos/ibs/repos}:/repos:ro
-    env_file: .env
+    env_file: .env.local
     environment:
       WORKER_INTERNAL_PORT: "3335"
       DATABASE_URL: /app/data/standup.db
       BOT_INTERNAL_URL: http://standup-discord-bot:3334
       REPOS_ROOT_PATH: /repos
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://standup-jaeger:4318
     networks:
       - internal
     restart: unless-stopped
+    depends_on:
+      - jaeger
 
 # ---------------------------------------------------------------------------
 # Volumes

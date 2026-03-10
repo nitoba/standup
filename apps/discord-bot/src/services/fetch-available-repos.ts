@@ -1,5 +1,6 @@
 import { ExternalServiceError, Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
+import { tracedFetch } from '@standup/observability'
 
 export interface RepoInfo {
   name: string
@@ -55,7 +56,7 @@ export async function fetchAvailableRepos(
 
   return Result.tryPromise({
     try: async () => {
-      const response = await fetch(
+      const response = await tracedFetch(
         `${deps.workerInternalUrl}/internal/repos/list`,
         {
           method: 'GET',

@@ -13,6 +13,7 @@ import {
 } from '@standup/domain'
 import { collectGitActivity } from '@standup/git-collector'
 import { createServiceLogger, withContext } from '@standup/logger'
+import { withSpan } from '@standup/observability'
 import {
   determineMeetingType,
   generateAdjustedStandup,
@@ -655,12 +656,20 @@ export async function runStandupJob(
     })
 
     const gitActivity = yield* Result.await(
-      collectGitActivity({
-        reposRootPath: options.reposRootPath,
-        selectedRepos: options.selectedRepos,
-        author: options.gitAuthor,
-        sincePeriod: '8 hours ago',
-      }),
+      withSpan(
+        'standup.git.collect',
+        {
+          'git.author': options.gitAuthor,
+          'git.repos': options.selectedRepos.length,
+        },
+        () =>
+          collectGitActivity({
+            reposRootPath: options.reposRootPath,
+            selectedRepos: options.selectedRepos,
+            author: options.gitAuthor,
+            sincePeriod: '8 hours ago',
+          }),
+      ),
     )
 
     jobLogger.info('Git activity collected', {
@@ -722,14 +731,19 @@ export async function runStandupJob(
     })
 
     const generated = yield* Result.await(
-      generateStandup(
-        {
-          date: today,
-          meetingType,
-          gitActivity,
-          extraContext: generationExtraContext,
-        },
-        generatorConfig,
+      withSpan(
+        'standup.llm.generate',
+        { 'standup.meeting_type': meetingType, 'standup.mode': runMode },
+        () =>
+          generateStandup(
+            {
+              date: today,
+              meetingType,
+              gitActivity,
+              extraContext: generationExtraContext,
+            },
+            generatorConfig,
+          ),
       ),
     )
 
@@ -746,12 +760,14 @@ export async function runStandupJob(
     })
 
     const record = yield* Result.await(
-      saveGeneratedStandup(standupRepo, options, {
-        date: today,
-        meetingType,
-        content: generated.content,
-        sourceData: JSON.stringify(gitActivity),
-      }),
+      withSpan('standup.persist', { 'standup.mode': runMode }, () =>
+        saveGeneratedStandup(standupRepo, options, {
+          date: today,
+          meetingType,
+          content: generated.content,
+          sourceData: JSON.stringify(gitActivity),
+        }),
+      ),
     )
 
     jobLogger.info('Standup draft saved', { standupId: record.id })

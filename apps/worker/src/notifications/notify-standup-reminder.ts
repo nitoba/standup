@@ -1,5 +1,6 @@
 import { ExternalServiceError, Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
+import { tracedFetch } from '@standup/observability'
 
 const logger = createServiceLogger({
   service: 'worker',
@@ -26,7 +27,7 @@ export async function notifyStandupReminder(
     try: async () => {
       const url = `${opts.botInternalUrl}/internal/notify/standup-reminder`
 
-      const response = await fetch(url, {
+      const response = await tracedFetch(url, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',

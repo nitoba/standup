@@ -1,5 +1,6 @@
 import type { StandupStatus } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
+import { tracedFetch } from '@standup/observability'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -27,7 +28,7 @@ export async function notifyStandupStatusChanged(
   try {
     const url = `${opts.botInternalUrl}/internal/notify/standup-status-changed`
 
-    const response = await fetch(url, {
+    const response = await tracedFetch(url, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

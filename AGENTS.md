@@ -40,7 +40,8 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 - Discord: discord.js (bot com botoes + DM)
 - Scheduler: croner (cron expressions em Bun)
 - Logs: Winston (estruturado com contexto por servico)
-- Deploy: Docker + VPS
+- Observabilidade: OpenTelemetry + Jaeger (tracing distribuido opt-in)
+- Deploy: Docker + Kamal + VPS (ARM64 Mac mini via Tailscale)
 
 ## Design Patterns
 
@@ -292,6 +293,7 @@ standup/
     domain/           # StandupStatus, state machine, TaggedErrors, Zod schemas
     db/               # Drizzle schema, StandupRepository, JobRunRepository, UserRepository
     logger/           # Winston estruturado com createServiceLogger / withContext
+    observability/    # OpenTelemetry: initTracing, tracedFetch, withSpan (opt-in via OTEL_EXPORTER_OTLP_ENDPOINT)
     git-collector/    # collectGitActivity — git log por repo, autor e periodo
     standup-generator/
       src/
@@ -355,6 +357,9 @@ AI_PROVIDER_API_KEY=
 AZURE_DEVOPS_ORG=
 AZURE_DEVOPS_PAT=
 AZURE_DEVOPS_DEFAULT_PROJECT=AGROTRACE
+
+# OpenTelemetry (opcional — tracing desabilitado quando ausente)
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 
 # Docker Compose (infra, opcional)
 HOST_REPOS_ROOT_PATH=/home/nitoba/Documents/repos/ibs/repos
@@ -672,7 +677,8 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 
 - `packages/domain` — types, schemas Zod, state machine, TaggedErrors
 - `packages/config` — `baseEnvSchema` + loaders por app; `BotEnv` inclui `WORKER_INTERNAL_URL`
-- `packages/logger` — Winston estruturado
+- `packages/logger` — Winston estruturado + injecao de traceId/spanId nos logs
+- `packages/observability` — initTracing, tracedFetch, withSpan (OTel opt-in via OTEL_EXPORTER_OTLP_ENDPOINT)
 - `packages/git-collector` — 31 testes (bun test)
 - `packages/db` — StandupRepository + JobRunRepository + UserRepository, migracao `dm_message_id`
 - `packages/standup-generator` — generateStandup + generateAdjustedStandup, retry interno + fallback MCP

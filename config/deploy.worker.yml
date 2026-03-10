@@ -56,6 +56,8 @@ env:
     BOT_INTERNAL_URL: http://standup-bot:3334
     API_INTERNAL_URL: http://standup-api:3333
     AZURE_DEVOPS_DEFAULT_PROJECT: AGROTRACE
+    # OpenTelemetry — Jaeger runs on the host; containers reach it via host.docker.internal.
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://host.docker.internal:4318
   secret:
     - AI_PROVIDER_API_KEY
     - AZURE_DEVOPS_ORG

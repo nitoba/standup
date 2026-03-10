@@ -1,4 +1,5 @@
 import { ExternalServiceError, Result } from '@standup/domain'
+import { tracedFetch } from '@standup/observability'
 
 export interface TriggerStandupDeps {
   apiBaseUrl: string
@@ -35,23 +36,26 @@ export async function triggerStandup(
 ): Promise<Result<TriggerStandupOutcome, ExternalServiceError>> {
   return Result.tryPromise({
     try: async () => {
-      const response = await fetch(`${deps.apiBaseUrl}/standups/trigger`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-internal-secret': deps.internalSecret,
+      const response = await tracedFetch(
+        `${deps.apiBaseUrl}/standups/trigger`,
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-internal-secret': deps.internalSecret,
+          },
+          body: JSON.stringify({
+            userId,
+            discordUserId,
+            extraContext: options?.extraContext,
+            forceRegenerate: options?.forceRegenerate,
+            rewriteFromStandupId: options?.rewriteFromStandupId,
+            rewriteInstruction: options?.rewriteInstruction,
+            replaceStandupId: options?.replaceStandupId,
+            reuseExistingSource: options?.reuseExistingSource,
+          }),
         },
-        body: JSON.stringify({
-          userId,
-          discordUserId,
-          extraContext: options?.extraContext,
-          forceRegenerate: options?.forceRegenerate,
-          rewriteFromStandupId: options?.rewriteFromStandupId,
-          rewriteInstruction: options?.rewriteInstruction,
-          replaceStandupId: options?.replaceStandupId,
-          reuseExistingSource: options?.reuseExistingSource,
-        }),
-      })
+      )
 
       if (response.status === 202) {
         return { accepted: true } as const

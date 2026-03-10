@@ -1,3 +1,7 @@
+import { initTracing } from '@standup/observability'
+
+initTracing('standup-worker')
+
 import { createAzureMcpClient } from '@standup/azure-devops'
 import { loadWorkerEnv } from '@standup/config'
 import { Result } from '@standup/domain'

@@ -1,3 +1,4 @@
+import { httpInstrumentationMiddleware } from '@hono/otel'
 import type { AzureMcpClient } from '@standup/azure-devops'
 import { Hono } from 'hono'
 import type { StandupJobOptions } from '../handlers/trigger-standup.js'
@@ -22,6 +23,8 @@ export interface InternalRouterOptions {
  */
 export function createInternalRouter(opts: InternalRouterOptions): Hono {
   const app = new Hono()
+
+  app.use('*', httpInstrumentationMiddleware({ serviceName: 'standup-worker' }))
 
   // Health — sem autenticação, acessível por Docker/Kamal healthcheck
   app.get('/health', (c) =>

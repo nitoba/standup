@@ -1,3 +1,4 @@
+import { trace } from '@opentelemetry/api'
 import {
   createLogger as createWinstonLogger,
   format,
@@ -12,6 +13,8 @@ const RESERVED_META_KEYS = new Set([
   'service',
   'component',
   'stack',
+  'traceId',
+  'spanId',
 ])
 
 export interface LoggerMeta {
@@ -46,6 +49,19 @@ function getPrintableMeta(info: Record<string, unknown>): LoggerMeta {
   return result
 }
 
+/**
+ * Extracts traceId and spanId from the active OpenTelemetry span (if any).
+ * Returns empty strings when tracing is disabled or no span is active.
+ */
+function getTraceContext(): { traceId: string; spanId: string } {
+  const span = trace.getActiveSpan()
+  if (!span) {
+    return { traceId: '', spanId: '' }
+  }
+  const ctx = span.spanContext()
+  return { traceId: ctx.traceId, spanId: ctx.spanId }
+}
+
 function createDevelopmentFormat() {
   return format.combine(
     format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
@@ -62,6 +78,14 @@ function createDevelopmentFormat() {
       const level = String(info.level ?? 'info').padEnd(7, ' ')
       const message = String(info.message ?? '')
       const printableMeta = getPrintableMeta(info)
+
+      // Inject trace context if available
+      const { traceId, spanId } = getTraceContext()
+      if (traceId) {
+        printableMeta.traceId = traceId
+        printableMeta.spanId = spanId
+      }
+
       const metaSuffix =
         Object.keys(printableMeta).length === 0
           ? ''
@@ -74,10 +98,20 @@ function createDevelopmentFormat() {
 }
 
 function createProductionFormat() {
+  const injectTraceContext = format((info) => {
+    const { traceId, spanId } = getTraceContext()
+    if (traceId) {
+      info.traceId = traceId
+      info.spanId = spanId
+    }
+    return info
+  })
+
   return format.combine(
     format.timestamp(),
     format.errors({ stack: true }),
     format.splat(),
+    injectTraceContext(),
     format.json(),
   )
 }

@@ -62,8 +62,8 @@ describe('notifyUserDm', () => {
     expect(url).toBe('http://localhost:3334/internal/notify/user-dm')
     expect(init.method).toBe('POST')
 
-    const headers = init.headers as Record<string, string>
-    expect(headers['x-internal-secret']).toBe('my-secret')
+    const headers = new Headers(init.headers as HeadersInit)
+    expect(headers.get('x-internal-secret')).toBe('my-secret')
 
     const body = JSON.parse(init.body as string) as {
       discordUserId: string

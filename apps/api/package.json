@@ -11,11 +11,13 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@hono/otel": "^1.1.1",
     "@hono/standard-validator": "catalog:",
     "@standup/config": "workspace:*",
     "@standup/db": "workspace:*",
     "@standup/domain": "workspace:*",
     "@standup/logger": "workspace:*",
+    "@standup/observability": "workspace:*",
     "better-auth": "^1.5.4",
     "hono": "catalog:",
     "zod": "catalog:"

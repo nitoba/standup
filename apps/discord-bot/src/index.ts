@@ -1,3 +1,7 @@
+import { initTracing } from '@standup/observability'
+
+initTracing('standup-discord-bot')
+
 import { loadBotEnv } from '@standup/config'
 import { Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'

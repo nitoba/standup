@@ -1,4 +1,5 @@
 import { createServiceLogger } from '@standup/logger'
+import { tracedFetch } from '@standup/observability'
 
 const logger = createServiceLogger({
   service: 'worker',
@@ -53,7 +54,7 @@ export async function notifyStandupEvent(
   try {
     const url = `${opts.apiInternalUrl}/internal/events/standup`
 
-    const response = await fetch(url, {
+    const response = await tracedFetch(url, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

@@ -11,12 +11,14 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@hono/otel": "^1.1.1",
     "@standup/azure-devops": "workspace:*",
     "@standup/config": "workspace:*",
     "@standup/db": "workspace:*",
     "@standup/domain": "workspace:*",
     "@standup/git-collector": "workspace:*",
     "@standup/logger": "workspace:*",
+    "@standup/observability": "workspace:*",
     "@standup/standup-generator": "workspace:*",
     "croner": "^10.0.1",
     "hono": "catalog:"

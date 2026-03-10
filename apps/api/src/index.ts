@@ -1,3 +1,8 @@
+import { initTracing } from '@standup/observability'
+
+initTracing('standup-api')
+
+import { httpInstrumentationMiddleware } from '@hono/otel'
 import { loadApiEnv } from '@standup/config'
 import { Result } from '@standup/domain'
 import { createServiceLogger, withContext } from '@standup/logger'
@@ -105,6 +110,13 @@ remindersRouter.post('/cancel-today', (c) =>
 
 const app = new Hono<AppContext>()
 
+app.use(
+  '*',
+  httpInstrumentationMiddleware({
+    serviceName: 'standup-api',
+    captureRequestHeaders: ['x-request-id'],
+  }),
+)
 app.use('*', requestLogger(logger))
 app.use(
   '*',

@@ -760,6 +760,9 @@ jobs:
       - name: Validate Kamal config (Web)
         run: kamal config -c config/deploy.web.yml
 
+      - name: Validate Kamal config (Infra)
+        run: kamal config -c config/deploy.infra.yml
+
       # ── Discord: Deploy Started ────────────────────────────────
       - name: "Notify: Deploy started"
         id: notify-deploy-start
@@ -826,6 +829,17 @@ jobs:
             StrictHostKeyChecking accept-new
           EOF
           chmod 600 ~/.ssh/config
+
+      # ── Infra: Ensure Jaeger is running ─────────────────────────
+      # Accessory boot is idempotent — if the container already exists and is
+      # running, this is a fast no-op. Only pulls/starts on first run or after
+      # `kamal accessory remove`.
+      - name: Ensure Jaeger accessory is running
+        continue-on-error: true
+        run: |
+          kamal accessory boot jaeger \
+            -c config/deploy.infra.yml \
+            || echo "Jaeger accessory already booted (expected on subsequent deploys)"
 
       # ── Deploy: API ────────────────────────────────────────────
       - name: Deploy API
