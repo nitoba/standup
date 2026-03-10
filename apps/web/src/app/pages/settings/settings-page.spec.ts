@@ -6,12 +6,14 @@ import {
 import { ApplicationRef } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { provideRouter } from '@angular/router'
-import * as ngxSonner from 'ngx-sonner'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('ngx-sonner')
+
+import { toast } from 'ngx-sonner'
 import { SettingsPage } from './settings-page'
 
-const toastMock = vi.spyOn(ngxSonner, 'toast').mockImplementation(vi.fn())
+const toastMock = vi.mocked(toast)
 
 function buildMockSettings() {
   return {
