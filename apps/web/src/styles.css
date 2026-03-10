@@ -41,9 +41,9 @@
   --sidebar-ring: oklch(0.708 0 0);
 
   --accent-green: #10b981;
-  --accent-cyan: #06b6d4;
-  --accent-amber: #f59e0b;
+  --accent-yellow: #eab308;
   --accent-red: #ef4444;
+  --accent-cyan: #06b6d4; /* kept for backwards compat, prefer --accent-yellow for pending */
 }
 
 .dark {

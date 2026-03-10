@@ -38,6 +38,7 @@ const standupRecord = {
   sourceData: '{}',
   status: 'draft' as const,
   createdAt: 1000,
+  dmMessageId: null,
   updatedAt: 1000,
 }
 
@@ -59,6 +60,12 @@ describe('GET /standups/:id', () => {
       reposRootPath: '/repos',
       workerInternalUrl: WORKER_INTERNAL_URL,
       internalSecret: INTERNAL_SECRET,
+      botInternalUrl: 'http://localhost:3334',
+      eventBus: {
+        subscribe: vi.fn(),
+        emit: vi.fn(),
+        emitToAll: vi.fn(),
+      } as unknown as import('../sse/event-bus.js').EventBus,
     })
     app = new Hono<{ Variables: { user: Record<string, unknown> } }>()
     app.use('*', async (c, next) => {

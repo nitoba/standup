@@ -5,9 +5,16 @@ import {
 } from '@angular/common/http/testing'
 import { ApplicationRef } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
+import { Subject } from 'rxjs'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-
 import { StandupService } from './standup.service'
+import { StandupEventsService } from './standup-events.service'
+
+/** Stub que não abre EventSource real — evita ReferenceError em JSDOM */
+const stubEventsService = {
+  standupGenerated$: new Subject<never>(),
+  ngOnDestroy: () => {},
+}
 
 type StandupDto = {
   id: string
@@ -67,7 +74,11 @@ describe('StandupService', () => {
   beforeEach(async () => {
     TestBed.resetTestingModule()
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: StandupEventsService, useValue: stubEventsService },
+      ],
     })
 
     service = TestBed.inject(StandupService)

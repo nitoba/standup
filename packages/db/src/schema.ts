@@ -95,6 +95,7 @@ export const standups = sqliteTable('standups', {
     .notNull()
     .default('draft'),
   userId: text('user_id').references(() => user.id),
+  dmMessageId: text('dm_message_id'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 })
@@ -138,7 +139,7 @@ export const userSettings = sqliteTable('user_settings', {
   timezone: text('timezone').notNull().default('America/Sao_Paulo'),
   selectedRepos: text('selected_repos').notNull().default('[]'),
   gitAuthor: text('git_author').notNull(),
-  gitSincePeriod: text('git_since_period').notNull().default('16 hours ago'),
+  gitSincePeriod: text('git_since_period').notNull().default('8 hours ago'),
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
   snoozedUntil: integer('snoozed_until'), // epoch ms, nullable
   cancelledDate: text('cancelled_date'), // 'YYYY-MM-DD', nullable

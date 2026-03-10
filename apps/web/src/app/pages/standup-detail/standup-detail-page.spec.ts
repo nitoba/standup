@@ -73,7 +73,7 @@ async function createFixture(options?: {
   reload?: () => Promise<void>
 }) {
   const detail = signal<Standup | undefined>(
-    createStandupDetail({ status: options?.status }),
+    createStandupDetail(options?.status ? { status: options.status } : {}),
   )
   const reload = vi.fn(options?.reload ?? (async () => {}))
   const standupResource = {
@@ -249,8 +249,18 @@ describe('StandupDetailPage', () => {
     expect(element.textContent).toContain('"hash": "ghi9012"')
   })
 
-  it('hides approve, reject and adjust when the standup is approved', async () => {
+  it('hides all action buttons when the standup is approved', async () => {
     const { fixture } = await createFixture({ status: 'approved' })
+    const buttons = getActionButtons(fixture)
+
+    expect(buttons.approve).toBeUndefined()
+    expect(buttons.reject).toBeUndefined()
+    expect(buttons.adjust).toBeUndefined()
+    expect(buttons.regenerate).toBeUndefined()
+  })
+
+  it('shows only regenerate when the standup is rejected', async () => {
+    const { fixture } = await createFixture({ status: 'rejected' })
     const buttons = getActionButtons(fixture)
 
     expect(buttons.approve).toBeUndefined()
@@ -367,8 +377,9 @@ describe('StandupDetailPage', () => {
       standupId,
       'tighten the summary',
     )
-    expect(standupResource.reload).toHaveBeenCalledOnce()
-    expect(toastMock).toHaveBeenCalledWith('Ajuste enviado para regeneracao')
+    // fire-and-forget: no reload here — SSE event triggers selectedStandup.reload()
+    expect(standupResource.reload).not.toHaveBeenCalled()
+    expect(toastMock).toHaveBeenCalledWith('Solicitação aceita')
   })
 
   it('disables all action buttons while an action is in flight', async () => {
@@ -398,13 +409,50 @@ describe('StandupDetailPage', () => {
     expect(regenerate.disabled).toBe(false)
   })
 
-  it('shows a toast after regenerate', async () => {
-    const { fixture } = await createFixture()
+  it('opens the regenerate confirmation modal when the regenerate button is clicked', async () => {
+    const { fixture, dialogService } = await createFixture()
 
     getActionButtons(fixture).regenerate.click()
+    fixture.detectChanges()
+
+    expect(dialogService.create).toHaveBeenCalledOnce()
+    expect(dialogService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        zTitle: '// regenerar standup',
+        zOkDestructive: true,
+        zOkText: '$ confirmar',
+        zCancelText: '$ cancelar',
+      }),
+    )
+  })
+
+  it('calls regenerate and shows toast when confirmation modal is confirmed', async () => {
+    const { fixture, dialogService, standupService, standupResource } =
+      await createFixture()
+
+    getActionButtons(fixture).regenerate.click()
+    fixture.detectChanges()
+
+    const config = dialogService.create.mock.calls[0]?.[0] as {
+      zOnOk(): void
+    }
+    config.zOnOk()
     await settleFixture(fixture)
 
-    expect(toastMock).toHaveBeenCalledWith('Standup enviado para regeneracao')
+    expect(standupService.regenerate).toHaveBeenCalledWith(STANDUP_ID)
+    // fire-and-forget: no reload here — SSE event triggers selectedStandup.reload()
+    expect(standupResource.reload).not.toHaveBeenCalled()
+    expect(toastMock).toHaveBeenCalledWith('Solicitação aceita')
+  })
+
+  it('does not call regenerate when the confirmation modal is dismissed', async () => {
+    const { fixture, dialogService, standupService } = await createFixture()
+
+    getActionButtons(fixture).regenerate.click()
+    fixture.detectChanges()
+
+    expect(dialogService.create).toHaveBeenCalledOnce()
+    expect(standupService.regenerate).not.toHaveBeenCalled()
   })
 
   it('shows a toast after reject action', async () => {

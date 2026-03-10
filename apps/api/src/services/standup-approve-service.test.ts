@@ -1,6 +1,5 @@
 import {
   DbError,
-  ExternalServiceError,
   InvalidStateTransitionError,
   mergeCustomEntries,
   NotFoundError,
@@ -45,6 +44,7 @@ const pendingRecord = {
   customEntries: null,
   status: 'pending_review' as const,
   userId: 'user-123',
+  dmMessageId: null,
   createdAt: 1000,
   updatedAt: 1000,
 }
@@ -63,7 +63,7 @@ describe('approveStandup', () => {
     vi.restoreAllMocks()
   })
 
-  it('persiste customEntries, faz merge, aprova, publica e marca como published', async () => {
+  it('persiste customEntries, faz merge e aprova com sucesso', async () => {
     const recordWithEntries = {
       ...pendingRecord,
       customEntries,
@@ -84,14 +84,6 @@ describe('approveStandup', () => {
       status: 'approved' as const,
       updatedAt: 1300,
     }
-    const publishedRecord = {
-      ...approvedRecord,
-      status: 'published' as const,
-      updatedAt: 1400,
-    }
-    const publishApprovedStandup = vi
-      .fn()
-      .mockResolvedValue(Result.ok(undefined))
 
     mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(pendingRecord))
     mocks.repoUpdateCustomEntriesForUser.mockResolvedValue(
@@ -100,17 +92,12 @@ describe('approveStandup', () => {
     mocks.repoUpdateContentForUser.mockResolvedValue(
       Result.ok(recordWithMergedContent),
     )
-    mocks.repoUpdateStatusForUser
-      .mockResolvedValueOnce(Result.ok(approvedRecord))
-      .mockResolvedValueOnce(Result.ok(publishedRecord))
+    mocks.repoUpdateStatusForUser.mockResolvedValue(Result.ok(approvedRecord))
 
     const result = await approveStandup(
       'standup-abc',
       'user-123',
-      {
-        databaseUrl: DATABASE_URL,
-        publishApprovedStandup,
-      },
+      { databaseUrl: DATABASE_URL },
       customEntries,
     )
 
@@ -118,7 +105,7 @@ describe('approveStandup', () => {
     if (result.isOk()) {
       expect(result.value.kind).toBe('success')
       if (result.value.kind === 'success') {
-        expect(result.value.standup).toEqual(publishedRecord)
+        expect(result.value.standup).toEqual(approvedRecord)
       }
     }
     expect(mocks.getDb).toHaveBeenCalledWith(DATABASE_URL)
@@ -136,50 +123,32 @@ describe('approveStandup', () => {
       'user-123',
       mergedContent,
     )
-    expect(mocks.repoUpdateStatusForUser).toHaveBeenNthCalledWith(
-      1,
+    expect(mocks.repoUpdateStatusForUser).toHaveBeenCalledWith(
       'standup-abc',
       'user-123',
       'approved',
     )
-    expect(publishApprovedStandup).toHaveBeenCalledWith(approvedRecord)
-    expect(mocks.repoUpdateStatusForUser).toHaveBeenNthCalledWith(
-      2,
-      'standup-abc',
-      'user-123',
-      'published',
-    )
   })
 
-  it('retorna publish_failed quando a publicacao falha depois da aprovacao', async () => {
+  it('aprova sem customEntries e retorna success', async () => {
     const approvedRecord = {
       ...pendingRecord,
       status: 'approved' as const,
       updatedAt: 1300,
     }
-    const publishApprovedStandup = vi.fn().mockResolvedValue(
-      Result.err(
-        new ExternalServiceError({
-          service: 'discord',
-          message: 'Channel not found',
-        }),
-      ),
-    )
 
     mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(pendingRecord))
     mocks.repoUpdateStatusForUser.mockResolvedValue(Result.ok(approvedRecord))
 
     const result = await approveStandup('standup-abc', 'user-123', {
       databaseUrl: DATABASE_URL,
-      publishApprovedStandup,
     })
 
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
-      expect(result.value.kind).toBe('publish_failed')
-      if (result.value.kind === 'publish_failed') {
+      expect(result.value.kind).toBe('success')
+      if (result.value.kind === 'success') {
         expect(result.value.standup).toEqual(approvedRecord)
-        expect(result.value.error.service).toBe('discord')
       }
     }
     expect(mocks.repoUpdateCustomEntriesForUser).not.toHaveBeenCalled()
@@ -192,58 +161,11 @@ describe('approveStandup', () => {
     )
   })
 
-  it('retorna success com standup aprovado quando publicar funciona mas persistir published falha', async () => {
-    const approvedRecord = {
-      ...pendingRecord,
-      status: 'approved' as const,
-      updatedAt: 1300,
-    }
-    const publishApprovedStandup = vi
-      .fn()
-      .mockResolvedValue(Result.ok(undefined))
-    const dbError = new DbError({
-      operation: 'updateStatusForUser',
-      message: 'database locked',
-    })
-
-    mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(pendingRecord))
-    mocks.repoUpdateStatusForUser
-      .mockResolvedValueOnce(Result.ok(approvedRecord))
-      .mockResolvedValueOnce(Result.err(dbError))
-
-    const result = await approveStandup('standup-abc', 'user-123', {
-      databaseUrl: DATABASE_URL,
-      publishApprovedStandup,
-    })
-
-    expect(result.isOk()).toBe(true)
-    if (result.isOk()) {
-      expect(result.value.kind).toBe('success')
-      if (result.value.kind === 'success') {
-        expect(result.value.standup).toEqual(approvedRecord)
-      }
-    }
-    expect(publishApprovedStandup).toHaveBeenCalledWith(approvedRecord)
-    expect(mocks.repoUpdateStatusForUser).toHaveBeenNthCalledWith(
-      1,
-      'standup-abc',
-      'user-123',
-      'approved',
-    )
-    expect(mocks.repoUpdateStatusForUser).toHaveBeenNthCalledWith(
-      2,
-      'standup-abc',
-      'user-123',
-      'published',
-    )
-  })
-
-  it('retorna invalid_transition quando pending_review -> approved nao e permitido', async () => {
+  it('retorna invalid_transition quando a transicao nao e permitida', async () => {
     const invalidTransition = new InvalidStateTransitionError({
       from: 'draft',
       to: 'approved',
     })
-    const publishApprovedStandup = vi.fn()
 
     mocks.repoFindByIdForUser.mockResolvedValue(
       Result.ok({ ...pendingRecord, status: 'draft' as const }),
@@ -254,7 +176,6 @@ describe('approveStandup', () => {
 
     const result = await approveStandup('standup-abc', 'user-123', {
       databaseUrl: DATABASE_URL,
-      publishApprovedStandup,
     })
 
     expect(result.isOk()).toBe(true)
@@ -264,7 +185,6 @@ describe('approveStandup', () => {
         expect(result.value.error).toBe(invalidTransition)
       }
     }
-    expect(publishApprovedStandup).not.toHaveBeenCalled()
   })
 
   it('retorna not_found quando o standup nao pertence ao usuario', async () => {
@@ -272,13 +192,11 @@ describe('approveStandup', () => {
       resource: 'standup',
       id: 'standup-abc',
     })
-    const publishApprovedStandup = vi.fn()
 
     mocks.repoFindByIdForUser.mockResolvedValue(Result.err(notFound))
 
     const result = await approveStandup('standup-abc', 'user-123', {
       databaseUrl: DATABASE_URL,
-      publishApprovedStandup,
     })
 
     expect(result.isOk()).toBe(true)
@@ -289,11 +207,9 @@ describe('approveStandup', () => {
       }
     }
     expect(mocks.repoUpdateStatusForUser).not.toHaveBeenCalled()
-    expect(publishApprovedStandup).not.toHaveBeenCalled()
   })
 
   it('retorna Err(DbError) quando salvar o merge falha no repositorio', async () => {
-    const publishApprovedStandup = vi.fn()
     const dbError = new DbError({
       operation: 'updateContentForUser',
       message: 'disk full',
@@ -301,20 +217,14 @@ describe('approveStandup', () => {
 
     mocks.repoFindByIdForUser.mockResolvedValue(Result.ok(pendingRecord))
     mocks.repoUpdateCustomEntriesForUser.mockResolvedValue(
-      Result.ok({
-        ...pendingRecord,
-        customEntries,
-      }),
+      Result.ok({ ...pendingRecord, customEntries }),
     )
     mocks.repoUpdateContentForUser.mockResolvedValue(Result.err(dbError))
 
     const result = await approveStandup(
       'standup-abc',
       'user-123',
-      {
-        databaseUrl: DATABASE_URL,
-        publishApprovedStandup,
-      },
+      { databaseUrl: DATABASE_URL },
       customEntries,
     )
 
@@ -323,6 +233,5 @@ describe('approveStandup', () => {
       expect(result.error).toBe(dbError)
     }
     expect(mocks.repoUpdateStatusForUser).not.toHaveBeenCalled()
-    expect(publishApprovedStandup).not.toHaveBeenCalled()
   })
 })

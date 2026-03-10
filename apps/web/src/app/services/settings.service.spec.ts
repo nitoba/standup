@@ -36,7 +36,6 @@ describe('SettingsService', () => {
       recoveryCron: '0 18 * * 1-5',
       timezone: 'America/Sao_Paulo',
       gitAuthor: 'nitoba@example.com',
-      gitSincePeriod: '16 hours ago',
       selectedRepos: ['agrotrace-web', 'agrotrace-api'],
       active: true,
       snoozedUntil: null,

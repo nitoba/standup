@@ -43,6 +43,12 @@ const deps = {
   reposRootPath: '/repos',
   workerInternalUrl: 'http://localhost:3335',
   internalSecret: 'internal-secret',
+  botInternalUrl: 'http://localhost:3334',
+  eventBus: {
+    subscribe: vi.fn(),
+    emit: vi.fn(),
+    emitToAll: vi.fn(),
+  } as unknown as import('../sse/event-bus.js').EventBus,
 }
 
 const TEST_USER_ID = 'test-user-1'

@@ -25,7 +25,6 @@ function buildMockSettings() {
     recoveryCron: '0 18 * * 1-5',
     timezone: 'america/sao_paulo',
     gitAuthor: 'nitoba',
-    gitSincePeriod: '16 hours ago',
     selectedRepos: ['agrotrace-web', 'agrotrace-api'],
     active: true,
     snoozedUntil: null,
@@ -107,14 +106,12 @@ describe('SettingsPage', () => {
     const recoveryCron = el.querySelector<HTMLInputElement>('#recovery-cron')
     const timezone = el.querySelector<HTMLElement>('#timezone')
     const gitAuthor = el.querySelector<HTMLInputElement>('#git-author')
-    const gitSince = el.querySelector<HTMLInputElement>('#git-since-period')
 
     expect(standupCron?.value).toBe('30 17 * * 1-5')
     expect(reminderCron?.value).toBe('20 17 * * 1-5')
     expect(recoveryCron?.value).toBe('0 18 * * 1-5')
     expect(timezone?.textContent).toContain('america/sao_paulo')
     expect(gitAuthor?.value).toBe('nitoba')
-    expect(gitSince?.value).toBe('16 hours ago')
   })
 
   it('shows available repos as checkboxes with correct selection', async () => {
@@ -201,7 +198,6 @@ describe('SettingsPage', () => {
       recoveryCron: '0 18 * * 1-5',
       timezone: 'america/sao_paulo',
       gitAuthor: 'nitoba',
-      gitSincePeriod: '16 hours ago',
       selectedRepos: ['agrotrace-web', 'agrotrace-api'],
       active: true,
     })

@@ -70,6 +70,10 @@ vi.mock('../notifications/notify-user-dm.js', () => ({
   notifyUserDm: mocks.notifyUserDm,
 }))
 
+vi.mock('../notifications/notify-standup-generated.js', () => ({
+  notifyStandupGenerated: vi.fn().mockResolvedValue(undefined),
+}))
+
 // Mock Bun.sleep para evitar delays reais nos testes de retry.
 // O setup do pacote já define globalThis.Bun; aqui só sobrescrevemos os métodos usados.
 Object.assign(globalThis.Bun, {
@@ -96,6 +100,7 @@ const baseEnv: WorkerEnv = {
   AZURE_DEVOPS_PAT: 'pat-test',
   AZURE_DEVOPS_DEFAULT_PROJECT: 'AGROTRACE',
   BOT_INTERNAL_URL: 'http://localhost:3334',
+  API_INTERNAL_URL: 'http://localhost:3333',
   WORKER_INTERNAL_PORT: 3335,
   INTERNAL_SECRET: 'test-secret',
   REPOS_ROOT_PATH: '/repos',
@@ -140,6 +145,7 @@ const savedRecord = {
   sourceData: JSON.stringify(gitActivityWithCommits),
   status: 'draft' as const,
   createdAt: 1000,
+  dmMessageId: null,
   updatedAt: 1000,
 }
 
@@ -268,7 +274,7 @@ describe('runStandupJob', () => {
       expect(mocks.notifyUserDm).toHaveBeenCalledWith(
         expect.objectContaining({
           discordUserId: 'test-discord-1',
-          color: 0x3498db,
+          color: 0xf39c12, // WARNING âmbar — já em processamento
         }),
       )
     })
@@ -392,11 +398,20 @@ describe('runStandupJob', () => {
 
       await runStandupJob(baseEnv, baseOptions)
 
-      expect(mocks.notifyUserDm).toHaveBeenCalledOnce()
-      expect(mocks.notifyUserDm).toHaveBeenCalledWith(
+      // 2 DMs: 1ª = "gerando em background" (INFO azul), 2ª = "nenhuma atividade" (WARNING âmbar)
+      expect(mocks.notifyUserDm).toHaveBeenCalledTimes(2)
+      expect(mocks.notifyUserDm).toHaveBeenNthCalledWith(
+        1,
         expect.objectContaining({
           discordUserId: 'test-discord-1',
-          color: 0xf39c12, // WARNING âmbar
+          color: 0x3498db, // INFO azul — gerando
+        }),
+      )
+      expect(mocks.notifyUserDm).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          discordUserId: 'test-discord-1',
+          color: 0xf39c12, // WARNING âmbar — nenhuma atividade
         }),
       )
     })

@@ -6,10 +6,14 @@ import {
   signal,
 } from '@angular/core'
 import { Router } from '@angular/router'
+import { toast } from 'ngx-sonner'
 
 import { SidebarLayout } from '../../layout/sidebar'
 import { StandupService } from '../../services/standup.service'
+import { ZardButtonComponent } from '../../shared/components/button'
+import { ZardDialogService } from '../../shared/components/dialog'
 import { FilterBar } from './filter-bar'
+import { GenerateDialogContent } from './generate-dialog-content'
 import { MetricCard } from './metric-card'
 import { StandupTable } from './standup-table'
 
@@ -48,15 +52,32 @@ function resolveDateFilter(value: string, now = new Date()) {
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [SidebarLayout, MetricCard, StandupTable, FilterBar],
+  imports: [
+    SidebarLayout,
+    MetricCard,
+    StandupTable,
+    FilterBar,
+    ZardButtonComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-sidebar-layout>
       <section class="min-h-full bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[40px]">
         <div class="flex flex-col gap-[8px]">
-          <div class="flex items-center gap-[12px]">
-            <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[24px] md:text-[32px] font-bold">>></span>
-            <span class="text-foreground font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold">standups</span>
+          <div class="flex items-center justify-between gap-[12px]">
+            <div class="flex items-center gap-[12px]">
+              <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[24px] md:text-[32px] font-bold">>></span>
+              <span class="text-foreground font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold">standups</span>
+            </div>
+            <button
+              type="button"
+              z-button
+              class="cursor-pointer"
+              zType="default"
+              (click)="openGenerateModal()"
+            >
+              $ gerar standup
+            </button>
           </div>
           <div class="text-muted-foreground font-[var(--font-ibm)] text-[14px]">
             // daily standup reports overview
@@ -109,6 +130,7 @@ function resolveDateFilter(value: string, now = new Date()) {
 export class DashboardPage {
   readonly standupService = inject(StandupService)
   private readonly router = inject(Router)
+  private readonly dialogService = inject(ZardDialogService)
 
   readonly statusFilter = signal<string | undefined>(undefined)
   readonly dateFilter = signal<string | undefined>(undefined)
@@ -165,20 +187,46 @@ export class DashboardPage {
         label: 'pending_review',
         value: metrics.pending.count,
         change: metrics.pending.change,
-        dotColor: 'bg-[var(--accent-cyan)]',
-        valueColor: 'text-[var(--accent-cyan)]',
+        dotColor: 'bg-[var(--accent-yellow)]',
+        valueColor: 'text-[var(--accent-yellow)]',
         changeColor: 'text-muted-foreground',
       },
       {
         label: 'rejected',
         value: metrics.rejected.count,
         change: metrics.rejected.change,
-        dotColor: 'bg-[var(--accent-amber)]',
-        valueColor: 'text-[var(--accent-amber)]',
+        dotColor: 'bg-[var(--accent-red)]',
+        valueColor: 'text-[var(--accent-red)]',
         changeColor: 'text-muted-foreground',
       },
     ]
   })
+
+  openGenerateModal() {
+    this.dialogService.create({
+      zTitle: '// gerar standup',
+      zDescription: '// gerar standup do dia a partir dos seus commits',
+      zContent: GenerateDialogContent,
+      zHideFooter: true,
+      zWidth: '560px',
+      zData: {
+        onSubmit: (extraContext?: string) => {
+          void this.triggerGeneration(extraContext)
+        },
+      },
+    })
+  }
+
+  async triggerGeneration(extraContext?: string) {
+    try {
+      await this.standupService.trigger(extraContext)
+      toast(
+        'Solicitação aceita — você será notificado quando o standup estiver pronto.',
+      )
+    } catch {
+      toast('Falha ao disparar geração do standup')
+    }
+  }
 
   openStandup(id: string) {
     void this.router.navigate(['/standups', id])

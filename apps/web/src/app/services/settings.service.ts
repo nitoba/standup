@@ -18,7 +18,6 @@ export interface SettingsRecord {
   recoveryCron: string
   timezone: string
   gitAuthor: string
-  gitSincePeriod: string
   selectedRepos: string[]
   active: boolean
   snoozedUntil: number | null
@@ -31,7 +30,6 @@ export interface SaveSettingsInput {
   recoveryCron: string
   timezone: string
   gitAuthor: string
-  gitSincePeriod: string
   selectedRepos: string[]
   active: boolean
 }

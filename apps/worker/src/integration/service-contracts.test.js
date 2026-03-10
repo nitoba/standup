@@ -37,6 +37,11 @@ vi.mock(
   }),
 )
 
+// Necessário pois bot router importa standup-status-changed handler → standup-sync-service → @standup/db
+vi.mock('../../../discord-bot/src/services/standup-sync-service.js', () => ({
+  syncStandupStatus: vi.fn().mockResolvedValue({ isErr: () => false }),
+}))
+
 const dbMocks = vi.hoisted(() => ({
   hasActiveSession: vi.fn(),
   updateSnoozedUntil: vi.fn(),
@@ -60,7 +65,7 @@ const INTERNAL_SECRET = 'test-secret'
 const TEST_USER_ID = 'test-user-1'
 const TEST_DISCORD_USER_ID = 'discord-user-1'
 
-function createApiApp(workerInternalUrl, publishApprovedStandup = vi.fn()) {
+function createApiApp(workerInternalUrl) {
   const app = new Hono()
 
   app.use('*', async (c, next) => {
@@ -96,7 +101,8 @@ function createApiApp(workerInternalUrl, publishApprovedStandup = vi.fn()) {
       reposRootPath: '/tmp/repos',
       workerInternalUrl,
       internalSecret: INTERNAL_SECRET,
-      publishApprovedStandup,
+      botInternalUrl: 'http://localhost:3334',
+      eventBus: { subscribe: vi.fn(), emit: vi.fn(), emitToAll: vi.fn() },
     }),
   )
 
@@ -400,7 +406,7 @@ describe('Cross-service HTTP contracts', () => {
     }
   })
 
-  it('client -> api: approve route forwards publish facade contract when publish is API-owned', async () => {
+  it('client -> api: approve route transitions standup to approved and returns 200', async () => {
     const approvedRecord = {
       id: 'standup-approve-1',
       date: '2026-03-09',
@@ -412,14 +418,11 @@ describe('Cross-service HTTP contracts', () => {
       userId: TEST_USER_ID,
       createdAt: 1,
       updatedAt: 2,
+      dmMessageId: null,
     }
 
-    const publishApprovedStandup = vi
-      .fn()
-      .mockResolvedValue(Result.ok(undefined))
-
     mocks.approveStandup.mockImplementation(
-      async (standupId, userId, deps, customEntries) => {
+      async (standupId, userId, _deps, customEntries) => {
         expect(standupId).toBe('standup-approve-1')
         expect(userId).toBe(TEST_USER_ID)
         expect(customEntries).toEqual({
@@ -427,26 +430,11 @@ describe('Cross-service HTTP contracts', () => {
           directCalls: ['Sync com produto'],
         })
 
-        const publishResult = await deps.publishApprovedStandup(approvedRecord)
-        if (publishResult.isErr()) {
-          return Result.ok({
-            kind: 'publish_failed',
-            standup: approvedRecord,
-            error: publishResult.error,
-          })
-        }
-
-        return Result.ok({
-          kind: 'success',
-          standup: { ...approvedRecord, status: 'published' },
-        })
+        return Result.ok({ kind: 'success', standup: approvedRecord })
       },
     )
 
-    const apiApp = createApiApp(
-      'http://worker-not-used',
-      publishApprovedStandup,
-    )
+    const apiApp = createApiApp('http://worker-not-used')
     const response = await apiApp.fetch(
       new Request('http://localhost/standups/standup-approve-1/approve', {
         method: 'POST',
@@ -461,10 +449,13 @@ describe('Cross-service HTTP contracts', () => {
     )
 
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({
-      data: { ...approvedRecord, status: 'published' },
-    })
-    expect(publishApprovedStandup).toHaveBeenCalledWith(approvedRecord)
+    expect(await response.json()).toEqual({ data: approvedRecord })
+    expect(mocks.approveStandup).toHaveBeenCalledWith(
+      'standup-approve-1',
+      TEST_USER_ID,
+      expect.objectContaining({ databaseUrl: ':memory:' }),
+      { scheduledMeetings: [], directCalls: ['Sync com produto'] },
+    )
   })
 
   it('bot -> worker: actions snooze/cancel usam contratos aceitos pelo router do worker', async () => {

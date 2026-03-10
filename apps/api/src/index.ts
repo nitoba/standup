@@ -7,6 +7,7 @@ import { createAuth } from './auth/auth.js'
 import { handleAuthCallback } from './auth/callback-page.js'
 import { handleDiscordLogin } from './auth/login-redirect.js'
 import { sessionAuthMiddleware } from './auth/middleware.js'
+import { createInternalRouter } from './http/internal-router.js'
 import { requestLogger } from './http/middleware.js'
 import { handleCancelTodayReminder } from './reminders/cancel-today.js'
 import { handleRunNowReminder } from './reminders/run-now.js'
@@ -14,6 +15,7 @@ import { handleSnoozeReminder } from './reminders/snooze.js'
 import { handleListRepos } from './repos/list.js'
 import { handleGetMeSettings } from './settings/get-me.js'
 import { handlePutMySettings } from './settings/put-me.js'
+import { EventBus } from './sse/event-bus.js'
 import { createStandupRouter } from './standup/router.js'
 
 type AppContext = {
@@ -31,6 +33,12 @@ if (Result.isError(envResult)) {
 
 const env = envResult.value
 const logger = createServiceLogger({ service: 'api', component: 'http-server' })
+
+// ---------------------------------------------------------------------------
+// Event Bus (SSE) — shared singleton for the API process
+// ---------------------------------------------------------------------------
+
+const eventBus = new EventBus()
 
 // ---------------------------------------------------------------------------
 // Better Auth
@@ -54,6 +62,13 @@ const standupRouter = createStandupRouter({
   reposRootPath: env.REPOS_ROOT_PATH,
   workerInternalUrl: env.WORKER_INTERNAL_URL,
   internalSecret: env.INTERNAL_SECRET,
+  botInternalUrl: env.BOT_INTERNAL_URL,
+  eventBus,
+})
+
+const internalRouter = createInternalRouter({
+  internalSecret: env.INTERNAL_SECRET,
+  eventBus,
 })
 
 const settingsRouter = new Hono<AppContext>()
@@ -138,6 +153,7 @@ app.use('/repos', sessionMiddleware)
 app.use('/reminders/*', sessionMiddleware)
 
 app.route('/', standupRouter)
+app.route('/', internalRouter)
 app.route('/settings', settingsRouter)
 app.get('/repos', (c) =>
   handleListRepos(c, {

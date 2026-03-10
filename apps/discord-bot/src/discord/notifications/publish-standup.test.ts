@@ -49,6 +49,7 @@ const standupRecord = {
   userId: 'test-user-1',
   status: 'approved' as const,
   createdAt: 1000,
+  dmMessageId: null,
   updatedAt: 1000,
 }
 

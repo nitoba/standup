@@ -9,6 +9,14 @@ import {
 import { ZardButtonComponent } from '../../shared/components/button'
 import type { Standup, StandupStatus } from '../../types/standup'
 
+/** Id do standup mais recente com status pending_review na lista atual */
+function findNewestPendingId(standups: Standup[]): string | null {
+  const pending = standups.filter((s) => s.status === 'pending_review')
+  if (pending.length === 0) return null
+  // A API retorna ordenado por createdAt DESC, logo o primeiro é o mais recente
+  return pending[0]?.id ?? null
+}
+
 @Component({
   selector: 'app-standup-table',
   imports: [ZardButtonComponent],
@@ -27,12 +35,21 @@ import type { Standup, StandupStatus } from '../../types/standup'
 
       @for (standup of standups(); track standup.id) {
         <!-- Desktop row -->
-        <div class="hidden md:grid border-b border-border px-[20px] py-[16px] grid-cols-[120px_120px_1fr_100px] items-center transition-colors duration-150 hover:bg-accent/30">
+        <div
+          class="hidden md:grid border-b border-border px-[20px] py-[16px] grid-cols-[120px_120px_1fr_100px] items-center transition-colors duration-150 hover:bg-accent/30"
+          [class.bg-[color-mix(in_srgb,var(--accent-yellow)_4%,transparent)]]="standup.id === newestPendingId()"
+        >
           <span class="text-foreground font-[var(--font-jetbrains)] text-[13px]">{{ standup.date }}</span>
-          <span class="font-[var(--font-jetbrains)] text-[12px]" [class]="statusBadgeClass(standup.status)">
+          <span class="font-[var(--font-jetbrains)] text-[12px] flex items-center gap-[6px]" [class]="statusBadgeClass(standup.status)">
+            @if (standup.id === newestPendingId()) {
+              <span
+                class="inline-block h-[6px] w-[6px] rounded-full bg-[var(--accent-yellow)] animate-pulse"
+                aria-hidden="true"
+              ></span>
+            }
             {{ formatStatus(standup.status) }}
           </span>
-          <span class="text-muted-foreground font-[var(--font-ibm)] text-[13px]">{{ standup.contentPreview }}</span>
+          <span class="text-muted-foreground font-[var(--font-ibm)] text-[13px] line-clamp-2">{{ standup.contentPreview }}</span>
           <button
             type="button"
             z-button
@@ -46,10 +63,19 @@ import type { Standup, StandupStatus } from '../../types/standup'
         </div>
 
         <!-- Mobile card -->
-        <div class="md:hidden border-b border-border px-[16px] py-[14px] flex flex-col gap-[8px] transition-colors duration-150 hover:bg-accent/30">
+        <div
+          class="md:hidden border-b border-border px-[16px] py-[14px] flex flex-col gap-[8px] transition-colors duration-150 hover:bg-accent/30"
+          [class.bg-[color-mix(in_srgb,var(--accent-yellow)_4%,transparent)]]="standup.id === newestPendingId()"
+        >
           <div class="flex items-center justify-between">
             <span class="text-foreground font-[var(--font-jetbrains)] text-[13px]">{{ standup.date }}</span>
-            <span class="font-[var(--font-jetbrains)] text-[12px]" [class]="statusBadgeClass(standup.status)">
+            <span class="font-[var(--font-jetbrains)] text-[12px] flex items-center gap-[6px]" [class]="statusBadgeClass(standup.status)">
+              @if (standup.id === newestPendingId()) {
+                <span
+                  class="inline-block h-[6px] w-[6px] rounded-full bg-[var(--accent-yellow)] animate-pulse"
+                  aria-hidden="true"
+                ></span>
+              }
               {{ formatStatus(standup.status) }}
             </span>
           </div>
@@ -114,6 +140,10 @@ export class StandupTable {
   readonly totalPages = input.required<number>()
   readonly viewStandup = output<string>()
   readonly pageChange = output<number>()
+
+  readonly newestPendingId = computed(() =>
+    findNewestPendingId(this.standups()),
+  )
 
   readonly pageItems = computed(() => {
     const totalPages = this.totalPages()
@@ -190,12 +220,13 @@ export class StandupTable {
 
   statusBadgeClass(status: StandupStatus) {
     if (status === 'approved') return 'text-[var(--accent-green)]'
-    if (status === 'pending_review') return 'text-[var(--accent-cyan)]'
-    return 'text-[var(--accent-amber)]'
+    if (status === 'pending_review') return 'text-[var(--accent-yellow)]'
+    return 'text-[var(--accent-red)]'
   }
 
   formatStatus(status: StandupStatus) {
     if (status === 'pending_review') return '[pending]'
-    return status === 'approved' ? '[approved]' : '[rejected]'
+    if (status === 'approved') return '[approved]'
+    return '[rejected]'
   }
 }

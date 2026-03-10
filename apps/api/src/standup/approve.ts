@@ -1,12 +1,8 @@
-import type { CustomEntries, Result, StandupRecord } from '@standup/domain'
-import {
-  Result as BetterResult,
-  CustomEntriesSchema,
-  DbError,
-  ExternalServiceError,
-} from '@standup/domain'
+import type { CustomEntries } from '@standup/domain'
+import { CustomEntriesSchema, DbError } from '@standup/domain'
 import type { Context } from 'hono'
 import * as z from 'zod'
+import { notifyStandupStatusChanged } from '../notifications/notify-standup-status-changed.js'
 import { approveStandup } from '../services/standup-approve-service.js'
 
 export const approveBodySchema = z.object({
@@ -17,20 +13,8 @@ export type ApproveBody = z.infer<typeof approveBodySchema>
 
 export interface ApproveHandlerDeps {
   databaseUrl: string
-  publishApprovedStandup?: (
-    record: StandupRecord,
-  ) => Promise<Result<void, ExternalServiceError>>
-}
-
-async function publishNotConfigured(): Promise<
-  Result<void, ExternalServiceError>
-> {
-  return BetterResult.err(
-    new ExternalServiceError({
-      service: 'discord',
-      message: 'Publish not configured',
-    }),
-  )
+  botInternalUrl: string
+  internalSecret: string
 }
 
 export async function handleApproveStandup(
@@ -43,18 +27,12 @@ export async function handleApproveStandup(
   const result = await approveStandup(
     standupId,
     userId,
-    {
-      databaseUrl: deps.databaseUrl,
-      publishApprovedStandup:
-        deps.publishApprovedStandup ?? publishNotConfigured,
-    },
+    { databaseUrl: deps.databaseUrl },
     (body.customEntries ?? undefined) as CustomEntries | null | undefined,
   )
 
   if (result.isErr()) {
-    const error = result.error
-
-    if (DbError.is(error)) {
+    if (DbError.is(result.error)) {
       return c.json({ error: 'Internal server error' }, 500)
     }
 
@@ -66,15 +44,16 @@ export async function handleApproveStandup(
       return c.json({ error: result.value.error.message }, 404)
     case 'invalid_transition':
       return c.json({ error: result.value.error.message }, 409)
-    case 'publish_failed':
-      return c.json(
-        {
-          data: result.value.standup,
-          warning: result.value.error.message,
-        },
-        200,
-      )
-    case 'success':
-      return c.json({ data: result.value.standup }, 200)
+    case 'success': {
+      const standup = result.value.standup
+      // Notificar o bot para: editar a DM (remover botões) + publicar no canal
+      void notifyStandupStatusChanged({
+        botInternalUrl: deps.botInternalUrl,
+        internalSecret: deps.internalSecret,
+        standupId: standup.id,
+        newStatus: 'approved',
+      })
+      return c.json({ data: standup }, 200)
+    }
   }
 }

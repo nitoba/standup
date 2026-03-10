@@ -30,7 +30,7 @@ function setupTables(db: Db): void {
       timezone         TEXT NOT NULL DEFAULT 'America/Sao_Paulo',
       selected_repos   TEXT NOT NULL DEFAULT '[]',
       git_author       TEXT NOT NULL,
-      git_since_period TEXT NOT NULL DEFAULT '16 hours ago',
+      git_since_period TEXT NOT NULL DEFAULT '8 hours ago',
       active           INTEGER NOT NULL DEFAULT 1,
       snoozed_until    INTEGER,
       cancelled_date   TEXT,
@@ -108,7 +108,7 @@ describe('UserSettingsRepository', () => {
       expect(result.value.userId).toBe('user-1')
       expect(result.value.standupCron).toBe('30 17 * * 1-5')
       expect(result.value.timezone).toBe('America/Sao_Paulo')
-      expect(result.value.gitSincePeriod).toBe('16 hours ago')
+      expect(result.value.gitSincePeriod).toBe('8 hours ago')
       expect(result.value.active).toBe(true)
       expect(result.value.snoozedUntil).toBeNull()
       expect(result.value.cancelledDate).toBeNull()
@@ -155,7 +155,7 @@ describe('UserSettingsRepository', () => {
     })
 
     it('keeps the existing gitSincePeriod when omitted on update', () => {
-      repo.upsert(makeInput({ gitSincePeriod: '36 hours ago' }))
+      repo.upsert(makeInput({ gitSincePeriod: '38 hours ago' }))
 
       const result = repo.upsert(
         makeInput({
@@ -166,7 +166,7 @@ describe('UserSettingsRepository', () => {
       if (result.status !== 'ok') return
 
       expect(result.value.standupCron).toBe('15 18 * * 1-5')
-      expect(result.value.gitSincePeriod).toBe('36 hours ago')
+      expect(result.value.gitSincePeriod).toBe('38 hours ago')
     })
   })
 

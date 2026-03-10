@@ -1,10 +1,7 @@
 import { sValidator } from '@hono/standard-validator'
-import type {
-  ExternalServiceError,
-  Result,
-  StandupRecord,
-} from '@standup/domain'
 import { Hono } from 'hono'
+import type { EventBus } from '../sse/event-bus.js'
+import { handleStandupEvents } from '../sse/sse-handler.js'
 import { approveBodySchema, handleApproveStandup } from './approve.js'
 import { handleGetStandupById } from './get-by-id.js'
 import { handleListStandups, listQuerySchema } from './list.js'
@@ -19,9 +16,8 @@ export interface StandupRouterDeps {
   reposRootPath: string
   workerInternalUrl: string
   internalSecret: string
-  publishApprovedStandup?: (
-    record: StandupRecord,
-  ) => Promise<Result<void, ExternalServiceError>>
+  botInternalUrl: string
+  eventBus: EventBus
 }
 
 /**
@@ -51,6 +47,10 @@ export function createStandupRouter(deps: StandupRouterDeps): Hono {
     return handleListStandups(c, c.req.valid('query'), deps.databaseUrl, userId)
   })
 
+  // GET /standups/events — SSE stream para notificações em tempo real
+  // DEVE ficar antes de /standups/:id para não ser capturado pelo param route
+  app.get('/standups/events', (c) => handleStandupEvents(c, deps.eventBus))
+
   // GET /standups/:id — detalhe por ID
   app.get('/standups/:id', async (c) => {
     const userId = getUserId(c)
@@ -75,11 +75,15 @@ export function createStandupRouter(deps: StandupRouterDeps): Hono {
         c.req.valid('json'),
         deps.databaseUrl,
         userId,
+        {
+          botInternalUrl: deps.botInternalUrl,
+          internalSecret: deps.internalSecret,
+        },
       )
     },
   )
 
-  // POST /standups/:id/approve — fluxo dedicado de aprovação + publicação
+  // POST /standups/:id/approve — fluxo dedicado de aprovação + publicação via bot
   app.post(
     '/standups/:id/approve',
     sValidator('json', approveBodySchema),
@@ -95,7 +99,8 @@ export function createStandupRouter(deps: StandupRouterDeps): Hono {
         c.req.valid('json'),
         {
           databaseUrl: deps.databaseUrl,
-          publishApprovedStandup: deps.publishApprovedStandup,
+          botInternalUrl: deps.botInternalUrl,
+          internalSecret: deps.internalSecret,
         },
         userId,
       )

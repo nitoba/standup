@@ -1,6 +1,5 @@
 import {
   DbError,
-  ExternalServiceError,
   InvalidStateTransitionError,
   NotFoundError,
   Result,
@@ -62,6 +61,12 @@ const deps = {
   reposRootPath: '/repos',
   workerInternalUrl: 'http://localhost:3335',
   internalSecret: 'internal-secret',
+  botInternalUrl: 'http://localhost:3334',
+  eventBus: {
+    subscribe: vi.fn(),
+    emit: vi.fn(),
+    emitToAll: vi.fn(),
+  } as unknown as import('../sse/event-bus.js').EventBus,
 }
 
 const publishedStandup = {
@@ -74,6 +79,7 @@ const publishedStandup = {
   status: 'published' as const,
   userId: TEST_USER_ID,
   createdAt: 1000,
+  dmMessageId: null,
   updatedAt: 2000,
 }
 
@@ -121,16 +127,10 @@ describe('POST /standups/:id/approve', () => {
     )
   })
 
-  it('retorna 200 com warning quando publicar falha após aprovar', async () => {
+  it('retorna 200 com data quando aprovar com customEntries', async () => {
+    const approvedStandup = { ...publishedStandup, status: 'approved' as const }
     mocks.approveStandup.mockResolvedValue(
-      Result.ok({
-        kind: 'publish_failed',
-        standup: { ...publishedStandup, status: 'approved' as const },
-        error: new ExternalServiceError({
-          service: 'discord',
-          message: 'Channel not found',
-        }),
-      }),
+      Result.ok({ kind: 'success', standup: approvedStandup }),
     )
 
     const res = await app.fetch(
@@ -143,12 +143,8 @@ describe('POST /standups/:id/approve', () => {
     )
 
     expect(res.status).toBe(200)
-    const body = (await res.json()) as {
-      data: { status: string }
-      warning: string
-    }
+    const body = (await res.json()) as { data: { status: string } }
     expect(body.data.status).toBe('approved')
-    expect(body.warning).toBe('Channel not found')
     expect(mocks.approveStandup).toHaveBeenCalledWith(
       'standup-abc',
       TEST_USER_ID,

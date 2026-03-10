@@ -127,7 +127,7 @@ describe('JobRunRepository', () => {
       expect(result.value.status).toBe('running')
     })
 
-    it('still blocks when running even with forceRegenerate', async () => {
+    it('overrides stuck running lock when forceRegenerate is true', async () => {
       await repo.acquireLock(makeInput({ id: 'run-1' }))
 
       const result = await repo.acquireLock({
@@ -135,9 +135,11 @@ describe('JobRunRepository', () => {
         forceRegenerate: true,
       })
 
-      expect(result.status).toBe('error')
-      if (result.status !== 'error') return
-      expect(result.error._tag).toBe('LockAlreadyHeldError')
+      // forceRegenerate derruba o lock preso e adquire novo
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+      expect(result.value.id).toBe('run-2')
+      expect(result.value.status).toBe('running')
     })
 
     it('different job names do not conflict with each other', async () => {

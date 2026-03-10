@@ -127,6 +127,7 @@ const standupRecord = {
   sourceData: '{}',
   status: 'pending_review' as const,
   createdAt: 1000,
+  dmMessageId: null,
   updatedAt: 1000,
 }
 

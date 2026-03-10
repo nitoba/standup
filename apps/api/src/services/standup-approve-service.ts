@@ -1,9 +1,5 @@
 import { getDb, StandupRepository } from '@standup/db'
-import type {
-  CustomEntries,
-  ExternalServiceError,
-  StandupRecord,
-} from '@standup/domain'
+import type { CustomEntries, StandupRecord } from '@standup/domain'
 import {
   DbError,
   hasCustomEntries,
@@ -21,18 +17,10 @@ const logger = createServiceLogger({
 
 export interface ApproveStandupDeps {
   databaseUrl: string
-  publishApprovedStandup: (
-    record: StandupRecord,
-  ) => Promise<Result<void, ExternalServiceError>>
 }
 
 export type ApproveStandupOutcome =
   | { kind: 'success'; standup: StandupRecord }
-  | {
-      kind: 'publish_failed'
-      standup: StandupRecord
-      error: ExternalServiceError
-    }
   | { kind: 'invalid_transition'; error: InvalidStateTransitionError }
   | { kind: 'not_found'; error: NotFoundError }
 
@@ -84,8 +72,10 @@ async function persistMergedCustomEntries(
 }
 
 /**
- * Browser-safe approve workflow mirroring the Discord approve modal flow.
- * Ownership and state-machine validation stay in the repository layer.
+ * Browser-safe approve workflow.
+ * Faz pending_review → approved no DB.
+ * A publicação no Discord e a transição approved → published são feitas
+ * pelo discord-bot quando recebe a notificação POST /internal/notify/standup-status-changed.
  */
 export async function approveStandup(
   standupId: string,
@@ -152,46 +142,16 @@ export async function approveStandup(
     )
   }
 
-  const approvedRecord = approvedResult.value
-
-  const publishResult = await deps.publishApprovedStandup(approvedRecord)
-  if (publishResult.isErr()) {
-    logger.warn('Standup approved but publish failed', {
+  logger.info(
+    'Standup approved via web — bot will handle publish and DM update',
+    {
       standupId,
       userId,
-      error: publishResult.error.message,
-    })
-    return Result.ok({
-      kind: 'publish_failed',
-      standup: approvedRecord,
-      error: publishResult.error,
-    })
-  }
-
-  const publishedResult = await repo.updateStatusForUser(
-    standupId,
-    userId,
-    'published',
+    },
   )
 
-  if (publishedResult.isErr()) {
-    if (!isOutcomeError(publishedResult.error)) {
-      logger.warn('Standup published to Discord but status stayed approved', {
-        standupId,
-        userId,
-        operation: publishedResult.error.operation,
-        message: publishedResult.error.message,
-      })
-    } else {
-      logger.warn('Standup published to Discord but final transition failed', {
-        standupId,
-        userId,
-        error: publishedResult.error.message,
-      })
-    }
-
-    return Result.ok({ kind: 'success', standup: approvedRecord })
-  }
-
-  return Result.ok({ kind: 'success', standup: publishedResult.value })
+  return Result.ok({ kind: 'success', standup: approvedResult.value })
 }
+
+// Keep isOutcomeError exported for tests
+export { isOutcomeError }

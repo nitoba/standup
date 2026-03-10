@@ -36,6 +36,7 @@ const workerEnvSchema = baseEnvSchema.extend({
   AZURE_DEVOPS_PAT: z.string().min(1),
   AZURE_DEVOPS_DEFAULT_PROJECT: z.string().default('AGROTRACE'),
   BOT_INTERNAL_URL: z.string().default('http://localhost:3334'),
+  API_INTERNAL_URL: z.string().default('http://localhost:3333'),
   WORKER_INTERNAL_PORT: z.coerce.number().int().positive().default(3335),
 })
 

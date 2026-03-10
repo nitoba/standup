@@ -13,17 +13,17 @@ interface ReviewMessageInteraction {
 /**
  * Updates the feedback message for a review action and removes action buttons.
  *
- * For modal submits triggered from buttons, `editReply` may not always reflect
- * the original message reliably. When `interaction.message` is available,
- * we also edit it directly to guarantee components are removed.
+ * Uses `editReply` only — it patches the original deferred message via the
+ * interaction webhook, which works for both guild and DM contexts without
+ * requiring the channel to be present in the client cache.
+ *
+ * NOTE: `interaction.message.edit()` was removed because it causes
+ * "Could not find the channel in the cache" errors when the modal originates
+ * from a DM (DM channels are not auto-cached by discord.js).
  */
 export async function updateReviewMessage(
   interaction: ReviewMessageInteraction,
   payload: ReviewMessagePayload,
 ): Promise<void> {
   await interaction.editReply(payload)
-
-  if (!interaction.message) return
-
-  await interaction.message.edit(payload)
 }

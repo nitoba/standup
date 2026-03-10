@@ -51,6 +51,7 @@ function toRecord(row: typeof standups.$inferSelect): StandupRecord {
     customEntries: parseCustomEntries(row.customEntries),
     status: row.status as StandupStatus,
     userId: row.userId,
+    dmMessageId: row.dmMessageId ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }
@@ -506,6 +507,26 @@ export class StandupRepository {
       })
     } catch (error) {
       return this.dbErr('replaceGeneratedForUser', error)
+    }
+  }
+
+  async updateDmMessageId(
+    id: string,
+    dmMessageId: string,
+  ): Promise<Result<StandupRecord, NotFoundError | DbError>> {
+    try {
+      const found = await this.findById(id)
+      if (found.isErr()) return found
+
+      const now = Date.now()
+      await this.db
+        .update(standups)
+        .set({ dmMessageId, updatedAt: now })
+        .where(eq(standups.id, id))
+
+      return Result.ok({ ...found.value, dmMessageId, updatedAt: now })
+    } catch (error) {
+      return this.dbErr('updateDmMessageId', error)
     }
   }
 

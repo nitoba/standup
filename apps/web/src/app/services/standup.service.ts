@@ -1,7 +1,8 @@
 import { HttpClient, httpResource } from '@angular/common/http'
 import { computed, Injectable, inject, signal } from '@angular/core'
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
+import { toast } from 'ngx-sonner'
 import { firstValueFrom, map } from 'rxjs'
-
 import { METRIC_CHANGES } from '../data/mock-data'
 import type {
   ApproveStandupResponseDto,
@@ -14,6 +15,7 @@ import type {
   StandupSourceRepo,
   StandupStatus,
 } from '../types/standup'
+import { StandupEventsService } from './standup-events.service'
 
 type ApiEnvelope<T> = { data: T }
 type TriggerAck = { ok: boolean; accepted: boolean }
@@ -46,6 +48,7 @@ type SourceDataDto = {
 @Injectable({ providedIn: 'root' })
 export class StandupService {
   private readonly http = inject(HttpClient)
+  private readonly eventsService = inject(StandupEventsService)
 
   private readonly DEFAULT_PAGE_SIZE = 20
 
@@ -117,6 +120,19 @@ export class StandupService {
       rejected: { count: counts.rejected, change: METRIC_CHANGES.rejected },
     }
   })
+
+  constructor() {
+    // Reload the standups list (and selected standup if open) when a new standup is ready
+    this.eventsService.standupGenerated$
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => {
+        this.standups.reload()
+        if (this.selectedStandupId()) {
+          this.selectedStandup.reload()
+        }
+        toast('Standup gerado e pronto para revisão!')
+      })
+  }
 
   // Dashboard filter update — signals change triggers httpResource refetch
   setDashboardFilters(filters: DashboardFilters) {
@@ -190,6 +206,21 @@ export class StandupService {
         replaceStandupId: id,
       }),
     )
+  }
+
+  async trigger(extraContext?: string) {
+    const body: { extraContext?: string } = {}
+    if (extraContext?.trim()) {
+      body.extraContext = extraContext.trim()
+    }
+    return firstValueFrom(
+      this.http.post<TriggerAck>('/standups/trigger', {
+        ...body,
+        forceGenerate: true,
+      }),
+    )
+    // NOTE: no standups.reload() here — the SSE event will trigger the reload
+    // when the standup is actually ready
   }
 
   private mapStandupPage(response: StandupListResponseDto): StandupPage {

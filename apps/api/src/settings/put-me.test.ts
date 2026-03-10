@@ -21,7 +21,7 @@ const validPayload = {
   recoveryCron: '0 18 * * 1-5',
   timezone: 'America/Sao_Paulo',
   gitAuthor: 'dev@example.com',
-  gitSincePeriod: '16 hours ago',
+  gitSincePeriod: '8 hours ago',
   selectedRepos: ['agrotrace-web'],
   active: true,
 }

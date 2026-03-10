@@ -8,12 +8,20 @@ import type { ComponentFixture } from '@angular/core/testing'
 import { TestBed } from '@angular/core/testing'
 import { By } from '@angular/platform-browser'
 import { provideRouter } from '@angular/router'
+import { Subject } from 'rxjs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { buildMockStandups, filterStandups } from '../../data/mock-data'
 import { StandupService } from '../../services/standup.service'
+import { StandupEventsService } from '../../services/standup-events.service'
 import { DashboardPage } from './dashboard-page'
 import { FilterBar } from './filter-bar'
+
+/** Stub que não abre EventSource real — evita ReferenceError em JSDOM */
+const stubEventsService = {
+  standupGenerated$: new Subject<never>(),
+  ngOnDestroy: () => {},
+}
 
 type StandupDto = {
   id: string
@@ -40,6 +48,7 @@ describe('DashboardPage', () => {
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
+        { provide: StandupEventsService, useValue: stubEventsService },
       ],
     }).compileComponents()
 

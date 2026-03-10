@@ -76,7 +76,7 @@ export class UserSettingsRepository {
           timezone: input.timezone ?? 'America/Sao_Paulo',
           selectedRepos: input.selectedRepos ?? '[]',
           gitAuthor: input.gitAuthor,
-          gitSincePeriod: input.gitSincePeriod ?? '16 hours ago',
+          gitSincePeriod: input.gitSincePeriod ?? '8 hours ago',
           active: input.active ?? true,
           createdAt: now,
           updatedAt: now,

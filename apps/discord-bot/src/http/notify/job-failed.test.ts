@@ -31,6 +31,11 @@ vi.mock('../../discord/notifications/send-user-dm.js', () => ({
   sendUserDm: mocks.sendUserDm,
 }))
 
+// Necessário pois standup-status-changed handler importa standup-sync-service que usa @standup/db
+vi.mock('../../services/standup-sync-service.js', () => ({
+  syncStandupStatus: vi.fn().mockResolvedValue({ isErr: () => false }),
+}))
+
 import { createInternalRouter } from '../router.js'
 
 // ---------------------------------------------------------------------------

@@ -132,7 +132,7 @@ import { ApproveDialogContent } from './approve-dialog-content'
           </div>
 
           <div class="flex flex-col md:flex-row items-stretch md:items-center gap-[12px] md:gap-[16px]">
-            @if (!isApproved(detail.status)) {
+            @if (isPendingReview(detail.status)) {
               <button
                 type="button"
                 z-button
@@ -164,16 +164,18 @@ import { ApproveDialogContent } from './approve-dialog-content'
                 $ adjust
               </button>
             }
-            <button
-              type="button"
-              z-button
-              zType="secondary"
-              class="w-full md:w-auto"
-              [zDisabled]="actionLoading()"
-              (click)="regenerate(detail.id)"
-            >
-              $ regenerate
-            </button>
+            @if (canRegenerate(detail.status)) {
+              <button
+                type="button"
+                z-button
+                zType="secondary"
+                class="w-full md:w-auto"
+                [zDisabled]="actionLoading()"
+                (click)="openRegenerateModal(detail.id)"
+              >
+                $ regenerate
+              </button>
+            }
           </div>
         } @else {
           <div class="text-muted-foreground font-[var(--font-ibm)] text-[13px]">// standup not found</div>
@@ -199,10 +201,6 @@ export class StandupDetailPage {
   }
 
   openAdjustModal() {
-    if (this.actionLoading()) {
-      return
-    }
-
     this.dialogService.create({
       zTitle: '// adjust standup',
       zDescription: '// rewrite instructions',
@@ -278,37 +276,34 @@ export class StandupDetailPage {
     }
   }
 
-  async regenerate(id: string) {
-    if (this.actionLoading()) {
-      return
-    }
-
-    this.actionLoading.set(true)
-
-    try {
-      await this.standupService.regenerate(id)
-      toast('Standup enviado para regeneracao')
-      this.standup.reload()
-    } finally {
-      this.actionLoading.set(false)
-    }
+  openRegenerateModal(id: string) {
+    this.dialogService.create({
+      zTitle: '// regenerar standup',
+      zDescription:
+        '// o conteudo atual sera descartado e um novo standup sera gerado a partir dos commits do dia',
+      zContent: 'Tem certeza que deseja regenerar o standup?',
+      zOkText: '$ confirmar',
+      zCancelText: '$ cancelar',
+      zOkDestructive: true,
+      zOnOk: () => {
+        void this.regenerate(id)
+      },
+    })
   }
 
-  async submitAdjustInstruction(instruction: string) {
+  regenerate(id: string) {
+    // fire-and-forget: SSE event will trigger selectedStandup.reload() when ready
+    void this.standupService.regenerate(id)
+    toast('Solicitação aceita')
+  }
+
+  submitAdjustInstruction(instruction: string) {
     const id = this.id()
-    if (!id || this.actionLoading()) {
-      return
-    }
+    if (!id) return
 
-    this.actionLoading.set(true)
-
-    try {
-      await this.standupService.adjust(id, instruction)
-      toast('Ajuste enviado para regeneracao')
-      this.standup.reload()
-    } finally {
-      this.actionLoading.set(false)
-    }
+    // fire-and-forget: SSE event will trigger selectedStandup.reload() when ready
+    void this.standupService.adjust(id, instruction)
+    toast('Solicitação aceita')
   }
 
   async copyToClipboard(content: string, feedback: string) {
@@ -326,8 +321,12 @@ export class StandupDetailPage {
     }
   }
 
-  isApproved(status: StandupStatus) {
-    return status === 'approved'
+  isPendingReview(status: StandupStatus) {
+    return status === 'pending_review'
+  }
+
+  canRegenerate(status: StandupStatus) {
+    return status === 'pending_review' || status === 'rejected'
   }
 
   previewDatasource(sourceData: string) {
@@ -355,14 +354,14 @@ export class StandupDetailPage {
 
   statusDotClass(status: StandupStatus) {
     if (status === 'approved') return 'bg-[var(--accent-green)]'
-    if (status === 'pending_review') return 'bg-[var(--accent-cyan)]'
-    return 'bg-[var(--accent-amber)]'
+    if (status === 'pending_review') return 'bg-[var(--accent-yellow)]'
+    return 'bg-[var(--accent-red)]'
   }
 
   statusTextClass(status: StandupStatus) {
     if (status === 'approved') return 'text-[var(--accent-green)]'
-    if (status === 'pending_review') return 'text-[var(--accent-cyan)]'
-    return 'text-[var(--accent-amber)]'
+    if (status === 'pending_review') return 'text-[var(--accent-yellow)]'
+    return 'text-[var(--accent-red)]'
   }
 
   formatStatus(status: StandupStatus) {

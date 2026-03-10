@@ -30,6 +30,7 @@ async function setupTables(db: Db): Promise<void> {
       custom_entries TEXT,
       status      TEXT NOT NULL DEFAULT 'draft',
       user_id     TEXT REFERENCES user(id),
+      dm_message_id TEXT,
       created_at  INTEGER NOT NULL,
       updated_at  INTEGER NOT NULL
     )

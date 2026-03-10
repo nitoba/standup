@@ -245,31 +245,6 @@ import { ZardSwitchComponent } from '../../shared/components/switch'
                     </span>
                   }
                 </div>
-                <div class="flex flex-col gap-[6px]">
-                  <label
-                    for="git-since-period"
-                    class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
-                    >git_since_period</label
-                  >
-                  <input
-                    id="git-since-period"
-                    type="text"
-                    z-input
-                    [formField]="settingsForm.gitSincePeriod"
-                  />
-                  @if (
-                    settingsForm.gitSincePeriod().touched() &&
-                    settingsForm.gitSincePeriod().invalid()
-                  ) {
-                    <span
-                      class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[11px]"
-                    >
-                      {{
-                        settingsForm.gitSincePeriod().errors()[0]?.message
-                      }}
-                    </span>
-                  }
-                </div>
               </div>
             </div>
 
@@ -391,7 +366,6 @@ export class SettingsPage {
     recoveryCron: '',
     timezone: '',
     gitAuthor: '',
-    gitSincePeriod: '',
     selectedRepos: [],
     active: false,
   })
@@ -422,7 +396,6 @@ export class SettingsPage {
     required(s.recoveryCron, { message: 'cron expression is required' })
     required(s.timezone, { message: 'timezone is required' })
     required(s.gitAuthor, { message: 'git author is required' })
-    required(s.gitSincePeriod, { message: 'git since period is required' })
   })
 
   constructor() {
@@ -496,7 +469,6 @@ export class SettingsPage {
         recoveryCron: settings.recoveryCron,
         timezone: settings.timezone,
         gitAuthor: settings.gitAuthor,
-        gitSincePeriod: settings.gitSincePeriod,
         selectedRepos: settings.selectedRepos,
         active: settings.active,
       })
