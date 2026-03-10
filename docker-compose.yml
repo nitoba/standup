@@ -45,6 +45,7 @@ services:
       DATABASE_URL: /app/data/standup.db
       REPOS_ROOT_PATH: /repos
       WORKER_INTERNAL_URL: http://standup-worker:3335
+      BOT_INTERNAL_URL: http://standup-discord-bot:3334
       OTEL_EXPORTER_OTLP_ENDPOINT: http://standup-jaeger:4318
     networks:
       - internal

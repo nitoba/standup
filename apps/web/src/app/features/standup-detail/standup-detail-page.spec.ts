@@ -4,7 +4,10 @@ import { provideRouter } from '@angular/router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const { toastMock } = vi.hoisted(() => ({
-  toastMock: vi.fn(),
+  toastMock: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
 }))
 
 vi.mock('ngx-sonner', () => ({
@@ -157,7 +160,8 @@ function createStandupDetail(overrides: Partial<Standup> = {}): Standup {
 describe('StandupDetailPage', () => {
   afterEach(() => {
     vi.useRealTimers()
-    toastMock.mockReset()
+    toastMock.success.mockReset()
+    toastMock.error.mockReset()
   })
 
   it('renders generated content before datasource and shows copy actions', async () => {
@@ -173,7 +177,7 @@ describe('StandupDetailPage', () => {
     expect(element.textContent).toContain('datasource')
     expect(cards[0]?.textContent).toContain('## o que foi feito')
     expect(cards[1]?.textContent).toContain('"repos"')
-    expect(element.textContent).toContain('$ expand datasource')
+    expect(element.textContent).toContain('$ expand')
     expect(element.textContent).toContain('preview')
     expect(element.textContent?.indexOf('generated_content')).toBeLessThan(
       element.textContent?.indexOf('datasource') ?? 0,
@@ -205,13 +209,16 @@ describe('StandupDetailPage', () => {
       1,
       '## o que foi feito\n- implemented retry logic',
     )
-    expect(toastMock).toHaveBeenNthCalledWith(1, 'generated content copied')
+    expect(toastMock.success).toHaveBeenNthCalledWith(
+      1,
+      'generated content copied',
+    )
 
     getButtonByText(fixture, '$ copy datasource').click()
     await settleFixture(fixture)
 
     expect(writeText).toHaveBeenNthCalledWith(2, '{\n  "repos": []\n}')
-    expect(toastMock).toHaveBeenNthCalledWith(2, 'datasource copied')
+    expect(toastMock.success).toHaveBeenNthCalledWith(2, 'datasource copied')
   })
 
   it('expands and collapses the datasource card on demand', async () => {
@@ -236,15 +243,15 @@ describe('StandupDetailPage', () => {
 
     const element = fixture.nativeElement as HTMLElement
 
-    expect(element.textContent).toContain('$ expand datasource')
+    expect(element.textContent).toContain('$ expand')
     expect(element.textContent).toContain('preview')
     expect(element.textContent).toContain('12 lines')
     expect(element.textContent).toContain('...')
 
-    getButtonByText(fixture, '$ expand datasource').click()
+    getButtonByText(fixture, '$ expand').click()
     fixture.detectChanges()
 
-    expect(element.textContent).toContain('$ collapse datasource')
+    expect(element.textContent).toContain('$ collapse')
     expect(element.textContent).toContain('full json')
     expect(element.textContent).toContain('"hash": "ghi9012"')
   })
@@ -317,7 +324,7 @@ describe('StandupDetailPage', () => {
       directCalls: ['Call com Joao'],
     })
     expect(standupResource.reload).toHaveBeenCalledOnce()
-    expect(toastMock).toHaveBeenCalledWith('Standup aprovado')
+    expect(toastMock.success).toHaveBeenCalledWith('Standup aprovado')
   })
 
   it('shows warning toast returned by approve flow', async () => {
@@ -338,7 +345,7 @@ describe('StandupDetailPage', () => {
     config.zData.onSubmit({ customEntries: null })
     await settleFixture(fixture)
 
-    expect(toastMock).toHaveBeenCalledWith(
+    expect(toastMock.success).toHaveBeenCalledWith(
       'Standup aprovado, mas a publicacao falhou',
     )
   })
@@ -379,7 +386,7 @@ describe('StandupDetailPage', () => {
     )
     // fire-and-forget: no reload here — SSE event triggers selectedStandup.reload()
     expect(standupResource.reload).not.toHaveBeenCalled()
-    expect(toastMock).toHaveBeenCalledWith('Solicitação aceita')
+    expect(toastMock.success).toHaveBeenCalledWith('Solicitação aceita')
   })
 
   it('disables all action buttons while an action is in flight', async () => {
@@ -442,7 +449,7 @@ describe('StandupDetailPage', () => {
     expect(standupService.regenerate).toHaveBeenCalledWith(STANDUP_ID)
     // fire-and-forget: no reload here — SSE event triggers selectedStandup.reload()
     expect(standupResource.reload).not.toHaveBeenCalled()
-    expect(toastMock).toHaveBeenCalledWith('Solicitação aceita')
+    expect(toastMock.success).toHaveBeenCalledWith('Solicitação aceita')
   })
 
   it('does not call regenerate when the confirmation modal is dismissed', async () => {
@@ -461,6 +468,6 @@ describe('StandupDetailPage', () => {
     getActionButtons(fixture).reject.click()
     await settleFixture(fixture)
 
-    expect(toastMock).toHaveBeenCalledWith('Standup rejeitado')
+    expect(toastMock.success).toHaveBeenCalledWith('Standup rejeitado')
   })
 })

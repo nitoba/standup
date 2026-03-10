@@ -7,6 +7,8 @@ coverage
 /data
 /drizzle
 !apps/web/src/app/data/
+packages/db/data/
+
 
 logs
 *.log

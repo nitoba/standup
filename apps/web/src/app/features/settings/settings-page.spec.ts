@@ -77,7 +77,7 @@ describe('SettingsPage', () => {
     const fixture = await renderPage()
     const el = fixture.nativeElement as HTMLElement
 
-    expect(el.textContent).toContain('// loading settings...')
+    expect(el.querySelector('app-settings-skeleton')).toBeTruthy()
     expect(el.querySelector('form')).toBeNull()
 
     // Flush to avoid httpMock.verify() failures
@@ -229,7 +229,7 @@ describe('SettingsPage', () => {
     fixture.detectChanges()
 
     // Should show loading again
-    expect(el.textContent).toContain('// loading settings...')
+    expect(el.querySelector('app-settings-skeleton')).toBeTruthy()
 
     // Flush retry requests
     TestBed.tick()

@@ -303,9 +303,7 @@ describe('prompt builders', () => {
     })
 
     expect(prompt).toContain('### Sem work items associados (commits diretos)')
-    expect(prompt).toContain(
-      'sem incluir número de card ou prefixo #',
-    )
+    expect(prompt).toContain('sem incluir número de card ou prefixo #')
   })
 })
 
