@@ -4,8 +4,9 @@ dist
 coverage
 *.tsbuildinfo
 
-data
-drizzle
+/data
+/drizzle
+!apps/web/src/app/data/
 
 logs
 *.log
