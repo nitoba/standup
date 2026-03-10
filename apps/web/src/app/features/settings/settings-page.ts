@@ -16,6 +16,7 @@ import {
 } from '../../shared/components/combobox'
 import { ZardInputDirective } from '../../shared/components/input'
 import { ZardSwitchComponent } from '../../shared/components/switch'
+import { SettingsSkeleton } from './components/settings-skeleton/settings-skeleton'
 import {
   type RepoOption,
   type SaveSettingsInput,
@@ -32,6 +33,7 @@ import {
     ZardCheckboxComponent,
     ZardInputDirective,
     ZardSwitchComponent,
+    SettingsSkeleton,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -58,11 +60,7 @@ import {
         </div>
 
         @if (loading()) {
-          <div
-            class="text-muted-foreground font-[var(--font-ibm)] text-[13px]"
-          >
-            // loading settings...
-          </div>
+          <app-settings-skeleton />
         } @else if (loadError()) {
           <div class="flex flex-col gap-[12px]">
             <div

@@ -11,6 +11,7 @@ import { toast } from 'ngx-sonner'
 import { SidebarLayout } from '../../core/layout/sidebar'
 import { ZardButtonComponent } from '../../shared/components/button'
 import { ZardDialogService } from '../../shared/components/dialog'
+import { DashboardSkeleton } from './components/dashboard-skeleton/dashboard-skeleton'
 import { FilterBar } from './components/filter-bar/filter-bar'
 import { GenerateDialogContent } from './components/generate-dialog/generate-dialog-content'
 import { MetricCard } from './components/metric-card/metric-card'
@@ -58,6 +59,7 @@ function resolveDateFilter(value: string, now = new Date()) {
     StandupTable,
     FilterBar,
     ZardButtonComponent,
+    DashboardSkeleton,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -99,7 +101,7 @@ function resolveDateFilter(value: string, now = new Date()) {
         }
 
         @if (standupService.standups.isLoading()) {
-          <div class="text-muted-foreground font-[var(--font-ibm)] text-[13px]">// loading standups...</div>
+          <app-dashboard-skeleton />
         } @else if (standupService.standups.error()) {
           <div class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[13px]">// failed to load standups</div>
         } @else {

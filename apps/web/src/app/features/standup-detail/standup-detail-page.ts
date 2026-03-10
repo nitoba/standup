@@ -20,6 +20,7 @@ import type {
 import { StandupService } from '../dashboard/services/standup-service'
 import { AdjustDialogContent } from './components/adjust-dialog/adjust-dialog-content'
 import { ApproveDialogContent } from './components/approve-dialog/approve-dialog-content'
+import { StandupDetailSkeleton } from './components/standup-detail-skeleton/standup-detail-skeleton'
 
 @Component({
   selector: 'app-standup-detail-page',
@@ -28,6 +29,7 @@ import { ApproveDialogContent } from './components/approve-dialog/approve-dialog
     RouterLink,
     ZardButtonComponent,
     JsonViewerComponent,
+    StandupDetailSkeleton,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -39,7 +41,7 @@ import { ApproveDialogContent } from './components/approve-dialog/approve-dialog
         </a>
 
         @if (standup.isLoading()) {
-          <div class="text-muted-foreground font-[var(--font-ibm)] text-[13px]">// loading standup detail...</div>
+          <app-standup-detail-skeleton />
         } @else if (standup.error()) {
           <div class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[13px]">// standup not found</div>
         } @else if (standup.value(); as detail) {
