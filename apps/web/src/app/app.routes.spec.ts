@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { routes } from './app.routes'
-import { authGuard } from './guards/auth.guard'
-import { noAuthGuard } from './guards/no-auth.guard'
+import { authGuard } from './core/auth/auth-guard'
+import { noAuthGuard } from './core/auth/no-auth-guard'
 
 describe('routes', () => {
   it('defines login and dashboard routes', () => {

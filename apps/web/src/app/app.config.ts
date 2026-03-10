@@ -9,9 +9,9 @@ import { provideRouter, withComponentInputBinding } from '@angular/router'
 import { provideZard } from '@/shared/core/provider/providezard'
 
 import { routes } from './app.routes'
-import { authInterceptor } from './interceptors/auth.interceptor'
-import { baseUrlInterceptor } from './interceptors/base-url.interceptor'
-import { SessionService } from './services/session.service'
+import { authInterceptor } from './core/auth/auth-interceptor'
+import { baseUrlInterceptor } from './core/auth/base-url-interceptor'
+import { SessionService } from './core/auth/session-service'
 
 export const appConfig: ApplicationConfig = {
   providers: [
