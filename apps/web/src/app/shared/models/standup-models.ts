@@ -157,6 +157,49 @@ export interface DashboardMetrics {
   rejected: DashboardMetric
 }
 
+export type StandupGenerationMode = 'generate' | 'regenerate' | 'adjust'
+
+export type StandupProgressStep =
+  | 'queued'
+  | 'collecting_git'
+  | 'enriching_data'
+  | 'generating_standup'
+  | 'saving_draft'
+  | 'notifying_review'
+  | 'completed'
+  | 'no_activity'
+
+export interface StandupProgressEvent {
+  type: 'standup_progress'
+  runId: string
+  date: string
+  mode: StandupGenerationMode
+  step: StandupProgressStep
+  message: string
+  standupId?: string
+}
+
+export interface StandupGeneratedEvent {
+  type: 'standup_generated'
+  runId: string
+  standupId: string
+  date: string
+  mode: StandupGenerationMode
+}
+
+export interface StandupFailedEvent {
+  type: 'standup_failed'
+  runId: string
+  date: string
+  mode: StandupGenerationMode
+  message: string
+}
+
+export type StandupEvent =
+  | StandupProgressEvent
+  | StandupGeneratedEvent
+  | StandupFailedEvent
+
 export interface StandupPagination {
   page: number
   pageSize: number

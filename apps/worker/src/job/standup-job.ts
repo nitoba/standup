@@ -3,6 +3,8 @@ import type { WorkerEnv } from '@standup/config'
 import { getDb, JobRunRepository, StandupRepository } from '@standup/db'
 import {
   DbError,
+  type GatheredGitActivity,
+  GenerateStandupInputSchema,
   JobAlreadyCompletedError,
   LockAlreadyHeldError,
   NotFoundError,
@@ -17,7 +19,7 @@ import {
   generateStandup,
 } from '@standup/standup-generator'
 import { notifyJobFailed } from '../notifications/notify-job-failed.js'
-import { notifyStandupGenerated } from '../notifications/notify-standup-generated.js'
+import { notifyStandupEvent } from '../notifications/notify-standup-event.js'
 import { notifyStandupReady } from '../notifications/notify-standup-ready.js'
 import { notifyUserDm } from '../notifications/notify-user-dm.js'
 
@@ -50,6 +52,7 @@ export interface StandupJobOptions {
   rewriteFromStandupId?: string
   rewriteInstruction?: string
   replaceStandupId?: string
+  reuseExistingSource?: boolean
 }
 
 type ResolveAdjustmentError = DbError | NotFoundError | ValidationError
@@ -60,6 +63,65 @@ interface StandupAdjustmentRequest {
   previousContent: string
   sourceData: string
   meetingType: string
+}
+
+interface ExistingSourceRequest {
+  standupId: string
+  previousContent: string
+  gitActivity: string
+  meetingType: string
+}
+
+type StandupRunMode = 'generate' | 'regenerate' | 'adjust'
+
+type StandupProgressStep =
+  | 'queued'
+  | 'collecting_git'
+  | 'enriching_data'
+  | 'generating_standup'
+  | 'saving_draft'
+  | 'notifying_review'
+  | 'completed'
+  | 'no_activity'
+
+function resolveRunMode(options: StandupJobOptions): StandupRunMode {
+  if (options.rewriteInstruction?.trim()) {
+    return 'adjust'
+  }
+
+  if (options.forceRegenerate || options.reuseExistingSource) {
+    return 'regenerate'
+  }
+
+  return 'generate'
+}
+
+async function emitProgressEvent(
+  env: WorkerEnv,
+  input: {
+    userId: string
+    runId: string
+    date: string
+    mode: StandupRunMode
+    step: StandupProgressStep
+    message: string
+    standupId?: string
+  },
+): Promise<void> {
+  await notifyStandupEvent({
+    apiInternalUrl: env.API_INTERNAL_URL,
+    internalSecret: env.INTERNAL_SECRET,
+    event: {
+      type: 'standup_progress',
+      userId: input.userId,
+      runId: input.runId,
+      date: input.date,
+      mode: input.mode,
+      step: input.step,
+      message: input.message,
+      ...(input.standupId ? { standupId: input.standupId } : {}),
+    },
+  })
 }
 
 async function saveGeneratedStandup(
@@ -138,6 +200,88 @@ async function resolveAdjustmentRequest(
   })
 }
 
+async function resolveExistingSourceRequest(
+  options: StandupJobOptions,
+  standupRepo: StandupRepository,
+): Promise<Result<ExistingSourceRequest | null, ResolveAdjustmentError>> {
+  if (options.rewriteInstruction?.trim()) {
+    return Result.ok(null)
+  }
+
+  if (!options.reuseExistingSource) {
+    return Result.ok(null)
+  }
+
+  const replaceStandupId = options.replaceStandupId?.trim()
+  if (!replaceStandupId) {
+    return Result.err(
+      new ValidationError({
+        field: 'replaceStandupId',
+        message:
+          'replaceStandupId is required when reuseExistingSource is provided',
+      }),
+    )
+  }
+
+  const existingStandup = await standupRepo.findByIdForUser(
+    replaceStandupId,
+    options.userId,
+  )
+  if (existingStandup.isErr()) {
+    return existingStandup
+  }
+
+  return Result.ok({
+    standupId: replaceStandupId,
+    previousContent: existingStandup.value.content,
+    gitActivity: existingStandup.value.sourceData,
+    meetingType: existingStandup.value.meetingType,
+  })
+}
+
+function parseStoredGitActivity(
+  sourceData: string,
+  meetingType: string,
+  date: string,
+  extraContext?: string,
+): Result<
+  {
+    date: string
+    meetingType: string
+    gitActivity: GatheredGitActivity
+    extraContext?: string
+  },
+  ValidationError
+> {
+  try {
+    const parsed = JSON.parse(sourceData) as unknown
+    const validated =
+      GenerateStandupInputSchema.shape.gitActivity.safeParse(parsed)
+    if (!validated.success) {
+      return Result.err(
+        new ValidationError({
+          field: 'sourceData',
+          message: 'Stored standup sourceData is invalid and cannot be reused',
+        }),
+      )
+    }
+
+    return Result.ok({
+      date,
+      meetingType,
+      gitActivity: validated.data,
+      ...(extraContext ? { extraContext } : {}),
+    })
+  } catch {
+    return Result.err(
+      new ValidationError({
+        field: 'sourceData',
+        message: 'Stored standup sourceData is not valid JSON',
+      }),
+    )
+  }
+}
+
 export async function runStandupJob(
   env: WorkerEnv,
   options: StandupJobOptions,
@@ -145,6 +289,7 @@ export async function runStandupJob(
 ): Promise<void> {
   const runId = Bun.randomUUIDv7()
   const today = new Date().toISOString().slice(0, 10)
+  const runMode = resolveRunMode(options)
 
   const jobLogger = withContext(logger, {
     job: 'standup',
@@ -242,6 +387,15 @@ export async function runStandupJob(
     }
   }
 
+  await emitProgressEvent(env, {
+    userId: options.userId,
+    runId,
+    date: today,
+    mode: runMode,
+    step: 'queued',
+    message: 'Geracao do standup iniciada',
+  })
+
   // ---------------------------------------------------------------------------
   // Pipeline: collect → generate (com retry + degradação graciosa) → persist → notify
   // ---------------------------------------------------------------------------
@@ -260,10 +414,23 @@ export async function runStandupJob(
     const adjustmentRequest = yield* Result.await(
       resolveAdjustmentRequest(options, standupRepo),
     )
+    const existingSourceRequest = yield* Result.await(
+      resolveExistingSourceRequest(options, standupRepo),
+    )
 
     if (adjustmentRequest) {
       jobLogger.info('Adjustment mode requested', {
         baseStandupId: adjustmentRequest.standupId,
+      })
+
+      await emitProgressEvent(env, {
+        userId: options.userId,
+        runId,
+        date: today,
+        mode: runMode,
+        step: 'generating_standup',
+        message: 'Gerando standup ajustado',
+        standupId: adjustmentRequest.standupId,
       })
 
       const adjusted = yield* Result.await(
@@ -284,6 +451,15 @@ export async function runStandupJob(
 
       const replaceStandupId =
         options.replaceStandupId?.trim() || adjustmentRequest.standupId
+      await emitProgressEvent(env, {
+        userId: options.userId,
+        runId,
+        date: today,
+        mode: runMode,
+        step: 'saving_draft',
+        message: 'Salvando rascunho ajustado',
+        standupId: replaceStandupId,
+      })
       const record = yield* Result.await(
         saveGeneratedStandup(
           standupRepo,
@@ -302,6 +478,16 @@ export async function runStandupJob(
         baseStandupId: adjustmentRequest.standupId,
       })
 
+      await emitProgressEvent(env, {
+        userId: options.userId,
+        runId,
+        date: today,
+        mode: runMode,
+        step: 'notifying_review',
+        message: 'Enviando standup ajustado para revisao',
+        standupId: record.id,
+      })
+
       const notifyResult = await notifyStandupReady({
         botInternalUrl: env.BOT_INTERNAL_URL,
         standupId: record.id,
@@ -318,19 +504,156 @@ export async function runStandupJob(
         jobLogger.info('Bot notified', { standupId: record.id })
       }
 
-      // Notify API to push SSE event to web client — fire-and-forget
-      await notifyStandupGenerated({
+      await emitProgressEvent(env, {
+        userId: options.userId,
+        runId,
+        date: today,
+        mode: runMode,
+        step: 'completed',
+        message: 'Standup ajustado pronto para revisao',
+        standupId: record.id,
+      })
+
+      await notifyStandupEvent({
         apiInternalUrl: env.API_INTERNAL_URL,
         internalSecret: env.INTERNAL_SECRET,
+        event: {
+          type: 'standup_generated',
+          userId: options.userId,
+          runId,
+          standupId: record.id,
+          date: today,
+          mode: runMode,
+        },
+      })
+
+      return Result.ok(record.id)
+    }
+
+    if (existingSourceRequest) {
+      jobLogger.info('Regeneration requested from existing standup source', {
+        baseStandupId: existingSourceRequest.standupId,
+      })
+
+      await emitProgressEvent(env, {
         userId: options.userId,
-        standupId: record.id,
+        runId,
         date: today,
+        mode: runMode,
+        step: 'generating_standup',
+        message: 'Gerando standup a partir da base existente',
+        standupId: existingSourceRequest.standupId,
+      })
+
+      const generationInput = yield* parseStoredGitActivity(
+        existingSourceRequest.gitActivity,
+        existingSourceRequest.meetingType,
+        today,
+        generationExtraContext,
+      )
+
+      const regenerated = yield* Result.await(
+        generateStandup(generationInput, generatorConfig),
+      )
+
+      jobLogger.info('Standup regenerated from existing source', {
+        summary: regenerated.summary,
+        baseStandupId: existingSourceRequest.standupId,
+      })
+
+      await emitProgressEvent(env, {
+        userId: options.userId,
+        runId,
+        date: today,
+        mode: runMode,
+        step: 'saving_draft',
+        message: 'Salvando standup regenerado',
+        standupId: existingSourceRequest.standupId,
+      })
+
+      const record = yield* Result.await(
+        saveGeneratedStandup(
+          standupRepo,
+          {
+            ...options,
+            replaceStandupId: existingSourceRequest.standupId,
+          },
+          {
+            date: today,
+            meetingType: existingSourceRequest.meetingType,
+            content: regenerated.content,
+            sourceData: existingSourceRequest.gitActivity,
+          },
+        ),
+      )
+
+      jobLogger.info('Regenerated standup draft saved', {
+        standupId: record.id,
+        baseStandupId: existingSourceRequest.standupId,
+      })
+
+      await emitProgressEvent(env, {
+        userId: options.userId,
+        runId,
+        date: today,
+        mode: runMode,
+        step: 'notifying_review',
+        message: 'Enviando standup regenerado para revisao',
+        standupId: record.id,
+      })
+
+      const notifyResult = await notifyStandupReady({
+        botInternalUrl: env.BOT_INTERNAL_URL,
+        standupId: record.id,
+        discordUserId: options.discordUserId,
+        secret: env.INTERNAL_SECRET,
+      })
+
+      if (notifyResult.isErr()) {
+        jobLogger.error(
+          'Failed to notify bot — regenerated standup saved, approve manually via API',
+          { standupId: record.id, error: notifyResult.error.message },
+        )
+      } else {
+        jobLogger.info('Bot notified', { standupId: record.id })
+      }
+
+      await emitProgressEvent(env, {
+        userId: options.userId,
+        runId,
+        date: today,
+        mode: runMode,
+        step: 'completed',
+        message: 'Standup regenerado pronto para revisao',
+        standupId: record.id,
+      })
+
+      await notifyStandupEvent({
+        apiInternalUrl: env.API_INTERNAL_URL,
+        internalSecret: env.INTERNAL_SECRET,
+        event: {
+          type: 'standup_generated',
+          userId: options.userId,
+          runId,
+          standupId: record.id,
+          date: today,
+          mode: runMode,
+        },
       })
 
       return Result.ok(record.id)
     }
 
     // Step 1: Collect git activity
+    await emitProgressEvent(env, {
+      userId: options.userId,
+      runId,
+      date: today,
+      mode: runMode,
+      step: 'collecting_git',
+      message: 'Coletando commits dos repositorios',
+    })
+
     const gitActivity = yield* Result.await(
       collectGitActivity({
         reposRootPath: options.reposRootPath,
@@ -346,6 +669,15 @@ export async function runStandupJob(
 
     if (gitActivity.repos.length === 0) {
       jobLogger.info('No commits found today — skipping standup generation')
+      await emitProgressEvent(env, {
+        userId: options.userId,
+        runId,
+        date: today,
+        mode: runMode,
+        step: 'no_activity',
+        message: 'Nenhuma atividade encontrada hoje',
+      })
+
       if (options.discordUserId) {
         const dmResult = await notifyUserDm({
           botInternalUrl: env.BOT_INTERNAL_URL,
@@ -371,6 +703,24 @@ export async function runStandupJob(
     // Retry para erros de MCP e LLM e feito internamente por generateStandup().
     // Degradação graciosa: se MCP falhar após todos os retries, o standup é gerado
     // apenas com dados git (sem enrichment de work items).
+    await emitProgressEvent(env, {
+      userId: options.userId,
+      runId,
+      date: today,
+      mode: runMode,
+      step: 'enriching_data',
+      message: 'Enriquecendo contexto para o standup',
+    })
+
+    await emitProgressEvent(env, {
+      userId: options.userId,
+      runId,
+      date: today,
+      mode: runMode,
+      step: 'generating_standup',
+      message: 'Gerando texto do standup',
+    })
+
     const generated = yield* Result.await(
       generateStandup(
         {
@@ -386,6 +736,15 @@ export async function runStandupJob(
     jobLogger.info('Standup generated', { summary: generated.summary })
 
     // Step 3: Persist as draft
+    await emitProgressEvent(env, {
+      userId: options.userId,
+      runId,
+      date: today,
+      mode: runMode,
+      step: 'saving_draft',
+      message: 'Salvando rascunho do standup',
+    })
+
     const record = yield* Result.await(
       saveGeneratedStandup(standupRepo, options, {
         date: today,
@@ -400,6 +759,16 @@ export async function runStandupJob(
     // Step 4: Notify discord-bot — non-fatal.
     // Worker não sabe nada sobre Discord. O standup está salvo;
     // o bot decide como apresentar ao usuário.
+    await emitProgressEvent(env, {
+      userId: options.userId,
+      runId,
+      date: today,
+      mode: runMode,
+      step: 'notifying_review',
+      message: 'Enviando standup para revisao',
+      standupId: record.id,
+    })
+
     const notifyResult = await notifyStandupReady({
       botInternalUrl: env.BOT_INTERNAL_URL,
       standupId: record.id,
@@ -416,13 +785,27 @@ export async function runStandupJob(
       jobLogger.info('Bot notified', { standupId: record.id })
     }
 
-    // Step 5: Notify API to push SSE event to web client — fire-and-forget
-    await notifyStandupGenerated({
+    await emitProgressEvent(env, {
+      userId: options.userId,
+      runId,
+      date: today,
+      mode: runMode,
+      step: 'completed',
+      message: 'Standup pronto para revisao',
+      standupId: record.id,
+    })
+
+    await notifyStandupEvent({
       apiInternalUrl: env.API_INTERNAL_URL,
       internalSecret: env.INTERNAL_SECRET,
-      userId: options.userId,
-      standupId: record.id,
-      date: today,
+      event: {
+        type: 'standup_generated',
+        userId: options.userId,
+        runId,
+        standupId: record.id,
+        date: today,
+        mode: runMode,
+      },
     })
 
     return Result.ok(record.id)
@@ -434,6 +817,19 @@ export async function runStandupJob(
 
   if (result.isErr()) {
     jobLogger.error('Standup job failed', { error: result.error.message })
+
+    await notifyStandupEvent({
+      apiInternalUrl: env.API_INTERNAL_URL,
+      internalSecret: env.INTERNAL_SECRET,
+      event: {
+        type: 'standup_failed',
+        userId: options.userId,
+        runId,
+        date: today,
+        mode: runMode,
+        message: result.error.message,
+      },
+    })
 
     await jobRunRepo.releaseLock(runId, 'failed', result.error.message)
 

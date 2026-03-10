@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { generateAdjustedStandup } from './adjust.js'
 import { MAX_STANDUP_CONTENT_CHARS } from './prompt/prompt.js'
 
-vi.mock('@ai-sdk/groq', () => ({
-  createGroq: vi.fn(() => (_model: string) => ({ modelId: _model })),
+vi.mock('@ai-sdk/google', () => ({
+  createGoogleGenerativeAI: vi.fn(() => (_model: string) => ({
+    modelId: _model,
+  })),
 }))
 
 vi.mock('ai', () => ({
@@ -15,7 +17,7 @@ vi.mock('ai', () => ({
     },
   }),
   Output: {
-    json: vi.fn(() => ({})),
+    object: vi.fn(() => ({})),
   },
 }))
 

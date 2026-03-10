@@ -7,12 +7,13 @@ import { ApplicationRef } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { Subject } from 'rxjs'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { StandupEvent } from '../../../shared/models/standup-models'
 import { StandupEventsService } from './standup-events-service'
 import { StandupService } from './standup-service'
 
 /** Stub que não abre EventSource real — evita ReferenceError em JSDOM */
 const stubEventsService = {
-  standupGenerated$: new Subject<never>(),
+  standupEvents$: new Subject<StandupEvent>(),
   ngOnDestroy: () => {},
 }
 
@@ -374,6 +375,61 @@ describe('StandupService', () => {
       ok: true,
       accepted: true,
     })
+  })
+
+  it('tracks coarse-grained progress events and reloads when generation completes', async () => {
+    stubEventsService.standupEvents$.next({
+      type: 'standup_progress',
+      runId: 'run-1',
+      date: '2026-03-09',
+      mode: 'generate',
+      step: 'collecting_git',
+      message: 'Coletando commits dos repositorios',
+    })
+
+    expect(service.activeProgress()).toEqual(
+      expect.objectContaining({
+        runId: 'run-1',
+        step: 'collecting_git',
+      }),
+    )
+
+    stubEventsService.standupEvents$.next({
+      type: 'standup_generated',
+      runId: 'run-1',
+      standupId: '7f3a2b1c',
+      date: '2026-03-09',
+      mode: 'generate',
+    })
+
+    TestBed.tick()
+    httpMock
+      .expectOne('/standups?page=1&pageSize=20')
+      .flush(makeListResponse([makeStandupDto({ id: '7f3a2b1c' })]))
+    await appRef.whenStable()
+
+    expect(service.activeProgress()).toBeUndefined()
+  })
+
+  it('clears progress when the worker reports failure', () => {
+    stubEventsService.standupEvents$.next({
+      type: 'standup_progress',
+      runId: 'run-2',
+      date: '2026-03-09',
+      mode: 'generate',
+      step: 'generating_standup',
+      message: 'Gerando texto do standup',
+    })
+
+    stubEventsService.standupEvents$.next({
+      type: 'standup_failed',
+      runId: 'run-2',
+      date: '2026-03-09',
+      mode: 'generate',
+      message: 'LLM indisponivel',
+    })
+
+    expect(service.activeProgress()).toBeUndefined()
   })
 })
 

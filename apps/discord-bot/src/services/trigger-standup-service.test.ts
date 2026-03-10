@@ -50,6 +50,7 @@ describe('triggerStandup', () => {
           rewriteFromStandupId: undefined,
           rewriteInstruction: undefined,
           replaceStandupId: undefined,
+          reuseExistingSource: undefined,
         }),
       },
     )
@@ -82,6 +83,7 @@ describe('triggerStandup', () => {
           rewriteFromStandupId: undefined,
           rewriteInstruction: undefined,
           replaceStandupId: undefined,
+          reuseExistingSource: undefined,
         }),
       },
     )
@@ -118,6 +120,7 @@ describe('triggerStandup', () => {
           rewriteFromStandupId: 'standup-abc',
           rewriteInstruction: 'Remover item X e adicionar item Y',
           replaceStandupId: undefined,
+          reuseExistingSource: undefined,
         }),
       },
     )
@@ -153,9 +156,73 @@ describe('triggerStandup', () => {
           rewriteFromStandupId: undefined,
           rewriteInstruction: undefined,
           replaceStandupId: 'standup-abc',
+          reuseExistingSource: undefined,
         }),
       },
     )
+  })
+
+  it('envia reuseExistingSource quando solicitado', async () => {
+    mockFetch.mockResolvedValue(response(202))
+
+    const result = await triggerStandup(
+      'test-user-1',
+      'user-123',
+      { apiBaseUrl: 'http://localhost:3333', internalSecret: 'test-secret' },
+      {
+        forceRegenerate: true,
+        replaceStandupId: 'standup-abc',
+        reuseExistingSource: true,
+      },
+    )
+
+    expect(result.isOk()).toBe(true)
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:3333/standups/trigger',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-internal-secret': 'test-secret',
+        },
+        body: JSON.stringify({
+          userId: 'test-user-1',
+          discordUserId: 'user-123',
+          extraContext: undefined,
+          forceRegenerate: true,
+          rewriteFromStandupId: undefined,
+          rewriteInstruction: undefined,
+          replaceStandupId: 'standup-abc',
+          reuseExistingSource: true,
+        }),
+      },
+    )
+  })
+
+  it('retorna conflito tipado quando API responde 409', async () => {
+    mockFetch.mockResolvedValue({
+      ...response(409),
+      json: async () => ({
+        ok: false,
+        accepted: false,
+        reason: 'pending_review_exists',
+        standupId: 'standup-abc',
+      }),
+    } as Response)
+
+    const result = await triggerStandup('test-user-1', 'user-123', {
+      apiBaseUrl: 'http://localhost:3333',
+      internalSecret: 'test-secret',
+    })
+
+    expect(result.isOk()).toBe(true)
+    if (result.isOk()) {
+      expect(result.value).toEqual({
+        accepted: false,
+        reason: 'pending_review_exists',
+        standupId: 'standup-abc',
+      })
+    }
   })
 
   it('retorna forbidden quando API responde 403', async () => {

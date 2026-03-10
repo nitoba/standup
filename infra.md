@@ -1,6 +1,6 @@
 # Infraestrutura — Standup Bot
 
-Monorepo com **3 imagens Docker separadas** + 1 imagem de migracao.
+Monorepo com **5 imagens Docker separadas** + 1 imagem de migracao.
 
 ---
 
@@ -28,16 +28,24 @@ Monorepo com **3 imagens Docker separadas** + 1 imagem de migracao.
 [ Cloudflare Edge (TLS, WAF, DNS) ]
         |
    (roteia por hostname)
-        |
-[ Cloudflare Tunnel ]
-        |
-[ cloudflared no MacBook ]
-        |
-  HTTP para a VM Linux do Colima
-        |
-[ kamal-proxy dentro do Colima (swap + routing por Host) ]
-        |
-      api (3333)   ← unico servico com proxy publico
+        |           |
+        |           |
+[ api.nitodev.com.br ]   [ app.nitodev.com.br ]
+        |                        |
+        └──────────┬─────────────┘
+                   |
+         [ Cloudflare Tunnel ]
+                   |
+       [ cloudflared no MacBook ]
+                   |
+         HTTP :80 → VM Linux do Colima
+                   |
+[ kamal-proxy dentro do Colima (swap + routing por Host header) ]
+        |                        |
+   api (3333)              nginx/web (80)
+                                 |
+                          proxy → api (3333)   ← rotas /standups, /settings, etc.
+                          serve  static files  ← Angular SPA
 ```
 
 Bot (3334) e Worker (3335) nao passam pelo kamal-proxy.
@@ -51,11 +59,13 @@ As aplicacoes rodam dentro da VM Linux do Colima, nao diretamente no macOS host.
 [ GitHub Actions ]
    ├─ quality: lint + typecheck + test (ubuntu-latest)
    ├─ build: Docker images arm64 → GHCR (ubuntu-24.04-arm nativo, sem QEMU)
+   │         5 imagens: api, bot, worker, migrate, web
    └─ deploy:
         ├─ Tailscale connect (OAuth, tag:ci, efemero)
         ├─ SSH na VM Colima via Tailscale
         ├─ docker run migrate (one-shot)
-        └─ kamal deploy x3 (api, bot, worker) com --skip-push
+        ├─ kamal deploy x4 (api, bot, worker, web) com --skip-push
+        └─ SSH no MacBook host → launchctl reload cloudflared
 ```
 
 ### Fluxo de admin (Tailscale)
@@ -98,11 +108,13 @@ Todas as imagens sao arm64, buildadas no GitHub Actions com runner nativo `ubunt
 | `ghcr.io/nitoba/standup-api`     | `apps/api/Dockerfile`         | `distroless/cc-debian12` | 3333  |
 | `ghcr.io/nitoba/standup-bot`     | `apps/discord-bot/Dockerfile` | `distroless/cc-debian12` | 3334  |
 | `ghcr.io/nitoba/standup-worker`  | `apps/worker/Dockerfile`      | `debian:12-slim` + git   | 3335  |
+| `ghcr.io/nitoba/standup-web`     | `apps/web/Dockerfile`         | `nginx:alpine`           | 80    |
 | `ghcr.io/nitoba/standup-migrate` | `packages/db/Dockerfile`      | `oven/bun:1.3.9`         | -     |
 
 **Build strategy**: multi-stage com `bun build --compile --target=bun-linux-arm64`.
 O worker usa `debian:12-slim` (nao Alpine) porque Bun nao tem target arm64-musl.
 O migrate roda `bun` diretamente (nao compilado) porque precisa de `import.meta.url` para SQL files.
+O web compila a SPA Angular via `bun install --ignore-scripts` (evita falha de compilacao nativa do `lmdb` no arm64) e serve com nginx.
 
 Tags no GHCR:
 
@@ -118,20 +130,22 @@ Tags no GHCR:
 ```
 standup/
   .kamal/
-    secrets              # Secrets do Kamal (gitignored) — usa $VAR substitution
+    secrets-common       # Secrets do Kamal (gitignored) — usa $VAR substitution
   config/
     deploy.api.yml       # API — com kamal-proxy (api.nitodev.com.br)
     deploy.bot.yml       # Discord bot — sem proxy, network alias standup-bot
     deploy.worker.yml    # Worker — sem proxy, network alias standup-worker + volumes
+    deploy.web.yml       # Web SPA — com kamal-proxy (app.nitodev.com.br)
 ```
 
 ### Servicos
 
-| App    | Service name     | Proxy       | Acesso                          | Hostname publico     |
-| ------ | ---------------- | ----------- | ------------------------------- | -------------------- |
-| API    | `standup-api`    | kamal-proxy | via proxy (:80)                 | `api.nitodev.com.br` |
-| Bot    | `standup-bot`    | nenhum      | network alias `standup-bot`     | nenhum (interno)     |
-| Worker | `standup-worker` | nenhum      | network alias `standup-worker`  | nenhum (interno)     |
+| App    | Service name     | Proxy       | Acesso                          | Hostname publico      |
+| ------ | ---------------- | ----------- | ------------------------------- | --------------------- |
+| API    | `standup-api`    | kamal-proxy | via proxy (:80)                 | `api.nitodev.com.br`  |
+| Web    | `standup-web`    | kamal-proxy | via proxy (:80)                 | `app.nitodev.com.br`  |
+| Bot    | `standup-bot`    | nenhum      | network alias `standup-bot`     | nenhum (interno)      |
+| Worker | `standup-worker` | nenhum      | network alias `standup-worker`  | nenhum (interno)      |
 
 Bot e Worker **nao publicam portas no host** — usam Docker network aliases na rede `kamal`.
 Isso evita conflitos de porta durante redeploys (Kamal renomeia o container antigo mas nao o para antes de iniciar o novo).
@@ -148,7 +162,9 @@ URLs internas usam os network aliases dos containers.
 | Worker → API | `standup-api:3333`           | `http://standup-api:3333`                     | push SSE via `/internal/events/standup-generated` |
 | API → Bot    | `standup-bot:3334`           | `http://standup-bot:3334`                     | standup-status-changed (aprovacao/rejeicao web) |
 | Bot → API    | `api.nitodev.com.br`         | `https://api.nitodev.com.br`                  | slash commands trigger (via Cloudflare)        |
-| Web → API    | `api.nitodev.com.br`         | `https://api.nitodev.com.br`                  | REST + SSE `/standups/events`                  |
+| Web → API    | `standup-api:3333` (nginx)   | `http://standup-api:3333`                     | REST + SSE `/standups` proxiado pelo nginx     |
+
+Obs: o nginx do `standup-web` usa `resolver 127.0.0.11` + `set $upstream` para deferir a resolucao DNS ao runtime (evita falha fatal no boot quando `standup-api` ainda nao esta disponivel).
 
 ### Volumes
 
@@ -209,10 +225,11 @@ push/PR (qualquer branch)     push na main
 
 - Roda **apenas em push na main**, apos quality passar
 - Runner nativo arm64 (`ubuntu-24.04-arm`) — sem QEMU, sem emulacao
-- Builds sequenciais (api → bot → worker → migrate) no mesmo job para evitar cancelamentos por concurrency
+- Builds sequenciais (api → bot → worker → migrate → web) no mesmo job para evitar cancelamentos por concurrency
 - Docker Buildx com cache GHA (scope por app)
 - Login no GHCR via `GITHUB_TOKEN` (permissao `packages: write`)
 - Push com tags `sha-<commit>` + `latest`
+- Discord webhook atualiza a mesma mensagem com progresso de cada imagem
 
 ### Job: deploy
 
@@ -222,7 +239,8 @@ push/PR (qualquer branch)     push na main
 - Instala Kamal via `gem install kamal`
 - Roda migracao via `docker run --rm` (SSH na VM Colima, com `docker login ghcr.io` antes)
 - `kamal deploy --skip-push --version "sha-<commit>"` para cada app
-- Sequencial: API → Bot → Worker
+- Sequencial: API → Bot → Worker → Web (bot/worker pulam se API falhar)
+- Apos deploy web: SSH no MacBook host (`MAC_HOST`) e reload do `cloudflared` via `launchctl`
 
 ### Concurrency
 
@@ -238,8 +256,9 @@ push/PR (qualquer branch)     push na main
 | ------------------------ | ------------------------------------------------------------ |
 | `TS_OAUTH_CLIENT_ID`     | OAuth client Tailscale (scope: Devices Write, tag: `tag:ci`) |
 | `TS_OAUTH_CLIENT_SECRET` | OAuth client secret Tailscale                                |
-| `SSH_PRIVATE_KEY`        | Chave privada Ed25519 para SSH no MacBook                    |
-| `DEPLOY_HOST`            | `colima.tail2ee1d6.ts.net`                                   |
+| `SSH_PRIVATE_KEY`        | Chave privada Ed25519 para SSH (MacBook e VM Colima)         |
+| `DEPLOY_HOST`            | `colima.tail2ee1d6.ts.net` (VM Colima — kamal + docker)      |
+| `MAC_HOST`               | `nitoba-mac.tail2ee1d6.ts.net` (MacBook host — cloudflared)  |
 | `DEPLOY_USER`            | `nitoba`                                                     |
 
 ### App secrets
@@ -266,7 +285,10 @@ no `config/deploy.api.yml`.
 
 ## Cloudflare Tunnel
 
-Um tunnel, 1 hostname (apenas API e publica). Bot e Worker sao internos.
+Um tunnel, 2 hostnames publicos (API e Web). Bot e Worker sao internos.
+
+O `cloudflared` roda como servico LaunchDaemon no MacBook (`com.cloudflare.cloudflared`).
+Rotas sao carregadas no startup — o CI faz reload automatico apos cada deploy via `launchctl stop/start`.
 
 ### `~/.cloudflared/config.yml`
 
@@ -278,10 +300,14 @@ ingress:
   - hostname: api.nitodev.com.br
     service: http://<COLIMA_ENDPOINT>:80
 
+  - hostname: app.nitodev.com.br
+    service: http://<COLIMA_ENDPOINT>:80
+
   - service: http_status:404
 ```
 
 > `COLIMA_ENDPOINT` = IP/hostname exposto pela VM do Colima para alcancar o `kamal-proxy`.
+> O kamal-proxy roteia para o container correto pelo `Host` header (`api.nitodev.com.br` → `standup-api`, `app.nitodev.com.br` → `standup-web`).
 
 ---
 
@@ -303,11 +329,12 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 
 ## Seguranca
 
-- **API** (`api.nitodev.com.br`): unico servico publico. Protegido por Cloudflare WAF/rate limiting.
+- **API** (`api.nitodev.com.br`): servico publico. Protegido por Cloudflare WAF/rate limiting.
+- **Web** (`app.nitodev.com.br`): SPA publica servida pelo nginx. Chamadas de API sao proxiadas para `standup-api` internamente.
 - **Bot**: interno, acessivel apenas via network alias `standup-bot` na rede Docker `kamal`. Sem porta publicada no host.
 - **Worker**: interno, acessivel apenas via network alias `standup-worker` na rede Docker `kamal`. Sem porta publicada no host.
-- **SSH**: apenas via Tailscale (chave Ed25519, sem senha).
-- **Secrets**: nunca commitados. `.kamal/secrets` e `*.env` no `.gitignore`.
+- **SSH**: apenas via Tailscale (chave Ed25519, sem senha). Mesma chave usada para VM Colima e MacBook host.
+- **Secrets**: nunca commitados. `.kamal/secrets-common` e `*.env` no `.gitignore`.
 - **GHCR**: autenticacao via `GITHUB_TOKEN` (automatico no CI).
 - **Comunicacao interna**: header `x-internal-secret` com `INTERNAL_SECRET` compartilhado.
 
@@ -323,8 +350,9 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 - [x] Chave publica do deploy em `~/.ssh/authorized_keys`
 - [x] Azure DevOps SSH key (RSA 4096) configurada para clone de repos
 - [x] Repositorios clonados em `/Users/nitoba/repos` (git-collector faz `fetch --all` automaticamente)
-- [x] Cloudflare Tunnel configurado (`cloudflared` como servico)
+- [x] Cloudflare Tunnel configurado (`cloudflared` como LaunchDaemon) com 2 hostnames: `api.nitodev.com.br` e `app.nitodev.com.br`
 - [x] Primeiro deploy realizado com sucesso (kamal-proxy bootstrapped automaticamente)
+- [x] `app.nitodev.com.br` adicionado ao tunnel e verificado via `curl -H "Host: app.nitodev.com.br"`
 
 ---
 
@@ -340,6 +368,11 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 | `new Promise` para manter SSE aberta | `stream.sleep(Number.MAX_SAFE_INTEGER)` | `setTimeout` do Node/Bun e 32-bit; valor >2^31ms estoura para 1ms causando reconexao constante |
 | Rotas estaticas antes de parametrizadas no Hono | Ordem qualquer | Hono resolve por ordem de registro; `/standups/events` apos `/:id` captura "events" como param |
 | `trigger/regenerate/adjust` fire-and-forget na web | Loading spinner ate completar | Geracao leva 10-30s; SSE notifica quando pronto; UX mais fluida sem bloquear a UI |
+| `bun install --ignore-scripts` no Dockerfile web | Install padrao | `@angular/build` tem `lmdb` como dep opcional que compila via `node-gyp`; falha no arm64 sem `--ignore-scripts` |
+| `import file with { type: 'file' }` para assets em binarios | `readFileSync` + path em runtime | `bun build --compile` nao inclui arquivos externos; o import `with { type: 'file' }` embute o asset no binario |
+| nginx `resolver 127.0.0.11` + `set $upstream` | `proxy_pass` com hostname literal | nginx resolve DNS de upstreams no startup; se `standup-api` nao estiver disponivel, nginx falha ao subir |
+| Reload `cloudflared` via CI apos deploy web | Reload manual | `cloudflared` carrega rotas no startup; novas rotas no painel do Cloudflare nao sao aplicadas sem restart |
+| SSH direto no MacBook host para reload cloudflared | Configurar tunnel remoto via API | Mais simples; `MAC_HOST` e o hostname Tailscale do MacBook (`nitoba-mac.tail2ee1d6.ts.net`), distinto do Colima |
 
 ---
 

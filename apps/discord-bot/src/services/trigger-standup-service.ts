@@ -11,11 +11,17 @@ export interface TriggerStandupOptions {
   rewriteFromStandupId?: string
   rewriteInstruction?: string
   replaceStandupId?: string
+  reuseExistingSource?: boolean
 }
 
 export type TriggerStandupOutcome =
   | { accepted: true }
   | { accepted: false; reason: 'forbidden' }
+  | {
+      accepted: false
+      reason: 'pending_review_exists' | 'already_approved_today'
+      standupId?: string
+    }
 
 /**
  * Dispara trigger manual no API via internal auth (x-internal-secret).
@@ -43,6 +49,7 @@ export async function triggerStandup(
           rewriteFromStandupId: options?.rewriteFromStandupId,
           rewriteInstruction: options?.rewriteInstruction,
           replaceStandupId: options?.replaceStandupId,
+          reuseExistingSource: options?.reuseExistingSource,
         }),
       })
 
@@ -52,6 +59,24 @@ export async function triggerStandup(
 
       if (response.status === 403) {
         return { accepted: false, reason: 'forbidden' } as const
+      }
+
+      if (response.status === 409) {
+        const payload = (await response.json()) as {
+          reason?: 'pending_review_exists' | 'already_approved_today'
+          standupId?: string
+        }
+
+        if (
+          payload.reason === 'pending_review_exists' ||
+          payload.reason === 'already_approved_today'
+        ) {
+          return {
+            accepted: false,
+            reason: payload.reason,
+            standupId: payload.standupId,
+          } as const
+        }
       }
 
       throw new Error(`HTTP ${response.status}`)

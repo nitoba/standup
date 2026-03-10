@@ -1,12 +1,7 @@
 import { Injectable, inject, NgZone, type OnDestroy } from '@angular/core'
 import { Subject } from 'rxjs'
 import { environment } from '../../../../environments/environment'
-
-export type StandupGeneratedEvent = {
-  type: 'standup_generated'
-  standupId: string
-  date: string
-}
+import type { StandupEvent } from '../../../shared/models/standup-models'
 
 /**
  * Connects to the API SSE stream at /standups/events and re-emits
@@ -21,8 +16,8 @@ export class StandupEventsService implements OnDestroy {
 
   private eventSource: EventSource | undefined
 
-  /** Emits whenever a new standup is generated and ready for review. */
-  readonly standupGenerated$ = new Subject<StandupGeneratedEvent>()
+  /** Emits lifecycle events for the user's active standup job. */
+  readonly standupEvents$ = new Subject<StandupEvent>()
 
   constructor() {
     this.connect()
@@ -38,16 +33,18 @@ export class StandupEventsService implements OnDestroy {
         },
       )
 
-      this.eventSource.addEventListener('standup_generated', (e) => {
+      const onStandupEvent = (e: Event) => {
         try {
-          const data = JSON.parse(
-            (e as MessageEvent).data,
-          ) as StandupGeneratedEvent
-          this.ngZone.run(() => this.standupGenerated$.next(data))
+          const data = JSON.parse((e as MessageEvent).data) as StandupEvent
+          this.ngZone.run(() => this.standupEvents$.next(data))
         } catch {
           // Ignore malformed events
         }
-      })
+      }
+
+      this.eventSource.addEventListener('standup_progress', onStandupEvent)
+      this.eventSource.addEventListener('standup_generated', onStandupEvent)
+      this.eventSource.addEventListener('standup_failed', onStandupEvent)
 
       this.eventSource.addEventListener('error', () => {
         // EventSource auto-reconnects on transient failures — no action needed
@@ -57,6 +54,6 @@ export class StandupEventsService implements OnDestroy {
 
   ngOnDestroy(): void {
     this.eventSource?.close()
-    this.standupGenerated$.complete()
+    this.standupEvents$.complete()
   }
 }

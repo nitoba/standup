@@ -9,8 +9,12 @@ import type {
   DashboardMetrics,
   Standup,
   StandupCustomEntriesDto,
+  StandupEvent,
+  StandupFailedEvent,
+  StandupGeneratedEvent,
   StandupListResponseDto,
   StandupPage,
+  StandupProgressEvent,
   StandupSection,
   StandupSourceRepo,
   StandupStatus,
@@ -57,6 +61,7 @@ export class StandupService {
   private readonly searchFilter = signal<string | undefined>(undefined)
   private readonly page = signal(1)
   private readonly pageSize = signal(this.DEFAULT_PAGE_SIZE)
+  readonly activeProgress = signal<StandupProgressEvent | undefined>(undefined)
 
   readonly standups = httpResource<StandupPage>(
     () => {
@@ -122,16 +127,47 @@ export class StandupService {
   })
 
   constructor() {
-    // Reload the standups list (and selected standup if open) when a new standup is ready
-    this.eventsService.standupGenerated$
+    this.eventsService.standupEvents$
       .pipe(takeUntilDestroyed())
-      .subscribe(() => {
-        this.standups.reload()
-        if (this.selectedStandupId()) {
-          this.selectedStandup.reload()
-        }
-        toast('Standup gerado e pronto para revisão!')
-      })
+      .subscribe((event) => this.handleStandupEvent(event))
+  }
+
+  private handleStandupEvent(event: StandupEvent) {
+    if (event.type === 'standup_progress') {
+      this.handleProgressEvent(event)
+      return
+    }
+
+    if (event.type === 'standup_generated') {
+      this.handleGeneratedEvent(event)
+      return
+    }
+
+    this.handleFailedEvent(event)
+  }
+
+  private handleProgressEvent(event: StandupProgressEvent) {
+    this.activeProgress.set(event)
+
+    if (event.step === 'no_activity') {
+      this.activeProgress.set(undefined)
+      toast('Nenhuma atividade encontrada para gerar o standup de hoje.')
+      this.standups.reload()
+    }
+  }
+
+  private handleGeneratedEvent(event: StandupGeneratedEvent) {
+    this.activeProgress.set(undefined)
+    this.standups.reload()
+    if (this.selectedStandupId()) {
+      this.selectedStandup.reload()
+    }
+    toast('Standup gerado e pronto para revisão!')
+  }
+
+  private handleFailedEvent(event: StandupFailedEvent) {
+    this.activeProgress.set(undefined)
+    toast(`Falha ao gerar standup: ${event.message}`)
   }
 
   // Dashboard filter update — signals change triggers httpResource refetch
@@ -216,7 +252,7 @@ export class StandupService {
     return firstValueFrom(
       this.http.post<TriggerAck>('/standups/trigger', {
         ...body,
-        forceGenerate: true,
+        forceRegenerate: true,
       }),
     )
     // NOTE: no standups.reload() here — the SSE event will trigger the reload

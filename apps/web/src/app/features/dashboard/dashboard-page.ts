@@ -84,6 +84,20 @@ function resolveDateFilter(value: string, now = new Date()) {
           </div>
         </div>
 
+        @if (standupService.activeProgress(); as progress) {
+          <div class="rounded-[12px] border border-border bg-card px-[16px] py-[14px] flex flex-col gap-[6px]">
+            <div class="flex items-center gap-[10px]">
+              <span class="inline-flex h-[10px] w-[10px] rounded-full bg-[var(--accent-yellow)] animate-pulse"></span>
+              <span class="text-foreground font-[var(--font-jetbrains)] text-[12px] md:text-[13px]">
+                {{ progress.mode }} :: {{ progress.step }}
+              </span>
+            </div>
+            <span class="text-muted-foreground font-[var(--font-ibm)] text-[13px] leading-[1.6]">
+              {{ progress.message }}
+            </span>
+          </div>
+        }
+
         @if (standupService.standups.isLoading()) {
           <div class="text-muted-foreground font-[var(--font-ibm)] text-[13px]">// loading standups...</div>
         } @else if (standupService.standups.error()) {

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getDb: vi.fn(),
   findDiscordIdByUserId: vi.fn(),
   findSettingsByUserId: vi.fn(),
+  findLatestByUserAndDate: vi.fn(),
 }))
 
 vi.mock('../services/standup-trigger-service.js', () => ({
@@ -32,7 +33,17 @@ vi.mock('@standup/db', () => {
       findByUserId: mocks.findSettingsByUserId,
     }
   }
-  return { getDb: mocks.getDb, UserRepository, UserSettingsRepository }
+  function StandupRepository() {
+    return {
+      findLatestByUserAndDate: mocks.findLatestByUserAndDate,
+    }
+  }
+  return {
+    getDb: mocks.getDb,
+    UserRepository,
+    UserSettingsRepository,
+    StandupRepository,
+  }
 })
 
 import { Hono } from 'hono'
@@ -73,6 +84,7 @@ describe('POST /standups/trigger', () => {
     vi.clearAllMocks()
     mocks.findDiscordIdByUserId.mockReturnValue(Result.ok(TEST_DISCORD_USER_ID))
     mocks.findSettingsByUserId.mockReturnValue(Result.ok(TEST_SETTINGS))
+    mocks.findLatestByUserAndDate.mockResolvedValue(Result.ok(null))
     const router = createStandupRouter(deps)
     app = new Hono<{ Variables: { user: Record<string, unknown> } }>()
     app.use('*', async (c, next) => {
@@ -111,6 +123,7 @@ describe('POST /standups/trigger', () => {
         rewriteFromStandupId: undefined,
         rewriteInstruction: undefined,
         replaceStandupId: undefined,
+        reuseExistingSource: false,
       },
     )
   })
@@ -142,6 +155,7 @@ describe('POST /standups/trigger', () => {
         rewriteFromStandupId: undefined,
         rewriteInstruction: undefined,
         replaceStandupId: undefined,
+        reuseExistingSource: false,
       },
     )
   })
@@ -174,6 +188,7 @@ describe('POST /standups/trigger', () => {
         rewriteFromStandupId: 'standup-abc',
         rewriteInstruction: 'Remover seção X e incluir seção Y',
         replaceStandupId: undefined,
+        reuseExistingSource: false,
       },
     )
   })
@@ -205,6 +220,80 @@ describe('POST /standups/trigger', () => {
         rewriteFromStandupId: undefined,
         rewriteInstruction: undefined,
         replaceStandupId: 'standup-abc',
+        reuseExistingSource: false,
+      },
+    )
+  })
+
+  it('retorna 409 quando já existe standup pendente hoje', async () => {
+    mocks.findLatestByUserAndDate.mockResolvedValue(
+      Result.ok({
+        id: 'standup-pending',
+        status: 'pending_review',
+      }),
+    )
+
+    const res = await app.fetch(makePostRequest({}))
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toEqual({
+      ok: false,
+      accepted: false,
+      reason: 'pending_review_exists',
+      standupId: 'standup-pending',
+    })
+    expect(mocks.triggerStandupJob).not.toHaveBeenCalled()
+  })
+
+  it('retorna 409 quando o standup de hoje já foi aprovado', async () => {
+    mocks.findLatestByUserAndDate.mockResolvedValue(
+      Result.ok({
+        id: 'standup-approved',
+        status: 'approved',
+      }),
+    )
+
+    const res = await app.fetch(makePostRequest({}))
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toEqual({
+      ok: false,
+      accepted: false,
+      reason: 'already_approved_today',
+      standupId: 'standup-approved',
+    })
+    expect(mocks.triggerStandupJob).not.toHaveBeenCalled()
+  })
+
+  it('reutiliza o mesmo registro e o sourceData salvo quando o standup de hoje está rejeitado', async () => {
+    mocks.triggerStandupJob.mockResolvedValue(Result.ok(undefined))
+    mocks.findLatestByUserAndDate.mockResolvedValue(
+      Result.ok({
+        id: 'standup-rejected',
+        status: 'rejected',
+      }),
+    )
+
+    const res = await app.fetch(makePostRequest({}))
+
+    expect(res.status).toBe(202)
+    expect(mocks.triggerStandupJob).toHaveBeenCalledWith(
+      {
+        workerInternalUrl: deps.workerInternalUrl,
+        internalSecret: deps.internalSecret,
+      },
+      {
+        userId: TEST_USER_ID,
+        discordUserId: TEST_DISCORD_USER_ID,
+        reposRootPath: '/repos',
+        selectedRepos: ['agrotrace-web', 'checkmilk-api'],
+        gitAuthor: 'dev@example.com',
+        extraContext: undefined,
+        forceRegenerate: true,
+        rewriteFromStandupId: undefined,
+        rewriteInstruction: undefined,
+        replaceStandupId: 'standup-rejected',
+        reuseExistingSource: true,
       },
     )
   })

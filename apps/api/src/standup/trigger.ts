@@ -1,4 +1,9 @@
-import { getDb, UserRepository, UserSettingsRepository } from '@standup/db'
+import {
+  getDb,
+  StandupRepository,
+  UserRepository,
+  UserSettingsRepository,
+} from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import type { Context } from 'hono'
 import * as z from 'zod'
@@ -15,6 +20,7 @@ export const triggerBodySchema = z.object({
   rewriteFromStandupId: z.string().optional(),
   rewriteInstruction: z.string().optional(),
   replaceStandupId: z.string().optional(),
+  reuseExistingSource: z.boolean().optional(),
   // Internal calls provide userId/discordUserId explicitly
   userId: z.string().optional(),
   discordUserId: z.string().optional(),
@@ -27,6 +33,16 @@ export interface TriggerHandlerDeps {
   reposRootPath: string
   workerInternalUrl: string
   internalSecret: string
+}
+
+type TriggerConflictReason = 'pending_review_exists' | 'already_approved_today'
+
+function jsonConflict(
+  c: Context,
+  reason: TriggerConflictReason,
+  standupId: string,
+): Response {
+  return c.json({ ok: false, accepted: false, reason, standupId }, 409)
 }
 
 /**
@@ -64,6 +80,7 @@ export async function handleTriggerStandup(
   // Look up user_settings for git config
   const db = getDb(deps.databaseUrl)
   const settingsRepo = new UserSettingsRepository(db)
+  const standupRepo = new StandupRepository(db)
   const settingsResult = settingsRepo.findByUserId(userId)
   if (settingsResult.isErr() || !settingsResult.value) {
     return c.json(
@@ -97,6 +114,37 @@ export async function handleTriggerStandup(
     )
   }
 
+  const today = new Date().toISOString().slice(0, 10)
+  const todayStandupResult = await standupRepo.findLatestByUserAndDate(
+    userId,
+    today,
+  )
+
+  if (todayStandupResult.isErr()) {
+    logger.error('Failed to load current standup before trigger', {
+      error: todayStandupResult.error.message,
+      userId,
+      date: today,
+    })
+    return c.json({ error: 'Could not evaluate current standup status' }, 503)
+  }
+
+  const todayStandup = todayStandupResult.value
+
+  if (todayStandup?.status === 'pending_review') {
+    return jsonConflict(c, 'pending_review_exists', todayStandup.id)
+  }
+
+  if (
+    todayStandup?.status === 'approved' ||
+    todayStandup?.status === 'published'
+  ) {
+    return jsonConflict(c, 'already_approved_today', todayStandup.id)
+  }
+
+  const shouldReuseRejectedStandup =
+    !body.rewriteInstruction && todayStandup?.status === 'rejected'
+
   const result = await triggerStandupJob(
     {
       workerInternalUrl: deps.workerInternalUrl,
@@ -109,10 +157,14 @@ export async function handleTriggerStandup(
       selectedRepos,
       gitAuthor: settings.gitAuthor,
       extraContext: body.extraContext,
-      forceRegenerate: body.forceRegenerate,
+      forceRegenerate: shouldReuseRejectedStandup || body.forceRegenerate,
       rewriteFromStandupId: body.rewriteFromStandupId,
       rewriteInstruction: body.rewriteInstruction,
-      replaceStandupId: body.replaceStandupId,
+      replaceStandupId:
+        body.replaceStandupId ??
+        (shouldReuseRejectedStandup ? todayStandup.id : undefined),
+      reuseExistingSource:
+        body.reuseExistingSource ?? shouldReuseRejectedStandup,
     },
   )
 

@@ -1,4 +1,5 @@
 import { createServiceLogger } from '@standup/logger'
+import type { Context } from 'hono'
 import { Hono } from 'hono'
 import * as z from 'zod'
 import type { EventBus } from '../sse/event-bus.js'
@@ -8,11 +9,43 @@ const logger = createServiceLogger({
   component: 'internal-router',
 })
 
-const standupGeneratedBodySchema = z.object({
-  userId: z.string().min(1),
-  standupId: z.string().min(1),
-  date: z.string().min(1),
-})
+const standupEventBodySchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('standup_progress'),
+    userId: z.string().min(1),
+    runId: z.string().min(1),
+    date: z.string().min(1),
+    mode: z.enum(['generate', 'regenerate', 'adjust']),
+    step: z.enum([
+      'queued',
+      'collecting_git',
+      'enriching_data',
+      'generating_standup',
+      'saving_draft',
+      'notifying_review',
+      'completed',
+      'no_activity',
+    ]),
+    message: z.string().min(1),
+    standupId: z.string().min(1).optional(),
+  }),
+  z.object({
+    type: z.literal('standup_generated'),
+    userId: z.string().min(1),
+    runId: z.string().min(1),
+    standupId: z.string().min(1),
+    date: z.string().min(1),
+    mode: z.enum(['generate', 'regenerate', 'adjust']),
+  }),
+  z.object({
+    type: z.literal('standup_failed'),
+    userId: z.string().min(1),
+    runId: z.string().min(1),
+    date: z.string().min(1),
+    mode: z.enum(['generate', 'regenerate', 'adjust']),
+    message: z.string().min(1),
+  }),
+])
 
 /**
  * Internal HTTP router — only reachable from trusted processes (worker).
@@ -24,6 +57,36 @@ export function createInternalRouter(opts: {
 }): Hono {
   const app = new Hono()
 
+  async function handleStandupEvent(c: Context): Promise<Response> {
+    const body = await c.req.json().catch(() => null)
+    const parsed = standupEventBodySchema.safeParse(body)
+
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0]
+      return c.json(
+        { error: `Invalid body: ${issue?.message ?? 'unknown'}` },
+        400,
+      )
+    }
+
+    const { userId, ...event } = parsed.data
+
+    logger.info('Pushing standup SSE event', {
+      userId,
+      eventType: event.type,
+      runId: event.runId,
+      date: event.date,
+      ...(event.type === 'standup_progress' ? { step: event.step } : {}),
+      ...(event.type === 'standup_generated'
+        ? { standupId: event.standupId }
+        : {}),
+    })
+
+    opts.eventBus.emit(userId, event)
+
+    return c.json({ ok: true })
+  }
+
   // Auth middleware for all internal routes
   app.use('/internal/*', async (c, next) => {
     const secret = c.req.header('x-internal-secret')
@@ -34,35 +97,12 @@ export function createInternalRouter(opts: {
   })
 
   /**
-   * POST /internal/events/standup-generated
+   * POST /internal/events/standup
    *
-   * Called by the worker after a standup is persisted.
-   * Pushes an SSE event to the connected web client for this userId.
+   * Called by the worker during the standup job lifecycle.
+   * Pushes coarse-grained SSE events to the connected web client for this userId.
    */
-  app.post('/internal/events/standup-generated', async (c) => {
-    const body = await c.req.json().catch(() => null)
-    const parsed = standupGeneratedBodySchema.safeParse(body)
-
-    if (!parsed.success) {
-      const issue = parsed.error.issues[0]
-      return c.json(
-        { error: `Invalid body: ${issue?.message ?? 'unknown'}` },
-        400,
-      )
-    }
-
-    const { userId, standupId, date } = parsed.data
-
-    logger.info('Pushing standup_generated SSE event', {
-      userId,
-      standupId,
-      date,
-    })
-
-    opts.eventBus.emit(userId, { type: 'standup_generated', standupId, date })
-
-    return c.json({ ok: true })
-  })
+  app.post('/internal/events/standup', handleStandupEvent)
 
   return app
 }

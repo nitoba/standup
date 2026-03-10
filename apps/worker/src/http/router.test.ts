@@ -217,6 +217,27 @@ describe('createInternalRouter', () => {
     })
   })
 
+  it('passa reuseExistingSource ao triggerStandupJob quando fornecido', async () => {
+    const app = makeRouter()
+
+    const res = await app.fetch(
+      makeRequest('/internal/trigger/standup', INTERNAL_SECRET, {
+        ...TRIGGER_BODY,
+        forceRegenerate: true,
+        replaceStandupId: 'standup-abc',
+        reuseExistingSource: true,
+      }),
+    )
+
+    expect(res.status).toBe(202)
+    expect(triggerStandupJob).toHaveBeenCalledWith({
+      ...TRIGGER_BODY,
+      forceRegenerate: true,
+      replaceStandupId: 'standup-abc',
+      reuseExistingSource: true,
+    })
+  })
+
   // ---------------------------------------------------------------------------
   // POST /internal/reminder/snooze
   // ---------------------------------------------------------------------------

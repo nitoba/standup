@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   acquireLock: vi.fn(),
   releaseLock: vi.fn(), // valor configurado no beforeEach (Result não disponível aqui)
   notifyStandupReady: vi.fn(),
+  notifyStandupEvent: vi.fn(),
   notifyJobFailed: vi.fn(),
   notifyUserDm: vi.fn(),
   sleep: vi.fn().mockResolvedValue(undefined),
@@ -70,8 +71,8 @@ vi.mock('../notifications/notify-user-dm.js', () => ({
   notifyUserDm: mocks.notifyUserDm,
 }))
 
-vi.mock('../notifications/notify-standup-generated.js', () => ({
-  notifyStandupGenerated: vi.fn().mockResolvedValue(undefined),
+vi.mock('../notifications/notify-standup-event.js', () => ({
+  notifyStandupEvent: mocks.notifyStandupEvent,
 }))
 
 // Mock Bun.sleep para evitar delays reais nos testes de retry.
@@ -179,6 +180,7 @@ describe('runStandupJob', () => {
     mocks.releaseLock.mockResolvedValue(Result.ok(undefined)) // configurado aqui onde Result ja esta disponivel
     mocks.sleep.mockResolvedValue(undefined)
     mocks.notifyUserDm.mockResolvedValue(Result.ok(undefined))
+    mocks.notifyStandupEvent.mockResolvedValue(undefined)
     mocks.repoReplaceGeneratedForUser.mockResolvedValue(Result.ok(savedRecord))
   })
 
@@ -434,6 +436,22 @@ describe('runStandupJob', () => {
         discordUserId: 'test-discord-1',
         secret: baseEnv.INTERNAL_SECRET,
       })
+      expect(mocks.notifyStandupEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: expect.objectContaining({
+            type: 'standup_progress',
+            step: 'collecting_git',
+          }),
+        }),
+      )
+      expect(mocks.notifyStandupEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: expect.objectContaining({
+            type: 'standup_generated',
+            standupId: savedRecord.id,
+          }),
+        }),
+      )
     })
   })
 
@@ -463,6 +481,14 @@ describe('runStandupJob', () => {
         context: 'standup-job',
         discordUserId: 'test-discord-1',
       })
+      expect(mocks.notifyStandupEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: expect.objectContaining({
+            type: 'standup_failed',
+            message: expect.stringContaining('git failed'),
+          }),
+        }),
+      )
     })
 
     it('aborta pipeline e notifica falha quando generateStandup falha (non-retryable)', async () => {
@@ -619,6 +645,47 @@ describe('runStandupJob', () => {
         discordUserId: 'test-discord-1',
         secret: baseEnv.INTERNAL_SECRET,
       })
+    })
+
+    it('regenera a partir do sourceData persistido quando reuseExistingSource é fornecido', async () => {
+      mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
+      mocks.repoReplaceGeneratedForUser.mockResolvedValue(
+        Result.ok(savedRecord),
+      )
+      mocks.repoFindByIdForUser.mockResolvedValue(
+        Result.ok({
+          ...savedRecord,
+          id: 'standup-rejected',
+          status: 'rejected',
+          content: '**Standup rejeitado**\n- item antigo',
+          sourceData: JSON.stringify(gitActivityWithCommits),
+        }),
+      )
+      mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
+
+      await runStandupJob(baseEnv, {
+        ...baseOptions,
+        forceRegenerate: true,
+        replaceStandupId: 'standup-rejected',
+        reuseExistingSource: true,
+      })
+
+      expect(mocks.repoFindByIdForUser).toHaveBeenCalledWith(
+        'standup-rejected',
+        'test-user-1',
+      )
+      expect(mocks.collect).not.toHaveBeenCalled()
+      expect(mocks.generateAdjusted).not.toHaveBeenCalled()
+      expect(mocks.generate).toHaveBeenCalledOnce()
+      expect(mocks.repoReplaceGeneratedForUser).toHaveBeenCalledWith(
+        'standup-rejected',
+        'test-user-1',
+        {
+          meetingType: savedRecord.meetingType,
+          content: generatedStandup.content,
+          sourceData: JSON.stringify(gitActivityWithCommits),
+        },
+      )
     })
 
     it('falha quando rewriteInstruction e enviado sem rewriteFromStandupId', async () => {

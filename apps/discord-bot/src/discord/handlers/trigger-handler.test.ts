@@ -207,4 +207,54 @@ describe('handleTriggerButtonInteraction', () => {
       components: [],
     })
   })
+
+  it('retorna mensagem quando já existe standup pendente para hoje', async () => {
+    mocks.triggerStandup.mockResolvedValue(
+      Result.ok({
+        accepted: false,
+        reason: 'pending_review_exists',
+        standupId: 'standup-abc',
+      }),
+    )
+
+    const request = createPendingTriggerRequest('user-123', {})
+    const { interaction, editReply } = makeInteraction('user-123')
+
+    await handleTriggerButtonInteraction(interaction, 'confirm', request.id, {
+      apiBaseUrl: 'http://localhost:3333',
+      internalSecret: 'test-secret',
+      databaseUrl: ':memory:',
+    })
+
+    expect(editReply).toHaveBeenNthCalledWith(2, {
+      content:
+        '⚠️ Já existe um standup de hoje aguardando revisão. Aprove ou rejeite o standup atual antes de gerar um novo.',
+      components: [],
+    })
+  })
+
+  it('retorna mensagem quando o standup de hoje já foi aprovado', async () => {
+    mocks.triggerStandup.mockResolvedValue(
+      Result.ok({
+        accepted: false,
+        reason: 'already_approved_today',
+        standupId: 'standup-abc',
+      }),
+    )
+
+    const request = createPendingTriggerRequest('user-123', {})
+    const { interaction, editReply } = makeInteraction('user-123')
+
+    await handleTriggerButtonInteraction(interaction, 'confirm', request.id, {
+      apiBaseUrl: 'http://localhost:3333',
+      internalSecret: 'test-secret',
+      databaseUrl: ':memory:',
+    })
+
+    expect(editReply).toHaveBeenNthCalledWith(2, {
+      content:
+        '✅ O standup de hoje já foi gerado e aprovado. Verifique sua DM ou use `/standup list` para consultar o status.',
+      components: [],
+    })
+  })
 })

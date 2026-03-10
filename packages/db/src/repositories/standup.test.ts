@@ -148,6 +148,50 @@ describe('StandupRepository', () => {
     })
   })
 
+  describe('findLatestByUserAndDate', () => {
+    it('returns the most recently updated standup for the user on the date', async () => {
+      await repo.create(
+        makeInput({
+          id: 'older',
+          date: '2026-03-10',
+          content: 'Older content',
+        }),
+      )
+      await repo.create(
+        makeInput({
+          id: 'newer',
+          date: '2026-03-10',
+          content: 'Newer content',
+        }),
+      )
+
+      await Bun.sleep(5)
+      await repo.updateStatus('newer', 'pending_review')
+
+      const result = await repo.findLatestByUserAndDate(
+        'test-user-1',
+        '2026-03-10',
+      )
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value?.id).toBe('newer')
+    })
+
+    it('returns null when the user has no standup on the date', async () => {
+      const result = await repo.findLatestByUserAndDate(
+        'test-user-1',
+        '2026-03-10',
+      )
+
+      expect(result.status).toBe('ok')
+      if (result.status !== 'ok') return
+
+      expect(result.value).toBeNull()
+    })
+  })
+
   describe('findByStatus', () => {
     it('returns standups filtered by status', async () => {
       await repo.create(makeInput({ id: 'draft-1' }))

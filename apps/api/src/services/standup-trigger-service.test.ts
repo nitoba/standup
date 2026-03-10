@@ -56,6 +56,7 @@ describe('triggerStandupJob', () => {
           rewriteFromStandupId: undefined,
           rewriteInstruction: undefined,
           replaceStandupId: undefined,
+          reuseExistingSource: undefined,
         }),
       },
     )
@@ -92,6 +93,7 @@ describe('triggerStandupJob', () => {
           rewriteFromStandupId: undefined,
           rewriteInstruction: undefined,
           replaceStandupId: undefined,
+          reuseExistingSource: undefined,
         }),
       },
     )
@@ -129,6 +131,7 @@ describe('triggerStandupJob', () => {
           rewriteFromStandupId: 'standup-abc',
           rewriteInstruction: 'Ajustar para remover seção antiga',
           replaceStandupId: undefined,
+          reuseExistingSource: undefined,
         }),
       },
     )
@@ -165,6 +168,45 @@ describe('triggerStandupJob', () => {
           rewriteFromStandupId: undefined,
           rewriteInstruction: undefined,
           replaceStandupId: 'standup-abc',
+          reuseExistingSource: undefined,
+        }),
+      },
+    )
+  })
+
+  it('envia reuseExistingSource para o worker quando fornecido', async () => {
+    mockFetch.mockResolvedValue(response(202))
+
+    const result = await triggerStandupJob(
+      {
+        workerInternalUrl: 'http://localhost:3335',
+        internalSecret: 'internal-secret',
+      },
+      {
+        ...BASE_OPTIONS,
+        forceRegenerate: true,
+        replaceStandupId: 'standup-abc',
+        reuseExistingSource: true,
+      },
+    )
+
+    expect(result.isOk()).toBe(true)
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:3335/internal/trigger/standup',
+      {
+        method: 'POST',
+        headers: {
+          'x-internal-secret': 'internal-secret',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...BASE_OPTIONS,
+          extraContext: undefined,
+          forceRegenerate: true,
+          rewriteFromStandupId: undefined,
+          rewriteInstruction: undefined,
+          replaceStandupId: 'standup-abc',
+          reuseExistingSource: true,
         }),
       },
     )

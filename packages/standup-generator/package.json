@@ -13,7 +13,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@ai-sdk/groq": "^3.0.29",
+    "@ai-sdk/google": "^3.0.43",
     "@standup/azure-devops": "workspace:*",
     "@standup/config": "workspace:*",
     "@standup/domain": "workspace:*",

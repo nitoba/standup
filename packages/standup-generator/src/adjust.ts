@@ -1,4 +1,4 @@
-import { createGroq } from '@ai-sdk/groq'
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import type { GeneratedStandup } from '@standup/domain'
 import { ExternalServiceError, Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
@@ -67,7 +67,7 @@ async function withRetry<T>(
 }
 
 function runGeneration(
-  provider: ReturnType<typeof createGroq>,
+  provider: ReturnType<typeof createGoogleGenerativeAI>,
   system: string,
   prompt: string,
   errorContext: string,
@@ -75,31 +75,13 @@ function runGeneration(
   return Result.tryPromise({
     try: async () => {
       const { output } = await generateText({
-        model: provider('qwen/qwen3-32b'),
-        output: Output.json(),
-        system: `
-${system}
-
-Responda SOMENTE com JSON válido.
-Não use markdown fora do campo "content".
-Não use crases para envolver o JSON.
-Formato exato:
-
-{
-  "content": "string",
-  "summary": "string"
-}
-
-Regras:
-- "content" deve ser o standup completo em Markdown, em português.
-- "summary" deve ser um resumo de uma linha, em português.
-- Não inclua campos extras.
-
-        `,
+        model: provider('gemini-3.1-flash-lite-preview'),
+        output: Output.object({ schema: standupOutputSchema }),
+        system: system,
         prompt,
       })
 
-      return standupOutputSchema.parse(output)
+      return output
     },
     catch: (err) =>
       new ExternalServiceError({
@@ -145,14 +127,14 @@ export async function generateAdjustedStandup(
       )
     }
 
-    const groq = createGroq({ apiKey })
+    const llmProvider = createGoogleGenerativeAI({ apiKey })
     const systemPrompt = buildSystemPrompt()
 
     let standup = yield* Result.await(
       withRetry(
         () =>
           runGeneration(
-            groq,
+            llmProvider,
             systemPrompt,
             buildAdjustUserMessage(
               input.previousContent,
@@ -181,7 +163,7 @@ export async function generateAdjustedStandup(
         withRetry(
           () =>
             runGeneration(
-              groq,
+              llmProvider,
               systemPrompt,
               buildRewriteUserMessage(standup.content, standup.summary),
               'LLM rewrite after adjust failed',

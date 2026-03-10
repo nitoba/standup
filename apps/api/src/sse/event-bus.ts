@@ -3,7 +3,37 @@ import { createServiceLogger } from '@standup/logger'
 const logger = createServiceLogger({ service: 'api', component: 'event-bus' })
 
 export type SseEvent =
-  | { type: 'standup_generated'; standupId: string; date: string }
+  | {
+      type: 'standup_progress'
+      runId: string
+      date: string
+      mode: 'generate' | 'regenerate' | 'adjust'
+      step:
+        | 'queued'
+        | 'collecting_git'
+        | 'enriching_data'
+        | 'generating_standup'
+        | 'saving_draft'
+        | 'notifying_review'
+        | 'completed'
+        | 'no_activity'
+      message: string
+      standupId?: string
+    }
+  | {
+      type: 'standup_generated'
+      runId: string
+      standupId: string
+      date: string
+      mode: 'generate' | 'regenerate' | 'adjust'
+    }
+  | {
+      type: 'standup_failed'
+      runId: string
+      date: string
+      mode: 'generate' | 'regenerate' | 'adjust'
+      message: string
+    }
   | { type: 'ping' }
 
 type Listener = (event: SseEvent) => void
@@ -28,8 +58,8 @@ export class EventBus {
     logger.debug('SSE listener subscribed', { userId })
 
     return () => {
-      set!.delete(listener)
-      if (set!.size === 0) {
+      set?.delete(listener)
+      if (set?.size === 0) {
         this.listeners.delete(userId)
       }
       logger.debug('SSE listener unsubscribed', { userId })

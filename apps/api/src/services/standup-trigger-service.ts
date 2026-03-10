@@ -16,6 +16,7 @@ export interface TriggerStandupJobOptions {
   rewriteFromStandupId?: string
   rewriteInstruction?: string
   replaceStandupId?: string
+  reuseExistingSource?: boolean
 }
 
 /**
@@ -47,6 +48,7 @@ export async function triggerStandupJob(
             rewriteFromStandupId: options.rewriteFromStandupId,
             rewriteInstruction: options.rewriteInstruction,
             replaceStandupId: options.replaceStandupId,
+            reuseExistingSource: options.reuseExistingSource,
           }),
         },
       )

@@ -331,6 +331,24 @@ export class StandupRepository {
     }
   }
 
+  async findLatestByUserAndDate(
+    userId: string,
+    date: string,
+  ): Promise<Result<StandupRecord | null, DbError>> {
+    try {
+      const row = await this.db
+        .select()
+        .from(standups)
+        .where(and(eq(standups.userId, userId), eq(standups.date, date)))
+        .orderBy(desc(standups.updatedAt), desc(standups.createdAt))
+        .get()
+
+      return Result.ok(row ? toRecord(row) : null)
+    } catch (error) {
+      return this.dbErr('findLatestByUserAndDate', error)
+    }
+  }
+
   async updateStatus(
     id: string,
     nextStatus: StandupStatus,

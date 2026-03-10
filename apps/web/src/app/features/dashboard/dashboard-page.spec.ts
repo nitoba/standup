@@ -15,6 +15,7 @@ import {
   buildMockStandups,
   filterStandups,
 } from '../../shared/models/mock-data'
+import type { StandupEvent } from '../../shared/models/standup-models'
 import { FilterBar } from './components/filter-bar/filter-bar'
 import { DashboardPage } from './dashboard-page'
 import { StandupEventsService } from './services/standup-events-service'
@@ -22,7 +23,7 @@ import { StandupService } from './services/standup-service'
 
 /** Stub que não abre EventSource real — evita ReferenceError em JSDOM */
 const stubEventsService = {
-  standupGenerated$: new Subject<never>(),
+  standupEvents$: new Subject<StandupEvent>(),
   ngOnDestroy: () => {},
 }
 

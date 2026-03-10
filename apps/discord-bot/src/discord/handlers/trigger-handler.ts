@@ -125,6 +125,30 @@ export async function handleTriggerButtonInteraction(
     return
   }
 
+  if (
+    !result.value.accepted &&
+    result.value.reason === 'pending_review_exists'
+  ) {
+    await interaction.editReply({
+      content:
+        '⚠️ Já existe um standup de hoje aguardando revisão. Aprove ou rejeite o standup atual antes de gerar um novo.',
+      components: [],
+    })
+    return
+  }
+
+  if (
+    !result.value.accepted &&
+    result.value.reason === 'already_approved_today'
+  ) {
+    await interaction.editReply({
+      content:
+        '✅ O standup de hoje já foi gerado e aprovado. Verifique sua DM ou use `/standup list` para consultar o status.',
+      components: [],
+    })
+    return
+  }
+
   interactionLogger.info('Manual trigger accepted after user confirmation', {
     forceRegenerate: pendingRequest.options.forceRegenerate ?? false,
     hasExtraContext: !!pendingRequest.options.extraContext,
