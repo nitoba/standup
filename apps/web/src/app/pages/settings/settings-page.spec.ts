@@ -6,17 +6,12 @@ import {
 import { ApplicationRef } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { provideRouter } from '@angular/router'
+import * as ngxSonner from 'ngx-sonner'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const { toastMock } = vi.hoisted(() => ({
-  toastMock: vi.fn(),
-}))
-
-vi.mock('ngx-sonner', () => ({
-  toast: toastMock,
-}))
-
 import { SettingsPage } from './settings-page'
+
+const toastMock = vi.spyOn(ngxSonner, 'toast').mockImplementation(vi.fn())
 
 function buildMockSettings() {
   return {
@@ -79,7 +74,7 @@ describe('SettingsPage', () => {
   afterEach(() => {
     httpMock.verify()
     vi.useRealTimers()
-    toastMock.mockReset()
+    toastMock.mockClear()
   })
 
   it('shows loading state while fetching settings', async () => {

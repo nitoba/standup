@@ -141,11 +141,14 @@ Isso evita conflitos de porta durante redeploys (Kamal renomeia o container anti
 Os 3 containers rodam na rede Docker `kamal` dentro da VM Colima.
 URLs internas usam os network aliases dos containers.
 
-| De           | Para                         | URL                                           | Finalidade                      |
-| ------------ | ---------------------------- | --------------------------------------------- | ------------------------------- |
-| API → Worker | `standup-worker:3335`        | `http://standup-worker:3335`                  | trigger manual                  |
-| Worker → Bot | `standup-bot:3334`           | `http://standup-bot:3334`                     | standup-ready, job-failed       |
-| Bot → API    | `api.nitodev.com.br`         | `https://api.nitodev.com.br`                  | slash commands (via Cloudflare) |
+| De           | Para                         | URL                                           | Finalidade                                     |
+| ------------ | ---------------------------- | --------------------------------------------- | ---------------------------------------------- |
+| API → Worker | `standup-worker:3335`        | `http://standup-worker:3335`                  | trigger manual de standup                      |
+| Worker → Bot | `standup-bot:3334`           | `http://standup-bot:3334`                     | standup-ready, job-failed, reminder, user-dm   |
+| Worker → API | `standup-api:3333`           | `http://standup-api:3333`                     | push SSE via `/internal/events/standup-generated` |
+| API → Bot    | `standup-bot:3334`           | `http://standup-bot:3334`                     | standup-status-changed (aprovacao/rejeicao web) |
+| Bot → API    | `api.nitodev.com.br`         | `https://api.nitodev.com.br`                  | slash commands trigger (via Cloudflare)        |
+| Web → API    | `api.nitodev.com.br`         | `https://api.nitodev.com.br`                  | REST + SSE `/standups/events`                  |
 
 ### Volumes
 
@@ -322,6 +325,21 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 - [x] Repositorios clonados em `/Users/nitoba/repos` (git-collector faz `fetch --all` automaticamente)
 - [x] Cloudflare Tunnel configurado (`cloudflared` como servico)
 - [x] Primeiro deploy realizado com sucesso (kamal-proxy bootstrapped automaticamente)
+
+---
+
+## Decisoes Arquiteturais
+
+| Decisao | Alternativa descartada | Motivo |
+|---|---|---|
+| SSE para notificacoes web em tempo real | Polling ou WebSocket | SSE e unidirecional, sem estado, reconecta automaticamente; polling e ineficiente; WebSocket e overhead desnecessario para este caso |
+| EventBus in-memory na API | Redis pub/sub | Processo unico (Bun single-threaded); Redis seria over-engineering para 1 usuario |
+| Worker notifica API via HTTP para push SSE | Worker acessa EventBus diretamente | Worker e API sao processos separados; comunicacao via HTTP mantem isolamento de responsabilidades |
+| `forceRegenerate` derruba lock `running` | So derruba lock `success` | Lock preso em `running` (crash) impedia regeneracao manual; fix necessario para UX |
+| `interaction.editReply()` em modais | `interaction.message.edit()` | Canais de DM nao sao cacheados pelo discord.js; `editReply` usa webhook da interacao sem precisar do cache |
+| `new Promise` para manter SSE aberta | `stream.sleep(Number.MAX_SAFE_INTEGER)` | `setTimeout` do Node/Bun e 32-bit; valor >2^31ms estoura para 1ms causando reconexao constante |
+| Rotas estaticas antes de parametrizadas no Hono | Ordem qualquer | Hono resolve por ordem de registro; `/standups/events` apos `/:id` captura "events" como param |
+| `trigger/regenerate/adjust` fire-and-forget na web | Loading spinner ate completar | Geracao leva 10-30s; SSE notifica quando pronto; UX mais fluida sem bloquear a UI |
 
 ---
 

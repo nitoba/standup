@@ -76,40 +76,69 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 ## Arquitetura de Comunicacao
 
 ```
-worker ──POST /internal/notify/standup-ready──► discord-bot (porta BOT_INTERNAL_PORT)
-         header: x-internal-secret                   │
-                                                     ├─ busca standup no DB
-                                                     └─ envia DM ao usuario (non-fatal)
-
-worker ──POST /internal/notify/standup-reminder──► discord-bot (porta BOT_INTERNAL_PORT)
-         header: x-internal-secret                    │
-                                                      └─ envia DM com embed ambar + 3 botoes
-
-discord-bot ──POST /internal/reminder/snooze──► worker (porta WORKER_INTERNAL_PORT)
-              ──POST /internal/reminder/cancel──► worker
-              header: x-internal-secret              │
-                                                     └─ muta ReminderState in-memory
-
-discord-bot (botao run-now) ──POST /standups/trigger──► api (porta PORT)
-              header: x-internal-secret                   │
-                                                          └─ encaminha trigger ao worker
-
-api ──POST /internal/trigger/standup──────────────► worker (porta WORKER_INTERNAL_PORT)
-      header: x-internal-secret                       │
-                                                      └─ dispara runStandupJob em background
+                    ┌─────────────────────────────────────────────────────────┐
+                    │                        web (Angular)                    │
+                    │  StandupEventsService (EventSource /standups/events)    │
+                    └────────────┬────────────────────────────────────────────┘
+                                 │ GET /standups/events (SSE, credenciais)
+                                 ▼
+┌───────────────────────────────────────────────────────────────────────────────────┐
+│                              api  (porta 3333)                                    │
+│  GET  /standups/events      ← SSE stream por userId (EventBus in-memory)          │
+│  POST /standups/trigger     ← sessao Better Auth OU x-internal-secret             │
+│  POST /standups/:id/approve ← sessao Better Auth                                  │
+│  GET/PATCH /standups/*      ← sessao Better Auth                                  │
+│  POST /internal/events/standup-generated  ← worker (x-internal-secret)            │
+└──────────┬──────────────────────────────────┬────────────────────────────────────┘
+           │ POST /internal/trigger/standup   │ POST /internal/notify/standup-status-changed
+           ▼                                  ▼
+┌──────────────────────┐          ┌────────────────────────────────────────────────┐
+│  worker (porta 3335) │          │            discord-bot (porta 3334)            │
+│  scheduler + HTTP    │          │  Hono interno + Gateway Discord (discord.js)   │
+│                      │          │                                                │
+│  runStandupJob():    │          │  POST /internal/notify/standup-ready           │
+│  1. acquireLock      │          │  POST /internal/notify/standup-reminder        │
+│  2. notifyUserDm     │          │  POST /internal/notify/job-failed              │
+│     "em processamento│          │  POST /internal/notify/standup-status-changed  │
+│  3. collectGit       │          │  POST /internal/notify/user-dm                 │
+│  4. generateStandup  │          └────────────────────────────────────────────────┘
+│  5. persist (draft)  │                       ▲            │
+│  6. notifyReady ─────┼───────────────────────┘            │ snooze/cancel
+│  7. notifyGenerated ─┼─► api /internal/events/...         ▼
+│                      │          ┌──────────────────────────────┐
+│  POST /internal/      │          │  worker /internal/reminder/* │
+│    reminder/snooze   │◄─────────┤  snooze / cancel-today       │
+│    reminder/cancel   │          └──────────────────────────────┘
+└──────────────────────┘
 ```
 
-- Worker nao sabe que Discord existe — apenas faz POST HTTP generico
-- API nao executa job inline — apenas encaminha trigger manual para o worker
-- `POST /standups/trigger` no API valida autenticacao via sessao Better Auth ou `x-internal-secret`
+### Regras de comunicacao
+
+- Worker nao sabe que Discord existe — apenas faz POST HTTP generico para bot e API
+- API nao executa job inline — apenas encaminha trigger para o worker (202 Accepted)
+- Web recebe atualizacoes via SSE (`/standups/events`) — sem polling
+- Aprovacao via web: API transiciona status → notifica bot (fire-and-forget) → bot edita DM + publica no canal
+- `POST /standups/trigger` aceita sessao Better Auth (web) ou `x-internal-secret` (Discord slash command)
 - discord-bot sobe **dois servidores** na mesma instancia:
   - Hono na `BOT_INTERNAL_PORT` (3334) para rotas internas
-  - Gateway Discord (discord.js) para interacoes com botoes
+  - Gateway Discord (discord.js) para interacoes com botoes e modais
 - worker sobe scheduler + Hono interno na `WORKER_INTERNAL_PORT` (3335)
 - Autenticacao interna: header `x-internal-secret` com `INTERNAL_SECRET`
-- Falha no DM e **non-fatal**: standup ja esta salvo no DB, usuario pode aprovar via API
-- `ReminderState` e in-memory no worker (nao persiste no DB) — snooze/cancel afetam apenas o cron do dia corrente
-- Cada app na sua porta: `api=3333`, `discord-bot=3334`, `worker=3335`
+- Falha no DM e **non-fatal**: standup salvo no DB, usuario aprova via web ou API
+- `ReminderState` e in-memory no worker — snooze/cancel afetam apenas o cron do dia corrente
+- Portas: `api=3333`, `discord-bot=3334`, `worker=3335`
+
+### DMs enviadas ao usuario (Discord)
+
+| Momento | Titulo | Cor |
+|---|---|---|
+| Lock adquirido (job iniciou) | ⏳ Standup ja em processamento | INFO azul |
+| Lock held (outro job rodando) | ⏳ Standup ja em processamento | WARNING ambar |
+| Job ja completou hoje | ✅ Standup ja gerado hoje | INFO azul |
+| Nenhum commit encontrado | 🔍 Nenhuma atividade encontrada | WARNING ambar |
+| Standup pronto para revisao | embed azul + botoes Aprovar/Rejeitar/Ajustar/Regenerar | — |
+| Job falhou | ❌ Falha ao gerar standup | ERROR vermelho |
+| Aprovado/rejeitado via web | ✅/❌ editado na DM de revisao | — |
 
 ## Convencoes de Codigo
 
@@ -184,100 +213,95 @@ porque e usado tanto por `notifications/` quanto potencialmente por `handlers/`.
 ```
 standup/
   apps/
-    api/                    # Hono API (health, busca, filtros, triggers manuais)
+    api/                    # Hono API — auth, standups CRUD, SSE, trigger proxy
       src/
-        index.ts            # Entrypoint + rotas
+        auth/               # Better Auth (Discord OAuth), session middleware, login/logout
+        http/
+          internal-router.ts  # POST /internal/events/standup-generated
+          middleware.ts        # requestLogger
+        notifications/
+          notify-standup-status-changed.ts  # fire-and-forget → bot (aprovacao/rejeicao via web)
+        reminders/          # Proxy de lembretes para o worker (run-now, snooze, cancel)
+        repos/              # GET /repos — lista repos do worker
+        services/
+          standup-approve-service.ts   # logica de aprovacao (DB + notify bot)
+          standup-trigger-service.ts   # POST → worker /internal/trigger/standup
+        settings/           # GET/PUT /settings/me — user_settings
+        sse/
+          event-bus.ts      # EventBus in-memory (Map<userId, Set<Listener>>)
+          sse-handler.ts    # GET /standups/events — streamSSE com keepalive + onAbort
+        standup/
+          router.ts         # createStandupRouter — IMPORTANTE: /events ANTES de /:id
+          list.ts / get-by-id.ts / trigger.ts / approve.ts / update-status.ts
+        index.ts            # Bootstrap: auth + SSE + routers
 
-    discord-bot/            # Bot Discord (DM, botoes de revisao, comandos slash)
+    web/                    # Angular 21 SPA — dashboard, detalhe, settings
+      src/app/
+        services/
+          standup.service.ts        # httpResource (lista+detalhe), trigger/approve/reject/adjust/regenerate
+          standup-events.service.ts # EventSource /standups/events → standupGenerated$ Subject
+          settings.service.ts
+        pages/
+          dashboard/        # tabela com pulse no pending mais recente, filtros, metricas
+          standup-detail/   # detalhe com acoes (approve/reject fire-and-forget via SSE)
+          settings/
+
+    discord-bot/            # Bot Discord — DMs, botoes, slash commands, HTTP interno
       src/
         discord/
-          commands/         # Slash commands (/standup subcommands)
-            register.ts         # buildStandupCommand + registerApplicationCommands
-            register.test.ts
-            trigger.ts          # /standup trigger handler
-            list.ts             # /standup list handler
-            approve.ts          # /standup approve handler
-            handlers.test.ts    # testes dos 3 subcommands
-          handlers/         # Processamento de interacoes Discord
-            button-handler.ts       # parse customId → standup:* ou standup-reminder:* → delega
-            button-handler.test.ts
-            slash-command-handler.ts # roteamento /standup subcommands
-            interaction-handler.ts  # logica approve/reject/regenerate + transicoes de estado
-            interaction-handler.test.ts
-            reminder-handler.ts     # logica run-now/snooze/cancel-today via HTTP
-            reminder-handler.test.ts
-          notifications/    # Envio de mensagens Discord
-            send-review-dm.ts           # DM com embed azul + botoes ao usuario
-            send-review-dm.test.ts
-            send-channel-notification.ts # helper: fetch canal → guard → send embed
-            publish-standup.ts          # publica embed verde no canal
-            publish-standup.test.ts
-            send-reminder-dm.ts         # DM com embed ambar + botoes de agendamento
-            send-reminder-dm.test.ts
-          embeds.ts         # builders de embed (review, published, job-failed, reminder)
+          commands/         # /standup trigger | list | approve
+          handlers/
+            button-handler.ts        # routing standup:* e standup-reminder:*
+            interaction-handler.ts   # approve/reject/regenerate + transicoes de estado
+            approve-modal-handler.ts # modal de aprovacao com custom entries
+            adjust-modal-handler.ts  # modal de ajuste de texto
+            modal-handler.ts         # modal de regeneracao completa
+            reminder-handler.ts      # run-now / snooze / cancel-today
+            update-review-message.ts # editReply — sem message.edit (nao cachead em DM)
+          notifications/    # send-review-dm | publish-standup | send-reminder-dm | send-channel-notification
+          embeds.ts         # buildReviewEmbed | buildPublishedEmbed | buildJobFailedEmbed | buildReminderEmbed
         http/
-          middleware/
-            auth.ts               # internalAuthMiddleware(secret) para /internal/*
           notify/
-            standup-ready.ts      # handler POST /internal/notify/standup-ready
-            standup-ready.test.ts
-            job-failed.ts         # handler POST /internal/notify/job-failed
-            job-failed.test.ts
-            standup-reminder.ts   # handler POST /internal/notify/standup-reminder
-            standup-reminder.test.ts
-          router.ts               # monta Hono + auth middleware + handlers notify
-          router.test.ts
-        index.ts            # Entrypoint: env + Client + HTTP server + event listeners
+            standup-ready.ts         # POST /internal/notify/standup-ready
+            standup-status-changed.ts # POST /internal/notify/standup-status-changed
+            job-failed.ts / standup-reminder.ts / user-dm.ts
+          routes/           # registerXxxRoute — um arquivo por rota
+          router.ts         # createInternalRouter — todas as rotas /internal/*
+        services/
+          standup-notification-service.ts  # notifyStandupReady → sendReviewDm + updateDmMessageId
+          standup-sync-service.ts          # syncStandupStatus — edita DM + publica apos aprovacao web
+          trigger-standup-service.ts / job-notification-service.ts
+        index.ts            # Bootstrap: env + Client + HTTP server + event listeners
 
-    worker/                 # Scheduler e orquestracao de jobs
+    worker/                 # Scheduler e pipeline de geracao
       src/
-        job/                # Pipeline de geracao de standup
-          standup-job.ts        # collect → generate → persist → notify
-          standup-job.test.ts
+        job/
+          standup-job.ts    # acquireLock → notifyUserDm(inicio) → collect → generate → persist → notifyReady → notifyGenerated
         http/
-          middleware/
-            auth.ts             # internalAuthMiddleware(secret) para /internal/*
-          trigger/
-            standup.ts          # handler POST /internal/trigger/standup
-          reminder/
-            snooze.ts           # handler POST /internal/reminder/snooze
-            cancel.ts           # handler POST /internal/reminder/cancel
-          router.ts             # monta Hono + auth middleware + handlers
-          router.test.ts
-        notifications/      # Notificacoes HTTP para o discord-bot
-          notify-standup-ready.ts     # POST /internal/notify/standup-ready
-          notify-standup-ready.test.ts
-          notify-job-failed.ts        # POST /internal/notify/job-failed
-          notify-job-failed.test.ts
-          notify-standup-reminder.ts  # POST /internal/notify/standup-reminder
-          notify-standup-reminder.test.ts
-        scheduler.ts        # startScheduler() — ReminderState + standupCron + reminderCron + recoveryCron
-        index.ts            # Entrypoint: loadWorkerEnv → startScheduler + HTTP interno
-        vitest.setup.ts     # Shim Bun.randomUUIDv7 para Vitest
-      vitest.config.ts      # Config Vitest local (aponta setupFiles)
+          router.ts         # /internal/trigger/standup + /reminder/snooze + /reminder/cancel + /health
+          handlers/         # trigger-standup | reminder-snooze | reminder-cancel | repos-list
+        notifications/
+          notify-standup-ready.ts      # POST bot /internal/notify/standup-ready
+          notify-standup-generated.ts  # POST api /internal/events/standup-generated (SSE)
+          notify-job-failed.ts / notify-standup-reminder.ts / notify-user-dm.ts
+        scheduler.ts        # standupCron + reminderCron + recoveryCron + ReminderState
+        index.ts            # Bootstrap: scheduler + HTTP interno
 
   packages/
-    config/           # Env vars e configuracao tipada (loadApiEnv/loadBotEnv/loadWorkerEnv)
-    domain/           # Types, schemas, errors, state machine
-    db/               # Drizzle schema, conexao, StandupRepository
-    git-collector/    # Coleta de commits dos repositorios
+    config/           # baseEnvSchema + loadApiEnv / loadBotEnv / loadWorkerEnv
+    domain/           # StandupStatus, state machine, TaggedErrors, Zod schemas
+    db/               # Drizzle schema, StandupRepository, JobRunRepository, UserRepository
+    logger/           # Winston estruturado com createServiceLogger / withContext
+    git-collector/    # collectGitActivity — git log por repo, autor e periodo
     standup-generator/
       src/
-        azure/
-          azure-mcp-client.ts   # Client MCP: connect/disconnect/getMe/getWorkItem/listPRs
-          enrich.ts             # enrichGitActivity — busca work items + PRs por repo
-        prompt/
-          meeting-type.ts       # determineMeetingType — segunda/quarta/sexta tem reunioes
-          work-item-status.ts   # determineWorkItemStatus — done vs in_progress
-          prompt.ts             # buildSystemPrompt + buildUserMessage
-        generator.ts            # generateStandup — orquestra azure → enrich → LLM
-        generator.test.ts
-        types.ts                # tipos internos (usado por azure/ e prompt/)
-        index.ts                # barrel de exports publicos
+        azure/        # AzureMcpClient (Result pattern) + enrichGitActivity
+        prompt/       # determineMeetingType + buildSystemPrompt + buildUserMessage
+        generator.ts  # generateStandup + generateAdjustedStandup (retry interno + fallback MCP)
 
   data/               # SQLite files (gitignored)
-  drizzle/            # Migration files gerados
-  turbo.json          # Pipeline monorepos
+  drizzle/            # Migrations SQL geradas pelo Drizzle Kit
+  turbo.json          # Pipeline: lint → typecheck → test → build
 ```
 
 ## Ordem de Implementacao (Obrigatoria)
@@ -504,6 +528,49 @@ function makeChannel() {
 }
 ```
 
+### Hono SSE: nao usar stream.sleep() para manter conexao aberta
+
+`stream.sleep(Number.MAX_SAFE_INTEGER)` causa `TimeoutOverflowWarning` porque o Hono
+usa `setTimeout` internamente, que aceita no maximo int32 (~24.8 dias). O valor estourado
+vira `1` e a conexao fecha e reabre a cada 1ms.
+
+Padrao correto: bloquear o generator com uma Promise que so resolve no `onAbort`:
+
+```ts
+await new Promise<void>((resolve) => {
+  stream.onAbort(() => {
+    cleanup()
+    resolve()
+  })
+})
+```
+
+### Hono router: rotas estaticas antes de rotas com parametro
+
+`GET /standups/events` registrada DEPOIS de `GET /standups/:id` faz o Hono capturar
+`events` como valor do parametro `:id`. Sempre registrar rotas estaticas primeiro:
+
+```ts
+app.get('/standups/events', handler)   // ANTES
+app.get('/standups/:id', handler)      // DEPOIS
+```
+
+### discord.js: message.edit() em DM causa "channel not in cache"
+
+`interaction.message.edit()` tenta resolver o canal via cache do Client. Canais de DM
+nao sao cacheados automaticamente, causando `Could not find the channel in the cache`.
+
+Usar apenas `interaction.editReply()` — opera via webhook da interacao, sem cache:
+
+```ts
+// ERRADO — crasha em DM
+await interaction.editReply(payload)
+await interaction.message?.edit(payload)  // ← remove isso
+
+// CORRETO
+await interaction.editReply(payload)
+```
+
 ### Hono middleware deve retornar `next()` explicitamente
 
 ```ts
@@ -603,106 +670,37 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 
 ### Pacotes completos (com testes)
 
-- `packages/domain` — types, schemas Zod, state machine, TaggedErrors (incl. 4 novos erros de job)
-- `packages/config` — `baseEnvSchema` + loaders por app (`loadApiEnv()`, `loadBotEnv()`, `loadWorkerEnv()`) e tipos dedicados (`ApiEnv`, `BotEnv`, `WorkerEnv`); `BotEnv` inclui `WORKER_INTERNAL_URL`
+- `packages/domain` — types, schemas Zod, state machine, TaggedErrors
+- `packages/config` — `baseEnvSchema` + loaders por app; `BotEnv` inclui `WORKER_INTERNAL_URL`
 - `packages/logger` — Winston estruturado
 - `packages/git-collector` — 31 testes (bun test)
-- `packages/db` — StandupRepository + JobRunRepository, 33 testes (bun test)
-- `packages/standup-generator` — generateStandup + MCP enrichment + retry interno + fallback gracioso, 23 testes (vitest)
+- `packages/db` — StandupRepository + JobRunRepository + UserRepository, migracao `dm_message_id`
+- `packages/standup-generator` — generateStandup + generateAdjustedStandup, retry interno + fallback MCP
 
 ### Apps completos
 
-- `apps/api` — 25 testes (vitest)
-  - `standup/router.ts`: `createStandupRouter(opts)` — 4 rotas
-    - `GET /standups` — lista com filtros opcionais `?status=&date=`
-    - `GET /standups/:id` — detalhe por ID
-    - `PATCH /standups/:id/status` — atualiza status (state machine valida transições)
-    - `POST /standups/trigger` — trigger manual validando sessao Better Auth ou `x-internal-secret`
-  - handlers por responsabilidade: `standup/list.ts`, `standup/get-by-id.ts`, `standup/update-status.ts`
-  - handler de trigger: `standup/trigger.ts`
-  - service isolado: `services/standup-service.ts`
-  - service de trigger interno: `services/standup-trigger-service.ts`
-  - middleware HTTP extraido: `http/middleware.ts`
-  - `index.ts`: entrypoint — middleware logging, health, monta standup router
+- `apps/api` — EventBus + SSE handler + internal router + approve-service + status-changed notify
+  - Rotas: `GET /standups/events` (SSE), `GET/PATCH /standups/*`, `POST /standups/trigger`, `POST /standups/:id/approve`
+  - **ATENCAO**: `/standups/events` deve ficar registrado ANTES de `/standups/:id` no router — senao Hono captura `events` como param `:id`
+  - Rota interna: `POST /internal/events/standup-generated` (worker → SSE push)
 
-- `apps/worker` — 42 testes (vitest)
-  - `job/standup-job.ts`: pipeline com lock + retry + idempotencia + notify
-  - `http/router.ts`: auth middleware + POST /internal/trigger/standup + /reminder/snooze + /reminder/cancel
-  - handlers por responsabilidade: `http/trigger/standup.ts`, `http/reminder/snooze.ts`, `http/reminder/cancel.ts`
-  - middleware extraido: `http/middleware/auth.ts`
-  - `notifications/notify-standup-ready.ts`: POST /internal/notify/standup-ready
-  - `notifications/notify-job-failed.ts`: POST /internal/notify/job-failed
-  - `notifications/notify-standup-reminder.ts`: POST /internal/notify/standup-reminder
-  - `scheduler.ts`: startScheduler() — ReminderState + standupCron (checa snooze/cancel) + reminderCron (notifica bot) + recoveryCron (Padrao 5)
-  - `index.ts`: entrypoint puro (scheduler + HTTP interno)
+- `apps/worker` — pipeline completo com DM de inicio, lock, retry, notify SSE
+  - `notifyUserDm` disparado logo apos `acquireLock` com sucesso (feedback imediato ao usuario)
+  - `notifyStandupGenerated` apos `notifyStandupReady` (step 5) para push SSE ao web client
 
-- `apps/discord-bot` — 77 testes (vitest)
-  - `http/router.ts`: auth middleware + POST /internal/notify/standup-ready + /job-failed + /standup-reminder
-  - handlers por responsabilidade: `http/notify/standup-ready.ts`, `http/notify/job-failed.ts`, `http/notify/standup-reminder.ts`
-  - middleware extraido: `http/middleware/auth.ts`
-  - services isolados: `services/standup-notification-service.ts`, `services/job-notification-service.ts` e `services/trigger-standup-service.ts`
-  - `discord/notifications/send-review-dm.ts`: DM com embed azul + botoes
-  - `discord/notifications/send-channel-notification.ts`: helper generico de canal
-  - `discord/notifications/publish-standup.ts`: publica embed verde no canal
-  - `discord/notifications/send-reminder-dm.ts`: DM com embed ambar + botoes de agendamento
-  - `discord/handlers/interaction-handler.ts`: logica approve/reject/regenerate
-  - `discord/handlers/button-handler.ts`: routing standup:* e standup-reminder:* com emojis (Padrao 2)
-  - `discord/handlers/reminder-handler.ts`: logica run-now (→ API) / snooze / cancel-today (→ worker)
-  - `/standup trigger`: integrado ao API (`POST /standups/trigger`) com feedback ephemeral
-  - `discord/handlers/slash-command-handler.ts`: roteador de slash commands
-  - `discord/commands/`: register + trigger + list + approve (Padrao 13)
-  - `discord/embeds.ts`: builders de embed (Padrao 3) — review, published, job-failed, reminder
-  - `index.ts`: entrypoint puro — env + Client + HTTP + event listeners
+- `apps/discord-bot` — DMs, botoes, modais, slash commands, sync apos aprovacao web
+  - `standup-notification-service`: salva `dmMessageId` apos enviar DM de revisao
+  - `standup-sync-service`: edita DM + publica no canal quando aprovacao vem via web
+  - `update-review-message`: usa `editReply` apenas — `message.edit()` causa erro em DM (canal nao cacheado)
+  - Rota nova: `POST /internal/notify/standup-status-changed`
+
+- `apps/web` — Angular 21 SPA com SSE, trigger fire-and-forget, tabela com pulse
+  - `StandupEventsService`: EventSource fora do NgZone, re-emite como `standupGenerated$`
+  - `StandupService`: subscreve SSE no constructor → `standups.reload()` + `selectedStandup.reload()`
+  - `trigger()`, `regenerate()`, `adjust()`: fire-and-forget (sem loading spinner)
+  - Tabela: pulse `animate-pulse` no standup `pending_review` mais recente
+  - Cores: verde=approved, amarelo=pending, vermelho=rejected
 
 ### CI
 
-- `bun run ci` — 33/33 tasks verde (lint + typecheck + test em todos os pacotes/apps)
-
-## Proximos Passos
-
-### Alta prioridade — Gaps entre spec e implementacao
-
-~~1. **Reminder DM com botoes interativos**~~
-**CONCLUIDO.** Worker notifica o bot via `POST /internal/notify/standup-reminder`.
-Bot envia DM com embed ambar + 3 botoes (`standup-reminder:run-now/snooze/cancel-today`).
-`run-now` dispara o job via API, `snooze`/`cancel-today` mutam `ReminderState` in-memory no worker.
-`standupCron` checa o estado antes de executar. Testes: 37 (worker) + 76 (discord-bot), todos verdes.
-
-~~2. **Graceful degradation quando Azure DevOps MCP falha**~~
-**CONCLUIDO.** `generateStandup()` agora tem retry interno (2 tentativas para MCP, 3 para LLM)
-e fallback gracioso para dados git brutos quando MCP falha. O retry externo dead code foi
-removido do `standup-job.ts`. Testes: 23 (standup-generator) + 42 (worker), todos verdes.
-
-### Media prioridade — Qualidade e resiliencia
-
-~~1. **Health endpoint no bot e worker**~~
-**CONCLUIDO.** `GET /health` adicionado nos routers Hono de `apps/worker` e `apps/discord-bot`,
-fora do scope `/internal/*` (sem auth), retornando `{ status: "ok", service: "worker"|"discord-bot", uptimeSeconds: number }`.
-Testes adicionados em ambos os `router.test.ts`. Contagens atuais: worker=42, discord-bot=77, todos verdes.
-
-~~2. **Refatorar `azure-mcp-client.ts` para usar Result pattern**~~
-**CONCLUIDO.** Todos os 5 metodos publicos (`connect`, `callTool`, `getMe`, `getWorkItem`, `listPullRequests`)
-refatorados para `Result.tryPromise`. O `disconnect()` manteve try/catch vazio intencional (best-effort teardown).
-`client!` non-null assertion eliminada via captura em variavel local `connectedClient`. CI: 33/33 verde.
-
-### Baixa prioridade — Polimento
-
-~~3. **Remover transicao dead code `approved -> draft` da state machine**~~
-**CONCLUIDO.** `ALLOWED_TRANSITIONS.approved` passou de `['published', 'draft']` para `['published']`.
-Nenhum teste cobria essa transicao; nenhum handler a usava. CI: 33/33 verde.
-
-~~4. **Usar `.is()` dos TaggedErrors no retry predicate**~~
-**CONCLUIDO (ja estava resolvido).** O `withRetry()` com cast unsafe `(err as { _tag?: string })._tag`
-foi removido quando o retry migrou para dentro de `generateStandup()`. Nao ha mais ocorrencias
-de `._tag` em `apps/worker` ou `packages/standup-generator`. Os checks de lock em `standup-job.ts`
-ja usam `LockAlreadyHeldError.is()` e `JobAlreadyCompletedError.is()` corretamente.
-
-~~5. **Testes de integracao entre servicos**~~
-**CONCLUIDO.** Smoke tests de contrato HTTP adicionados em
-`apps/worker/src/integration/service-contracts.test.js`, cobrindo os 4 paths:
-- Worker -> Bot (`POST /internal/notify/standup-ready`)
-- Worker -> Bot (`POST /internal/notify/standup-reminder`)
-- API -> Worker (`POST /internal/trigger/standup`)
-- Bot -> Worker (`POST /internal/reminder/snooze` e `/cancel`)
-Os testes sobem routers Hono reais via servidor HTTP local de teste e validam os contracts
-request/response entre sender e receiver. CI: 33/33 verde.
+- `bun run ci` — 38/38 tasks verde
