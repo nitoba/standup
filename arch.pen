@@ -42,7 +42,7 @@
               "id": "Jvii5",
               "name": "subtitle",
               "fill": "#6a6a6a",
-              "content": "// MONOREPO ARCHITECTURE  ·  DOCKER CONTAINERS  ·  CLOUDFLARE TUNNEL  ·  KAMAL DEPLOY",
+              "content": "// MONOREPO ARCHITECTURE  ·  DOCKER CONTAINERS  ·  JAEGER TRACING  ·  KAMAL DEPLOY",
               "fontFamily": "JetBrains Mono",
               "fontSize": 14,
               "fontWeight": "normal",
@@ -54,7 +54,7 @@
           "type": "frame",
           "id": "FXUUj",
           "x": 80,
-          "y": 240,
+          "y": 200,
           "name": "Section 1 - Public Request Flow",
           "width": 1760,
           "fill": "#0C0C0C",
@@ -1677,7 +1677,7 @@
               "y": 0,
               "name": "Section Header",
               "fill": "#FFFFFF",
-              "content": "INTERNAL COMMUNICATION + ADMIN ACCESS",
+              "content": "INTERNAL COMMUNICATION + OBSERVABILITY + ADMIN ACCESS",
               "fontFamily": "Space Grotesk",
               "fontSize": 18,
               "fontWeight": "600",
@@ -1690,7 +1690,7 @@
               "y": 32,
               "name": "Section Subheader",
               "fill": "#6a6a6a",
-              "content": "// DOCKER_NETWORK 'KAMAL' INSIDE COLIMA_VM  ·  TAILSCALE FOR ADMIN/SSH",
+              "content": "// DOCKER_NETWORK 'KAMAL'  ·  JAEGER OTLP/UI  ·  TAILSCALE FOR ADMIN/SSH",
               "fontFamily": "JetBrains Mono",
               "fontSize": 11,
               "fontWeight": "500",
@@ -1858,7 +1858,7 @@
                           "id": "5VsNq",
                           "name": "apiD5",
                           "fill": "#8a8a8a",
-                          "content": "EVENT_BUS IN-MEMORY (SSE PUSH)",
+                          "content": "HTTP OTEL MIDDLEWARE + SSE EVENT_BUS",
                           "fontFamily": "JetBrains Mono",
                           "fontSize": 11,
                           "fontWeight": "500",
@@ -2056,7 +2056,7 @@
                           "id": "Bl29H",
                           "name": "botD4",
                           "fill": "#8a8a8a",
-                          "content": "POST /INTERNAL/NOTIFY/*",
+                          "content": "POST /INTERNAL/NOTIFY/* [TRACED_FETCH]",
                           "fontFamily": "JetBrains Mono",
                           "fontSize": 11,
                           "fontWeight": "500",
@@ -2276,7 +2276,7 @@
                           "id": "3BRBY",
                           "name": "wrkD5",
                           "fill": "#8a8a8a",
-                          "content": "LOCK + RETRY + RECOVERY_CRON",
+                          "content": "LOCK + RETRY + CRITICAL_SPANS",
                           "fontFamily": "JetBrains Mono",
                           "fontSize": 11,
                           "fontWeight": "500",
@@ -2581,7 +2581,7 @@
                   "y": 455,
                   "name": "flowTitle",
                   "fill": "#6a6a6a",
-                  "content": "// INTER-SERVICE_COMMUNICATION",
+                  "content": "// INTER-SERVICE_COMMUNICATION + TRACE_PROPAGATION",
                   "fontFamily": "JetBrains Mono",
                   "fontSize": 11,
                   "fontWeight": "600",
@@ -3439,6 +3439,209 @@
                       "fontSize": 9,
                       "fontWeight": "500",
                       "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "qQcyf",
+                  "x": 1980,
+                  "y": 480,
+                  "name": "Jaeger Service",
+                  "width": 460,
+                  "height": 124,
+                  "fill": "#151008",
+                  "cornerRadius": 8,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#F59E0B"
+                  },
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": [
+                    16,
+                    18
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "kFiNw",
+                      "name": "jaegerTitleA",
+                      "fill": "#FBBF24",
+                      "content": "JAEGER_ALL_IN_ONE",
+                      "fontFamily": "Space Grotesk",
+                      "fontSize": 15,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.5
+                    },
+                    {
+                      "type": "text",
+                      "id": "CXKOe",
+                      "name": "jaegerLineA",
+                      "fill": "#FFFFFF",
+                      "content": "OTLP_HTTP_RECEIVER  ·  :4318",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 10,
+                      "fontWeight": "600",
+                      "letterSpacing": 0.5
+                    },
+                    {
+                      "type": "text",
+                      "id": "UzypH",
+                      "name": "jaegerLineB",
+                      "fill": "#8a8a8a",
+                      "content": "TRACE_UI            ·  :16686",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 10,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    },
+                    {
+                      "type": "text",
+                      "id": "lXUQU",
+                      "name": "jaegerLineC",
+                      "fill": "#6a6a6a",
+                      "content": "DOCKER SERVICE: standup-jaeger",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 9,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "HD6YB",
+                  "x": 1980,
+                  "y": 624,
+                  "name": "Critical Spans",
+                  "width": 460,
+                  "height": 176,
+                  "fill": "#0D0D0D",
+                  "cornerRadius": 8,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#F59E0B"
+                  },
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": [
+                    16,
+                    18
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "OjVda",
+                      "name": "spansTitleA",
+                      "fill": "#FBBF24",
+                      "content": "CRITICAL_SPANS",
+                      "fontFamily": "Space Grotesk",
+                      "fontSize": 15,
+                      "fontWeight": "700",
+                      "letterSpacing": 0.5
+                    },
+                    {
+                      "type": "text",
+                      "id": "cfasa",
+                      "name": "spansLineA",
+                      "fill": "#FFFFFF",
+                      "content": "standup.git.collect  → repos + author attrs",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 10,
+                      "fontWeight": "600",
+                      "letterSpacing": 0.4
+                    },
+                    {
+                      "type": "text",
+                      "id": "IBvN4",
+                      "name": "spansLineB",
+                      "fill": "#FFFFFF",
+                      "content": "standup.llm.generate → meeting_type + mode",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 10,
+                      "fontWeight": "600",
+                      "letterSpacing": 0.4
+                    },
+                    {
+                      "type": "text",
+                      "id": "4Yp9F",
+                      "name": "spansLineC",
+                      "fill": "#FFFFFF",
+                      "content": "standup.persist      → draft save boundary",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 10,
+                      "fontWeight": "600",
+                      "letterSpacing": 0.4
+                    },
+                    {
+                      "type": "text",
+                      "id": "IwJMm",
+                      "name": "spansLineD",
+                      "fill": "#8a8a8a",
+                      "content": "HTTP middleware on API / BOT / WORKER",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 10,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.4
+                    },
+                    {
+                      "type": "text",
+                      "id": "c4rXr",
+                      "name": "spansLineE",
+                      "fill": "#6a6a6a",
+                      "content": "Winston logs include traceId + spanId",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 9,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.4
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "a4lUA",
+                  "x": 40,
+                  "y": 760,
+                  "name": "Trace Propagation Note",
+                  "width": 740,
+                  "height": 54,
+                  "fill": "#151008",
+                  "cornerRadius": 6,
+                  "stroke": {
+                    "thickness": {
+                      "left": 3
+                    },
+                    "fill": "#F59E0B"
+                  },
+                  "layout": "vertical",
+                  "gap": 4,
+                  "padding": [
+                    10,
+                    14
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "xdEeP",
+                      "name": "traceNoteTextA",
+                      "fill": "#FBBF24",
+                      "content": "TRACED_FETCH injeta traceparent em chamadas internas",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 10,
+                      "fontWeight": "600",
+                      "letterSpacing": 0.4
+                    },
+                    {
+                      "type": "text",
+                      "id": "a6J3A",
+                      "name": "traceNoteTextB",
+                      "fill": "#8a8a8a",
+                      "content": "API, BOT e WORKER exportam spans para o standup-jaeger via OTLP HTTP",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 9,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.4
                     }
                   ]
                 }
