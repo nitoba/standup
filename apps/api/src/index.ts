@@ -164,7 +164,7 @@ app.use('/standups/*', sessionMiddleware)
 app.use('/settings/*', sessionMiddleware)
 app.use('/repos', sessionMiddleware)
 app.use('/reminders/*', sessionMiddleware)
-// app.use('/digests/*', sessionMiddleware)
+app.use('/digests/*', sessionMiddleware)
 
 app.route('/', standupRouter)
 app.route('/', internalRouter)
