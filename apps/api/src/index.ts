@@ -12,6 +12,7 @@ import { createAuth } from './auth/auth.js'
 import { handleAuthCallback } from './auth/callback-page.js'
 import { handleDiscordLogin } from './auth/login-redirect.js'
 import { sessionAuthMiddleware } from './auth/middleware.js'
+import { createDigestRouter } from './digests/router.js'
 import { createInternalRouter } from './http/internal-router.js'
 import { requestLogger } from './http/middleware.js'
 import { handleCancelTodayReminder } from './reminders/cancel-today.js'
@@ -163,9 +164,17 @@ app.use('/standups/*', sessionMiddleware)
 app.use('/settings/*', sessionMiddleware)
 app.use('/repos', sessionMiddleware)
 app.use('/reminders/*', sessionMiddleware)
+app.use('/digests/*', sessionMiddleware)
 
 app.route('/', standupRouter)
 app.route('/', internalRouter)
+app.route(
+  '/digests',
+  createDigestRouter({
+    workerInternalUrl: env.WORKER_INTERNAL_URL,
+    internalSecret: env.INTERNAL_SECRET,
+  }),
+)
 app.route('/settings', settingsRouter)
 app.get('/repos', (c) =>
   handleListRepos(c, {

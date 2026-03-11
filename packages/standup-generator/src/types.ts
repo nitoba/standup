@@ -4,7 +4,7 @@ export type { AzureMcpConfig }
 
 export interface GeneratorConfig {
   aiProviderApiKey?: string
-  azure: AzureMcpConfig
+  azure?: AzureMcpConfig
   /**
    * Optional shared MCP client (singleton, already connected at startup).
    * When provided, the generator reuses this client instead of creating

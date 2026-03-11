@@ -1,3 +1,27 @@
+export type WeeklyDigestStatus =
+  | 'pending'
+  | 'sending'
+  | 'sent'
+  | 'unknown'
+  | 'failed'
+  | 'skipped'
+
+export type EmailThemePreference = 'light' | 'dark'
+
+export interface WeeklyDigestRecord {
+  id: string
+  userId: string
+  weekStart: string // YYYY-MM-DD (Monday)
+  weekEnd: string // YYYY-MM-DD (Friday)
+  standupIds: string[] // IDs of approved standups included
+  insights: string // AI-generated insights markdown
+  status: WeeklyDigestStatus
+  error: string | null
+  sentAt: number | null
+  createdAt: number
+  updatedAt: number
+}
+
 export type StandupStatus =
   | 'draft'
   | 'pending_review'

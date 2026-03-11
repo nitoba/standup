@@ -8,6 +8,7 @@ import { Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import { createInternalRouter } from './http/router.js'
 import { runStandupJob } from './job/standup-job.js'
+import { runWeeklyDigestJob } from './job/weekly-digest-job.js'
 import { startScheduler } from './scheduler.js'
 
 const logger = createServiceLogger({
@@ -54,6 +55,7 @@ async function bootstrap() {
     internalSecret: env.INTERNAL_SECRET,
     databaseUrl: env.DATABASE_URL,
     triggerStandupJob: async (opts) => runStandupJob(env, opts, mcpClient),
+    triggerWeeklyDigestJob: async (opts) => runWeeklyDigestJob(env, opts),
     mcpClient,
     azureProjects: ['AGROTRACE', 'CHECKMILK'],
   })

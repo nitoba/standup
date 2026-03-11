@@ -173,7 +173,7 @@ export interface ZardComboboxGroup {
       >
         {{ option.label }}
         @if (option.value === currentValue()) {
-          <z-icon zType="check" class="ml-auto text-[var(--accent-green)]" />
+          <z-icon zType="check" class="ml-auto text-primary" />
         }
       </z-command-option>
     </ng-template>

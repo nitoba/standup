@@ -20,6 +20,7 @@ export interface UpsertUserSettingsInput {
   gitAuthor: string
   gitSincePeriod?: string
   active?: boolean
+  emailTheme?: 'light' | 'dark'
 }
 
 function dbErr(error: unknown, operation: string): DbError {
@@ -102,6 +103,9 @@ export class UserSettingsRepository {
               gitSincePeriod: input.gitSincePeriod,
             }),
             ...(input.active !== undefined && { active: input.active }),
+            ...(input.emailTheme !== undefined && {
+              emailTheme: input.emailTheme,
+            }),
             updatedAt: now,
           },
         })

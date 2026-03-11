@@ -105,6 +105,9 @@ const baseEnv: WorkerEnv = {
   WORKER_INTERNAL_PORT: 3335,
   INTERNAL_SECRET: 'test-secret',
   REPOS_ROOT_PATH: '/repos',
+  APP_URL: 'http://localhost:4200',
+  SMTP_PORT: 587,
+  SMTP_SECURE: false,
 }
 
 const emptyGitActivity = { timestamp: '2026-03-04T00:00:00Z', repos: [] }

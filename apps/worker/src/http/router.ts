@@ -2,16 +2,19 @@ import { httpInstrumentationMiddleware } from '@hono/otel'
 import type { AzureMcpClient } from '@standup/azure-devops'
 import { Hono } from 'hono'
 import type { StandupJobOptions } from '../handlers/trigger-standup.js'
+import type { WeeklyDigestJobOptions } from '../job/weekly-digest-job.js'
 import { internalAuthMiddleware } from './middleware/auth.js'
 import { registerReminderCancelRoute } from './routes/reminder-cancel.js'
 import { registerReminderSnoozeRoute } from './routes/reminder-snooze.js'
 import { registerReposListRoute } from './routes/repos-list.js'
 import { registerTriggerStandupRoute } from './routes/trigger-standup.js'
+import { registerTriggerWeeklyDigestRoute } from './routes/trigger-weekly-digest.js'
 
 export interface InternalRouterOptions {
   internalSecret: string
   databaseUrl: string
   triggerStandupJob: (options: StandupJobOptions) => Promise<void>
+  triggerWeeklyDigestJob: (options: WeeklyDigestJobOptions) => Promise<void>
   mcpClient: AzureMcpClient
   azureProjects: string[]
 }
@@ -38,6 +41,7 @@ export function createInternalRouter(opts: InternalRouterOptions): Hono {
   app.use('/internal/*', internalAuthMiddleware(opts.internalSecret))
 
   registerTriggerStandupRoute(app, opts)
+  registerTriggerWeeklyDigestRoute(app, opts)
   registerReminderSnoozeRoute(app, opts)
   registerReminderCancelRoute(app, opts)
   registerReposListRoute(app, opts)

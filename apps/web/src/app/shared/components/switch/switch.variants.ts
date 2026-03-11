@@ -6,7 +6,7 @@ export const switchVariants = cva(
     variants: {
       zType: {
         default:
-          'border-border bg-border focus-visible:ring-[color:color-mix(in_srgb,var(--accent-green)_20%,transparent)] data-[state=checked]:border-[var(--accent-green)] data-[state=checked]:bg-[var(--accent-green)]',
+          'border-border bg-border focus-visible:ring-[color:color-mix(in_srgb,var(--accent-green)_20%,transparent)] data-[state=checked]:border-primary data-[state=checked]:bg-primary',
         destructive:
           'border-border bg-border focus-visible:ring-[color:color-mix(in_srgb,var(--accent-red)_20%,transparent)] data-[state=checked]:border-[var(--accent-red)] data-[state=checked]:bg-[var(--accent-red)]',
       },

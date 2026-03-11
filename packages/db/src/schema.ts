@@ -143,9 +143,39 @@ export const userSettings = sqliteTable('user_settings', {
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
   snoozedUntil: integer('snoozed_until'), // epoch ms, nullable
   cancelledDate: text('cancelled_date'), // 'YYYY-MM-DD', nullable
+  emailTheme: text('email_theme', { enum: ['light', 'dark'] })
+    .notNull()
+    .default('dark'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 })
 
 export type UserSettingsRow = typeof userSettings.$inferSelect
 export type NewUserSettingsRow = typeof userSettings.$inferInsert
+
+// ---------------------------------------------------------------------------
+// weekly_digests  (email digest tracking)
+// ---------------------------------------------------------------------------
+
+export const weeklyDigests = sqliteTable('weekly_digests', {
+  id: text('id').primaryKey(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id),
+  weekStart: text('week_start').notNull(), // YYYY-MM-DD (Monday)
+  weekEnd: text('week_end').notNull(), // YYYY-MM-DD (Friday)
+  standupIds: text('standup_ids').notNull().default('[]'), // JSON array of standup IDs
+  insights: text('insights').notNull().default(''),
+  status: text('status', {
+    enum: ['pending', 'sending', 'sent', 'unknown', 'failed', 'skipped'],
+  })
+    .notNull()
+    .default('pending'),
+  error: text('error'),
+  sentAt: integer('sent_at'), // epoch ms
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+})
+
+export type WeeklyDigestRow = typeof weeklyDigests.$inferSelect
+export type NewWeeklyDigestRow = typeof weeklyDigests.$inferInsert

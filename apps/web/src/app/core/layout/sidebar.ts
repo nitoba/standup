@@ -25,7 +25,7 @@ import { SessionService } from '../auth/session-service'
     <div class="h-dvh w-full overflow-hidden bg-background text-foreground flex flex-col md:flex-row">
       <!-- Mobile top bar -->
       <header class="relative z-50 flex shrink-0 md:hidden items-center justify-between h-[56px] px-[20px] border-b border-border bg-background">
-        <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[18px] font-medium">> standup_bot</span>
+        <span class="text-primary font-[var(--font-jetbrains)] text-[18px] font-medium">> standup_bot</span>
         <button
           type="button"
           z-button
@@ -84,7 +84,7 @@ import { SessionService } from '../auth/session-service'
       <aside class="hidden md:flex h-full w-[240px] border-r border-border bg-background px-[24px] py-[32px] flex-col justify-between shrink-0">
         <div class="flex flex-col gap-[32px]">
           <div class="flex items-center gap-[8px]">
-            <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[20px] font-bold">>></span>
+            <span class="text-primary font-[var(--font-jetbrains)] text-[20px] font-bold">>></span>
             <span class="text-foreground font-[var(--font-jetbrains)] text-[18px] font-medium">standup_bot</span>
           </div>
 
@@ -143,7 +143,7 @@ import { SessionService } from '../auth/session-service'
           </button>
 
           <div class="flex items-center gap-[8px]">
-            <span class="h-[8px] w-[8px] rounded-full bg-[var(--accent-green)]"></span>
+            <span class="h-[8px] w-[8px] rounded-full bg-primary"></span>
             <div class="flex flex-col gap-[2px]">
               <span class="text-foreground font-[var(--font-jetbrains)] text-[13px]">{{ displayName() }}</span>
               <span class="text-muted-foreground font-[var(--font-ibm)] text-[12px]">online</span>
@@ -152,7 +152,7 @@ import { SessionService } from '../auth/session-service'
         </footer>
       </aside>
 
-      <main class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      <main class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-background">
         <ng-content></ng-content>
       </main>
     </div>
@@ -207,7 +207,7 @@ export class SidebarLayout {
   }
 
   navPrefixClass(isActive: boolean) {
-    return `${this.navPrefixBaseClass} ${isActive ? 'text-[var(--accent-green)]' : 'text-muted-foreground'}`
+    return `${this.navPrefixBaseClass} ${isActive ? 'text-primary' : 'text-muted-foreground'}`
   }
 
   navLabelClass(isActive: boolean) {

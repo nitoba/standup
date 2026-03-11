@@ -34,6 +34,7 @@ function setupTables(db: Db): void {
       active           INTEGER NOT NULL DEFAULT 1,
       snoozed_until    INTEGER,
       cancelled_date   TEXT,
+      email_theme      TEXT NOT NULL DEFAULT 'light',
       created_at       INTEGER NOT NULL,
       updated_at       INTEGER NOT NULL
     )

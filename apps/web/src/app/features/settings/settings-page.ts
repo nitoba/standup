@@ -39,12 +39,12 @@ import {
   template: `
     <app-sidebar-layout>
       <section
-        class="min-h-full bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[28px] md:gap-[40px]"
+        class="bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[28px] md:gap-[40px]"
       >
         <div class="flex flex-col gap-[8px]">
           <div class="flex items-center gap-[12px]">
             <span
-              class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[28px] font-bold"
+              class="text-primary font-[var(--font-jetbrains)] text-[28px] font-bold"
               >></span
             >
             <span
@@ -260,38 +260,44 @@ import {
                   >selected_repositories</span
                 >
               </div>
-              <div class="flex flex-col gap-[4px]">
-                @for (repo of availableRepos(); track repo.id) {
-                  <z-checkbox
-                    zSize="lg"
-                    [zChecked]="isRepoSelected(repo.name)"
-                    (zCheckedChange)="onRepoCheckedChange(repo.name, $event)"
-                    class="border border-border px-[12px] py-[10px] transition-colors duration-150 hover:bg-accent/30"
-                  >
-                    <div class="flex items-center gap-[8px] flex-1">
-                      <span
-                        class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[13px]"
-                        >~/</span
-                      >
-                      <span
-                        class="font-[var(--font-jetbrains)] text-[13px] text-foreground"
-                        >{{ repo.name }}</span
-                      >
+
+              @if (availableRepos().length === 0) {
+                <div
+                  class="text-muted-foreground/70 font-[var(--font-ibm)] text-[12px] py-[8px]"
+                >
+                  // no repositories available
+                </div>
+              } @else {
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-[16px]">
+                  @for (group of reposByProject(); track group.project) {
+                    <div class="flex flex-col gap-[8px]">
+                      <div class="flex items-center gap-[6px] pb-[4px] border-b border-border">
+                        <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[11px]">~/</span>
+                        <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[11px] uppercase tracking-wider">
+                          {{ group.project }}
+                        </span>
+                        <span class="text-muted-foreground/50 font-[var(--font-ibm)] text-[10px] ml-auto">
+                          {{ group.repos.length }} repos
+                        </span>
+                      </div>
+                      <div class="flex flex-col gap-[4px] max-h-[480px] overflow-y-auto pr-[2px]">
+                        @for (repo of group.repos; track repo.id) {
+                          <z-checkbox
+                            zSize="lg"
+                            [zChecked]="isRepoSelected(repo.name)"
+                            (zCheckedChange)="onRepoCheckedChange(repo.name, $event)"
+                            class="border border-border px-[12px] py-[10px] transition-colors duration-150 hover:bg-accent/30"
+                          >
+                            <span class="font-[var(--font-jetbrains)] text-[13px] text-foreground flex-1 truncate">
+                              {{ repo.name }}
+                            </span>
+                          </z-checkbox>
+                        }
+                      </div>
                     </div>
-                    <span
-                      class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]"
-                      >{{ repo.project }}</span
-                    >
-                  </z-checkbox>
-                }
-                @if (availableRepos().length === 0) {
-                  <div
-                    class="text-muted-foreground/70 font-[var(--font-ibm)] text-[12px] py-[8px]"
-                  >
-                    // no repositories available
-                  </div>
-                }
-              </div>
+                  }
+                </div>
+              }
             </div>
 
             <!-- Automation section -->
@@ -324,6 +330,54 @@ import {
                   [zChecked]="settingsModel().active"
                   (zCheckedChange)="onActiveChange($event)"
                 />
+              </div>
+            </div>
+
+            <!-- Email digest section -->
+            <div
+              class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]"
+            >
+              <div class="flex items-center gap-[8px]">
+                <span
+                  class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[14px]"
+                  >//</span
+                >
+                <span
+                  class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-medium"
+                  >email_digest</span
+                >
+              </div>
+              <div class="flex items-center justify-between gap-[16px]">
+                <div class="flex flex-col gap-[2px]">
+                  <span
+                    class="text-foreground font-[var(--font-jetbrains)] text-[13px]"
+                    >email_theme</span
+                  >
+                  <span
+                    class="text-muted-foreground font-[var(--font-ibm)] text-[12px]"
+                    >visual theme for weekly digest emails</span
+                  >
+                </div>
+                <div class="flex items-center" role="group" aria-label="Email theme">
+                  <button
+                    type="button"
+                    class="px-[14px] py-[7px] font-[var(--font-jetbrains)] text-[12px] border transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    [class]="settingsModel().emailTheme === 'dark'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
+                    [attr.aria-pressed]="settingsModel().emailTheme === 'dark'"
+                    (click)="onEmailThemeChange('dark')"
+                  >dark</button>
+                  <button
+                    type="button"
+                    class="px-[14px] py-[7px] font-[var(--font-jetbrains)] text-[12px] border-y border-r transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    [class]="settingsModel().emailTheme === 'light'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
+                    [attr.aria-pressed]="settingsModel().emailTheme === 'light'"
+                    (click)="onEmailThemeChange('light')"
+                  >light</button>
+                </div>
               </div>
             </div>
 
@@ -366,11 +420,27 @@ export class SettingsPage {
     gitAuthor: '',
     selectedRepos: [],
     active: false,
+    emailTheme: 'dark',
   })
 
   readonly availableRepos = computed<RepoOption[]>(() =>
     this.settingsService.repos(),
   )
+
+  readonly reposByProject = computed<
+    { project: string; repos: RepoOption[] }[]
+  >(() => {
+    const grouped = new Map<string, RepoOption[]>()
+    for (const repo of this.availableRepos()) {
+      const list = grouped.get(repo.project) ?? []
+      list.push(repo)
+      grouped.set(repo.project, list)
+    }
+    return Array.from(grouped.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([project, repos]) => ({ project, repos }))
+  })
+
   readonly timezoneOptions = computed<ZardComboboxOption[]>(() => {
     const supportedValuesOf = Intl.supportedValuesOf as
       | ((key: 'timeZone') => string[])
@@ -427,6 +497,10 @@ export class SettingsPage {
     this.settingsModel.update((m) => ({ ...m, active }))
   }
 
+  onEmailThemeChange(emailTheme: 'light' | 'dark') {
+    this.settingsModel.update((m) => ({ ...m, emailTheme }))
+  }
+
   onTimezoneChange(timezone: string | null) {
     this.settingsModel.update((model) => ({
       ...model,
@@ -469,6 +543,7 @@ export class SettingsPage {
         gitAuthor: settings.gitAuthor,
         selectedRepos: settings.selectedRepos,
         active: settings.active,
+        emailTheme: settings.emailTheme,
       })
       this.loading.set(false)
     } catch {

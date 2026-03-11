@@ -154,14 +154,42 @@ async function withEnrichmentRetry(
   config: GeneratorConfig,
 ): Promise<EnrichedGitActivity> {
   const sharedClient = config.mcpClient
+
+  // If no MCP client and no Azure config, skip enrichment entirely.
+  if (!sharedClient && !config.azure) {
+    logger.warn(
+      'No MCP client or Azure config provided — skipping enrichment, using git data only',
+    )
+    return buildFallbackEnrichedActivity(input.gitActivity)
+  }
+
+  // Both branches below are reachable: either sharedClient or config.azure is
+  // defined (ensured by the guard above). We extract the azure value here so
+  // TypeScript sees a stable reference in the closure. If neither sharedClient
+  // nor azure is present inside the closure, we fall through to the retry
+  // failure path and the fallback will be used after all attempts fail.
+  const maybeAzure = config.azure
+
   const result = await withRetry(
     () => {
       if (sharedClient) {
         return runEnrichment(input, sharedClient, true)
       }
-      // Ephemeral: create a fresh MCP client per attempt.
-      const mcpClient = createAzureMcpClient(config.azure)
-      return runEnrichment(input, mcpClient, false)
+      if (maybeAzure) {
+        // Ephemeral: create a fresh MCP client per attempt.
+        const mcpClient = createAzureMcpClient(maybeAzure)
+        return runEnrichment(input, mcpClient, false)
+      }
+      // Guard above ensures this branch is unreachable, but returning a
+      // failure here lets the retry mechanism apply the fallback gracefully.
+      return Promise.resolve(
+        Result.err(
+          new ExternalServiceError({
+            service: 'azure-devops',
+            message: 'No Azure config available for enrichment',
+          }),
+        ),
+      )
     },
     {
       label: 'MCP enrichment',

@@ -13,9 +13,9 @@ describe('MetricCard', () => {
     fixture.componentRef.setInput('label', 'approved')
     fixture.componentRef.setInput('value', 128)
     fixture.componentRef.setInput('change', '++ 8 this_week')
-    fixture.componentRef.setInput('dotColor', 'bg-[var(--accent-green)]')
-    fixture.componentRef.setInput('valueColor', 'text-[var(--accent-green)]')
-    fixture.componentRef.setInput('changeColor', 'text-[var(--accent-green)]')
+    fixture.componentRef.setInput('dotColor', 'bg-primary')
+    fixture.componentRef.setInput('valueColor', 'text-primary')
+    fixture.componentRef.setInput('changeColor', 'text-primary')
     fixture.detectChanges()
 
     const element = fixture.nativeElement as HTMLElement

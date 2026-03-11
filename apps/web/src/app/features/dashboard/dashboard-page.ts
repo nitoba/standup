@@ -64,11 +64,11 @@ function resolveDateFilter(value: string, now = new Date()) {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-sidebar-layout>
-      <section class="min-h-full bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[40px]">
+      <section class="bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[40px]">
         <div class="flex flex-col gap-[8px]">
           <div class="flex items-center justify-between gap-[12px]">
             <div class="flex items-center gap-[12px]">
-              <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[24px] md:text-[32px] font-bold">>></span>
+              <span class="text-primary font-[var(--font-jetbrains)] text-[24px] md:text-[32px] font-bold">>></span>
               <span class="text-foreground font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold">standups</span>
             </div>
             <button
@@ -195,9 +195,9 @@ export class DashboardPage {
         label: 'approved',
         value: metrics.approved.count,
         change: metrics.approved.change,
-        dotColor: 'bg-[var(--accent-green)]',
-        valueColor: 'text-[var(--accent-green)]',
-        changeColor: 'text-[var(--accent-green)]',
+        dotColor: 'bg-primary',
+        valueColor: 'text-primary',
+        changeColor: 'text-primary',
       },
       {
         label: 'pending_review',

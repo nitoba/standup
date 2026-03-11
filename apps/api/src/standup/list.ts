@@ -22,6 +22,14 @@ export const listQuerySchema = z.object({
       z.literal('this_week'),
     ])
     .optional(),
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'from must be YYYY-MM-DD')
+    .optional(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'to must be YYYY-MM-DD')
+    .optional(),
   search: z.string().trim().min(1).optional(),
   page: z.coerce.number().int().min(1).default(PAGINATION_DEFAULTS.page),
   pageSize: z.coerce
@@ -49,6 +57,8 @@ export async function handleListStandups(
     {
       status: query.status,
       date: query.date,
+      from: query.from,
+      to: query.to,
       search: query.search,
       page: query.page,
       pageSize: query.pageSize,

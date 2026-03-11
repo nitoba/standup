@@ -52,11 +52,11 @@ import { ZardButtonComponent } from '../../shared/components/button'
 
       <!-- Blinking cursors (hidden on mobile) -->
       <span
-        class="hidden md:block absolute left-[17.01%] top-[8.89%] h-[14px] w-[7px] bg-[var(--accent-green)] opacity-60 animate-pulse"
+        class="hidden md:block absolute left-[17.01%] top-[8.89%] h-[14px] w-[7px] bg-primary opacity-60 animate-pulse"
         aria-hidden="true"
       ></span>
       <span
-        class="hidden md:block absolute left-[92.22%] top-[48.89%] h-[14px] w-[7px] bg-[var(--accent-green)] opacity-60 animate-pulse"
+        class="hidden md:block absolute left-[92.22%] top-[48.89%] h-[14px] w-[7px] bg-primary opacity-60 animate-pulse"
         aria-hidden="true"
       ></span>
 
@@ -68,7 +68,7 @@ import { ZardButtonComponent } from '../../shared/components/button'
         <div class="flex flex-col gap-[8px] items-center w-full">
           <div class="flex items-center gap-[8px]">
             <span
-              class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold"
+              class="text-primary font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold"
               >></span
             >
             <span

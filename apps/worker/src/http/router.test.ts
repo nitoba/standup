@@ -31,12 +31,14 @@ const TRIGGER_BODY = {
 }
 
 const triggerStandupJob = vi.fn<(options: StandupJobOptions) => Promise<void>>()
+const triggerWeeklyDigestJob = vi.fn<() => Promise<void>>()
 
 function makeRouter() {
   return createInternalRouter({
     internalSecret: INTERNAL_SECRET,
     databaseUrl: ':memory:',
     triggerStandupJob,
+    triggerWeeklyDigestJob,
     mcpClient: {} as never,
     azureProjects: ['AGROTRACE', 'CHECKMILK'],
   })
