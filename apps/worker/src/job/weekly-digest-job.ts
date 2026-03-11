@@ -55,6 +55,7 @@ import {
   sendEmail,
 } from '@standup/email'
 import { createServiceLogger, withContext } from '@standup/logger'
+import { withSpan } from '@standup/observability'
 import { generateWeeklyInsights } from '@standup/standup-generator'
 
 const logger = createServiceLogger({
@@ -249,10 +250,19 @@ export async function runWeeklyDigestJob(
   // Fetch approved standups for the week
   // ---------------------------------------------------------------------------
 
-  const standupsResult = await standupRepo.findApprovedByUserAndDateRange(
-    options.userId,
-    weekStart,
-    weekEnd,
+  const standupsResult = await withSpan(
+    'digest.db.find_standups',
+    {
+      'digest.user_id': options.userId,
+      'digest.week_start': weekStart,
+      'digest.week_end': weekEnd,
+    },
+    () =>
+      standupRepo.findApprovedByUserAndDateRange(
+        options.userId,
+        weekStart,
+        weekEnd,
+      ),
   )
 
   if (standupsResult.isErr()) {
@@ -312,9 +322,14 @@ export async function runWeeklyDigestJob(
     aiProviderApiKey: env.AI_PROVIDER_API_KEY,
   }
 
-  const insightsResult = await generateWeeklyInsights(
-    approvedStandups,
-    generatorConfig,
+  const insightsResult = await withSpan(
+    'digest.llm.generate',
+    {
+      'digest.standup_count': approvedStandups.length,
+      'digest.week_start': weekStart,
+      'digest.week_end': weekEnd,
+    },
+    () => generateWeeklyInsights(approvedStandups, generatorConfig),
   )
 
   if (insightsResult.isErr()) {
@@ -360,7 +375,14 @@ export async function runWeeklyDigestJob(
   const unsubscribeUrl = `${appUrl}/settings?unsubscribe=digest`
 
   // Convert insights markdown to email-safe HTML
-  const insightsHtml = await markdownToEmailHtml(insights, theme)
+  const insightsHtml = await withSpan(
+    'digest.email.render',
+    {
+      'digest.week_label': weekLabel,
+      'digest.standup_count': approvedStandups.length,
+    },
+    () => markdownToEmailHtml(insights, theme),
+  )
 
   const digestData = {
     recipientName: userName,
@@ -389,13 +411,17 @@ export async function runWeeklyDigestJob(
 
   let smtpAccepted = false
 
-  const sendResult = await sendEmail(smtpConfig, {
-    to: userEmail,
-    subject,
-    html,
-    text,
-    unsubscribeUrl,
-  })
+  const smtp = smtpConfig
+  const sendResult = await withSpan(
+    'digest.email.send',
+    {
+      'email.to': userEmail,
+      'email.subject': subject,
+      'digest.id': digestId,
+    },
+    () =>
+      sendEmail(smtp, { to: userEmail, subject, html, text, unsubscribeUrl }),
+  )
 
   if (sendResult.isErr()) {
     // SMTP rejected the message — safe to mark failed and retry later
