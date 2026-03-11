@@ -30,7 +30,7 @@ COPY packages/standup-generator/package.json packages/standup-generator/
 # --frozen-lockfile is incompatible with partial workspace installs.
 # --ignore-scripts prevents optional native binaries (e.g. lmdb from @angular/build)
 # from failing the install on linux/arm64 in CI — they are not needed for ng build.
-RUN bun install --production --ignore-scripts --filter './apps/web'
+RUN bun install --ignore-scripts --filter './apps/web'
 
 # Copy source for the app
 COPY apps/web/src apps/web/src
@@ -38,7 +38,7 @@ COPY apps/web/public apps/web/public
 
 # Build the Angular app in production mode.
 # bunx resolves the Angular CLI from node_modules.
-RUN cd apps/web && bunx ng build --configuration production
+RUN cd apps/web && bun run build:prod
 
 # Stage 2: minimal nginx runtime — only the static assets + config.
 # Using nginx:alpine for the smallest possible image (~40 MB).
