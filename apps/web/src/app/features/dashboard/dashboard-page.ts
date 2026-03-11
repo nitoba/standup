@@ -64,7 +64,7 @@ function resolveDateFilter(value: string, now = new Date()) {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-sidebar-layout>
-      <section class="min-h-full bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[40px]">
+      <section class="bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[40px]">
         <div class="flex flex-col gap-[8px]">
           <div class="flex items-center justify-between gap-[12px]">
             <div class="flex items-center gap-[12px]">

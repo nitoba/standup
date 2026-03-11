@@ -27,6 +27,7 @@ export const putMySettingsBodySchema = z.object({
     .array(z.string().trim().min(1, 'selectedRepos entries must be non-empty'))
     .min(1, 'selectedRepos must include at least one repo'),
   active: z.boolean().optional(),
+  emailTheme: z.enum(['light', 'dark']).optional(),
 })
 
 export type PutMySettingsBody = z.infer<typeof putMySettingsBodySchema>

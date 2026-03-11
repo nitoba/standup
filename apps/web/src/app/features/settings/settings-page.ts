@@ -39,7 +39,7 @@ import {
   template: `
     <app-sidebar-layout>
       <section
-        class="min-h-full bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[28px] md:gap-[40px]"
+        class="bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[28px] md:gap-[40px]"
       >
         <div class="flex flex-col gap-[8px]">
           <div class="flex items-center gap-[12px]">
@@ -327,6 +327,54 @@ import {
               </div>
             </div>
 
+            <!-- Email digest section -->
+            <div
+              class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]"
+            >
+              <div class="flex items-center gap-[8px]">
+                <span
+                  class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[14px]"
+                  >//</span
+                >
+                <span
+                  class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-medium"
+                  >email_digest</span
+                >
+              </div>
+              <div class="flex items-center justify-between gap-[16px]">
+                <div class="flex flex-col gap-[2px]">
+                  <span
+                    class="text-foreground font-[var(--font-jetbrains)] text-[13px]"
+                    >email_theme</span
+                  >
+                  <span
+                    class="text-muted-foreground font-[var(--font-ibm)] text-[12px]"
+                    >visual theme for weekly digest emails</span
+                  >
+                </div>
+                <div class="flex items-center" role="group" aria-label="Email theme">
+                  <button
+                    type="button"
+                    class="px-[14px] py-[7px] font-[var(--font-jetbrains)] text-[12px] border transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-green)]"
+                    [class]="settingsModel().emailTheme === 'dark'
+                      ? 'border-[var(--accent-green)] bg-[var(--accent-green)]/10 text-[var(--accent-green)]'
+                      : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
+                    [attr.aria-pressed]="settingsModel().emailTheme === 'dark'"
+                    (click)="onEmailThemeChange('dark')"
+                  >dark</button>
+                  <button
+                    type="button"
+                    class="px-[14px] py-[7px] font-[var(--font-jetbrains)] text-[12px] border-y border-r transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-green)]"
+                    [class]="settingsModel().emailTheme === 'light'
+                      ? 'border-[var(--accent-green)] bg-[var(--accent-green)]/10 text-[var(--accent-green)]'
+                      : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
+                    [attr.aria-pressed]="settingsModel().emailTheme === 'light'"
+                    (click)="onEmailThemeChange('light')"
+                  >light</button>
+                </div>
+              </div>
+            </div>
+
             <div class="flex flex-col gap-[12px] items-end">
               <button
                 type="submit"
@@ -366,6 +414,7 @@ export class SettingsPage {
     gitAuthor: '',
     selectedRepos: [],
     active: false,
+    emailTheme: 'dark',
   })
 
   readonly availableRepos = computed<RepoOption[]>(() =>
@@ -427,6 +476,10 @@ export class SettingsPage {
     this.settingsModel.update((m) => ({ ...m, active }))
   }
 
+  onEmailThemeChange(emailTheme: 'light' | 'dark') {
+    this.settingsModel.update((m) => ({ ...m, emailTheme }))
+  }
+
   onTimezoneChange(timezone: string | null) {
     this.settingsModel.update((model) => ({
       ...model,
@@ -469,6 +522,7 @@ export class SettingsPage {
         gitAuthor: settings.gitAuthor,
         selectedRepos: settings.selectedRepos,
         active: settings.active,
+        emailTheme: settings.emailTheme,
       })
       this.loading.set(false)
     } catch {

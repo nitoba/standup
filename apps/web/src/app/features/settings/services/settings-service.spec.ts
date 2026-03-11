@@ -40,6 +40,7 @@ describe('SettingsService', () => {
       active: true,
       snoozedUntil: null,
       cancelledDate: null,
+      emailTheme: 'dark',
     }
 
     const loadPromise = service.loadSettings()
@@ -80,11 +81,13 @@ describe('SettingsService', () => {
       gitSincePeriod: '24 hours ago',
       selectedRepos: ['repo-a', 'repo-b'],
       active: false,
+      emailTheme: 'dark' as const,
     }
     const saved: SettingsRecord = {
       ...payload,
       snoozedUntil: 1741543200000,
       cancelledDate: '2026-03-09',
+      emailTheme: 'dark',
     }
 
     const savePromise = service.saveSettings(payload)

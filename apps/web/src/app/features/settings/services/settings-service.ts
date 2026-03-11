@@ -20,6 +20,7 @@ export interface SettingsRecord {
   gitAuthor: string
   selectedRepos: string[]
   active: boolean
+  emailTheme: 'light' | 'dark'
   snoozedUntil: number | null
   cancelledDate: string | null
 }
@@ -32,6 +33,7 @@ export interface SaveSettingsInput {
   gitAuthor: string
   selectedRepos: string[]
   active: boolean
+  emailTheme: 'light' | 'dark'
 }
 
 @Injectable({ providedIn: 'root' })

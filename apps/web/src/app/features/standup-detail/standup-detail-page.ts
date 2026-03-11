@@ -34,7 +34,7 @@ import { StandupDetailSkeleton } from './components/standup-detail-skeleton/stan
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-sidebar-layout>
-      <section class="min-h-full bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[32px]">
+      <section class="bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[32px]">
         <a routerLink="/dashboard" class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] flex items-center gap-[12px] transition-colors duration-150 hover:text-foreground">
           <span><<</span>
           <span>back to standups</span>

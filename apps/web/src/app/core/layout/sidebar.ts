@@ -152,7 +152,7 @@ import { SessionService } from '../auth/session-service'
         </footer>
       </aside>
 
-      <main class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      <main class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-background">
         <ng-content></ng-content>
       </main>
     </div>

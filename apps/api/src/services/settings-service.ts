@@ -18,6 +18,7 @@ export interface SettingsRecord {
   gitSincePeriod: string
   selectedRepos: string[]
   active: boolean
+  emailTheme: 'light' | 'dark'
   snoozedUntil: number | null
   cancelledDate: string | null
 }
@@ -32,6 +33,7 @@ export interface UpsertSettingsInput {
   gitSincePeriod?: string
   selectedRepos: string[]
   active?: boolean
+  emailTheme?: 'light' | 'dark'
 }
 
 const DEFAULT_SETTINGS: SettingsRecord = {
@@ -43,6 +45,7 @@ const DEFAULT_SETTINGS: SettingsRecord = {
   gitSincePeriod: '8 hours ago',
   selectedRepos: [],
   active: true,
+  emailTheme: 'dark',
   snoozedUntil: null,
   cancelledDate: null,
 }
@@ -77,6 +80,7 @@ function toSettingsRecord(row: UserSettingsRow): SettingsRecord {
     gitSincePeriod: row.gitSincePeriod,
     selectedRepos: parseSelectedRepos(row.selectedRepos),
     active: row.active,
+    emailTheme: row.emailTheme,
     snoozedUntil: row.snoozedUntil,
     cancelledDate: row.cancelledDate,
   }
@@ -117,6 +121,7 @@ export function upsertUserSettings(
     gitSincePeriod: input.gitSincePeriod ?? DEFAULT_SETTINGS.gitSincePeriod,
     selectedRepos: JSON.stringify(input.selectedRepos),
     ...(input.active !== undefined && { active: input.active }),
+    ...(input.emailTheme !== undefined && { emailTheme: input.emailTheme }),
   }
   const result = repo.upsert(payload)
 
