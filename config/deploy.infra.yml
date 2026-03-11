@@ -28,6 +28,9 @@ registry:
   password:
     - KAMAL_REGISTRY_PASSWORD
 
+builder:
+  arch: arm64
+
 ssh:
   user: nitoba
   keys:
