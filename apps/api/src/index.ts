@@ -14,7 +14,7 @@ import { handleDiscordLogin } from './auth/login-redirect.js'
 import { sessionAuthMiddleware } from './auth/middleware.js'
 import { createDigestRouter } from './digests/router.js'
 import { createInternalRouter } from './http/internal-router.js'
-import { requestLogger } from './http/middleware.js'
+import { requestLogger, spanStatusMiddleware } from './http/middleware.js'
 import { handleCancelTodayReminder } from './reminders/cancel-today.js'
 import { handleRunNowReminder } from './reminders/run-now.js'
 import { handleSnoozeReminder } from './reminders/snooze.js'
@@ -119,6 +119,7 @@ app.use(
   }),
 )
 app.use('*', requestLogger(logger))
+app.use('*', spanStatusMiddleware())
 app.use(
   '*',
   cors({

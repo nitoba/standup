@@ -1,4 +1,5 @@
 import { ExternalServiceError, Result } from '@standup/domain'
+import { tracedFetch } from '@standup/observability'
 
 export interface TriggerWeeklyDigestJobDeps {
   workerInternalUrl: string
@@ -15,7 +16,7 @@ export async function triggerWeeklyDigestJob(
 ): Promise<Result<void, ExternalServiceError>> {
   return Result.tryPromise({
     try: async () => {
-      const response = await fetch(
+      const response = await tracedFetch(
         `${deps.workerInternalUrl}/internal/trigger/weekly-digest`,
         {
           method: 'POST',
