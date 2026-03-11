@@ -23,7 +23,7 @@ COPY packages/standup-generator/package.json packages/standup-generator/
 
 # --filter restricts installation to @standup/discord-bot and its workspace dependencies.
 # The bun.lock still pins all versions for reproducible builds.
-RUN bun install --filter './apps/discord-bot'
+RUN bun install --production --filter './apps/discord-bot'
 
 # Copy source for the app and all packages it imports
 COPY packages/config/src packages/config/src

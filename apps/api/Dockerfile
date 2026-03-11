@@ -27,7 +27,7 @@ COPY packages/standup-generator/package.json packages/standup-generator/
 # --frozen-lockfile is incompatible with partial workspace installs (Bun removes
 # absent workspace members from the lockfile, which counts as a change).
 # The bun.lock still pins all versions for reproducible builds.
-RUN bun install --filter './apps/api'
+RUN bun install --production --filter './apps/api'
 
 # Copy source for the app and all packages it imports
 COPY packages/config/src packages/config/src

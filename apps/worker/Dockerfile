@@ -25,7 +25,7 @@ COPY packages/standup-generator/package.json packages/standup-generator/
 
 # --filter restricts installation to @standup/worker and its workspace dependencies.
 # The bun.lock still pins all versions for reproducible builds.
-RUN bun install --filter './apps/worker'
+RUN bun install --production --filter './apps/worker'
 
 # Copy source for the app and all packages it imports
 COPY packages/config/src packages/config/src
@@ -50,11 +50,11 @@ RUN bun build \
   apps/worker/src/index.ts \
   --outfile /app/bin/worker
 
-# Stage 2: runtime — oven/bun image (includes bunx for Azure MCP server) + git.
-# The worker spawns `bunx @tiberriver256/mcp-server-azure-devops` as a subprocess
-# for Azure DevOps enrichment, so the Bun runtime must be present at runtime.
-# oven/bun is based on debian and includes glibc, so the compiled binary runs fine.
-FROM oven/bun:1.3.9 AS runtime
+# Stage 2: slim runtime — compiled binary + Bun CLI for Azure MCP + git.
+# The worker still spawns `bun x @tiberriver256/mcp-server-azure-devops`
+# as a subprocess for Azure DevOps enrichment, so we copy only the Bun binary
+# into a smaller glibc-based image instead of using the full oven/bun runtime.
+FROM debian:bookworm-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   git ca-certificates \
@@ -62,6 +62,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+COPY --from=builder /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=builder /app/bin/worker ./worker
 
 EXPOSE 3335
