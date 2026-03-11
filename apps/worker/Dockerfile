@@ -37,6 +37,7 @@ COPY packages/logger/src packages/logger/src
 COPY packages/observability/src packages/observability/src
 COPY packages/standup-generator/src packages/standup-generator/src
 COPY apps/worker/src apps/worker/src
+COPY packages/email/package.json packages/email/
 
 # TARGETARCH is injected by Docker (amd64, arm64, etc.)
 ARG TARGETARCH

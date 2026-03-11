@@ -20,6 +20,7 @@ COPY packages/git-collector/package.json packages/git-collector/
 COPY packages/logger/package.json packages/logger/
 COPY packages/observability/package.json packages/observability/
 COPY packages/standup-generator/package.json packages/standup-generator/
+COPY packages/email/package.json packages/email/
 
 # --filter restricts installation to @standup/discord-bot and its workspace dependencies.
 # The bun.lock still pins all versions for reproducible builds.
