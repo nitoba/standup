@@ -1,0 +1,77 @@
+name: Discord Webhook
+description: Send JSON payloads to a Discord webhook
+
+inputs:
+  webhook-url:
+    description: Discord webhook base URL
+    required: true
+  payload:
+    description: JSON payload to send
+    required: true
+  method:
+    description: HTTP method to use
+    required: false
+    default: PATCH
+  message-id:
+    description: Discord message id for PATCH updates
+    required: false
+    default: ""
+  wait:
+    description: Append wait=true to POST requests
+    required: false
+    default: "false"
+
+outputs:
+  response:
+    description: Raw webhook response body
+    value: ${{ steps.request.outputs.response }}
+  message_id:
+    description: Discord message id parsed from response
+    value: ${{ steps.request.outputs.message_id }}
+
+runs:
+  using: composite
+  steps:
+    - id: request
+      shell: bash
+      env:
+        WEBHOOK_URL: ${{ inputs.webhook-url }}
+        PAYLOAD: ${{ inputs.payload }}
+        METHOD: ${{ inputs.method }}
+        MESSAGE_ID: ${{ inputs.message-id }}
+        WAIT: ${{ inputs.wait }}
+      run: |
+        if [ -z "$WEBHOOK_URL" ] || [ -z "$PAYLOAD" ]; then
+          {
+            echo "response<<EOF"
+            echo
+            echo "EOF"
+            echo "message_id="
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        TARGET_URL="$WEBHOOK_URL"
+
+        if [ "$METHOD" = "PATCH" ]; then
+          if [ -z "$MESSAGE_ID" ]; then
+            echo "message-id is required for PATCH requests" >&2
+            exit 1
+          fi
+          TARGET_URL="${WEBHOOK_URL}/messages/${MESSAGE_ID}"
+        elif [ "$METHOD" = "POST" ] && [ "$WAIT" = "true" ]; then
+          TARGET_URL="${WEBHOOK_URL}?wait=true"
+        fi
+
+        RESPONSE=$(curl -sS -X "$METHOD" "$TARGET_URL" \
+          -H "Content-Type: application/json" \
+          -d "$PAYLOAD")
+
+        PARSED_MESSAGE_ID=$(printf '%s' "$RESPONSE" | jq -r '.id // empty')
+
+        {
+          echo "response<<EOF"
+          printf '%s\n' "$RESPONSE"
+          echo "EOF"
+          echo "message_id=$PARSED_MESSAGE_ID"
+        } >> "$GITHUB_OUTPUT"
