@@ -1,4 +1,5 @@
 import { httpInstrumentationMiddleware } from '@hono/otel'
+import { spanStatusMiddleware } from '@standup/observability'
 import type { Client } from 'discord.js'
 import { Hono } from 'hono'
 import { internalAuthMiddleware } from './middleware/auth.js'
@@ -32,6 +33,7 @@ export function createInternalRouter(opts: InternalRouterOptions): Hono {
     '*',
     httpInstrumentationMiddleware({ serviceName: 'standup-discord-bot' }),
   )
+  app.use('*', spanStatusMiddleware())
 
   // Health — sem autenticação, acessível por Docker/Kamal healthcheck
   app.get('/health', (c) =>
