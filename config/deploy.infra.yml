@@ -37,12 +37,10 @@ accessories:
   jaeger:
     image: jaegertracing/all-in-one:latest
     host: colima.tail2ee1d6.ts.net
-    ports:
-      - "16686:16686"   # Jaeger UI
-      - "4318:4318"     # OTLP HTTP receiver (used by apps via host.docker.internal)
+    port: "16686:16686"   # Jaeger UI
     env:
       clear:
         COLLECTOR_OTLP_ENABLED: "true"
     options:
-      restart: unless-stopped
       memory: 512m
+      publish: "4318:4318"  # OTLP HTTP receiver (used by apps via host.docker.internal)
