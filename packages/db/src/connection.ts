@@ -2,10 +2,16 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { type Client, createClient } from '@libsql/client/node'
+import { createServiceLogger } from '@standup/logger'
 import { drizzle } from 'drizzle-orm/libsql'
 import * as schema from './schema.js'
 
 export type Db = ReturnType<typeof drizzle<typeof schema>>
+
+const logger = createServiceLogger({
+  service: 'db',
+  component: 'connection',
+})
 
 let _db: Db | null = null
 let _client: Client | null = null
@@ -28,11 +34,38 @@ function normalizeDatabaseUrl(url: string): string {
   return `file:${url}`
 }
 
+function isLocalDatabaseUrl(url: string): boolean {
+  return url === ':memory:' || url.startsWith('file:')
+}
+
+function configureLocalSqliteClient(client: Client, url: string): void {
+  if (!isLocalDatabaseUrl(url)) {
+    return
+  }
+
+  void client
+    .executeMultiple(`
+      PRAGMA journal_mode = WAL;
+      PRAGMA busy_timeout = 5000;
+      PRAGMA synchronous = NORMAL;
+      PRAGMA foreign_keys = ON;
+    `)
+    .catch((error: unknown) => {
+      logger.warn('Failed to configure SQLite pragmas', {
+        databaseUrl: url,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    })
+}
+
 function createDb(url: string, authToken?: string): { client: Client; db: Db } {
+  const normalizedUrl = normalizeDatabaseUrl(url)
   const client = createClient({
-    url: normalizeDatabaseUrl(url),
+    url: normalizedUrl,
     authToken: authToken ?? process.env.DATABASE_AUTH_TOKEN,
   })
+
+  configureLocalSqliteClient(client, normalizedUrl)
 
   return {
     client,

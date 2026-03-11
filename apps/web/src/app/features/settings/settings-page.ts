@@ -272,7 +272,7 @@ import {
                   @for (group of reposByProject(); track group.project) {
                     <div class="flex flex-col gap-[8px]">
                       <div class="flex items-center gap-[6px] pb-[4px] border-b border-border">
-                        <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[11px]">~/</span>
+                        <span class="text-primary font-[var(--font-jetbrains)] text-[11px]">~/</span>
                         <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[11px] uppercase tracking-wider">
                           {{ group.project }}
                         </span>

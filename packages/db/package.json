@@ -12,7 +12,7 @@
     "lint": "biome check src",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "bun test src/",
-    "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
+    "db:generate": "bunx --bun --env-file=../../.env.local drizzle-kit generate",
     "db:migrate": "bun --env-file=../../.env.local run ./src/migrate.ts",
     "db:studio": "bunx --env-file=../../.env.local drizzle-kit studio"
   },

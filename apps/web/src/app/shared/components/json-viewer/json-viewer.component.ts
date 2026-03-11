@@ -25,7 +25,7 @@ import { JsonHighlightPipe } from '../../pipes/json-highlight.pipe'
       color: var(--muted-foreground);
     }
 
-    app-json-viewer .json-key     { color: var(--accent-green); }
+    app-json-viewer .json-key     { color: var(--primary); }
     app-json-viewer .json-string  { color: var(--foreground); opacity: 0.85; }
     app-json-viewer .json-number  { color: #f59e0b; }
     app-json-viewer .json-boolean { color: #3b82f6; }

@@ -144,32 +144,6 @@ async function getDuplicateDiscordAccounts(client: Client): Promise<
   }))
 }
 
-async function assertNoDuplicateDiscordAccounts(client: Client): Promise<void> {
-  const accountTableExists = await getFirstRow<{ name: string }>(client, {
-    sql: `select name from sqlite_master where type = 'table' and name = 'account'`,
-  })
-
-  if (!accountTableExists) {
-    return
-  }
-
-  const duplicates = await getDuplicateDiscordAccounts(client)
-  if (duplicates.length === 0) {
-    return
-  }
-
-  const summary = duplicates
-    .map(
-      (duplicate) =>
-        `${duplicate.providerId}:${duplicate.accountId} (${duplicate.count})`,
-    )
-    .join(', ')
-
-  throw new Error(
-    `Duplicate provider/account identities detected before migration: ${summary}`,
-  )
-}
-
 async function main(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL ?? './data/standup.db'
   const databaseAuthToken = process.env.DATABASE_AUTH_TOKEN
@@ -214,7 +188,6 @@ async function main(): Promise<void> {
       logger.info('No pending migrations detected')
     }
 
-    await assertNoDuplicateDiscordAccounts(client)
     await migrate(db, { migrationsFolder })
 
     const appliedAfter = await getAppliedMigrationsCount(client)

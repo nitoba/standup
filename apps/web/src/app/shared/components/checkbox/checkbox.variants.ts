@@ -6,7 +6,7 @@ export const checkboxVariants = cva(
     variants: {
       zType: {
         default:
-          'border-border checked:border-primary checked:bg-primary focus-visible:ring-[color:color-mix(in_srgb,var(--accent-green)_20%,transparent)]',
+          'border-border checked:border-primary checked:bg-primary focus-visible:ring-[color:color-mix(in_srgb,var(--primary)_20%,transparent)]',
         destructive:
           'border-[var(--accent-red)] checked:border-[var(--accent-red)] checked:bg-[var(--accent-red)] focus-visible:ring-[color:color-mix(in_srgb,var(--accent-red)_20%,transparent)]',
       },
