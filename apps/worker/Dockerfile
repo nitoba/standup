@@ -22,6 +22,8 @@ COPY packages/git-collector/package.json packages/git-collector/
 COPY packages/logger/package.json packages/logger/
 COPY packages/observability/package.json packages/observability/
 COPY packages/standup-generator/package.json packages/standup-generator/
+COPY packages/email/package.json packages/email/
+
 
 # --filter restricts installation to @standup/worker and its workspace dependencies.
 # The bun.lock still pins all versions for reproducible builds.
@@ -37,7 +39,7 @@ COPY packages/logger/src packages/logger/src
 COPY packages/observability/src packages/observability/src
 COPY packages/standup-generator/src packages/standup-generator/src
 COPY apps/worker/src apps/worker/src
-COPY packages/email/package.json packages/email/
+COPY packages/email/src packages/email/src
 
 # TARGETARCH is injected by Docker (amd64, arm64, etc.)
 ARG TARGETARCH
