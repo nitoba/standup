@@ -260,38 +260,44 @@ import {
                   >selected_repositories</span
                 >
               </div>
-              <div class="flex flex-col gap-[4px]">
-                @for (repo of availableRepos(); track repo.id) {
-                  <z-checkbox
-                    zSize="lg"
-                    [zChecked]="isRepoSelected(repo.name)"
-                    (zCheckedChange)="onRepoCheckedChange(repo.name, $event)"
-                    class="border border-border px-[12px] py-[10px] transition-colors duration-150 hover:bg-accent/30"
-                  >
-                    <div class="flex items-center gap-[8px] flex-1">
-                      <span
-                        class="text-primary font-[var(--font-jetbrains)] text-[13px]"
-                        >~/</span
-                      >
-                      <span
-                        class="font-[var(--font-jetbrains)] text-[13px] text-foreground"
-                        >{{ repo.name }}</span
-                      >
+
+              @if (availableRepos().length === 0) {
+                <div
+                  class="text-muted-foreground/70 font-[var(--font-ibm)] text-[12px] py-[8px]"
+                >
+                  // no repositories available
+                </div>
+              } @else {
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-[16px]">
+                  @for (group of reposByProject(); track group.project) {
+                    <div class="flex flex-col gap-[8px]">
+                      <div class="flex items-center gap-[6px] pb-[4px] border-b border-border">
+                        <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[11px]">~/</span>
+                        <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[11px] uppercase tracking-wider">
+                          {{ group.project }}
+                        </span>
+                        <span class="text-muted-foreground/50 font-[var(--font-ibm)] text-[10px] ml-auto">
+                          {{ group.repos.length }} repos
+                        </span>
+                      </div>
+                      <div class="flex flex-col gap-[4px] max-h-[480px] overflow-y-auto pr-[2px]">
+                        @for (repo of group.repos; track repo.id) {
+                          <z-checkbox
+                            zSize="lg"
+                            [zChecked]="isRepoSelected(repo.name)"
+                            (zCheckedChange)="onRepoCheckedChange(repo.name, $event)"
+                            class="border border-border px-[12px] py-[10px] transition-colors duration-150 hover:bg-accent/30"
+                          >
+                            <span class="font-[var(--font-jetbrains)] text-[13px] text-foreground flex-1 truncate">
+                              {{ repo.name }}
+                            </span>
+                          </z-checkbox>
+                        }
+                      </div>
                     </div>
-                    <span
-                      class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]"
-                      >{{ repo.project }}</span
-                    >
-                  </z-checkbox>
-                }
-                @if (availableRepos().length === 0) {
-                  <div
-                    class="text-muted-foreground/70 font-[var(--font-ibm)] text-[12px] py-[8px]"
-                  >
-                    // no repositories available
-                  </div>
-                }
-              </div>
+                  }
+                </div>
+              }
             </div>
 
             <!-- Automation section -->
@@ -420,6 +426,21 @@ export class SettingsPage {
   readonly availableRepos = computed<RepoOption[]>(() =>
     this.settingsService.repos(),
   )
+
+  readonly reposByProject = computed<
+    { project: string; repos: RepoOption[] }[]
+  >(() => {
+    const grouped = new Map<string, RepoOption[]>()
+    for (const repo of this.availableRepos()) {
+      const list = grouped.get(repo.project) ?? []
+      list.push(repo)
+      grouped.set(repo.project, list)
+    }
+    return Array.from(grouped.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([project, repos]) => ({ project, repos }))
+  })
+
   readonly timezoneOptions = computed<ZardComboboxOption[]>(() => {
     const supportedValuesOf = Intl.supportedValuesOf as
       | ((key: 'timeZone') => string[])
