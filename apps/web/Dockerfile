@@ -25,6 +25,7 @@ COPY packages/git-collector/package.json packages/git-collector/
 COPY packages/logger/package.json packages/logger/
 COPY packages/observability/package.json packages/observability/
 COPY packages/standup-generator/package.json packages/standup-generator/
+COPY packages/email/package.json packages/email/
 
 # Install dependencies scoped to @standup/web.
 # --frozen-lockfile is incompatible with partial workspace installs.

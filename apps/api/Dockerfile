@@ -22,6 +22,7 @@ COPY packages/git-collector/package.json packages/git-collector/
 COPY packages/logger/package.json packages/logger/
 COPY packages/observability/package.json packages/observability/
 COPY packages/standup-generator/package.json packages/standup-generator/
+COPY packages/email/package.json packages/email/
 
 # --filter restricts installation to @standup/api and its workspace dependencies.
 # --frozen-lockfile is incompatible with partial workspace installs (Bun removes
