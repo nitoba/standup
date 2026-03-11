@@ -679,6 +679,12 @@ jobs:
       AZURE_DEVOPS_ORG: ${{ secrets.AZURE_DEVOPS_ORG }}
       AZURE_DEVOPS_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
       INTERNAL_SECRET: ${{ secrets.INTERNAL_SECRET }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
+      SMTP_FROM: ${{ secrets.SMTP_FROM }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
       DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
     steps:
       - name: Checkout
