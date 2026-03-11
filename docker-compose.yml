@@ -22,7 +22,8 @@ services:
       - standup-data:/app/data
     env_file: .env.local
     environment:
-      DATABASE_URL: /app/data/standup.db
+      DATABASE_URL: ${DATABASE_URL:-file:/app/data/standup.db}
+      DATABASE_AUTH_TOKEN: ${DATABASE_AUTH_TOKEN:-}
     networks:
       - internal
     restart: "no"
@@ -42,7 +43,8 @@ services:
     env_file: .env.local
     environment:
       PORT: "3333"
-      DATABASE_URL: /app/data/standup.db
+      DATABASE_URL: ${DATABASE_URL:-file:/app/data/standup.db}
+      DATABASE_AUTH_TOKEN: ${DATABASE_AUTH_TOKEN:-}
       REPOS_ROOT_PATH: /repos
       WORKER_INTERNAL_URL: http://standup-worker:3335
       BOT_INTERNAL_URL: http://standup-discord-bot:3334
@@ -69,7 +71,8 @@ services:
     env_file: .env.local
     environment:
       BOT_INTERNAL_PORT: "3334"
-      DATABASE_URL: /app/data/standup.db
+      DATABASE_URL: ${DATABASE_URL:-file:/app/data/standup.db}
+      DATABASE_AUTH_TOKEN: ${DATABASE_AUTH_TOKEN:-}
       REPOS_ROOT_PATH: /repos
       API_BASE_URL: http://standup-api:3333
       API_INTERNAL_URL: http://standup-api:3333
@@ -128,7 +131,8 @@ services:
     env_file: .env.local
     environment:
       WORKER_INTERNAL_PORT: "3335"
-      DATABASE_URL: /app/data/standup.db
+      DATABASE_URL: ${DATABASE_URL:-file:/app/data/standup.db}
+      DATABASE_AUTH_TOKEN: ${DATABASE_AUTH_TOKEN:-}
       BOT_INTERNAL_URL: http://standup-discord-bot:3334
       API_INTERNAL_URL: http://standup-api:3333
       REPOS_ROOT_PATH: /repos

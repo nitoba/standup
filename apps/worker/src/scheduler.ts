@@ -55,7 +55,7 @@ export function startScheduler(
     const now = new Date()
     const today = now.toISOString().slice(0, 10)
 
-    const db = getDb(env.DATABASE_URL)
+    const db = getDb(env.DATABASE_URL, env.DATABASE_AUTH_TOKEN)
     const settingsRepo = new UserSettingsRepository(db)
     const userRepo = new UserRepository(db)
     const jobRunRepo = new JobRunRepository(db)
@@ -64,7 +64,7 @@ export function startScheduler(
     await settingsRepo.clearExpiredSnoozes()
 
     // 2. Get all active user settings
-    const activeResult = settingsRepo.findAllActive()
+    const activeResult = await settingsRepo.findAllActive()
     if (activeResult.isErr()) {
       logger.error('Failed to fetch active user settings', {
         error: activeResult.error.message,
@@ -86,7 +86,9 @@ export function startScheduler(
       }
 
       // Resolve discordUserId
-      const discordResult = userRepo.findDiscordIdByUserId(settings.userId)
+      const discordResult = await userRepo.findDiscordIdByUserId(
+        settings.userId,
+      )
       if (discordResult.isErr() || !discordResult.value) {
         continue
       }

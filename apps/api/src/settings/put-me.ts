@@ -71,7 +71,7 @@ export async function handlePutMySettings(
     )
   }
 
-  const result = upsertUserSettings(
+  const result = await upsertUserSettings(
     {
       userId,
       ...bodyResult.data,

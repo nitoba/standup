@@ -107,7 +107,7 @@ export async function handleReminderInteraction(
   // Resolve userId from Discord ID for all actions (requires active session)
   const db = getDb(deps.databaseUrl)
   const userRepo = new UserRepository(db)
-  const userIdResult = userRepo.hasActiveSession(deps.discordUserId)
+  const userIdResult = await userRepo.hasActiveSession(deps.discordUserId)
   if (
     userIdResult.isErr() ||
     !userIdResult.value ||

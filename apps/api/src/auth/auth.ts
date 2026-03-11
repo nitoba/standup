@@ -50,7 +50,7 @@ export function createAuth(deps: AuthDeps) {
           after: async (sessionRecord) => {
             // Resolve internal userId -> Discord ID
             const repo = new UserRepository(db)
-            const discordIdResult = repo.findDiscordIdByUserId(
+            const discordIdResult = await repo.findDiscordIdByUserId(
               sessionRecord.userId,
             )
 

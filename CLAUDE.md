@@ -17,7 +17,7 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 3. **Geracao**: LLM gera o standup formatado em portugues
 4. **Revisao**: Bot do Discord envia DM com preview + botoes (Aprovar/Rejeitar/Regenerar)
 5. **Publicacao**: Standup aprovado e publicado no canal do Discord
-6. **Persistencia**: Todos os standups ficam salvos no SQLite para busca/filtro/resumos
+6. **Persistencia**: Todos os standups ficam salvos em banco SQLite/libSQL (local ou Turso) para busca/filtro/resumos
 
 ### Modos de Operacao
 
@@ -31,7 +31,7 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 - Linguagem: TypeScript (strict mode)
 - Testes: Vitest (pacotes com mocks complexos) + bun test (pacotes simples)
 - Linter/Formatter: Biome
-- ORM: Drizzle ORM + SQLite (WAL mode)
+- ORM: Drizzle ORM + SQLite/libSQL (Turso-ready)
 - HTTP Server: Hono
 - Validacao: Zod
 - Error Handling: better-result (Result + TaggedError)
@@ -250,7 +250,7 @@ standup/
         types.ts                # tipos internos (usado por azure/ e prompt/)
         index.ts                # barrel de exports publicos
 
-  data/               # SQLite files (gitignored)
+  data/               # SQLite files locais para dev (gitignored)
   drizzle/            # Migration files gerados
   turbo.json          # Pipeline monorepos
 ```
@@ -277,7 +277,8 @@ standup/
 ```
 # Base (compartilhado entre apps quando aplicavel)
 NODE_ENV=development
-DATABASE_URL=./data/standup.db
+DATABASE_URL=file:./data/standup.db
+DATABASE_AUTH_TOKEN=
 INTERNAL_SECRET=change-me-in-production
 REPOS_ROOT_PATH=/home/nitoba/Documents/repos/ibs/repos
 
@@ -319,7 +320,7 @@ Cada processo deve chamar apenas seu loader:
 ## Hurdles (Barreiras Conhecidas)
 
 - discord.js com Bun: funciona nativamente desde Bun 1.1+
-- SQLite WAL mode: necessario para leitura concorrente (bot + scheduler + API)
+- Desenvolvimento local pode usar `DATABASE_URL=file:./data/standup.db` (SQLite), `turso dev --db-file ./data/standup.db` com `DATABASE_URL=http://127.0.0.1:8080`, ou `DATABASE_URL=libsql://...` com `DATABASE_AUTH_TOKEN`
 - AI SDK: usar provider configuravel com `generateObject` para geracao de standups
 - croner: alternativa leve ao node-cron, funciona bem com Bun
 
@@ -394,10 +395,10 @@ vi.mock("../notifications/notify-standup-ready.js", () => ({
 }));
 ```
 
-### Vitest + import transitive de router (bun:sqlite)
+### Vitest + import transitive de router (driver de banco)
 
 Quando um teste importa `router.ts`, ele carrega handlers e services transitivamente.
-Se algum service importa `@standup/db`, o Vitest (Node) tenta resolver `bun:sqlite` e falha.
+Se algum service importa `@standup/db`, o Vitest (Node) pode carregar o driver real de banco transitivamente e quebrar o teste/unit boundary.
 
 Padrao para testes de router: mockar **todos** os services importados pelo router,
 mesmo os nao usados diretamente no teste.

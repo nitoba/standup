@@ -63,7 +63,7 @@ export async function handleTriggerStandup(
     userId = sessionUser.id as string
     const db = getDb(deps.databaseUrl)
     const userRepo = new UserRepository(db)
-    const discordResult = userRepo.findDiscordIdByUserId(userId)
+    const discordResult = await userRepo.findDiscordIdByUserId(userId)
     if (discordResult.isOk()) {
       discordUserId = discordResult.value ?? undefined
     }
@@ -81,7 +81,7 @@ export async function handleTriggerStandup(
   const db = getDb(deps.databaseUrl)
   const settingsRepo = new UserSettingsRepository(db)
   const standupRepo = new StandupRepository(db)
-  const settingsResult = settingsRepo.findByUserId(userId)
+  const settingsResult = await settingsRepo.findByUserId(userId)
   if (settingsResult.isErr() || !settingsResult.value) {
     return c.json(
       {

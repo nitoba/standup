@@ -86,13 +86,13 @@ function toSettingsRecord(row: UserSettingsRow): SettingsRecord {
   }
 }
 
-export function getUserSettingsOrDefaults(
+export async function getUserSettingsOrDefaults(
   userId: string,
   deps: SettingsServiceDeps,
-): Result<SettingsRecord, DbError> {
+): Promise<Result<SettingsRecord, DbError>> {
   const db = getDb(deps.databaseUrl)
   const repo = new UserSettingsRepository(db)
-  const result = repo.findByUserId(userId)
+  const result = await repo.findByUserId(userId)
 
   if (result.isErr()) {
     return result
@@ -105,10 +105,10 @@ export function getUserSettingsOrDefaults(
   return Result.ok(toSettingsRecord(result.value))
 }
 
-export function upsertUserSettings(
+export async function upsertUserSettings(
   input: UpsertSettingsInput,
   deps: SettingsServiceDeps,
-): Result<SettingsRecord, DbError> {
+): Promise<Result<SettingsRecord, DbError>> {
   const db = getDb(deps.databaseUrl)
   const repo = new UserSettingsRepository(db)
   const payload = {
@@ -123,7 +123,7 @@ export function upsertUserSettings(
     ...(input.active !== undefined && { active: input.active }),
     ...(input.emailTheme !== undefined && { emailTheme: input.emailTheme }),
   }
-  const result = repo.upsert(payload)
+  const result = await repo.upsert(payload)
 
   if (result.isErr()) {
     return result

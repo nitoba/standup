@@ -28,11 +28,11 @@ export class UserRepository {
    * Resolve Discord ID → internal user ID.
    * Retorna apenas o user.id (usado pela API e worker para propagar userId).
    */
-  findUserIdByDiscordId(
+  async findUserIdByDiscordId(
     discordId: string,
-  ): Result<string | null, { message: string }> {
+  ): Promise<Result<string | null, { message: string }>> {
     try {
-      const row = this.db
+      const row = await this.db
         .select({ id: user.id })
         .from(account)
         .innerJoin(user, eq(account.userId, user.id))
@@ -61,11 +61,11 @@ export class UserRepository {
    * Resolve internal user ID → Discord ID.
    * Usado pela API para resolver discordUserId a partir da sessão.
    */
-  findDiscordIdByUserId(
+  async findDiscordIdByUserId(
     userId: string,
-  ): Result<string | null, { message: string }> {
+  ): Promise<Result<string | null, { message: string }>> {
     try {
-      const row = this.db
+      const row = await this.db
         .select({ accountId: account.accountId })
         .from(account)
         .where(
@@ -90,11 +90,11 @@ export class UserRepository {
    * Busca um usuário pelo seu Discord ID (account.accountId onde providerId = 'discord').
    * Retorna null se o usuário não estiver registrado.
    */
-  findByDiscordId(
+  async findByDiscordId(
     discordId: string,
-  ): Result<UserWithAccount | null, { message: string }> {
+  ): Promise<Result<UserWithAccount | null, { message: string }>> {
     try {
-      const rows = this.db
+      const rows = await this.db
         .select({
           id: user.id,
           name: user.name,
@@ -129,15 +129,14 @@ export class UserRepository {
    * Verifica se o Discord user possui pelo menos uma sessão ativa (não expirada).
    * Retorna `{ userId, hasSession }` se o account existe, ou `null` se não está registrado.
    */
-  hasActiveSession(
+  async hasActiveSession(
     discordId: string,
-  ): Result<
-    { userId: string; hasSession: boolean } | null,
-    { message: string }
+  ): Promise<
+    Result<{ userId: string; hasSession: boolean } | null, { message: string }>
   > {
     try {
       // First check if the user is registered at all
-      const accountRow = this.db
+      const accountRow = await this.db
         .select({ userId: account.userId })
         .from(account)
         .where(
@@ -155,7 +154,7 @@ export class UserRepository {
 
       // Check for at least one non-expired session
       const now = new Date()
-      const sessionRow = this.db
+      const sessionRow = await this.db
         .select({ id: session.id })
         .from(session)
         .where(
@@ -186,14 +185,16 @@ export class UserRepository {
    * Finds a user by their internal ID.
    * Used by the worker to fetch the user's email address.
    */
-  findById(
+  async findById(
     userId: string,
-  ): Result<
-    { id: string; name: string; email: string } | null,
-    { message: string }
+  ): Promise<
+    Result<
+      { id: string; name: string; email: string } | null,
+      { message: string }
+    >
   > {
     try {
-      const row = this.db
+      const row = await this.db
         .select({ id: user.id, name: user.name, email: user.email })
         .from(user)
         .where(eq(user.id, userId))
@@ -214,11 +215,11 @@ export class UserRepository {
    * Equivalente ao hard-delete que Better Auth faz no signOut.
    * Retorna `true` se as sessões foram deletadas, `null` se o account não existe.
    */
-  deleteSessionsByDiscordId(
+  async deleteSessionsByDiscordId(
     discordId: string,
-  ): Result<boolean | null, { message: string }> {
+  ): Promise<Result<boolean | null, { message: string }>> {
     try {
-      const accountRow = this.db
+      const accountRow = await this.db
         .select({ userId: account.userId })
         .from(account)
         .where(
@@ -234,7 +235,10 @@ export class UserRepository {
         return Result.ok(null)
       }
 
-      this.db.delete(session).where(eq(session.userId, accountRow.userId)).run()
+      await this.db
+        .delete(session)
+        .where(eq(session.userId, accountRow.userId))
+        .run()
 
       logger.info('Sessions deleted for user', {
         discordId,

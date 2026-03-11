@@ -305,7 +305,7 @@ export async function runStandupJob(
   // Padrão 3 (Akita): Idempotência — se já rodou com sucesso hoje, no-op.
   // ---------------------------------------------------------------------------
 
-  const db = getDb(env.DATABASE_URL)
+  const db = getDb(env.DATABASE_URL, env.DATABASE_AUTH_TOKEN)
   const jobRunRepo = new JobRunRepository(db)
   const standupRepo = new StandupRepository(db)
 

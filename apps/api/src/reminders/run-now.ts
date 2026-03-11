@@ -42,7 +42,7 @@ export async function handleRunNowReminder(
 
   const db = getDb(deps.databaseUrl)
   const settingsRepo = new UserSettingsRepository(db)
-  const settingsResult = settingsRepo.findByUserId(userId)
+  const settingsResult = await settingsRepo.findByUserId(userId)
 
   if (settingsResult.isErr() || !settingsResult.value) {
     return c.json(
@@ -68,7 +68,7 @@ export async function handleRunNowReminder(
   }
 
   const userRepo = new UserRepository(db)
-  const discordResult = userRepo.findDiscordIdByUserId(userId)
+  const discordResult = await userRepo.findDiscordIdByUserId(userId)
 
   if (discordResult.isErr() || !discordResult.value) {
     return c.json(

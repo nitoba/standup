@@ -26,7 +26,7 @@ export async function handleLogout(
   const repo = new UserRepository(db)
 
   // Check if user has active session first
-  const checkResult = repo.hasActiveSession(discordId)
+  const checkResult = await repo.hasActiveSession(discordId)
 
   if (Result.isError(checkResult)) {
     logger.error('Failed to check session for logout command', {
@@ -58,7 +58,7 @@ export async function handleLogout(
   }
 
   // Delete all sessions
-  const deleteResult = repo.deleteSessionsByDiscordId(discordId)
+  const deleteResult = await repo.deleteSessionsByDiscordId(discordId)
 
   if (Result.isError(deleteResult)) {
     logger.error('Failed to delete sessions for logout command', {

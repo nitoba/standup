@@ -36,7 +36,7 @@ describe('settings-service', () => {
     mocks.getDb.mockReturnValue({})
   })
 
-  it('returns persisted settings with selectedRepos parsed to string array', () => {
+  it('returns persisted settings with selectedRepos parsed to string array', async () => {
     mocks.findByUserId.mockReturnValue(
       Result.ok({
         userId: 'user-1',
@@ -54,7 +54,7 @@ describe('settings-service', () => {
       }),
     )
 
-    const result = getUserSettingsOrDefaults('user-1', deps)
+    const result = await getUserSettingsOrDefaults('user-1', deps)
 
     expect(result).toEqual(
       Result.ok({
@@ -73,10 +73,10 @@ describe('settings-service', () => {
     )
   })
 
-  it('returns typed defaults when the user has no persisted row yet', () => {
+  it('returns typed defaults when the user has no persisted row yet', async () => {
     mocks.findByUserId.mockReturnValue(Result.ok(null))
 
-    const result = getUserSettingsOrDefaults('user-1', deps)
+    const result = await getUserSettingsOrDefaults('user-1', deps)
 
     expect(result).toEqual(
       Result.ok({
@@ -95,10 +95,10 @@ describe('settings-service', () => {
     )
   })
 
-  it('returns fresh defaults on each first-time call', () => {
+  it('returns fresh defaults on each first-time call', async () => {
     mocks.findByUserId.mockReturnValue(Result.ok(null))
 
-    const firstResult = getUserSettingsOrDefaults('user-1', deps)
+    const firstResult = await getUserSettingsOrDefaults('user-1', deps)
     expect(firstResult.isOk()).toBe(true)
     if (firstResult.isErr()) {
       return
@@ -106,7 +106,7 @@ describe('settings-service', () => {
 
     firstResult.value.selectedRepos.push('repo-leak')
 
-    const secondResult = getUserSettingsOrDefaults('user-1', deps)
+    const secondResult = await getUserSettingsOrDefaults('user-1', deps)
 
     expect(secondResult).toEqual(
       Result.ok({
@@ -132,7 +132,7 @@ describe('settings-service', () => {
     }
   })
 
-  it('falls back to an empty repo list when persisted selectedRepos is invalid JSON', () => {
+  it('falls back to an empty repo list when persisted selectedRepos is invalid JSON', async () => {
     mocks.findByUserId.mockReturnValue(
       Result.ok({
         userId: 'user-1',
@@ -150,7 +150,7 @@ describe('settings-service', () => {
       }),
     )
 
-    const result = getUserSettingsOrDefaults('user-1', deps)
+    const result = await getUserSettingsOrDefaults('user-1', deps)
 
     expect(result).toEqual(
       Result.ok({
@@ -169,7 +169,7 @@ describe('settings-service', () => {
     )
   })
 
-  it('serializes selectedRepos before persisting and returns typed settings', () => {
+  it('serializes selectedRepos before persisting and returns typed settings', async () => {
     mocks.upsert.mockReturnValue(
       Result.ok({
         userId: 'user-1',
@@ -187,7 +187,7 @@ describe('settings-service', () => {
       }),
     )
 
-    const result = upsertUserSettings(
+    const result = await upsertUserSettings(
       {
         userId: 'user-1',
         standupCron: '0 10 * * 1-5',
@@ -232,14 +232,14 @@ describe('settings-service', () => {
     )
   })
 
-  it('propagates repository errors unchanged', () => {
+  it('propagates repository errors unchanged', async () => {
     const error = new DbError({
       operation: 'findByUserId',
       message: 'db offline',
     })
     mocks.findByUserId.mockReturnValue(Result.err(error))
 
-    const result = getUserSettingsOrDefaults('user-1', deps)
+    const result = await getUserSettingsOrDefaults('user-1', deps)
 
     expect(result.isErr()).toBe(true)
     if (result.isErr()) {

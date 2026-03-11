@@ -7,6 +7,7 @@ const baseEnvSchema = z.object({
     .default('development'),
   PORT: z.coerce.number().int().positive().default(3333),
   DATABASE_URL: z.string().default('./data/standup.db'),
+  DATABASE_AUTH_TOKEN: z.string().optional(),
   INTERNAL_SECRET: z.string().default('change-me-in-production'),
   REPOS_ROOT_PATH: z.string().default('/repos'),
 })

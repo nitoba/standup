@@ -1,11 +1,14 @@
-import { Database } from 'bun:sqlite'
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {
+  type Client,
+  createClient,
+  type InStatement,
+} from '@libsql/client/node'
 import { createServiceLogger } from '@standup/logger'
-
-import { drizzle } from 'drizzle-orm/bun-sqlite'
-import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
+import { drizzle } from 'drizzle-orm/libsql'
+import { migrate } from 'drizzle-orm/libsql/migrator'
 
 const logger = createServiceLogger({
   service: 'db',
@@ -19,6 +22,27 @@ function getErrorMessage(error: unknown): string {
     return error.message
   }
   return String(error)
+}
+
+function normalizeDatabaseUrl(url: string): string {
+  if (
+    url === ':memory:' ||
+    url.startsWith('file:') ||
+    url.startsWith('http://') ||
+    url.startsWith('https://') ||
+    url.startsWith('ws://') ||
+    url.startsWith('wss://') ||
+    url.startsWith('libsql://') ||
+    url.startsWith('turso://')
+  ) {
+    return url
+  }
+
+  return `file:${url}`
+}
+
+function isLocalDatabaseUrl(url: string): boolean {
+  return url === ':memory:' || url.startsWith('file:')
 }
 
 function countSqlMigrationFiles(migrationsFolder: string): number {
@@ -53,24 +77,35 @@ function getKnownMigrationsCount(migrationsFolder: string): number {
   }
 }
 
-function hasMigrationsTable(sqlite: Database): boolean {
-  const row = sqlite
-    .query(
-      `select name from sqlite_master where type = 'table' and name = '${DRIZZLE_MIGRATIONS_TABLE}'`,
-    )
-    .get() as { name: string } | null
+async function getFirstRow<T>(
+  client: Client,
+  stmt: InStatement,
+): Promise<T | null> {
+  const result = await client.execute(stmt)
+  return (result.rows[0] as T | undefined) ?? null
+}
+
+async function getAllRows<T>(client: Client, stmt: InStatement): Promise<T[]> {
+  const result = await client.execute(stmt)
+  return result.rows as T[]
+}
+
+async function hasMigrationsTable(client: Client): Promise<boolean> {
+  const row = await getFirstRow<{ name: string }>(client, {
+    sql: `select name from sqlite_master where type = 'table' and name = '${DRIZZLE_MIGRATIONS_TABLE}'`,
+  })
 
   return row !== null
 }
 
-function getAppliedMigrationsCount(sqlite: Database): number {
-  if (!hasMigrationsTable(sqlite)) {
+async function getAppliedMigrationsCount(client: Client): Promise<number> {
+  if (!(await hasMigrationsTable(client))) {
     return 0
   }
 
-  const row = sqlite
-    .query(`select count(*) as count from "${DRIZZLE_MIGRATIONS_TABLE}"`)
-    .get() as { count: number } | null
+  const row = await getFirstRow<{ count: number | string }>(client, {
+    sql: `select count(*) as count from "${DRIZZLE_MIGRATIONS_TABLE}"`,
+  })
 
   if (!row) {
     return 0
@@ -79,13 +114,19 @@ function getAppliedMigrationsCount(sqlite: Database): number {
   return Number(row.count ?? 0)
 }
 
-function getDuplicateDiscordAccounts(sqlite: Database): Array<{
-  providerId: string
-  accountId: string
-  count: number
-}> {
-  return sqlite
-    .query(`
+async function getDuplicateDiscordAccounts(client: Client): Promise<
+  Array<{
+    providerId: string
+    accountId: string
+    count: number
+  }>
+> {
+  const rows = await getAllRows<{
+    providerId: string
+    accountId: string
+    count: number | string
+  }>(client, {
+    sql: `
       select
         provider_id as providerId,
         account_id as accountId,
@@ -93,22 +134,26 @@ function getDuplicateDiscordAccounts(sqlite: Database): Array<{
       from account
       group by provider_id, account_id
       having count(*) > 1
-    `)
-    .all() as Array<{ providerId: string; accountId: string; count: number }>
+    `,
+  })
+
+  return rows.map((row) => ({
+    providerId: row.providerId,
+    accountId: row.accountId,
+    count: Number(row.count),
+  }))
 }
 
-function assertNoDuplicateDiscordAccounts(sqlite: Database): void {
-  const accountTableExists = sqlite
-    .query(
-      `select name from sqlite_master where type = 'table' and name = 'account'`,
-    )
-    .get() as { name: string } | null
+async function assertNoDuplicateDiscordAccounts(client: Client): Promise<void> {
+  const accountTableExists = await getFirstRow<{ name: string }>(client, {
+    sql: `select name from sqlite_master where type = 'table' and name = 'account'`,
+  })
 
   if (!accountTableExists) {
     return
   }
 
-  const duplicates = getDuplicateDiscordAccounts(sqlite)
+  const duplicates = await getDuplicateDiscordAccounts(client)
   if (duplicates.length === 0) {
     return
   }
@@ -125,66 +170,75 @@ function assertNoDuplicateDiscordAccounts(sqlite: Database): void {
   )
 }
 
-const databaseUrl = process.env.DATABASE_URL ?? './data/standup.db'
-const migrationsFolder = fileURLToPath(new URL('./migrations', import.meta.url))
+async function main(): Promise<void> {
+  const databaseUrl = process.env.DATABASE_URL ?? './data/standup.db'
+  const databaseAuthToken = process.env.DATABASE_AUTH_TOKEN
+  const normalizedDatabaseUrl = normalizeDatabaseUrl(databaseUrl)
+  const migrationsFolder = fileURLToPath(
+    new URL('./migrations', import.meta.url),
+  )
 
-if (databaseUrl !== ':memory:' && !databaseUrl.startsWith('file:')) {
-  const databasePath = resolve(process.cwd(), databaseUrl)
-  mkdirSync(dirname(databasePath), { recursive: true })
-}
-
-const sqlite = new Database(databaseUrl, { create: true })
-sqlite.run('PRAGMA journal_mode=WAL')
-sqlite.run('PRAGMA foreign_keys=ON')
-
-const db = drizzle(sqlite)
-
-try {
-  const knownMigrations = getKnownMigrationsCount(migrationsFolder)
-  const appliedBefore = getAppliedMigrationsCount(sqlite)
-  const pendingBefore = Math.max(knownMigrations - appliedBefore, 0)
-  const startedAt = Date.now()
-
-  logger.info('Starting migration run', {
-    databaseUrl,
-    migrationsFolder,
-    knownMigrations,
-    appliedMigrations: appliedBefore,
-    pendingMigrations: pendingBefore,
-  })
-
-  if (pendingBefore === 0) {
-    logger.info('No pending migrations detected')
+  if (
+    isLocalDatabaseUrl(normalizedDatabaseUrl) &&
+    normalizedDatabaseUrl !== ':memory:'
+  ) {
+    const databasePath = resolve(
+      process.cwd(),
+      normalizedDatabaseUrl.replace(/^file:/, ''),
+    )
+    mkdirSync(dirname(databasePath), { recursive: true })
   }
 
-  assertNoDuplicateDiscordAccounts(sqlite)
-  migrate(db, { migrationsFolder })
-
-  const appliedAfter = getAppliedMigrationsCount(sqlite)
-  const executedMigrations = Math.max(appliedAfter - appliedBefore, 0)
-  const pendingAfter = Math.max(knownMigrations - appliedAfter, 0)
-  const durationMs = Date.now() - startedAt
-
-  logger.info('Migration run finished', {
-    executedMigrations,
-    appliedMigrations: appliedAfter,
-    pendingMigrations: pendingAfter,
-    durationMs,
+  const client = createClient({
+    url: normalizedDatabaseUrl,
+    authToken: databaseAuthToken,
   })
-} catch (error) {
-  logger.error('Migration run failed', {
-    error: getErrorMessage(error),
-    stack: error instanceof Error ? error.stack : undefined,
-    databaseUrl,
-    migrationsFolder,
-  })
-  process.exitCode = 1
-} finally {
+
+  const db = drizzle({ client })
+
   try {
-    sqlite.close()
-  } catch (error) {
-    logger.warn('Failed to close SQLite connection after migration run', {
-      error: getErrorMessage(error),
+    const knownMigrations = getKnownMigrationsCount(migrationsFolder)
+    const appliedBefore = await getAppliedMigrationsCount(client)
+    const pendingBefore = Math.max(knownMigrations - appliedBefore, 0)
+    const startedAt = Date.now()
+
+    logger.info('Starting migration run', {
+      databaseUrl: normalizedDatabaseUrl,
+      migrationsFolder,
+      knownMigrations,
+      appliedMigrations: appliedBefore,
+      pendingMigrations: pendingBefore,
     })
+
+    if (pendingBefore === 0) {
+      logger.info('No pending migrations detected')
+    }
+
+    await assertNoDuplicateDiscordAccounts(client)
+    await migrate(db, { migrationsFolder })
+
+    const appliedAfter = await getAppliedMigrationsCount(client)
+    const executedMigrations = Math.max(appliedAfter - appliedBefore, 0)
+    const pendingAfter = Math.max(knownMigrations - appliedAfter, 0)
+    const durationMs = Date.now() - startedAt
+
+    logger.info('Migration run finished', {
+      executedMigrations,
+      appliedMigrations: appliedAfter,
+      pendingMigrations: pendingAfter,
+      durationMs,
+    })
+  } catch (error) {
+    logger.error('Migration run failed', {
+      error: getErrorMessage(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      databaseUrl: normalizedDatabaseUrl,
+      migrationsFolder,
+    })
+    process.exitCode = 1
+  } finally {
+    client.close()
   }
 }
+
+await main()

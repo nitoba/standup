@@ -73,7 +73,7 @@ export async function syncStandupStatus(
   // 2. Resolver discordUserId a partir do userId
   let discordUserId: string | undefined
   if (record.userId) {
-    const accountResult = userRepo.findDiscordIdByUserId(record.userId)
+    const accountResult = await userRepo.findDiscordIdByUserId(record.userId)
     if (accountResult.isOk() && accountResult.value) {
       discordUserId = accountResult.value
     } else {

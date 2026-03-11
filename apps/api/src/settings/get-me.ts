@@ -22,7 +22,7 @@ export async function handleGetMeSettings(
     return c.json({ error: 'Unauthorized' }, 401) as Response
   }
 
-  const result = getUserSettingsOrDefaults(userId, { databaseUrl })
+  const result = await getUserSettingsOrDefaults(userId, { databaseUrl })
 
   if (result.isErr()) {
     logger.error('Failed to fetch user settings', {

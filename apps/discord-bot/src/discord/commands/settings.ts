@@ -50,7 +50,7 @@ export async function handleSettings(
   const userRepo = new UserRepository(db)
   const settingsRepo = new UserSettingsRepository(db)
 
-  const userResult = userRepo.hasActiveSession(discordId)
+  const userResult = await userRepo.hasActiveSession(discordId)
   if (userResult.isErr() || !userResult.value || !userResult.value.hasSession) {
     await interaction.editReply({
       content:
@@ -60,7 +60,7 @@ export async function handleSettings(
   }
 
   const userId = userResult.value.userId
-  const result = settingsRepo.findByUserId(userId)
+  const result = await settingsRepo.findByUserId(userId)
 
   if (result.isErr()) {
     await interaction.editReply({

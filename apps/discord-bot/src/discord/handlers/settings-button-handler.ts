@@ -38,7 +38,7 @@ export async function handleSettingsButton(
 
   const btnLogger = withContext(logger, { discordId, action })
 
-  const userResult = userRepo.hasActiveSession(discordId)
+  const userResult = await userRepo.hasActiveSession(discordId)
   if (userResult.isErr() || !userResult.value || !userResult.value.hasSession) {
     btnLogger.error('Failed to resolve user or session expired')
     await interaction.reply({
@@ -52,7 +52,7 @@ export async function handleSettingsButton(
   const userId = userResult.value.userId
 
   if (action === 'edit') {
-    const result = settingsRepo.findByUserId(userId)
+    const result = await settingsRepo.findByUserId(userId)
     const currentSettings = result.isOk() ? result.value : null
 
     // Try cached repos first (instant, avoids 3s Discord timeout).
@@ -90,7 +90,7 @@ export async function handleSettingsButton(
   if (action === 'toggle') {
     await interaction.deferUpdate()
 
-    const findResult = settingsRepo.findByUserId(userId)
+    const findResult = await settingsRepo.findByUserId(userId)
     if (findResult.isErr() || !findResult.value) {
       await interaction.editReply({
         content: '❌ Nenhuma configuração encontrada para alternar.',
@@ -100,7 +100,7 @@ export async function handleSettingsButton(
     }
 
     const current = findResult.value
-    const upsertResult = settingsRepo.upsert({
+    const upsertResult = await settingsRepo.upsert({
       userId,
       selectedRepos: current.selectedRepos,
       gitAuthor: current.gitAuthor,
