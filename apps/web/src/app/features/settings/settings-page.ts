@@ -44,7 +44,7 @@ import {
         <div class="flex flex-col gap-[8px]">
           <div class="flex items-center gap-[12px]">
             <span
-              class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[28px] font-bold"
+              class="text-primary font-[var(--font-jetbrains)] text-[28px] font-bold"
               >></span
             >
             <span
@@ -270,7 +270,7 @@ import {
                   >
                     <div class="flex items-center gap-[8px] flex-1">
                       <span
-                        class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[13px]"
+                        class="text-primary font-[var(--font-jetbrains)] text-[13px]"
                         >~/</span
                       >
                       <span
@@ -355,18 +355,18 @@ import {
                 <div class="flex items-center" role="group" aria-label="Email theme">
                   <button
                     type="button"
-                    class="px-[14px] py-[7px] font-[var(--font-jetbrains)] text-[12px] border transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-green)]"
+                    class="px-[14px] py-[7px] font-[var(--font-jetbrains)] text-[12px] border transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     [class]="settingsModel().emailTheme === 'dark'
-                      ? 'border-[var(--accent-green)] bg-[var(--accent-green)]/10 text-[var(--accent-green)]'
+                      ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
                     [attr.aria-pressed]="settingsModel().emailTheme === 'dark'"
                     (click)="onEmailThemeChange('dark')"
                   >dark</button>
                   <button
                     type="button"
-                    class="px-[14px] py-[7px] font-[var(--font-jetbrains)] text-[12px] border-y border-r transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-green)]"
+                    class="px-[14px] py-[7px] font-[var(--font-jetbrains)] text-[12px] border-y border-r transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     [class]="settingsModel().emailTheme === 'light'
-                      ? 'border-[var(--accent-green)] bg-[var(--accent-green)]/10 text-[var(--accent-green)]'
+                      ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
                     [attr.aria-pressed]="settingsModel().emailTheme === 'light'"
                     (click)="onEmailThemeChange('light')"

@@ -58,7 +58,7 @@ function findNewestPendingId(standups: Standup[]): string | null {
             z-button
             zType="link"
             zSize="sm"
-            class="justify-start px-0 text-[var(--accent-green)]"
+            class="justify-start px-0 text-primary"
             (click)="viewStandup.emit(standup.id)"
           >
             $ view >>
@@ -88,7 +88,7 @@ function findNewestPendingId(standups: Standup[]): string | null {
             z-button
             zType="link"
             zSize="sm"
-            class="justify-start px-0 text-[var(--accent-green)]"
+            class="justify-start px-0 text-primary"
             (click)="viewStandup.emit(standup.id)"
           >
             $ view >>
@@ -222,7 +222,7 @@ export class StandupTable {
   }
 
   statusBadgeClass(status: StandupStatus) {
-    if (status === 'approved') return 'text-[var(--accent-green)]'
+    if (status === 'approved') return 'text-primary'
     if (status === 'pending_review') return 'text-[var(--accent-yellow)]'
     return 'text-[var(--accent-red)]'
   }

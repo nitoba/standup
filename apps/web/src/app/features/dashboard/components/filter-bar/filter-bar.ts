@@ -58,7 +58,7 @@ type StatusSelection = 'all' | 'pending_review' | 'approved' | 'rejected'
           (zValueChange)="onPageSizeSelected($event)"
         />
 
-        <div class="h-[44px] w-full border border-border bg-card px-[12px] md:w-[250px] md:px-[14px] lg:w-[280px] flex items-center gap-[8px] transition-colors duration-150 focus-within:border-[var(--accent-green)]">
+        <div class="h-[44px] w-full border border-border bg-card px-[12px] md:w-[250px] md:px-[14px] lg:w-[280px] flex items-center gap-[8px] transition-colors duration-150 focus-within:border-primary">
           <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] md:text-[13px]">/</span>
           <input
             type="text"

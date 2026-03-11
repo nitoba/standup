@@ -50,7 +50,7 @@ function formatDisplayDate(dateStr: string): string {
 
         <div class="flex flex-col gap-[8px]">
           <div class="flex items-center gap-[12px]">
-            <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[24px] md:text-[32px] font-bold">>></span>
+            <span class="text-primary font-[var(--font-jetbrains)] text-[24px] md:text-[32px] font-bold">>></span>
             <span class="text-foreground font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold">resumo_semanal</span>
           </div>
           @if (periodLabel()) {
@@ -96,7 +96,7 @@ function formatDisplayDate(dateStr: string): string {
               <div class="bg-card border border-border flex flex-col gap-[0]">
                 <div class="flex items-center justify-between gap-[12px] px-[16px] md:px-[24px] py-[12px] border-b border-border">
                   <div class="flex items-center gap-[12px]">
-                    <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[11px] font-bold uppercase tracking-[0.12em]">
+                    <span class="text-primary font-[var(--font-jetbrains)] text-[11px] font-bold uppercase tracking-[0.12em]">
                       {{ formatDisplayDate(standup.date) }}
                     </span>
                     <span class="text-muted-foreground/60 font-[var(--font-ibm)] text-[11px]">
@@ -188,13 +188,13 @@ export class WeeklyDigestPage {
   }
 
   statusDotClass(status: StandupStatus): string {
-    if (status === 'approved') return 'bg-[var(--accent-green)]'
+    if (status === 'approved') return 'bg-primary'
     if (status === 'pending_review') return 'bg-[var(--accent-yellow)]'
     return 'bg-[var(--accent-red)]'
   }
 
   statusTextClass(status: StandupStatus): string {
-    if (status === 'approved') return 'text-[var(--accent-green)]'
+    if (status === 'approved') return 'text-primary'
     if (status === 'pending_review') return 'text-[var(--accent-yellow)]'
     return 'text-[var(--accent-red)]'
   }

@@ -47,7 +47,7 @@ import { StandupDetailSkeleton } from './components/standup-detail-skeleton/stan
         } @else if (standup.value(); as detail) {
           <div class="flex flex-col gap-[16px]">
             <div class="flex items-center gap-[12px]">
-              <span class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[24px] md:text-[32px] font-bold">>></span>
+              <span class="text-primary font-[var(--font-jetbrains)] text-[24px] md:text-[32px] font-bold">>></span>
               <span class="text-foreground font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold">standup_detail</span>
             </div>
             <div class="flex flex-wrap items-center gap-[12px] md:gap-[24px]">
@@ -99,7 +99,7 @@ import { StandupDetailSkeleton } from './components/standup-detail-skeleton/stan
               <div class="flex flex-col gap-[20px]">
                 @for (repo of detail.sources; track repo.name) {
                   <div class="flex flex-col gap-[8px]">
-                    <div class="text-[var(--accent-green)] font-[var(--font-jetbrains)] text-[13px] font-medium">{{ repo.name }}</div>
+                    <div class="text-primary font-[var(--font-jetbrains)] text-[13px] font-medium">{{ repo.name }}</div>
                     @for (commit of repo.commits; track commit.hash) {
                       <div class="flex gap-[12px] pl-[16px]">
                         <span class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[12px]">{{ commit.hash }}</span>
@@ -386,13 +386,13 @@ export class StandupDetailPage {
   }
 
   statusDotClass(status: StandupStatus) {
-    if (status === 'approved') return 'bg-[var(--accent-green)]'
+    if (status === 'approved') return 'bg-primary'
     if (status === 'pending_review') return 'bg-[var(--accent-yellow)]'
     return 'bg-[var(--accent-red)]'
   }
 
   statusTextClass(status: StandupStatus) {
-    if (status === 'approved') return 'text-[var(--accent-green)]'
+    if (status === 'approved') return 'text-primary'
     if (status === 'pending_review') return 'text-[var(--accent-yellow)]'
     return 'text-[var(--accent-red)]'
   }

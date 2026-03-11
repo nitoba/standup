@@ -13,7 +13,7 @@ export const buttonVariants = cva(
     variants: {
       zType: {
         default:
-          'border-[var(--accent-green)] bg-[var(--accent-green)] text-black hover:shadow-[0_0_12px_var(--accent-green)] hover:brightness-110',
+          'border-primary bg-primary text-black hover:shadow-[0_0_12px_var(--accent-green)] hover:brightness-110',
         destructive:
           'border-[var(--accent-red)] bg-transparent text-[var(--accent-red)] hover:bg-[var(--accent-red)] hover:text-black hover:shadow-[0_0_12px_color-mix(in_srgb,var(--accent-red)_24%,transparent)] focus-visible:border-[var(--accent-red)] focus-visible:ring-[color:color-mix(in_srgb,var(--accent-red)_24%,transparent)]',
         outline:
