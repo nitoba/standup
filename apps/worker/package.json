@@ -16,6 +16,7 @@
     "@standup/config": "workspace:*",
     "@standup/db": "workspace:*",
     "@standup/domain": "workspace:*",
+    "@standup/email": "workspace:*",
     "@standup/git-collector": "workspace:*",
     "@standup/logger": "workspace:*",
     "@standup/observability": "workspace:*",

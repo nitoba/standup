@@ -27,6 +27,14 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'weekly-digest',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/weekly-digest/weekly-digest-page').then(
+        (m) => m.WeeklyDigestPage,
+      ),
+  },
+  {
     path: 'settings',
     canActivate: [authGuard],
     loadComponent: () =>

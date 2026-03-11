@@ -314,6 +314,19 @@ standup/
 4. Fase 2: features por fatias pequenas (collector, generator, persistence, bot, scheduler)
 5. So com `bun run ci` verde: lint + typecheck + test
 
+## Regras de Banco de Dados (Drizzle)
+
+- **NUNCA criar arquivos de migration manualmente** — sempre usar `bun run db:generate` no pacote `packages/db`
+- `db:generate` atualiza o `_journal.json` e cria o snapshot corretamente; criar arquivos `.sql` manualmente quebra o journal e pode causar migrations aplicadas parcialmente
+- `db:migrate` aplica as migrations pendentes usando `packages/db/src/migrate.ts` com `--env-file=../../.env.local`
+- Sempre rodar `db:migrate` apos `db:generate` para aplicar no banco local
+- O marcador `--> statement-breakpoint` e obrigatorio entre statements distintos (ex: `ALTER TABLE` + `CREATE TABLE`); sem ele, `bun:sqlite` executa apenas o primeiro statement
+
+Fluxo correto para adicionar ou alterar schema:
+1. Editar `packages/db/src/schema.ts`
+2. `bun run db:generate` (dentro de `packages/db`) — gera o `.sql` e atualiza o journal
+3. `bun run db:migrate` (dentro de `packages/db`) — aplica no banco
+
 ## Regras de Monorepo (Turborepo)
 
 - Scripts de task ficam em cada pacote/app (`build`, `lint`, `typecheck`, `test`)

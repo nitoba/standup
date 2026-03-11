@@ -11,7 +11,7 @@ import {
   transitionStandupStatus,
 } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
-import { and, desc, eq, gte, like, or, type SQL, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, like, lte, or, type SQL, sql } from 'drizzle-orm'
 import type { Db } from '../connection.js'
 import type { NewStandupRow } from '../schema.js'
 import { standups } from '../schema.js'
@@ -79,6 +79,8 @@ export interface ReplaceGeneratedStandupInput {
 export interface ListStandupFilters {
   status?: StandupStatus
   date?: string
+  from?: string // YYYY-MM-DD inclusive lower bound
+  to?: string // YYYY-MM-DD inclusive upper bound
   userId?: string
   search?: string
   page?: number
@@ -130,6 +132,14 @@ function buildListConditions(filters?: ListStandupFilters): SQL<unknown>[] {
     } else {
       conditions.push(eq(standups.date, filters.date))
     }
+  }
+
+  if (filters?.from) {
+    conditions.push(gte(standups.date, filters.from))
+  }
+
+  if (filters?.to) {
+    conditions.push(lte(standups.date, filters.to))
   }
 
   if (filters?.userId) {
@@ -545,6 +555,39 @@ export class StandupRepository {
       return Result.ok({ ...found.value, dmMessageId, updatedAt: now })
     } catch (error) {
       return this.dbErr('updateDmMessageId', error)
+    }
+  }
+
+  /**
+   * Find all approved (or published) standups for a user within a date range.
+   * Used by the weekly digest job to collect the week's work.
+   */
+  async findApprovedByUserAndDateRange(
+    userId: string,
+    startDate: string, // inclusive YYYY-MM-DD
+    endDate: string, // inclusive YYYY-MM-DD
+  ): Promise<Result<StandupRecord[], DbError>> {
+    try {
+      const rows = await this.db
+        .select()
+        .from(standups)
+        .where(
+          and(
+            eq(standups.userId, userId),
+            gte(standups.date, startDate),
+            lte(standups.date, endDate),
+            or(
+              eq(standups.status, 'approved'),
+              eq(standups.status, 'published'),
+            ),
+          ),
+        )
+        .orderBy(desc(standups.date))
+        .all()
+
+      return Result.ok(rows.map(toRecord))
+    } catch (error) {
+      return this.dbErr('findApprovedByUserAndDateRange', error)
     }
   }
 

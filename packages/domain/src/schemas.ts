@@ -1,5 +1,30 @@
 import * as z from 'zod'
 
+export const WeeklyDigestStatusSchema = z.enum([
+  'pending',
+  'sending',
+  'sent',
+  'unknown',
+  'failed',
+  'skipped',
+])
+
+export const EmailThemePreferenceSchema = z.enum(['light', 'dark'])
+
+export const WeeklyDigestRecordSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().min(1),
+  weekStart: z.string().min(10), // YYYY-MM-DD
+  weekEnd: z.string().min(10), // YYYY-MM-DD
+  standupIds: z.array(z.string().uuid()),
+  insights: z.string(),
+  status: WeeklyDigestStatusSchema,
+  error: z.string().nullable(),
+  sentAt: z.number().int().nullable(),
+  createdAt: z.number().int(),
+  updatedAt: z.number().int(),
+})
+
 export const StandupStatusSchema = z.enum([
   'draft',
   'pending_review',

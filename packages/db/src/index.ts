@@ -16,16 +16,20 @@ export type { UserWithAccount } from './repositories/user.js'
 export { UserRepository } from './repositories/user.js'
 export type { UpsertUserSettingsInput } from './repositories/user-settings.js'
 export { UserSettingsRepository } from './repositories/user-settings.js'
+export type { CreateWeeklyDigestInput } from './repositories/weekly-digest.js'
+export { WeeklyDigestRepository } from './repositories/weekly-digest.js'
 export type {
   AccountRow,
   JobRunRow,
   NewJobRunRow,
   NewStandupRow,
   NewUserSettingsRow,
+  NewWeeklyDigestRow,
   SessionRow,
   StandupRow,
   UserRow,
   UserSettingsRow,
+  WeeklyDigestRow,
 } from './schema.js'
 // Schema
 export {
@@ -36,4 +40,5 @@ export {
   user,
   userSettings,
   verification,
+  weeklyDigests,
 } from './schema.js'

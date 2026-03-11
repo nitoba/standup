@@ -132,12 +132,44 @@ services:
       BOT_INTERNAL_URL: http://standup-discord-bot:3334
       API_INTERNAL_URL: http://standup-api:3333
       REPOS_ROOT_PATH: /repos
+      # Public URL of the web SPA — used in weekly digest email links.
+      # Points to the host-exposed port so links work in a browser.
+      APP_URL: http://localhost:4200
+      # SMTP — apontando para o mailpit local (catch-all, aceita qualquer credencial).
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
+      SMTP_USER: ""
+      SMTP_PASS: ""
+      SMTP_FROM: "Standup Bot <bruno.alves@biosistemico.com.br>"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://standup-jaeger:4318
     networks:
       - internal
     restart: unless-stopped
     depends_on:
       - jaeger
+      - mailpit
+
+  # ---------------------------------------------------------------------------
+  # mailpit — local SMTP catch-all + web UI for email previews
+  #
+  # Accessible from:
+  #   - Web UI: http://localhost:8025
+  #   - SMTP (worker inside Docker): host=mailpit port=1025
+  # ---------------------------------------------------------------------------
+  mailpit:
+    image: axllent/mailpit
+    container_name: standup-mailpit
+    ports:
+      - "8025:8025" # Web UI
+      - "1025:1025" # SMTP (also reachable as 'mailpit:1025' inside the internal network)
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    networks:
+      - internal
+    restart: unless-stopped
 
 # ---------------------------------------------------------------------------
 # Volumes

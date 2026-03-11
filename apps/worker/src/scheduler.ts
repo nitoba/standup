@@ -10,7 +10,11 @@ import { createServiceLogger } from '@standup/logger'
 import { Cron } from 'croner'
 import { isCronDueNow } from './cron-matcher.js'
 import { runStandupJob } from './job/standup-job.js'
+import { runWeeklyDigestJob } from './job/weekly-digest-job.js'
 import { notifyStandupReminder } from './notifications/notify-standup-reminder.js'
+
+/** Cron expression for weekly digest: every Monday at 09:00 in user's timezone. */
+const DIGEST_CRON = '0 9 * * 1'
 
 const logger = createServiceLogger({
   service: 'worker',
@@ -220,6 +224,23 @@ export function startScheduler(
             stack: error instanceof Error ? error.stack : undefined,
           })
         })
+      }
+
+      // Check weekly digest cron (Monday 09:00 in user's timezone)
+      if (isCronDueNow(DIGEST_CRON, settings.timezone, now)) {
+        logger.info('Weekly digest cron triggered', {
+          userId: settings.userId,
+        })
+
+        runWeeklyDigestJob(env, { userId: settings.userId }).catch(
+          (error: unknown) => {
+            logger.error('Weekly digest job threw unexpectedly', {
+              userId: settings.userId,
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+            })
+          },
+        )
       }
     }
   })

@@ -56,6 +56,8 @@ env:
     BOT_INTERNAL_URL: http://standup-bot:3334
     API_INTERNAL_URL: http://standup-api:3333
     AZURE_DEVOPS_DEFAULT_PROJECT: AGROTRACE
+    # Public URL of the web SPA — used in weekly digest email links (unsubscribe, deep links).
+    APP_URL: https://app.nitodev.com.br
     # OpenTelemetry — Jaeger runs on the host; containers reach it via host.docker.internal.
     OTEL_EXPORTER_OTLP_ENDPOINT: http://host.docker.internal:4318
   secret:
@@ -63,3 +65,11 @@ env:
     - AZURE_DEVOPS_ORG
     - AZURE_DEVOPS_PAT
     - INTERNAL_SECRET
+    # SMTP — todas as vars vêm de env vars (host/port/secure/from + user/pass).
+    # Deixar SMTP_HOST vazio para desabilitar o digest gracefully.
+    - SMTP_HOST
+    - SMTP_PORT
+    - SMTP_SECURE
+    - SMTP_FROM
+    - SMTP_USER
+    - SMTP_PASS

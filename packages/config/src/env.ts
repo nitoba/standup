@@ -39,6 +39,18 @@ const workerEnvSchema = baseEnvSchema.extend({
   BOT_INTERNAL_URL: z.string().default('http://localhost:3334'),
   API_INTERNAL_URL: z.string().default('http://localhost:3333'),
   WORKER_INTERNAL_PORT: z.coerce.number().int().positive().default(3335),
+  // App URL — used for email links (unsubscribe, deep links)
+  APP_URL: z.string().default('http://localhost:4200'),
+  // SMTP — all optional; weekly digest is skipped gracefully when absent
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
+  SMTP_SECURE: z
+    .enum(['true', 'false'])
+    .transform((v) => v === 'true')
+    .default(false),
 })
 
 function parseEnv<TSchema extends z.ZodTypeAny>(

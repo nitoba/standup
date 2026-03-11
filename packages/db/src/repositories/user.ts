@@ -183,6 +183,33 @@ export class UserRepository {
   }
 
   /**
+   * Finds a user by their internal ID.
+   * Used by the worker to fetch the user's email address.
+   */
+  findById(
+    userId: string,
+  ): Result<
+    { id: string; name: string; email: string } | null,
+    { message: string }
+  > {
+    try {
+      const row = this.db
+        .select({ id: user.id, name: user.name, email: user.email })
+        .from(user)
+        .where(eq(user.id, userId))
+        .limit(1)
+        .get()
+
+      return Result.ok(row ?? null)
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown DB error'
+      logger.error('Failed to find user by ID', { userId, error: message })
+      return Result.err({ message })
+    }
+  }
+
+  /**
    * Deleta todas as sessões do usuário vinculado ao Discord ID.
    * Equivalente ao hard-delete que Better Auth faz no signOut.
    * Retorna `true` se as sessões foram deletadas, `null` se o account não existe.
