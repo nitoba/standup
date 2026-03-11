@@ -18,6 +18,7 @@ import type {
   StandupSection,
   StandupSourceRepo,
   StandupStatus,
+  StandupStatusChangedEvent,
 } from '../../../shared/models/standup-models'
 import { StandupEventsService } from './standup-events-service'
 
@@ -143,6 +144,11 @@ export class StandupService {
       return
     }
 
+    if (event.type === 'standup_status_changed') {
+      this.handleStatusChangedEvent(event)
+      return
+    }
+
     this.handleFailedEvent(event)
   }
 
@@ -163,6 +169,13 @@ export class StandupService {
       this.selectedStandup.reload()
     }
     toast.success('Standup gerado e pronto para revisão!')
+  }
+
+  private handleStatusChangedEvent(_event: StandupStatusChangedEvent) {
+    this.standups.reload()
+    if (this.selectedStandupId()) {
+      this.selectedStandup.reload()
+    }
   }
 
   private handleFailedEvent(event: StandupFailedEvent) {

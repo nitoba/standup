@@ -34,6 +34,11 @@ export type SseEvent =
       mode: 'generate' | 'regenerate' | 'adjust'
       message: string
     }
+  | {
+      type: 'standup_status_changed'
+      standupId: string
+      newStatus: string
+    }
   | { type: 'ping' }
 
 type Listener = (event: SseEvent) => void

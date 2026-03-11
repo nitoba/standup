@@ -45,6 +45,10 @@ export class StandupEventsService implements OnDestroy {
       this.eventSource.addEventListener('standup_progress', onStandupEvent)
       this.eventSource.addEventListener('standup_generated', onStandupEvent)
       this.eventSource.addEventListener('standup_failed', onStandupEvent)
+      this.eventSource.addEventListener(
+        'standup_status_changed',
+        onStandupEvent,
+      )
 
       this.eventSource.addEventListener('error', () => {
         // EventSource auto-reconnects on transient failures — no action needed

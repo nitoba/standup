@@ -8,6 +8,7 @@ import {
   TextInputBuilder,
   TextInputStyle,
 } from 'discord.js'
+import { notifyStandupStatusEvent } from '../../http/notify/standup-status-event.js'
 import type { CopyAction } from './copy-handler.js'
 import { handleCopyButtonInteraction } from './copy-handler.js'
 import type { StandupAction } from './interaction-handler.js'
@@ -148,6 +149,7 @@ export async function handleButtonInteraction(
     | 'DISCORD_CHANNEL_ID'
     | 'WORKER_INTERNAL_URL'
     | 'API_BASE_URL'
+    | 'API_INTERNAL_URL'
     | 'INTERNAL_SECRET'
   >,
 ): Promise<void> {
@@ -261,6 +263,14 @@ export async function handleButtonInteraction(
     await updateReviewMessage(interaction, {
       content: `${emoji} ${result.value.message}`,
       components: [], // remove buttons after action
+    })
+    // Notify API so SSE pushes standup_status_changed to the web client (fire-and-forget)
+    void notifyStandupStatusEvent({
+      apiInternalUrl: env.API_INTERNAL_URL,
+      internalSecret: env.INTERNAL_SECRET,
+      userId: result.value.userId,
+      standupId: result.value.standupId,
+      newStatus: result.value.newStatus,
     })
   } else {
     interactionLogger.error('Standup interaction failed', {

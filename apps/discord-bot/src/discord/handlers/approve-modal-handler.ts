@@ -4,6 +4,7 @@ import type { CustomEntries } from '@standup/domain'
 import { hasCustomEntries, mergeCustomEntries } from '@standup/domain'
 import { createServiceLogger, withContext } from '@standup/logger'
 import type { Client, ModalSubmitInteraction } from 'discord.js'
+import { notifyStandupStatusEvent } from '../../http/notify/standup-status-event.js'
 import { handleStandupInteraction } from './interaction-handler.js'
 import { updateReviewMessage } from './update-review-message.js'
 
@@ -36,7 +37,13 @@ function parseLines(raw: string): string[] {
 export async function handleApproveModal(
   interaction: ModalSubmitInteraction,
   client: Client,
-  env: Pick<BotEnv, 'DATABASE_URL' | 'DISCORD_CHANNEL_ID'>,
+  env: Pick<
+    BotEnv,
+    | 'DATABASE_URL'
+    | 'DISCORD_CHANNEL_ID'
+    | 'API_INTERNAL_URL'
+    | 'INTERNAL_SECRET'
+  >,
 ): Promise<void> {
   const [namespace, standupId] = interaction.customId.split(':')
   if (namespace !== 'standup-approve-modal' || !standupId) return
@@ -156,6 +163,15 @@ export async function handleApproveModal(
     await updateReviewMessage(interaction, {
       content: `\u{2705} ${result.value.message}${entriesMsg}`,
       components: [],
+    })
+
+    // Notify API so SSE pushes standup_status_changed to the web client (fire-and-forget)
+    void notifyStandupStatusEvent({
+      apiInternalUrl: env.API_INTERNAL_URL,
+      internalSecret: env.INTERNAL_SECRET,
+      userId: result.value.userId,
+      standupId: result.value.standupId,
+      newStatus: result.value.newStatus,
     })
   } else {
     modalLogger.error('Approve failed', {

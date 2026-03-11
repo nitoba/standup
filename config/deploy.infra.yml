@@ -37,7 +37,7 @@ accessories:
   jaeger:
     image: jaegertracing/all-in-one:latest
     host: colima.tail2ee1d6.ts.net
-    port:
+    ports:
       - "16686:16686"   # Jaeger UI
       - "4318:4318"     # OTLP HTTP receiver (used by apps via host.docker.internal)
     env:

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   handleStandupInteraction: vi.fn(),
+  notifyStandupStatusEvent: vi.fn().mockResolvedValue(undefined),
   handleReminderInteraction: vi.fn(),
   handleTriggerButtonInteraction: vi.fn(),
   handleCopyButtonInteraction: vi.fn(),
@@ -26,6 +27,10 @@ vi.mock('@standup/logger', () => ({
 
 vi.mock('./interaction-handler.js', () => ({
   handleStandupInteraction: mocks.handleStandupInteraction,
+}))
+
+vi.mock('../../http/notify/standup-status-event.js', () => ({
+  notifyStandupStatusEvent: mocks.notifyStandupStatusEvent,
 }))
 
 vi.mock('./reminder-handler.js', () => ({
@@ -78,6 +83,7 @@ const env = {
   INTERNAL_SECRET: 'test-secret',
   WORKER_INTERNAL_URL: 'http://localhost:3335',
   API_BASE_URL: 'http://localhost:3333',
+  API_INTERNAL_URL: 'http://localhost:3333',
   REPOS_ROOT_PATH: '/repos',
 }
 
@@ -181,6 +187,8 @@ describe('handleButtonInteraction', () => {
       Result.ok({
         action: 'reject',
         standupId: 'standup-1',
+        userId: 'user-123',
+        newStatus: 'rejected',
         message: 'Standup rejeitado',
       }),
     )

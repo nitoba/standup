@@ -21,6 +21,8 @@ export type StandupAction = 'approve' | 'reject' | 'regenerate'
 export interface InteractionOutcome {
   action: StandupAction
   standupId: string
+  userId: string
+  newStatus: string
   message: string
 }
 
@@ -73,6 +75,8 @@ async function handleApprove(
       return Result.ok({
         action: 'approve',
         standupId: record.id,
+        userId: actorUserId,
+        newStatus: 'approved',
         message:
           'Standup aprovado! A publicação falhou — publique manualmente no canal.',
       })
@@ -95,6 +99,8 @@ async function handleApprove(
   return Result.ok({
     action: 'approve',
     standupId: record.id,
+    userId: actorUserId,
+    newStatus: 'published',
     message: 'Standup aprovado e publicado no canal!',
   })
 }
@@ -114,6 +120,8 @@ async function handleReject(
   return Result.ok({
     action: 'reject',
     standupId: record.id,
+    userId: actorUserId,
+    newStatus: 'rejected',
     message:
       'Standup rejeitado. Use o comando de standup ou aguarde o próximo cron para gerar um novo.',
   })
@@ -135,6 +143,8 @@ async function handleRegenerate(
   return Result.ok({
     action: 'regenerate',
     standupId: record.id,
+    userId: actorUserId,
+    newStatus: 'rejected',
     message: 'Standup rejeitado para regeneração.',
   })
 }

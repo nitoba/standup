@@ -195,10 +195,17 @@ export interface StandupFailedEvent {
   message: string
 }
 
+export interface StandupStatusChangedEvent {
+  type: 'standup_status_changed'
+  standupId: string
+  newStatus: string
+}
+
 export type StandupEvent =
   | StandupProgressEvent
   | StandupGeneratedEvent
   | StandupFailedEvent
+  | StandupStatusChangedEvent
 
 export interface StandupPagination {
   page: number

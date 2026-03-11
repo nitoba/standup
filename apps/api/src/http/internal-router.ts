@@ -45,6 +45,12 @@ const standupEventBodySchema = z.discriminatedUnion('type', [
     mode: z.enum(['generate', 'regenerate', 'adjust']),
     message: z.string().min(1),
   }),
+  z.object({
+    type: z.literal('standup_status_changed'),
+    userId: z.string().min(1),
+    standupId: z.string().min(1),
+    newStatus: z.string().min(1),
+  }),
 ])
 
 /**
@@ -74,10 +80,11 @@ export function createInternalRouter(opts: {
     logger.info('Pushing standup SSE event', {
       userId,
       eventType: event.type,
-      runId: event.runId,
-      date: event.date,
+      ...('runId' in event ? { runId: event.runId } : {}),
+      ...('date' in event ? { date: event.date } : {}),
       ...(event.type === 'standup_progress' ? { step: event.step } : {}),
-      ...(event.type === 'standup_generated'
+      ...(event.type === 'standup_generated' ||
+      event.type === 'standup_status_changed'
         ? { standupId: event.standupId }
         : {}),
     })

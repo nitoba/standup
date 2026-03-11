@@ -53,6 +53,7 @@ env:
     DATABASE_URL: /app/data/standup.db
     REPOS_ROOT_PATH: /repos
     API_BASE_URL: https://api.nitodev.com.br
+    API_INTERNAL_URL: http://standup-api:3333
     WORKER_INTERNAL_URL: http://standup-worker:3335
     # OpenTelemetry — Jaeger runs on the host; containers reach it via host.docker.internal.
     OTEL_EXPORTER_OTLP_ENDPOINT: http://host.docker.internal:4318

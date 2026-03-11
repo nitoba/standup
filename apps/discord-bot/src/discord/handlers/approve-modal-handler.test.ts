@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   handleStandupInteraction: vi.fn(),
+  notifyStandupStatusEvent: vi.fn().mockResolvedValue(undefined),
   getDb: vi.fn().mockReturnValue({}),
   repoUpdateCustomEntries: vi.fn(),
   repoUpdateContent: vi.fn(),
@@ -30,6 +31,10 @@ vi.mock('@standup/logger', () => ({
 
 vi.mock('./interaction-handler.js', () => ({
   handleStandupInteraction: mocks.handleStandupInteraction,
+}))
+
+vi.mock('../../http/notify/standup-status-event.js', () => ({
+  notifyStandupStatusEvent: mocks.notifyStandupStatusEvent,
 }))
 
 vi.mock('@standup/db', () => {
@@ -86,6 +91,8 @@ const fakeClient = {} as unknown as Client
 const env = {
   DATABASE_URL: ':memory:',
   DISCORD_CHANNEL_ID: 'channel-123',
+  API_INTERNAL_URL: 'http://localhost:3333',
+  INTERNAL_SECRET: 'test-secret',
 }
 
 const baseRecord = {
@@ -134,6 +141,8 @@ describe('handleApproveModal', () => {
       Result.ok({
         action: 'approve',
         standupId: 'standup-1',
+        userId: 'user-123',
+        newStatus: 'published',
         message: 'Standup aprovado e publicado no canal!',
       }),
     )
@@ -187,6 +196,8 @@ describe('handleApproveModal', () => {
       Result.ok({
         action: 'approve',
         standupId: 'standup-1',
+        userId: 'user-123',
+        newStatus: 'published',
         message: 'Standup aprovado e publicado no canal!',
       }),
     )
@@ -253,6 +264,8 @@ describe('handleApproveModal', () => {
       Result.ok({
         action: 'approve',
         standupId: 'standup-1',
+        userId: 'user-123',
+        newStatus: 'published',
         message: 'ok',
       }),
     )
@@ -343,6 +356,8 @@ describe('handleApproveModal', () => {
       Result.ok({
         action: 'approve',
         standupId: 'standup-1',
+        userId: 'user-123',
+        newStatus: 'published',
         message: 'ok',
       }),
     )

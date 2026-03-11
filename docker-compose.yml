@@ -72,6 +72,7 @@ services:
       DATABASE_URL: /app/data/standup.db
       REPOS_ROOT_PATH: /repos
       API_BASE_URL: http://standup-api:3333
+      API_INTERNAL_URL: http://standup-api:3333
       WORKER_INTERNAL_URL: http://standup-worker:3335
       OTEL_EXPORTER_OTLP_ENDPOINT: http://standup-jaeger:4318
     networks:
