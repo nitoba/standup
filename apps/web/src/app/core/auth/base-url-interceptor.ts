@@ -6,7 +6,7 @@ import type {
 
 import { environment } from '../../../environments/environment'
 
-/** API route prefixes that should be proxied to the backend */
+/** API route prefixes that should be sent to the backend */
 const API_PREFIXES = [
   '/standups',
   '/settings',
@@ -28,7 +28,7 @@ export const baseUrlInterceptor: HttpInterceptorFn = (
     return next(request)
   }
 
-  // Cross-origin dev: prepend API base URL and include session cookies
+  // Prepend the configured API base URL and include session cookies.
   if (environment.apiBaseUrl) {
     const crossOriginRequest = request.clone({
       url: `${environment.apiBaseUrl}${request.url}`,
@@ -37,7 +37,7 @@ export const baseUrlInterceptor: HttpInterceptorFn = (
     return next(crossOriginRequest)
   }
 
-  // Same-origin prod: just ensure cookies are sent
+  // Fallback for same-origin environments.
   const authenticatedRequest = request.clone({
     withCredentials: true,
   })
