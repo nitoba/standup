@@ -410,7 +410,8 @@
                           "fill": "$accent-green",
                           "content": "$",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -419,7 +420,8 @@
                           "fill": "$text-primary",
                           "content": "dashboard",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -442,7 +444,8 @@
                           "fill": "$text-secondary",
                           "content": "$",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -451,7 +454,8 @@
                           "fill": "$text-secondary",
                           "content": "settings",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -474,7 +478,8 @@
                           "fill": "$text-secondary",
                           "content": "$",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -483,7 +488,8 @@
                           "fill": "$text-secondary",
                           "content": "reports",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -520,7 +526,8 @@
                       "fill": "$accent-amber",
                       "content": "[!] upgrade available",
                       "fontFamily": "JetBrains Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "text",
@@ -531,7 +538,8 @@
                       "width": "fill_container",
                       "content": "// premium features unlocked",
                       "fontFamily": "IBM Plex Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -566,7 +574,8 @@
                           "fill": "$text-primary",
                           "content": "nitoba/",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -575,7 +584,8 @@
                           "fill": "$text-secondary",
                           "content": "online",
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -641,7 +651,8 @@
                   "fill": "$text-secondary",
                   "content": "// daily standup reports overview",
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 14
+                  "fontSize": 14,
+                  "fontWeight": "normal"
                 }
               ]
             },
@@ -689,7 +700,8 @@
                           "fill": "$text-secondary",
                           "content": "total_standups",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -710,7 +722,8 @@
                       "fill": "$text-secondary",
                       "content": "++ 12 this_week",
                       "fontFamily": "IBM Plex Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -751,7 +764,8 @@
                           "fill": "$text-secondary",
                           "content": "approved",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -772,7 +786,8 @@
                       "fill": "$accent-green",
                       "content": "++ 8 this_week",
                       "fontFamily": "IBM Plex Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -813,7 +828,8 @@
                           "fill": "$text-secondary",
                           "content": "pending_review",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -834,7 +850,8 @@
                       "fill": "$text-secondary",
                       "content": "++ 3 today",
                       "fontFamily": "IBM Plex Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -875,7 +892,8 @@
                           "fill": "$text-secondary",
                           "content": "rejected",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -896,7 +914,8 @@
                       "fill": "$text-secondary",
                       "content": "++ 1 today",
                       "fontFamily": "IBM Plex Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     }
                   ]
                 }
@@ -917,7 +936,8 @@
                   "fill": "$text-secondary",
                   "content": "// filters",
                   "fontFamily": "JetBrains Mono",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "frame",
@@ -950,7 +970,8 @@
                           "fill": "$text-secondary",
                           "content": "/",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -959,7 +980,8 @@
                           "fill": "$text-primary",
                           "content": "status: all",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -986,7 +1008,8 @@
                           "fill": "$text-secondary",
                           "content": "/",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -995,7 +1018,8 @@
                           "fill": "$text-primary",
                           "content": "date: this_week",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1023,7 +1047,8 @@
                           "fill": "$text-secondary",
                           "content": "/",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -1032,7 +1057,8 @@
                           "fill": "$text-tertiary",
                           "content": "search standups...",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -1176,7 +1202,8 @@
                           "fill": "$text-primary",
                           "content": "2026-03-09",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1193,7 +1220,8 @@
                           "fill": "$accent-green",
                           "content": "[approved]",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1212,7 +1240,8 @@
                           "width": "fill_container",
                           "content": "implemented retry logic with exponential backoff for standup generation pipeline...",
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1229,7 +1258,8 @@
                           "fill": "$accent-green",
                           "content": "$ view >>",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -1266,7 +1296,8 @@
                           "fill": "$text-primary",
                           "content": "2026-03-08",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1283,7 +1314,8 @@
                           "fill": "$accent-cyan",
                           "content": "[pending]",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1302,7 +1334,8 @@
                           "width": "fill_container",
                           "content": "added discord slash commands for standup trigger, list, and approve...",
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1319,7 +1352,8 @@
                           "fill": "$accent-green",
                           "content": "$ view >>",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -1356,7 +1390,8 @@
                           "fill": "$text-primary",
                           "content": "2026-03-07",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1373,7 +1408,8 @@
                           "fill": "$accent-green",
                           "content": "[approved]",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1392,7 +1428,8 @@
                           "width": "fill_container",
                           "content": "refactored http route handlers into separate modular files for better maintainability...",
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1409,7 +1446,8 @@
                           "fill": "$accent-green",
                           "content": "$ view >>",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -1446,7 +1484,8 @@
                           "fill": "$text-primary",
                           "content": "2026-03-06",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1463,7 +1502,8 @@
                           "fill": "$accent-amber",
                           "content": "[rejected]",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1482,7 +1522,8 @@
                           "width": "fill_container",
                           "content": "configured azure devops mcp client and docker build for worker service...",
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1499,7 +1540,8 @@
                           "fill": "$accent-green",
                           "content": "$ view >>",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -1536,7 +1578,8 @@
                           "fill": "$text-primary",
                           "content": "2026-03-05",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1553,7 +1596,8 @@
                           "fill": "$accent-green",
                           "content": "[approved]",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1572,7 +1616,8 @@
                           "width": "fill_container",
                           "content": "added direct user dm notifications for standup job status updates...",
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -1589,7 +1634,8 @@
                           "fill": "$accent-green",
                           "content": "$ view >>",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -1614,7 +1660,8 @@
                       "fill": "$text-secondary",
                       "content": "// showing 1-5 of 142 standups",
                       "fontFamily": "IBM Plex Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "frame",
@@ -1630,7 +1677,8 @@
                           "fill": "$text-tertiary",
                           "content": "<<",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -1639,7 +1687,8 @@
                           "fill": "$accent-green",
                           "content": "[1]",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -1648,7 +1697,8 @@
                           "fill": "$text-secondary",
                           "content": "[2]",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -1657,7 +1707,8 @@
                           "fill": "$text-secondary",
                           "content": "[3]",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -1666,7 +1717,8 @@
                           "fill": "$text-primary",
                           "content": ">>",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -1772,7 +1824,8 @@
                       "fill": "$text-secondary",
                       "content": "dashboard",
                       "fontFamily": "JetBrains Mono",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -1804,7 +1857,8 @@
                       "fill": "$text-primary",
                       "content": "standups",
                       "fontFamily": "JetBrains Mono",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     }
                   ]
                 },
@@ -1835,7 +1889,8 @@
                       "fill": "$text-secondary",
                       "content": "settings",
                       "fontFamily": "JetBrains Mono",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     }
                   ]
                 }
@@ -1863,7 +1918,8 @@
                   "fill": "$text-primary",
                   "content": "bruno_nito",
                   "fontFamily": "JetBrains Mono",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "text",
@@ -1872,7 +1928,8 @@
                   "fill": "$accent-green",
                   "content": "// online",
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 }
               ]
             }
@@ -1905,7 +1962,8 @@
                   "fill": "$text-secondary",
                   "content": "<<",
                   "fontFamily": "JetBrains Mono",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "text",
@@ -1914,7 +1972,8 @@
                   "fill": "$text-secondary",
                   "content": "back to standups",
                   "fontFamily": "JetBrains Mono",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 }
               ]
             },
@@ -1969,7 +2028,8 @@
                       "fill": "$text-secondary",
                       "content": "// 2026-03-09",
                       "fontFamily": "IBM Plex Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "frame",
@@ -1993,7 +2053,8 @@
                           "fill": "$accent-amber",
                           "content": "[pending_review]",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -2004,7 +2065,8 @@
                       "fill": "$text-secondary",
                       "content": "created: 17:32",
                       "fontFamily": "IBM Plex Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "text",
@@ -2013,7 +2075,8 @@
                       "fill": "$text-tertiary",
                       "content": "id: 7f3a2b1c",
                       "fontFamily": "IBM Plex Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     }
                   ]
                 }
@@ -2034,7 +2097,8 @@
                   "fill": "$text-secondary",
                   "content": "// standup_output",
                   "fontFamily": "JetBrains Mono",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "frame",
@@ -2057,7 +2121,8 @@
                       "fill": "$accent-green",
                       "content": "$ cat standup_2026-03-09.md",
                       "fontFamily": "JetBrains Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "frame",
@@ -2095,7 +2160,8 @@
                           "content": "- implementacao do endpoint de trigger manual para standups via api rest, incluindo validacao de autenticacao por session e internal secret",
                           "lineHeight": 1.6,
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -2107,7 +2173,8 @@
                           "content": "- refatoracao dos handlers http do discord-bot, separando responsabilidades em arquivos individuais conforme convencao do projeto",
                           "lineHeight": 1.6,
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -2119,7 +2186,8 @@
                           "content": "- correcao de bug no lock distribuido do job runner que permitia execucao duplicada quando recovery cron rodava simultaneamente",
                           "lineHeight": 1.6,
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -2151,7 +2219,8 @@
                           "content": "- testes de integracao para o fluxo completo de geracao e publicacao de standups [PBI-4521]",
                           "lineHeight": 1.6,
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -2183,7 +2252,8 @@
                           "content": "- nenhum bloqueio no momento",
                           "lineHeight": 1.6,
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 13
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -2206,7 +2276,8 @@
                   "fill": "$text-secondary",
                   "content": "// source_data",
                   "fontFamily": "JetBrains Mono",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "frame",
@@ -2259,7 +2330,8 @@
                               "fill": "$text-tertiary",
                               "content": "a3f21bc",
                               "fontFamily": "JetBrains Mono",
-                              "fontSize": 12
+                              "fontSize": 12,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "text",
@@ -2270,7 +2342,8 @@
                               "width": "fill_container",
                               "content": "feat: add manual trigger endpoint with session auth",
                               "fontFamily": "IBM Plex Mono",
-                              "fontSize": 12
+                              "fontSize": 12,
+                              "fontWeight": "normal"
                             }
                           ]
                         },
@@ -2294,7 +2367,8 @@
                               "fill": "$text-tertiary",
                               "content": "e7d4f98",
                               "fontFamily": "JetBrains Mono",
-                              "fontSize": 12
+                              "fontSize": 12,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "text",
@@ -2305,7 +2379,8 @@
                               "width": "fill_container",
                               "content": "fix: prevent duplicate job execution on concurrent lock",
                               "fontFamily": "IBM Plex Mono",
-                              "fontSize": 12
+                              "fontSize": 12,
+                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -2357,7 +2432,8 @@
                               "fill": "$text-tertiary",
                               "content": "1b9c3e7",
                               "fontFamily": "JetBrains Mono",
-                              "fontSize": 12
+                              "fontSize": 12,
+                              "fontWeight": "normal"
                             },
                             {
                               "type": "text",
@@ -2368,7 +2444,8 @@
                               "width": "fill_container",
                               "content": "refactor: extract http handlers into separate modules",
                               "fontFamily": "IBM Plex Mono",
-                              "fontSize": 12
+                              "fontSize": 12,
+                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -2393,7 +2470,8 @@
                   "fill": "$text-secondary",
                   "content": "// actions",
                   "fontFamily": "JetBrains Mono",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "frame",
@@ -4106,7 +4184,8 @@
               "fill": "$text-secondary",
               "content": "$ [=]",
               "fontFamily": "JetBrains Mono",
-              "fontSize": 14
+              "fontSize": 14,
+              "fontWeight": "normal"
             }
           ]
         },
@@ -4146,7 +4225,8 @@
                   "fill": "$text-secondary",
                   "content": "// daily standup reports overview",
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 14
+                  "fontSize": 14,
+                  "fontWeight": "normal"
                 }
               ]
             },
@@ -4194,7 +4274,8 @@
                           "fill": "$text-secondary",
                           "content": "total_standups",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -4213,7 +4294,8 @@
                           "fill": "$accent-green",
                           "content": "++ 12 this_week",
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -4246,7 +4328,8 @@
                           "fill": "$text-secondary",
                           "content": "approved",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -4265,7 +4348,8 @@
                           "fill": "$accent-green",
                           "content": "++ 10 this_week",
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -4307,7 +4391,8 @@
                           "fill": "$text-secondary",
                           "content": "pending_review",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -4326,7 +4411,8 @@
                           "fill": "$accent-cyan",
                           "content": "++ 3 today",
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -4359,7 +4445,8 @@
                           "fill": "$text-secondary",
                           "content": "rejected",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -4378,7 +4465,8 @@
                           "fill": "$accent-amber",
                           "content": "++ 1 this_week",
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -4401,7 +4489,8 @@
                   "fill": "$text-secondary",
                   "content": "// filters",
                   "fontFamily": "JetBrains Mono",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "frame",
@@ -4460,7 +4549,8 @@
                           "fill": "$text-secondary",
                           "content": "date: this_week",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
@@ -4486,7 +4576,8 @@
                           "fill": "$text-tertiary",
                           "content": "/ search",
                           "fontFamily": "JetBrains Mono",
-                          "fontSize": 12
+                          "fontSize": 12,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -4509,7 +4600,8 @@
                   "fill": "$text-secondary",
                   "content": "// recent standups",
                   "fontFamily": "JetBrains Mono",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "frame",
@@ -4564,7 +4656,8 @@
                               "fill": "$accent-green",
                               "content": "[approved]",
                               "fontFamily": "JetBrains Mono",
-                              "fontSize": 11
+                              "fontSize": 11,
+                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -4579,7 +4672,8 @@
                       "width": "fill_container",
                       "content": "implemented retry logic with exponential backoff for llm calls. fixed mcp connection timeout handling in azure devops enrichment...",
                       "fontFamily": "IBM Plex Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "text",
@@ -4646,7 +4740,8 @@
                               "fill": "$accent-green",
                               "content": "[approved]",
                               "fontFamily": "JetBrains Mono",
-                              "fontSize": 11
+                              "fontSize": 11,
+                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -4661,7 +4756,8 @@
                       "width": "fill_container",
                       "content": "added slash commands for discord bot: /standup trigger, list, and approve. registered application commands on client ready event...",
                       "fontFamily": "IBM Plex Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "text",
@@ -4728,7 +4824,8 @@
                               "fill": "$accent-cyan",
                               "content": "[pending]",
                               "fontFamily": "JetBrains Mono",
-                              "fontSize": 11
+                              "fontSize": 11,
+                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -4743,7 +4840,8 @@
                       "width": "fill_container",
                       "content": "refactored http route handlers into separate modular files. extracted middleware and auth logic for cleaner separation of concerns...",
                       "fontFamily": "IBM Plex Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "text",
@@ -4810,7 +4908,8 @@
                               "fill": "$accent-amber",
                               "content": "[rejected]",
                               "fontFamily": "JetBrains Mono",
-                              "fontSize": 11
+                              "fontSize": 11,
+                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -4825,7 +4924,8 @@
                       "width": "fill_container",
                       "content": "added azure-devops package and tsconfig to docker build. updated worker dockerfile to include all necessary build dependencies...",
                       "fontFamily": "IBM Plex Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "text",
@@ -4892,7 +4992,8 @@
                               "fill": "$accent-green",
                               "content": "[approved]",
                               "fontFamily": "JetBrains Mono",
-                              "fontSize": 11
+                              "fontSize": 11,
+                              "fontWeight": "normal"
                             }
                           ]
                         }
@@ -4907,7 +5008,8 @@
                       "width": "fill_container",
                       "content": "configured drizzle orm with sqlite wal mode. created standup repository with full crud operations and job run lock mechanism...",
                       "fontFamily": "IBM Plex Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "text",
@@ -4951,7 +5053,8 @@
                   "fill": "$text-secondary",
                   "content": "// showing 1-5 of 25",
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "frame",
@@ -4967,7 +5070,8 @@
                       "fill": "$text-tertiary",
                       "content": "<< prev",
                       "fontFamily": "JetBrains Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "text",
@@ -4986,7 +5090,8 @@
                       "fill": "$text-secondary",
                       "content": "[2]",
                       "fontFamily": "JetBrains Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "text",
@@ -4995,7 +5100,8 @@
                       "fill": "$text-secondary",
                       "content": "[3]",
                       "fontFamily": "JetBrains Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "text",
@@ -5004,7 +5110,8 @@
                       "fill": "$text-primary",
                       "content": "next >>",
                       "fontFamily": "JetBrains Mono",
-                      "fontSize": 12
+                      "fontSize": 12,
+                      "fontWeight": "normal"
                     }
                   ]
                 }
@@ -5043,7 +5150,8 @@
               "fill": "$text-secondary",
               "content": "<< back",
               "fontFamily": "JetBrains Mono",
-              "fontSize": 13
+              "fontSize": 13,
+              "fontWeight": "normal"
             },
             {
               "type": "text",
@@ -5082,7 +5190,8 @@
               "fill": "$text-secondary",
               "content": "2025-03-05",
               "fontFamily": "IBM Plex Mono",
-              "fontSize": 12
+              "fontSize": 12,
+              "fontWeight": "normal"
             },
             {
               "type": "frame",
@@ -5116,7 +5225,8 @@
               "fill": "$text-secondary",
               "content": "17:32",
               "fontFamily": "IBM Plex Mono",
-              "fontSize": 12
+              "fontSize": 12,
+              "fontWeight": "normal"
             }
           ]
         },
@@ -5135,7 +5245,8 @@
               "fill": "$text-secondary",
               "content": "// standup_output",
               "fontFamily": "JetBrains Mono",
-              "fontSize": 12
+              "fontSize": 12,
+              "fontWeight": "normal"
             },
             {
               "type": "frame",
@@ -5171,7 +5282,8 @@
                   "content": "- implementacao do endpoint de autenticacao\n  oauth2 com refresh token no agrotrace-api.\n  work item #4521 concluido.\n- correcao do bug de renderizacao na tela\n  de listagem de propriedades rurais.\n  PR #187 mergeado.",
                   "lineHeight": 1.5,
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "text",
@@ -5193,7 +5305,8 @@
                   "content": "- integracao com azure devops para\n  sincronizacao automatica de work items.\n  estimativa: 70% concluido.\n- refatoracao do modulo de notificacoes\n  para suportar multiplos canais.",
                   "lineHeight": 1.5,
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "text",
@@ -5215,7 +5328,8 @@
                   "content": "- aguardando aprovacao de acesso ao\n  ambiente de staging para testes\n  de integracao end-to-end.",
                   "lineHeight": 1.5,
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 12
+                  "fontSize": 12,
+                  "fontWeight": "normal"
                 }
               ]
             }
@@ -5236,7 +5350,8 @@
               "fill": "$text-secondary",
               "content": "// source_data",
               "fontFamily": "JetBrains Mono",
-              "fontSize": 12
+              "fontSize": 12,
+              "fontWeight": "normal"
             },
             {
               "type": "frame",
@@ -5269,7 +5384,8 @@
                       "fill": "$text-primary",
                       "content": "agrotrace-api/",
                       "fontFamily": "JetBrains Mono",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "frame",
@@ -5285,7 +5401,8 @@
                           "fill": "$text-secondary",
                           "content": "feat/oauth2",
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -5294,7 +5411,8 @@
                           "fill": "$accent-green",
                           "content": "4 commits",
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -5323,7 +5441,8 @@
                       "fill": "$text-primary",
                       "content": "agrotrace-web/",
                       "fontFamily": "JetBrains Mono",
-                      "fontSize": 13
+                      "fontSize": 13,
+                      "fontWeight": "normal"
                     },
                     {
                       "type": "frame",
@@ -5339,7 +5458,8 @@
                           "fill": "$text-secondary",
                           "content": "fix/listing-render",
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "fontWeight": "normal"
                         },
                         {
                           "type": "text",
@@ -5348,7 +5468,8 @@
                           "fill": "$accent-green",
                           "content": "2 commits",
                           "fontFamily": "IBM Plex Mono",
-                          "fontSize": 11
+                          "fontSize": 11,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -5373,7 +5494,8 @@
               "fill": "$text-secondary",
               "content": "// actions",
               "fontFamily": "JetBrains Mono",
-              "fontSize": 12
+              "fontSize": 12,
+              "fontWeight": "normal"
             },
             {
               "type": "frame",
@@ -6516,6 +6638,719 @@
                       ]
                     }
                   ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "mqeOP",
+      "x": 6160,
+      "y": 0,
+      "name": "Cron Builder Popover",
+      "width": 340,
+      "fill": "$bg-page",
+      "stroke": {
+        "align": "inside",
+        "thickness": 1,
+        "fill": "$border"
+      },
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "ppTbT",
+          "name": "Header + Time Picker",
+          "width": "fill_container",
+          "fill": "$bg-page",
+          "layout": "vertical",
+          "gap": 16,
+          "padding": 24,
+          "children": [
+            {
+              "type": "frame",
+              "id": "htlFv",
+              "name": "header",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 4,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "7yEC1",
+                  "name": "titleRow",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "v4Vev",
+                      "name": "commentPrefix",
+                      "fill": "$text-tertiary",
+                      "content": "//",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 14,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "text",
+                      "id": "dQZeX",
+                      "name": "titleText",
+                      "fill": "$text-emphasis",
+                      "content": "cron_builder",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 14,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "7im38",
+                  "name": "subtitle",
+                  "fill": "$text-secondary",
+                  "content": "build your schedule visually",
+                  "fontFamily": "IBM Plex Mono",
+                  "fontSize": 12
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "gwyfz",
+              "name": "timePicker",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "rUT8L",
+                  "name": "hourGroup",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "CamAp",
+                      "name": "hourLabel",
+                      "fill": "$text-secondary",
+                      "content": "hour",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 12
+                    },
+                    {
+                      "type": "frame",
+                      "id": "lfXbe",
+                      "name": "hourControls",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "GWzss",
+                          "name": "hourUp",
+                          "width": 28,
+                          "height": 36,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "aC4j7",
+                              "name": "hourUpText",
+                              "fill": "$text-tertiary",
+                              "content": "++",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 12
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "josS9",
+                          "name": "hourInput",
+                          "width": 48,
+                          "height": 36,
+                          "fill": "$bg-page",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1,
+                            "fill": "$border"
+                          },
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "cveQ6",
+                              "name": "hourValue",
+                              "fill": "$text-primary",
+                              "content": "17",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 13
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Sb7qU",
+                          "name": "hourDown",
+                          "width": 28,
+                          "height": 36,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "IMXOh",
+                              "name": "hourDownText",
+                              "fill": "$text-tertiary",
+                              "content": "--",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 12
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "rCUWS",
+                  "name": "colonWrap",
+                  "height": "fill_container",
+                  "layout": "vertical",
+                  "padding": [
+                    22,
+                    0,
+                    0,
+                    0
+                  ],
+                  "justifyContent": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "xsBAB",
+                      "name": "colonText",
+                      "fill": "$text-primary",
+                      "content": ":",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 20,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "HlBa0",
+                  "name": "minuteGroup",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "VXAjp",
+                      "name": "minuteLabel",
+                      "fill": "$text-secondary",
+                      "content": "minute",
+                      "fontFamily": "JetBrains Mono",
+                      "fontSize": 12
+                    },
+                    {
+                      "type": "frame",
+                      "id": "rKmYB",
+                      "name": "minuteControls",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "27P5W",
+                          "name": "minuteUp",
+                          "width": 28,
+                          "height": 36,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "dBKuO",
+                              "name": "minuteUpText",
+                              "fill": "$text-tertiary",
+                              "content": "++",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 12
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "gchSl",
+                          "name": "minuteInput",
+                          "width": 48,
+                          "height": 36,
+                          "fill": "$bg-page",
+                          "stroke": {
+                            "align": "inside",
+                            "thickness": 1,
+                            "fill": "$border"
+                          },
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "BBrjA",
+                              "name": "minuteValue",
+                              "fill": "$text-primary",
+                              "content": "30",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 13
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "aERPX",
+                          "name": "minuteDown",
+                          "width": 28,
+                          "height": 36,
+                          "justifyContent": "center",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "y6ngJ",
+                              "name": "minuteDownText",
+                              "fill": "$text-tertiary",
+                              "content": "--",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 12
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "OLK9g",
+          "name": "Day Selector + Preview",
+          "width": "fill_container",
+          "fill": "$bg-page",
+          "layout": "vertical",
+          "gap": 16,
+          "padding": [
+            16,
+            24
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "iV99t",
+              "name": "daysSection",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "ayLdc",
+                  "name": "daysLabel",
+                  "fill": "$text-secondary",
+                  "content": "days",
+                  "fontFamily": "JetBrains Mono",
+                  "fontSize": 12
+                },
+                {
+                  "type": "frame",
+                  "id": "BJUCi",
+                  "name": "daysRow",
+                  "width": "fill_container",
+                  "gap": 4,
+                  "justifyContent": "space_between",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "ULQwY",
+                      "name": "togMon",
+                      "width": "fill_container",
+                      "fill": "$accent-green",
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$accent-green"
+                      },
+                      "padding": [
+                        6,
+                        10
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "nXDwc",
+                          "name": "togMonTxt",
+                          "fill": "#0A0A0A",
+                          "content": "mon",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 11,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "mGRCi",
+                      "name": "togTue",
+                      "width": "fill_container",
+                      "fill": "$accent-green",
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$accent-green"
+                      },
+                      "padding": [
+                        6,
+                        10
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Ea8Ug",
+                          "name": "togTueTxt",
+                          "fill": "#0A0A0A",
+                          "content": "tue",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 11,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "00tes",
+                      "name": "togWed",
+                      "width": "fill_container",
+                      "fill": "$accent-green",
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$accent-green"
+                      },
+                      "padding": [
+                        6,
+                        10
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "VGlTm",
+                          "name": "togWedTxt",
+                          "fill": "#0A0A0A",
+                          "content": "wed",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 11,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "uQbHs",
+                      "name": "togThu",
+                      "width": "fill_container",
+                      "fill": "$accent-green",
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$accent-green"
+                      },
+                      "padding": [
+                        6,
+                        10
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "6NJTO",
+                          "name": "togThuTxt",
+                          "fill": "#0A0A0A",
+                          "content": "thu",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 11,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "6nSRH",
+                      "name": "togFri",
+                      "width": "fill_container",
+                      "fill": "$accent-green",
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$accent-green"
+                      },
+                      "padding": [
+                        6,
+                        10
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "rAVEa",
+                          "name": "togFriTxt",
+                          "fill": "#0A0A0A",
+                          "content": "fri",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 11,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "GXAAN",
+                      "name": "togSat",
+                      "width": "fill_container",
+                      "fill": "#00000000",
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$border"
+                      },
+                      "padding": [
+                        6,
+                        10
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "BiDxi",
+                          "name": "togSatTxt",
+                          "fill": "$text-secondary",
+                          "content": "sat",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 11
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "2wvDh",
+                      "name": "togSun",
+                      "width": "fill_container",
+                      "fill": "#00000000",
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$border"
+                      },
+                      "padding": [
+                        6,
+                        10
+                      ],
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "r2KrH",
+                          "name": "togSunTxt",
+                          "fill": "$text-secondary",
+                          "content": "sun",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 11
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "XY2s3",
+              "name": "outputSection",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 12,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "gXU1n",
+                  "name": "outputLabel",
+                  "fill": "$text-secondary",
+                  "content": "output",
+                  "fontFamily": "JetBrains Mono",
+                  "fontSize": 12
+                },
+                {
+                  "type": "frame",
+                  "id": "dlB5e",
+                  "name": "outputContent",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "nt7EF",
+                      "name": "previewBox",
+                      "width": "fill_container",
+                      "fill": "$bg-surface",
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "$border"
+                      },
+                      "gap": 8,
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "rgB0W",
+                          "name": "promptChar",
+                          "fill": "$accent-green",
+                          "content": ">",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13,
+                          "fontWeight": "500"
+                        },
+                        {
+                          "type": "text",
+                          "id": "dW2Xy",
+                          "name": "cronExpr",
+                          "fill": "$text-primary",
+                          "content": "30 17 * * 1-5",
+                          "fontFamily": "JetBrains Mono",
+                          "fontSize": 13
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "YZ4Kh",
+                      "name": "cronDesc",
+                      "fill": "$text-tertiary",
+                      "content": "// every weekday at 17:30",
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 11
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "QR7Vo",
+          "name": "Footer Actions",
+          "width": "fill_container",
+          "stroke": {
+            "align": "inside",
+            "thickness": {
+              "top": 1
+            },
+            "fill": "$border"
+          },
+          "gap": 12,
+          "padding": [
+            16,
+            24
+          ],
+          "justifyContent": "end",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "TLTQ2",
+              "name": "cancelBtn",
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "$border"
+              },
+              "gap": 8,
+              "padding": [
+                8,
+                16
+              ],
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "hws8m",
+                  "name": "cancelIcon",
+                  "fill": "$text-secondary",
+                  "content": "[x]",
+                  "fontFamily": "JetBrains Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "Dxd9A",
+                  "name": "cancelLabel",
+                  "fill": "$text-secondary",
+                  "content": "cancel",
+                  "fontFamily": "JetBrains Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "FIOzb",
+              "name": "applyBtn",
+              "fill": "$accent-green",
+              "gap": 8,
+              "padding": [
+                8,
+                16
+              ],
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "3SFI8",
+                  "name": "applyIcon",
+                  "fill": "$bg-page",
+                  "content": ">",
+                  "fontFamily": "JetBrains Mono",
+                  "fontSize": 12,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "mW0Kp",
+                  "name": "applyLabel",
+                  "fill": "$bg-page",
+                  "content": "apply",
+                  "fontFamily": "JetBrains Mono",
+                  "fontSize": 12,
+                  "fontWeight": "500"
                 }
               ]
             }
