@@ -58,6 +58,10 @@ FROM gcr.io/distroless/cc-debian12 AS runtime
 WORKDIR /app
 
 COPY --from=builder /app/bin/api ./api
+# @libsql/client loads its native addon dynamically (NAPI-RS pattern), so bun --compile
+# cannot embed it. The compiled binary resolves native modules relative to its own path,
+# so we place the addon at /app/node_modules/@libsql/linux-arm64-gnu.
+COPY --from=builder /app/node_modules/@libsql/linux-arm64-gnu ./node_modules/@libsql/linux-arm64-gnu
 
 EXPOSE 3333
 

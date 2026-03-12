@@ -67,6 +67,10 @@ WORKDIR /app
 
 COPY --from=builder /usr/local/bin/bun /usr/local/bin/bun
 COPY --from=builder /app/bin/worker ./worker
+# @libsql/client loads its native addon dynamically (NAPI-RS pattern), so bun --compile
+# cannot embed it. The compiled binary resolves native modules relative to its own path,
+# so we place the addon at /app/node_modules/@libsql/linux-arm64-gnu.
+COPY --from=builder /app/node_modules/@libsql/linux-arm64-gnu ./node_modules/@libsql/linux-arm64-gnu
 
 EXPOSE 3335
 
