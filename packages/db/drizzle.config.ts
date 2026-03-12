@@ -1,5 +1,7 @@
 import { defineConfig } from 'drizzle-kit'
 
+console.log(Bun.env.DATABASE_URL)
+
 export default defineConfig({
   schema: './src/schema.ts',
   out: './src/migrations',

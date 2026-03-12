@@ -11,6 +11,8 @@ export interface TriggerStandupJobOptions {
   reposRootPath: string
   selectedRepos: string[]
   gitAuthor: string
+  timezone: string
+  gitSincePeriod?: string
   extraContext?: string
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
@@ -43,6 +45,8 @@ export async function triggerStandupJob(
             reposRootPath: options.reposRootPath,
             selectedRepos: options.selectedRepos,
             gitAuthor: options.gitAuthor,
+            timezone: options.timezone,
+            gitSincePeriod: options.gitSincePeriod,
             extraContext: options.extraContext,
             forceRegenerate: options.forceRegenerate,
             rewriteFromStandupId: options.rewriteFromStandupId,

@@ -159,6 +159,7 @@ const baseOptions = {
   reposRootPath: '/tmp/repos',
   selectedRepos: ['my-repo'],
   gitAuthor: 'dev@example.com',
+  timezone: 'America/Sao_Paulo',
 }
 
 const lockRecord = {

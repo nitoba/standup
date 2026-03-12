@@ -257,6 +257,7 @@ export class StandupService {
       this.http.post<TriggerAck>('/standups/trigger', {
         forceRegenerate: true,
         replaceStandupId: id,
+        reuseExistingSource: true,
       }),
     )
   }

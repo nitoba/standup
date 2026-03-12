@@ -5,6 +5,7 @@ import { createInternalRouter } from './router.js'
 
 const mocks = vi.hoisted(() => ({
   getDb: vi.fn(),
+  findByUserId: vi.fn(),
   updateSnoozedUntil: vi.fn(),
   updateCancelledDate: vi.fn(),
 }))
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@standup/db', () => {
   function UserSettingsRepository() {
     return {
+      findByUserId: mocks.findByUserId,
       updateSnoozedUntil: mocks.updateSnoozedUntil,
       updateCancelledDate: mocks.updateCancelledDate,
     }
@@ -28,6 +30,7 @@ const TRIGGER_BODY = {
   reposRootPath: '/repos',
   selectedRepos: ['agrotrace-web', 'checkmilk-api'],
   gitAuthor: 'dev@example.com',
+  timezone: 'America/Sao_Paulo',
 }
 
 const triggerStandupJob = vi.fn<(options: StandupJobOptions) => Promise<void>>()
@@ -66,6 +69,9 @@ describe('createInternalRouter', () => {
     triggerStandupJob.mockResolvedValue(undefined)
     mocks.updateSnoozedUntil.mockResolvedValue(Result.ok(undefined))
     mocks.updateCancelledDate.mockResolvedValue(Result.ok(undefined))
+    mocks.findByUserId.mockResolvedValue(
+      Result.ok({ timezone: 'America/Sao_Paulo' }),
+    )
   })
 
   afterEach(() => {
@@ -295,7 +301,9 @@ describe('createInternalRouter', () => {
 
   it('cancel: retorna 200 e persiste cancelledDate no DB', async () => {
     const app = makeRouter()
-    const today = new Date().toISOString().slice(0, 10)
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+    }).format(new Date())
 
     const res = await app.fetch(
       makeRequest('/internal/reminder/cancel', INTERNAL_SECRET, {

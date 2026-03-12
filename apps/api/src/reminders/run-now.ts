@@ -91,6 +91,8 @@ export async function handleRunNowReminder(
       reposRootPath: deps.reposRootPath,
       selectedRepos,
       gitAuthor: settings.gitAuthor,
+      timezone: settings.timezone,
+      gitSincePeriod: settings.gitSincePeriod,
     },
   )
 

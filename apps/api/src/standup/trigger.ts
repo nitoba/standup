@@ -114,7 +114,9 @@ export async function handleTriggerStandup(
     )
   }
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: settings.timezone,
+  }).format(new Date())
   const todayStandupResult = await standupRepo.findLatestByUserAndDate(
     userId,
     today,
@@ -131,7 +133,14 @@ export async function handleTriggerStandup(
 
   const todayStandup = todayStandupResult.value
 
-  if (todayStandup?.status === 'pending_review') {
+  // Explicit replace: forceRegenerate + replaceStandupId matching today's standup
+  // bypasses the pending_review guard (mirrors how the Discord bot first rejects then re-triggers)
+  const isExplicitReplace =
+    body.forceRegenerate === true &&
+    body.replaceStandupId != null &&
+    body.replaceStandupId === todayStandup?.id
+
+  if (todayStandup?.status === 'pending_review' && !isExplicitReplace) {
     return jsonConflict(c, 'pending_review_exists', todayStandup.id)
   }
 
@@ -156,6 +165,8 @@ export async function handleTriggerStandup(
       reposRootPath: deps.reposRootPath,
       selectedRepos,
       gitAuthor: settings.gitAuthor,
+      timezone: settings.timezone,
+      gitSincePeriod: settings.gitSincePeriod,
       extraContext: body.extraContext,
       forceRegenerate: shouldReuseRejectedStandup || body.forceRegenerate,
       rewriteFromStandupId: body.rewriteFromStandupId,

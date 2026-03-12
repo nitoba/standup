@@ -48,12 +48,24 @@ export interface StandupJobOptions {
   /** Names of the repos to analyse (directory names under reposRootPath). */
   selectedRepos: string[]
   gitAuthor: string
+  /** IANA timezone string (e.g. 'America/Sao_Paulo'). Used to compute the local date. */
+  timezone: string
+  /** Git log --since period from user settings (e.g. '8 hours ago'). */
+  gitSincePeriod?: string
   extraContext?: string
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
   rewriteInstruction?: string
   replaceStandupId?: string
   reuseExistingSource?: boolean
+}
+
+/**
+ * Returns the current date in YYYY-MM-DD format for the given IANA timezone.
+ * Uses Intl.DateTimeFormat with the 'en-CA' locale which produces YYYY-MM-DD.
+ */
+function toLocalDateString(date: Date, timezone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(date)
 }
 
 type ResolveAdjustmentError = DbError | NotFoundError | ValidationError
@@ -289,7 +301,7 @@ export async function runStandupJob(
   mcpClient?: AzureMcpClient,
 ): Promise<void> {
   const runId = Bun.randomUUIDv7()
-  const today = new Date().toISOString().slice(0, 10)
+  const today = toLocalDateString(new Date(), options.timezone)
   const runMode = resolveRunMode(options)
 
   const jobLogger = withContext(logger, {
@@ -667,7 +679,7 @@ export async function runStandupJob(
             reposRootPath: options.reposRootPath,
             selectedRepos: options.selectedRepos,
             author: options.gitAuthor,
-            sincePeriod: '8 hours ago',
+            sincePeriod: options.gitSincePeriod ?? '8 hours ago',
           }),
       ),
     )

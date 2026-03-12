@@ -21,6 +21,7 @@ import { StandupService } from '../dashboard/services/standup-service'
 import { AdjustDialogContent } from './components/adjust-dialog/adjust-dialog-content'
 import { ApproveDialogContent } from './components/approve-dialog/approve-dialog-content'
 import { StandupDetailSkeleton } from './components/standup-detail-skeleton/standup-detail-skeleton'
+import { DiscordFormatPipe } from './pipes/discord-format.pipe'
 
 @Component({
   selector: 'app-standup-detail-page',
@@ -30,6 +31,7 @@ import { StandupDetailSkeleton } from './components/standup-detail-skeleton/stan
     ZardButtonComponent,
     JsonViewerComponent,
     StandupDetailSkeleton,
+    DiscordFormatPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -77,7 +79,7 @@ import { StandupDetailSkeleton } from './components/standup-detail-skeleton/stan
                 $ copy generated
               </button>
             </div>
-            <pre class="m-0 whitespace-pre-wrap break-words font-[var(--font-ibm)] text-[13px] leading-[1.7] text-foreground">{{ detail.content }}</pre>
+            <pre class="m-0 whitespace-pre-wrap break-words font-[var(--font-ibm)] text-[13px] leading-[1.7] text-foreground max-w-4xl" [innerHTML]="detail.content | discordFormat"></pre>
           </div>
 
           <div class="border border-border p-[20px] flex flex-col gap-[20px]">
@@ -326,8 +328,10 @@ export class StandupDetailPage {
 
   regenerate(id: string) {
     // fire-and-forget: SSE event will trigger selectedStandup.reload() when ready
-    void this.standupService.regenerate(id)
-    toast.success('Solicitação aceita')
+    void this.standupService.regenerate(id).then(
+      () => toast.success('Solicitação aceita'),
+      () => toast.error('Falha ao solicitar regeneração'),
+    )
   }
 
   submitAdjustInstruction(instruction: string) {

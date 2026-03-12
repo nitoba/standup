@@ -13,6 +13,8 @@ export interface StandupJobOptions {
   reposRootPath: string
   selectedRepos: string[]
   gitAuthor: string
+  timezone: string
+  gitSincePeriod?: string
   extraContext?: string
   forceRegenerate?: boolean
   rewriteFromStandupId?: string
@@ -59,6 +61,10 @@ export async function handleTriggerStandup(
     : undefined
   const gitAuthor =
     typeof body.gitAuthor === 'string' ? body.gitAuthor : undefined
+  const timezone =
+    typeof body.timezone === 'string' ? body.timezone : 'America/Sao_Paulo'
+  const gitSincePeriod =
+    typeof body.gitSincePeriod === 'string' ? body.gitSincePeriod : undefined
 
   if (
     !userId ||
@@ -83,6 +89,8 @@ export async function handleTriggerStandup(
     reposRootPath,
     selectedRepos,
     gitAuthor,
+    timezone,
+    ...(gitSincePeriod ? { gitSincePeriod } : {}),
     ...(typeof body.extraContext === 'string'
       ? { extraContext: body.extraContext }
       : {}),

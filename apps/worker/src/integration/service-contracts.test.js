@@ -44,6 +44,7 @@ vi.mock('../../../discord-bot/src/services/standup-sync-service.js', () => ({
 
 const dbMocks = vi.hoisted(() => ({
   hasActiveSession: vi.fn(),
+  findByUserId: vi.fn(),
   updateSnoozedUntil: vi.fn(),
   updateCancelledDate: vi.fn(),
 }))
@@ -55,6 +56,7 @@ vi.mock('@standup/db', () => ({
   },
   UserSettingsRepository: function UserSettingsRepository() {
     return {
+      findByUserId: dbMocks.findByUserId,
       updateSnoozedUntil: dbMocks.updateSnoozedUntil,
       updateCancelledDate: dbMocks.updateCancelledDate,
     }
@@ -293,6 +295,7 @@ describe('Cross-service HTTP contracts', () => {
           reposRootPath: '/tmp/repos',
           selectedRepos: ['agrotrace-web', 'agrotrace-api'],
           gitAuthor: 'dev@example.com',
+          timezone: 'America/Sao_Paulo',
           extraContext: 'focar em PR review',
           forceRegenerate: true,
         },
@@ -305,6 +308,7 @@ describe('Cross-service HTTP contracts', () => {
         reposRootPath: '/tmp/repos',
         selectedRepos: ['agrotrace-web', 'agrotrace-api'],
         gitAuthor: 'dev@example.com',
+        timezone: 'America/Sao_Paulo',
         extraContext: 'focar em PR review',
         forceRegenerate: true,
       })
@@ -355,6 +359,9 @@ describe('Cross-service HTTP contracts', () => {
   })
 
   it('api -> worker: reminder proxy routes usam contratos aceitos pelo router do worker', async () => {
+    dbMocks.findByUserId.mockResolvedValue(
+      Result.ok({ timezone: 'America/Sao_Paulo' }),
+    )
     dbMocks.updateSnoozedUntil.mockResolvedValue(Result.ok(undefined))
     dbMocks.updateCancelledDate.mockResolvedValue(Result.ok(undefined))
 
@@ -462,6 +469,9 @@ describe('Cross-service HTTP contracts', () => {
     // Mock DB lookups for the reminder handler
     dbMocks.hasActiveSession.mockReturnValue(
       Result.ok({ userId: TEST_USER_ID, hasSession: true }),
+    )
+    dbMocks.findByUserId.mockResolvedValue(
+      Result.ok({ timezone: 'America/Sao_Paulo' }),
     )
     dbMocks.updateSnoozedUntil.mockResolvedValue(Result.ok(undefined))
     dbMocks.updateCancelledDate.mockResolvedValue(Result.ok(undefined))

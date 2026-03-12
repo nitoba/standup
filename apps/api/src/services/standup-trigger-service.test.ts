@@ -18,6 +18,7 @@ const BASE_OPTIONS = {
   reposRootPath: '/repos',
   selectedRepos: ['agrotrace-web', 'checkmilk-api'],
   gitAuthor: 'dev@example.com',
+  timezone: 'America/Sao_Paulo',
 }
 
 describe('triggerStandupJob', () => {

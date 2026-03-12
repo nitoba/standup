@@ -29,6 +29,7 @@ const BASE_RUN_OPTIONS = {
   reposRootPath: '/repos',
   selectedRepos: ['repo-a', 'repo-b'],
   gitAuthor: 'dev@example.com',
+  timezone: 'America/Sao_Paulo',
 }
 
 describe('worker-facade-service', () => {

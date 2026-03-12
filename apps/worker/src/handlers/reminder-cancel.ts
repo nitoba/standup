@@ -2,6 +2,8 @@ import { getDb, UserSettingsRepository } from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import type { Context } from 'hono'
 
+const DEFAULT_TIMEZONE = 'America/Sao_Paulo'
+
 const logger = createServiceLogger({
   service: 'worker',
   component: 'http-reminder-cancel',
@@ -38,9 +40,20 @@ export async function handleCancelReminder(
     return c.json({ error: 'userId is required' }, 400)
   }
 
-  const today = new Date().toISOString().slice(0, 10)
   const db = getDb(deps.databaseUrl)
   const repo = new UserSettingsRepository(db)
+
+  // Compute today in the user's timezone so the cancellation guard matches
+  // the same date used by the scheduler and standup job.
+  const settingsResult = await repo.findByUserId(userId)
+  const timezone =
+    settingsResult.isOk() && settingsResult.value?.timezone
+      ? settingsResult.value.timezone
+      : DEFAULT_TIMEZONE
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(
+    new Date(),
+  )
+
   const result = await repo.updateCancelledDate(userId, today)
 
   if (result.isErr()) {

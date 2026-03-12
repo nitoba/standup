@@ -53,7 +53,6 @@ export function startScheduler(
 } {
   const pollCron = new Cron('* * * * *', async () => {
     const now = new Date()
-    const today = now.toISOString().slice(0, 10)
 
     const db = getDb(env.DATABASE_URL, env.DATABASE_AUTH_TOKEN)
     const settingsRepo = new UserSettingsRepository(db)
@@ -75,6 +74,12 @@ export function startScheduler(
     const activeSettings = activeResult.value
 
     for (const settings of activeSettings) {
+      // Compute today in the user's local timezone (not UTC) so that date-scoped
+      // logic (cancelled guard, lock, recovery) matches what the user expects.
+      const today = new Intl.DateTimeFormat('en-CA', {
+        timeZone: settings.timezone,
+      }).format(now)
+
       // Skip if cancelled for today
       if (settings.cancelledDate === today) {
         continue
@@ -145,6 +150,8 @@ export function startScheduler(
             reposRootPath: env.REPOS_ROOT_PATH,
             selectedRepos,
             gitAuthor: settings.gitAuthor,
+            timezone: settings.timezone,
+            gitSincePeriod: settings.gitSincePeriod,
           },
           mcpClient,
         ).catch((error: unknown) => {
@@ -217,6 +224,8 @@ export function startScheduler(
             reposRootPath: env.REPOS_ROOT_PATH,
             selectedRepos: recoverySelectedRepos,
             gitAuthor: settings.gitAuthor,
+            timezone: settings.timezone,
+            gitSincePeriod: settings.gitSincePeriod,
           },
           mcpClient,
         ).catch((error: unknown) => {
