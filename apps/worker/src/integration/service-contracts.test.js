@@ -6,7 +6,7 @@ import { registerCancelTodayReminderRoute } from '../../../api/src/http/routes/r
 import { registerSnoozeReminderRoute } from '../../../api/src/http/routes/reminders/snooze.js'
 import { registerListReposRoute } from '../../../api/src/http/routes/repos/list.js'
 import { registerStandupRoutes } from '../../../api/src/http/routes/standups/router.js'
-import { triggerStandupJob as triggerStandupFromApi } from '../../../api/src/services/standup-trigger-service.js'
+import { triggerStandupJob as triggerStandupFromApi } from '../../../api/src/services/worker-client.js'
 import { handleReminderInteraction } from '../../../discord-bot/src/discord/handlers/reminder-handler.js'
 import { createInternalRouter as createBotRouter } from '../../../discord-bot/src/http/router.js'
 import { createInternalRouter as createWorkerRouter } from '../http/router.js'
@@ -430,7 +430,7 @@ describe('Cross-service HTTP contracts', () => {
           directCalls: ['Sync com produto'],
         })
 
-        return Result.ok({ kind: 'success', standup: approvedRecord })
+        return Result.ok(approvedRecord)
       },
     )
 
