@@ -127,6 +127,7 @@ export async function generateAdjustedStandup(
       )
     }
 
+    await config.onStageChange?.('generating_standup')
     const llmProvider = createGoogleGenerativeAI({ apiKey })
     const systemPrompt = buildSystemPrompt()
 

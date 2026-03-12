@@ -59,19 +59,19 @@ vi.mock('@standup/db', () => {
   return { getDb: mocks.getDb, StandupRepository, JobRunRepository }
 })
 
-vi.mock('../notifications/notify-standup-ready.js', () => ({
+vi.mock('../../notifications/notify-standup-ready.js', () => ({
   notifyStandupReady: mocks.notifyStandupReady,
 }))
 
-vi.mock('../notifications/notify-job-failed.js', () => ({
+vi.mock('../../notifications/notify-job-failed.js', () => ({
   notifyJobFailed: mocks.notifyJobFailed,
 }))
 
-vi.mock('../notifications/notify-user-dm.js', () => ({
+vi.mock('../../notifications/notify-user-dm.js', () => ({
   notifyUserDm: mocks.notifyUserDm,
 }))
 
-vi.mock('../notifications/notify-standup-event.js', () => ({
+vi.mock('../../notifications/notify-standup-event.js', () => ({
   notifyStandupEvent: mocks.notifyStandupEvent,
 }))
 
@@ -424,7 +424,20 @@ describe('runStandupJob', () => {
 
     it('coleta, gera, persiste e notifica o bot quando há commits', async () => {
       mocks.collect.mockResolvedValue(Result.ok(gitActivityWithCommits))
-      mocks.generate.mockResolvedValue(Result.ok(generatedStandup))
+      mocks.generate.mockImplementationOnce(
+        async (
+          _input: unknown,
+          config?: {
+            onStageChange?: (
+              stage: 'enriching_data' | 'generating_standup',
+            ) => Promise<void> | void
+          },
+        ) => {
+          await config?.onStageChange?.('enriching_data')
+          await config?.onStageChange?.('generating_standup')
+          return Result.ok(generatedStandup)
+        },
+      )
       mocks.repoCreate.mockResolvedValue(Result.ok(savedRecord))
       mocks.notifyStandupReady.mockResolvedValue(Result.ok(undefined))
 
@@ -440,14 +453,27 @@ describe('runStandupJob', () => {
         discordUserId: 'test-discord-1',
         secret: baseEnv.INTERNAL_SECRET,
       })
-      expect(mocks.notifyStandupEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: expect.objectContaining({
-            type: 'standup_progress',
-            step: 'collecting_git',
-          }),
-        }),
-      )
+      const progressEvents = mocks.notifyStandupEvent.mock.calls
+        .map(([payload]) => payload.event)
+        .filter(
+          (
+            event,
+          ): event is {
+            type: 'standup_progress'
+            step: string
+          } => event.type === 'standup_progress',
+        )
+        .map((event) => event.step)
+
+      expect(progressEvents).toEqual([
+        'queued',
+        'collecting_git',
+        'enriching_data',
+        'generating_standup',
+        'saving_draft',
+        'notifying_review',
+        'completed',
+      ])
       expect(mocks.notifyStandupEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           event: expect.objectContaining({

@@ -95,6 +95,19 @@ describe('notifyUserDm', () => {
     expect(body.color).toBeUndefined()
   })
 
+  it('retorna Ok sem chamar o bot quando discordUserId está vazio', async () => {
+    const result = await notifyUserDm({
+      botInternalUrl: 'http://localhost:3334',
+      secret: 'my-secret',
+      discordUserId: '   ',
+      title: 'Job em andamento',
+      message: 'Seu standup está sendo gerado.',
+    })
+
+    expect(result.status).toBe('ok')
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
   it('retorna ExternalServiceError quando o bot responde com status não-ok (Err)', async () => {
     mockFetch.mockResolvedValue(errorResponse(503))
 

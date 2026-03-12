@@ -2,6 +2,8 @@ import type { AzureMcpClient, AzureMcpConfig } from '@standup/azure-devops'
 
 export type { AzureMcpConfig }
 
+export type GeneratorStage = 'enriching_data' | 'generating_standup'
+
 export interface GeneratorConfig {
   aiProviderApiKey?: string
   azure?: AzureMcpConfig
@@ -11,4 +13,5 @@ export interface GeneratorConfig {
    * a new connection per enrichment attempt.
    */
   mcpClient?: AzureMcpClient
+  onStageChange?: (stage: GeneratorStage) => Promise<void> | void
 }

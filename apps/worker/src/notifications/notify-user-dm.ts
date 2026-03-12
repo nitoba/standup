@@ -25,6 +25,13 @@ export interface NotifyUserDmOptions {
 export async function notifyUserDm(
   opts: NotifyUserDmOptions,
 ): Promise<Result<void, ExternalServiceError>> {
+  if (!opts.discordUserId.trim()) {
+    logger.info('Skipping user DM notification — discordUserId is empty', {
+      title: opts.title,
+    })
+    return Result.ok(undefined)
+  }
+
   return Result.tryPromise({
     try: async () => {
       const url = `${opts.botInternalUrl}/internal/notify/user-dm`

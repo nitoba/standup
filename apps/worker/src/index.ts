@@ -7,7 +7,7 @@ import { loadWorkerEnv } from '@standup/config'
 import { Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import { createInternalRouter } from './http/router.js'
-import { runStandupJob } from './job/standup-job.js'
+import { runStandupJob } from './job/standup/standup-job.js'
 import { runWeeklyDigestJob } from './job/weekly-digest-job.js'
 import { startScheduler } from './scheduler.js'
 

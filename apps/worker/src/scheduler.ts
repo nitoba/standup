@@ -9,7 +9,7 @@ import {
 import { createServiceLogger } from '@standup/logger'
 import { Cron } from 'croner'
 import { isCronDueNow } from './cron-matcher.js'
-import { runStandupJob } from './job/standup-job.js'
+import { runStandupJob } from './job/standup/standup-job.js'
 import { runWeeklyDigestJob } from './job/weekly-digest-job.js'
 import { notifyStandupReminder } from './notifications/notify-standup-reminder.js'
 
@@ -162,7 +162,10 @@ async function processUserSettings({
   if (isCronDueNow(settings.reminderCron, settings.timezone, now)) {
     const nextRunAt = new Date(now.getTime() + 10 * 60_000).toISOString()
 
-    logger.info('Standup reminder triggered', { userId: settings.userId, nextRunAt })
+    logger.info('Standup reminder triggered', {
+      userId: settings.userId,
+      nextRunAt,
+    })
 
     notifyStandupReminder({
       botInternalUrl: env.BOT_INTERNAL_URL,
@@ -192,7 +195,9 @@ async function processUserSettings({
 
     const selectedRepos = parseSelectedRepos(settings.selectedRepos)
     if (selectedRepos.length === 0) {
-      logger.warn('No repos selected for scheduled standup', { userId: settings.userId })
+      logger.warn('No repos selected for scheduled standup', {
+        userId: settings.userId,
+      })
     } else {
       runStandupJob(
         env,
@@ -216,7 +221,10 @@ async function processUserSettings({
 
   // --- Recovery ---
   if (isCronDueNow(settings.recoveryCron, settings.timezone, now)) {
-    logger.info('Recovery cron triggered', { userId: settings.userId, date: today })
+    logger.info('Recovery cron triggered', {
+      userId: settings.userId,
+      date: today,
+    })
 
     // Clean stale runs
     const staleResult = await jobRunRepo.findStaleRuns(STALE_RUN_MAX_AGE_MS)
@@ -228,12 +236,20 @@ async function processUserSettings({
           date: stale.date,
           startedAt: stale.startedAt,
         })
-        await jobRunRepo.releaseLock(stale.id, 'failed', 'Stale: process likely crashed')
+        await jobRunRepo.releaseLock(
+          stale.id,
+          'failed',
+          'Stale: process likely crashed',
+        )
       }
     }
 
     // No-op if already succeeded today
-    const runResult = await jobRunRepo.findByJobAndDate('standup', today, settings.userId)
+    const runResult = await jobRunRepo.findByJobAndDate(
+      'standup',
+      today,
+      settings.userId,
+    )
     if (runResult.isOk() && runResult.value?.status === 'success') {
       logger.info('Recovery cron: job already succeeded today — no-op', {
         userId: settings.userId,
@@ -244,7 +260,9 @@ async function processUserSettings({
 
     const recoveryRepos = parseSelectedRepos(settings.selectedRepos)
     if (recoveryRepos.length === 0) {
-      logger.warn('No repos selected for recovery run', { userId: settings.userId })
+      logger.warn('No repos selected for recovery run', {
+        userId: settings.userId,
+      })
       return
     }
 
@@ -276,12 +294,14 @@ async function processUserSettings({
   if (isCronDueNow(DIGEST_CRON, settings.timezone, now)) {
     logger.info('Weekly digest cron triggered', { userId: settings.userId })
 
-    runWeeklyDigestJob(env, { userId: settings.userId }).catch((error: unknown) => {
-      logger.error('Weekly digest job threw unexpectedly', {
-        userId: settings.userId,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      })
-    })
+    runWeeklyDigestJob(env, { userId: settings.userId }).catch(
+      (error: unknown) => {
+        logger.error('Weekly digest job threw unexpectedly', {
+          userId: settings.userId,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        })
+      },
+    )
   }
 }

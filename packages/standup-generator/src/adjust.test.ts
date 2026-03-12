@@ -61,6 +61,26 @@ describe('generateAdjustedStandup', () => {
     expect(prompt.prompt).toContain('Standup base')
   })
 
+  it('emite estágio de geração antes de chamar a LLM', async () => {
+    const stages: string[] = []
+
+    const result = await generateAdjustedStandup(
+      {
+        previousContent: '**Standup base**\n- item antigo',
+        instruction: 'Remover item antigo e adicionar item novo',
+      },
+      {
+        ...baseConfig,
+        onStageChange: async (stage) => {
+          stages.push(stage)
+        },
+      },
+    )
+
+    expect(result.status).toBe('ok')
+    expect(stages).toEqual(['generating_standup'])
+  })
+
   it('prompt de ajuste contém instruções cirúrgicas e standup original', async () => {
     const { generateText } = await import('ai')
 
