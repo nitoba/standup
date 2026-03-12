@@ -65,12 +65,12 @@ describe('GET /standups/:id', () => {
       reposRootPath: '/repos',
       workerInternalUrl: WORKER_INTERNAL_URL,
       internalSecret: INTERNAL_SECRET,
-      botInternalUrl: 'http://../../sse/event-bus.js
+      botInternalUrl: 'http://../../http/sse/event-bus.js',
       eventBus: {
         subscribe: vi.fn(),
         emit: vi.fn(),
         emitToAll: vi.fn(),
-      } as unknown as import('../../../sse/event-bus.js').EventBus,
+      } as unknown as import('../../../http/sse/event-bus.js').EventBus,
     })
   })
 

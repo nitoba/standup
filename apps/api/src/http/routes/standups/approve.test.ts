@@ -63,10 +63,10 @@ const deps = {
     subscribe: vi.fn(),
     emit: vi.fn(),
     emitToAll: vi.fn(),
-  } as unknown as import('../../../sse/event-bus.js').EventBus,
+  } as unknown as import('../../../http/sse/event-bus.js').EventBus,
 }
 
-const approvedStandup = {../../sse/event-bus.js
+const approvedStandup = {
   id: 'standup-abc',
   date: '2026-03-09',
   meetingType: 'daily',
