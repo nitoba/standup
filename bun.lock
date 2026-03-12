@@ -139,6 +139,12 @@
         "drizzle-kit": "catalog:tooling",
         "typescript": "catalog:tooling",
       },
+      "optionalDependencies": {
+        "@libsql/darwin-arm64": "0.5.22",
+        "@libsql/darwin-x64": "0.5.22",
+        "@libsql/linux-arm64-gnu": "0.5.22",
+        "@libsql/linux-x64-gnu": "0.5.22",
+      },
     },
     "packages/domain": {
       "name": "@standup/domain",

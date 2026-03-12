@@ -23,6 +23,12 @@
     "@standup/logger": "workspace:*",
     "drizzle-orm": "^0.43.1"
   },
+  "optionalDependencies": {
+    "@libsql/darwin-arm64": "0.5.22",
+    "@libsql/darwin-x64": "0.5.22",
+    "@libsql/linux-arm64-gnu": "0.5.22",
+    "@libsql/linux-x64-gnu": "0.5.22"
+  },
   "devDependencies": {
     "@types/bun": "catalog:tooling",
     "drizzle-kit": "catalog:tooling",

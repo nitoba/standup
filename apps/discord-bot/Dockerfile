@@ -55,9 +55,10 @@ WORKDIR /app
 
 COPY --from=builder /app/bin/discord-bot ./discord-bot
 # @libsql/client loads its native addon dynamically (NAPI-RS pattern), so bun --compile
-# cannot embed it. The compiled binary resolves native modules relative to its own path,
-# so we place the addon at /app/node_modules/@libsql/linux-arm64-gnu.
-COPY --from=builder /app/node_modules/@libsql/linux-arm64-gnu ./node_modules/@libsql/linux-arm64-gnu
+# cannot embed it. Bun places optionalDependencies of workspace packages inside the
+# workspace package's own node_modules. The compiled binary resolves native modules
+# relative to its own path (/app/discord-bot → /app/node_modules/).
+COPY --from=builder /app/packages/db/node_modules/@libsql/linux-arm64-gnu ./node_modules/@libsql/linux-arm64-gnu
 
 EXPOSE 3334
 
