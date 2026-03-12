@@ -19,30 +19,10 @@ export interface ApproveStandupDeps {
   databaseUrl: string
 }
 
-export type ApproveStandupOutcome =
-  | { kind: 'success'; standup: StandupRecord }
-  | { kind: 'invalid_transition'; error: InvalidStateTransitionError }
-  | { kind: 'not_found'; error: NotFoundError }
-
-function isOutcomeError(
-  error: DbError | InvalidStateTransitionError | NotFoundError,
-): error is InvalidStateTransitionError | NotFoundError {
-  return InvalidStateTransitionError.is(error) || NotFoundError.is(error)
-}
-
-function toOutcome(
-  error: DbError | InvalidStateTransitionError | NotFoundError,
-): ApproveStandupOutcome | null {
-  if (NotFoundError.is(error)) {
-    return { kind: 'not_found', error }
-  }
-
-  if (InvalidStateTransitionError.is(error)) {
-    return { kind: 'invalid_transition', error }
-  }
-
-  return null
-}
+export type ApproveStandupError =
+  | NotFoundError
+  | InvalidStateTransitionError
+  | DbError
 
 async function persistMergedCustomEntries(
   repo: StandupRepository,
@@ -73,31 +53,28 @@ async function persistMergedCustomEntries(
 
 /**
  * Browser-safe approve workflow.
- * Faz pending_review → approved no DB.
- * A publicação no Discord e a transição approved → published são feitas
- * pelo discord-bot quando recebe a notificação POST /internal/notify/standup-status-changed.
+ * Faz pending_review -> approved no DB.
+ * A publicacao no Discord e a transicao approved -> published sao feitas
+ * pelo discord-bot quando recebe a notificacao POST /internal/notify/standup-status-changed.
+ *
+ * Returns errors in the Err channel (consistent with the rest of the service layer).
  */
 export async function approveStandup(
   standupId: string,
   userId: string,
   deps: ApproveStandupDeps,
   customEntries?: CustomEntries | null,
-): Promise<Result<ApproveStandupOutcome, DbError>> {
+): Promise<Result<StandupRecord, ApproveStandupError>> {
   const db = getDb(deps.databaseUrl)
   const repo = new StandupRepository(db)
 
+  // Validate ownership
   const found = await repo.findByIdForUser(standupId, userId)
   if (found.isErr()) {
-    if (DbError.is(found.error)) {
-      return Result.err(found.error)
-    }
-
-    const outcome = toOutcome(found.error)
-    if (outcome) {
-      return Result.ok(outcome)
-    }
+    return found
   }
 
+  // Persist custom entries if provided
   if (customEntries && hasCustomEntries(customEntries)) {
     const mergedResult = await persistMergedCustomEntries(
       repo,
@@ -107,17 +84,11 @@ export async function approveStandup(
     )
 
     if (mergedResult.isErr()) {
-      if (DbError.is(mergedResult.error)) {
-        return Result.err(mergedResult.error)
-      }
-
-      const outcome = toOutcome(mergedResult.error)
-      if (outcome) {
-        return Result.ok(outcome)
-      }
+      return mergedResult
     }
   }
 
+  // Transition to approved
   const approvedResult = await repo.updateStatusForUser(
     standupId,
     userId,
@@ -125,21 +96,7 @@ export async function approveStandup(
   )
 
   if (approvedResult.isErr()) {
-    if (DbError.is(approvedResult.error)) {
-      return Result.err(approvedResult.error)
-    }
-
-    const outcome = toOutcome(approvedResult.error)
-    if (outcome) {
-      return Result.ok(outcome)
-    }
-
-    return Result.err(
-      new DbError({
-        operation: 'approveStandup',
-        message: approvedResult.error.message,
-      }),
-    )
+    return approvedResult
   }
 
   logger.info(
@@ -150,8 +107,5 @@ export async function approveStandup(
     },
   )
 
-  return Result.ok({ kind: 'success', standup: approvedResult.value })
+  return Result.ok(approvedResult.value)
 }
-
-// Keep isOutcomeError exported for tests
-export { isOutcomeError }

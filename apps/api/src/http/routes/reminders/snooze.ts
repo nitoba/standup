@@ -1,6 +1,7 @@
 import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
-import { snoozeReminder } from '../../../services/worker-facade-service.js'
+import { snoozeReminder } from '../../../services/worker-client.js'
+import { getUserId } from '../../utils/get-user-id.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -10,11 +11,6 @@ const logger = createServiceLogger({
 export interface SnoozeReminderDeps {
   workerInternalUrl: string
   internalSecret: string
-}
-
-function getUserId(c: { get: (key: string) => unknown }): string | undefined {
-  const user = c.get('user') as Record<string, unknown> | undefined
-  return typeof user?.id === 'string' ? user.id : undefined
 }
 
 /**

@@ -4,6 +4,8 @@ import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import * as z from 'zod'
 import { listStandups } from '../../../services/standup-service.js'
+import { getUserId } from '../../utils/get-user-id.js'
+import { mapDomainErrorToResponse } from '../../utils/map-domain-error.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -43,11 +45,6 @@ export const listQuerySchema = z.object({
 
 export type ListQuery = z.infer<typeof listQuerySchema>
 
-function getUserId(c: { get: (key: string) => unknown }): string | undefined {
-  const user = c.get('user') as Record<string, unknown> | undefined
-  return user?.id as string | undefined
-}
-
 /**
  * GET /standups
  * Lista standups com filtros opcionais ?status= e ?date=YYYY-MM-DD.
@@ -79,10 +76,9 @@ export function registerListStandupsRoute(
 
     if (result.isErr()) {
       logger.error('Failed to list standups', {
-        operation: result.error.operation,
         message: result.error.message,
       })
-      return c.json({ error: 'Internal server error' }, 500) as Response
+      return mapDomainErrorToResponse(result.error, c)
     }
 
     return c.json({

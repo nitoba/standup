@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   getDb: vi.fn(),
   findDiscordIdByUserId: vi.fn(),
   findSettingsByUserId: vi.fn(),
-  runStandupNow: vi.fn(),
+  triggerStandupJob: vi.fn(),
 }))
 
 vi.mock('@standup/db', () => {
@@ -28,8 +28,8 @@ vi.mock('@standup/db', () => {
   }
 })
 
-vi.mock('../../../services/worker-facade-service.js', () => ({
-  runStandupNow: mocks.runStandupNow,
+vi.mock('../../../services/worker-client.js', () => ({
+  triggerStandupJob: mocks.triggerStandupJob,
 }))
 
 import { Hono } from 'hono'
@@ -74,7 +74,7 @@ describe('POST /reminders/run-now', () => {
     mocks.getDb.mockReturnValue({})
     mocks.findSettingsByUserId.mockReturnValue(Result.ok(TEST_SETTINGS))
     mocks.findDiscordIdByUserId.mockReturnValue(Result.ok(TEST_DISCORD_USER_ID))
-    mocks.runStandupNow.mockResolvedValue(Result.ok(undefined))
+    mocks.triggerStandupJob.mockResolvedValue(Result.ok(undefined))
   })
 
   afterEach(() => {
@@ -90,7 +90,7 @@ describe('POST /reminders/run-now', () => {
 
     expect(response.status).toBe(202)
     expect(await response.json()).toEqual({ ok: true, accepted: true })
-    expect(mocks.runStandupNow).toHaveBeenCalledWith(
+    expect(mocks.triggerStandupJob).toHaveBeenCalledWith(
       {
         workerInternalUrl: deps.workerInternalUrl,
         internalSecret: deps.internalSecret,
@@ -116,7 +116,7 @@ describe('POST /reminders/run-now', () => {
 
     expect(response.status).toBe(401)
     expect(await response.json()).toEqual({ error: 'Unauthorized' })
-    expect(mocks.runStandupNow).not.toHaveBeenCalled()
+    expect(mocks.triggerStandupJob).not.toHaveBeenCalled()
   })
 
   it('returns 400 with actionable message when settings are missing', async () => {
@@ -133,7 +133,7 @@ describe('POST /reminders/run-now', () => {
       error:
         'Standup settings not configured. Open settings and save your preferences before running now.',
     })
-    expect(mocks.runStandupNow).not.toHaveBeenCalled()
+    expect(mocks.triggerStandupJob).not.toHaveBeenCalled()
   })
 
   it('returns 400 with actionable message when no repos are configured', async () => {
@@ -155,7 +155,7 @@ describe('POST /reminders/run-now', () => {
       error:
         'No repositories selected. Open settings and choose at least one repository before running now.',
     })
-    expect(mocks.runStandupNow).not.toHaveBeenCalled()
+    expect(mocks.triggerStandupJob).not.toHaveBeenCalled()
   })
 
   it('returns 400 when Discord identity cannot be resolved', async () => {
@@ -172,11 +172,11 @@ describe('POST /reminders/run-now', () => {
       error:
         'Discord identity not found. Sign in with Discord again and retry.',
     })
-    expect(mocks.runStandupNow).not.toHaveBeenCalled()
+    expect(mocks.triggerStandupJob).not.toHaveBeenCalled()
   })
 
   it('returns 503 when worker facade cannot accept the request', async () => {
-    mocks.runStandupNow.mockResolvedValue(
+    mocks.triggerStandupJob.mockResolvedValue(
       Result.err(
         new ExternalServiceError({
           service: 'worker',

@@ -1,4 +1,5 @@
 import { createServiceLogger } from '@standup/logger'
+import { tracedFetch } from '@standup/observability'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -21,7 +22,7 @@ export async function notifyLoginComplete(
   try {
     const url = `${opts.botInternalUrl}/internal/notify/login-complete`
 
-    const response = await fetch(url, {
+    const response = await tracedFetch(url, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

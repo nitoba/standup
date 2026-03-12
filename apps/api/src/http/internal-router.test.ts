@@ -7,7 +7,7 @@ describe('createInternalRouter', () => {
       emit: vi.fn(),
       subscribe: vi.fn(),
       emitToAll: vi.fn(),
-    } as unknown as import('../sse/event-bus.js').EventBus
+    } as unknown as import('./sse/event-bus.js').EventBus
 
     const app = createInternalRouter({
       internalSecret: 'secret-123',
@@ -49,7 +49,7 @@ describe('createInternalRouter', () => {
       emit: vi.fn(),
       subscribe: vi.fn(),
       emitToAll: vi.fn(),
-    } as unknown as import('../sse/event-bus.js').EventBus
+    } as unknown as import('./sse/event-bus.js').EventBus
 
     const app = createInternalRouter({
       internalSecret: 'secret-123',

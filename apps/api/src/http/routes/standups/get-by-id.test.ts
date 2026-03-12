@@ -65,7 +65,7 @@ describe('GET /standups/:id', () => {
       reposRootPath: '/repos',
       workerInternalUrl: WORKER_INTERNAL_URL,
       internalSecret: INTERNAL_SECRET,
-      botInternalUrl: 'http://localhost:3334',
+      botInternalUrl: 'http://../../sse/event-bus.js
       eventBus: {
         subscribe: vi.fn(),
         emit: vi.fn(),

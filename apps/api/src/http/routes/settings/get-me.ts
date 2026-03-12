@@ -1,16 +1,12 @@
 import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import { getUserSettingsOrDefaults } from '../../../services/settings-service.js'
+import { getUserId } from '../../utils/get-user-id.js'
 
 const logger = createServiceLogger({
   service: 'api',
   component: 'settings-get-me',
 })
-
-function getUserId(c: { get: (key: string) => unknown }): string | undefined {
-  const user = c.get('user') as Record<string, unknown> | undefined
-  return typeof user?.id === 'string' ? user.id : undefined
-}
 
 export interface GetMeSettingsDeps {
   databaseUrl: string

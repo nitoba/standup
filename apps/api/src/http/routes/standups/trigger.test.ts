@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   findLatestByUserAndDate: vi.fn(),
 }))
 
-vi.mock('../../../services/standup-trigger-service.js', () => ({
+vi.mock('../../../services/worker-client.js', () => ({
   triggerStandupJob: mocks.triggerStandupJob,
 }))
 
@@ -59,7 +59,7 @@ const deps = {
     subscribe: vi.fn(),
     emit: vi.fn(),
     emitToAll: vi.fn(),
-  } as unknown as import('../../../sse/event-bus.js').EventBus,
+  } as unknown as import('../../sse/event-bus.js').EventBus,
 }
 
 const TEST_USER_ID = 'test-user-1'

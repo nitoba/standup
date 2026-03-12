@@ -1,7 +1,9 @@
+import { sValidator } from '@hono/standard-validator'
 import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import * as z from 'zod'
 import { upsertUserSettings } from '../../../services/settings-service.js'
+import { getUserId } from '../../utils/get-user-id.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -48,11 +50,6 @@ function mapValidationErrors(error: z.ZodError): ValidationErrorItem[] {
   }))
 }
 
-function getUserId(c: { get: (key: string) => unknown }): string | undefined {
-  const user = c.get('user') as Record<string, unknown> | undefined
-  return typeof user?.id === 'string' ? user.id : undefined
-}
-
 /**
  * PUT /settings/me
  */
@@ -61,42 +58,36 @@ export function registerPutMySettingsRoute(
   app: Hono<any>,
   opts: PutMySettingsDeps,
 ): void {
-  app.put('/settings/me', async (c) => {
-    const userId = getUserId(c)
+  app.put(
+    '/settings/me',
+    sValidator('json', putMySettingsBodySchema),
+    async (c) => {
+      const userId = getUserId(c)
 
-    if (!userId) {
-      return c.json({ error: 'Unauthorized' }, 401)
-    }
+      if (!userId) {
+        return c.json({ error: 'Unauthorized' }, 401)
+      }
 
-    const json = await c.req.json().catch(() => undefined)
-    const bodyResult = putMySettingsBodySchema.safeParse(json)
-    if (!bodyResult.success) {
-      return c.json(
+      const body = c.req.valid('json')
+
+      const result = await upsertUserSettings(
         {
-          error: 'Invalid settings payload',
-          errors: mapValidationErrors(bodyResult.error),
+          userId,
+          ...body,
         },
-        400,
+        { databaseUrl: opts.databaseUrl },
       )
-    }
 
-    const result = await upsertUserSettings(
-      {
-        userId,
-        ...bodyResult.data,
-      },
-      { databaseUrl: opts.databaseUrl },
-    )
+      if (result.isErr()) {
+        logger.error('Failed to persist user settings', {
+          operation: result.error.operation,
+          message: result.error.message,
+          userId,
+        })
+        return c.json({ error: 'Internal server error' }, 500)
+      }
 
-    if (result.isErr()) {
-      logger.error('Failed to persist user settings', {
-        operation: result.error.operation,
-        message: result.error.message,
-        userId,
-      })
-      return c.json({ error: 'Internal server error' }, 500)
-    }
-
-    return c.json({ data: result.value })
-  })
+      return c.json({ data: result.value })
+    },
+  )
 }

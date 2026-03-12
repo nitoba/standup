@@ -1,5 +1,5 @@
 import type { Hono } from 'hono'
-import type { WorkerFacadeDeps } from '../../../services/worker-facade-service.js'
+import type { WorkerClientDeps } from '../../../services/worker-client.js'
 import { registerListReposRoute } from './list.js'
 
 /**
@@ -8,7 +8,7 @@ import { registerListReposRoute } from './list.js'
 
 export function registerReposRoutes(
   app: Hono<any>,
-  opts: WorkerFacadeDeps,
+  opts: WorkerClientDeps,
 ): void {
   registerListReposRoute(app, opts)
 }

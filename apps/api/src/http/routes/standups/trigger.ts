@@ -8,7 +8,9 @@ import {
 import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import * as z from 'zod'
-import { triggerStandupJob } from '../../../services/standup-trigger-service.js'
+import { triggerStandupJob } from '../../../services/worker-client.js'
+import { getUserId } from '../../utils/get-user-id.js'
+import { parseSelectedRepos } from '../../utils/parse-selected-repos.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -38,13 +40,6 @@ export interface TriggerHandlerDeps {
 
 type TriggerConflictReason = 'pending_review_exists' | 'already_approved_today'
 
-function getSessionUserId(c: {
-  get: (key: string) => unknown
-}): string | undefined {
-  const user = c.get('user') as Record<string, unknown> | undefined
-  return typeof user?.id === 'string' ? user.id : undefined
-}
-
 /**
  * POST /standups/trigger
  * Trigger manual. userId vem da sessão (Better Auth) ou do body (internal calls).
@@ -62,7 +57,7 @@ export function registerTriggerStandupRoute(
       let userId: string | undefined
       let discordUserId: string | undefined
 
-      const sessionUserId = getSessionUserId(c)
+      const sessionUserId = getUserId(c)
       if (sessionUserId) {
         userId = sessionUserId
         const db = getDb(opts.databaseUrl)
@@ -98,17 +93,7 @@ export function registerTriggerStandupRoute(
       }
 
       const settings = settingsResult.value
-      const selectedRepos: string[] = (() => {
-        try {
-          const parsed = JSON.parse(settings.selectedRepos)
-          if (Array.isArray(parsed)) {
-            return parsed.filter((r): r is string => typeof r === 'string')
-          }
-          return []
-        } catch {
-          return []
-        }
-      })()
+      const selectedRepos = parseSelectedRepos(settings.selectedRepos)
 
       if (selectedRepos.length === 0) {
         return c.json(

@@ -6,7 +6,7 @@ import { loadApiEnv } from '@standup/config'
 import { Result } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import { createApiRouter } from './http/router.js'
-import { EventBus } from './sse/event-bus.js'
+import { EventBus } from './http/sse/event-bus.js'
 
 const envResult = loadApiEnv()
 if (Result.isError(envResult)) {

@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   snoozeReminder: vi.fn(),
 }))
 
-vi.mock('../../../services/worker-facade-service.js', () => ({
+vi.mock('../../../services/worker-client.js', () => ({
   snoozeReminder: mocks.snoozeReminder,
 }))
 

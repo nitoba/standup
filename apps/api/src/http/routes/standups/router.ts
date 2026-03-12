@@ -1,6 +1,6 @@
 import type { Hono } from 'hono'
-import type { EventBus } from '../../../sse/event-bus.js'
-import { handleStandupEvents } from '../../../sse/sse-handler.js'
+import type { EventBus } from '../../sse/event-bus.js'
+import { handleStandupEvents } from '../../sse/sse-handler.js'
 import { registerApproveStandupRoute } from './approve.js'
 import { registerGetStandupByIdRoute } from './get-by-id.js'
 import { registerListStandupsRoute } from './list.js'

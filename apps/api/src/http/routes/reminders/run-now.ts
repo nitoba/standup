@@ -1,7 +1,9 @@
 import { getDb, UserRepository, UserSettingsRepository } from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
-import { runStandupNow } from '../../../services/worker-facade-service.js'
+import { triggerStandupJob } from '../../../services/worker-client.js'
+import { getUserId } from '../../utils/get-user-id.js'
+import { parseSelectedRepos } from '../../utils/parse-selected-repos.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -13,24 +15,6 @@ export interface RunNowReminderDeps {
   reposRootPath: string
   workerInternalUrl: string
   internalSecret: string
-}
-
-function parseSelectedRepos(rawSelectedRepos: string): string[] {
-  try {
-    const parsed = JSON.parse(rawSelectedRepos)
-    if (!Array.isArray(parsed)) {
-      return []
-    }
-
-    return parsed.filter((repo): repo is string => typeof repo === 'string')
-  } catch {
-    return []
-  }
-}
-
-function getUserId(c: { get: (key: string) => unknown }): string | undefined {
-  const user = c.get('user') as Record<string, unknown> | undefined
-  return typeof user?.id === 'string' ? user.id : undefined
 }
 
 /**
@@ -88,7 +72,7 @@ export function registerRunNowReminderRoute(
       )
     }
 
-    const result = await runStandupNow(
+    const result = await triggerStandupJob(
       {
         workerInternalUrl: opts.workerInternalUrl,
         internalSecret: opts.internalSecret,
@@ -105,7 +89,7 @@ export function registerRunNowReminderRoute(
     )
 
     if (result.isErr()) {
-      logger.error('Failed to run standup now via worker facade', {
+      logger.error('Failed to run standup now via worker', {
         error: result.error.message,
         userId,
       })

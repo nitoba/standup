@@ -4,6 +4,7 @@ import {
   type UserSettingsRow,
 } from '@standup/db'
 import { type DbError, Result } from '@standup/domain'
+import { parseSelectedRepos } from '../http/utils/parse-selected-repos.js'
 
 export interface SettingsServiceDeps {
   databaseUrl: string
@@ -54,19 +55,6 @@ function createDefaultSettings(): SettingsRecord {
   return {
     ...DEFAULT_SETTINGS,
     selectedRepos: [...DEFAULT_SETTINGS.selectedRepos],
-  }
-}
-
-function parseSelectedRepos(rawSelectedRepos: string): string[] {
-  try {
-    const parsed = JSON.parse(rawSelectedRepos)
-    if (!Array.isArray(parsed)) {
-      return []
-    }
-
-    return parsed.filter((repo): repo is string => typeof repo === 'string')
-  } catch {
-    return []
   }
 }
 

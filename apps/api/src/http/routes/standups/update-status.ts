@@ -1,14 +1,12 @@
 import { sValidator } from '@hono/standard-validator'
-import {
-  InvalidStateTransitionError,
-  NotFoundError,
-  StandupStatusSchema,
-} from '@standup/domain'
+import { StandupStatusSchema } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import * as z from 'zod'
 import { notifyStandupStatusChanged } from '../../../notifications/notify-standup-status-changed.js'
 import { updateStandupStatus } from '../../../services/standup-service.js'
+import { getUserId } from '../../utils/get-user-id.js'
+import { mapDomainErrorToResponse } from '../../utils/map-domain-error.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -25,11 +23,6 @@ export interface UpdateStatusDeps {
   databaseUrl: string
   botInternalUrl: string
   internalSecret: string
-}
-
-function getUserId(c: { get: (key: string) => unknown }): string | undefined {
-  const user = c.get('user') as Record<string, unknown> | undefined
-  return user?.id as string | undefined
 }
 
 /**
@@ -57,18 +50,11 @@ export function registerUpdateStandupStatusRoute(
       })
 
       if (result.isErr()) {
-        if (NotFoundError.is(result.error)) {
-          return c.json({ error: result.error.message }, 404) as Response
-        }
-        if (InvalidStateTransitionError.is(result.error)) {
-          return c.json({ error: result.error.message }, 409) as Response
-        }
         logger.error('Failed to update standup status', {
           id,
-          operation: result.error.operation,
           message: result.error.message,
         })
-        return c.json({ error: 'Internal server error' }, 500) as Response
+        return mapDomainErrorToResponse(result.error, c)
       }
 
       const standup = result.value

@@ -1,6 +1,9 @@
+import { sValidator } from '@hono/standard-validator'
 import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
-import { triggerWeeklyDigestJob } from '../../../services/digest-trigger-service.js'
+import z from 'zod'
+import { triggerWeeklyDigestJob } from '../../../services/worker-client.js'
+import { getUserId } from '../../utils/get-user-id.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -12,6 +15,10 @@ export interface DigestTriggerDeps {
   internalSecret: string
 }
 
+const bodySchema = z.object({
+  userId: z.uuid().optional(),
+})
+
 /**
  * POST /digests/trigger
  * Trigger manual do weekly digest. userId vem da sessão (Better Auth) ou do body (internal calls).
@@ -21,27 +28,9 @@ export function registerTriggerWeeklyDigestRoute(
   app: Hono<any>,
   opts: DigestTriggerDeps,
 ): void {
-  app.post('/digests/trigger', async (c) => {
-    let userId: string | undefined
-
-    const sessionUser = (c as unknown as { get: (k: string) => unknown }).get(
-      'user',
-    ) as Record<string, unknown> | undefined
-    if (sessionUser?.id) {
-      userId = sessionUser.id as string
-    } else {
-      // Internal call (x-internal-secret bypass): get from body
-      let body: Record<string, unknown> = {}
-      const contentType = c.req.header('content-type') ?? ''
-      if (contentType.includes('application/json')) {
-        try {
-          body = (await c.req.json()) as Record<string, unknown>
-        } catch {
-          return c.json({ error: 'Invalid JSON body' }, 400)
-        }
-      }
-      userId = typeof body.userId === 'string' ? body.userId : undefined
-    }
+  app.post('/digests/trigger', sValidator('json', bodySchema), async (c) => {
+    // Session user (web) or body userId (internal call via x-internal-secret)
+    const { userId } = c.req.valid('json') ?? getUserId(c)
 
     if (!userId) {
       return c.json({ error: 'Could not resolve userId' }, 400)

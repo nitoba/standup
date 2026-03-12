@@ -38,8 +38,8 @@ const DATABASE_URL = ':memory:'
 const pendingRecord = {
   id: 'standup-abc',
   date: '2026-03-09',
-  meetingType: '📆 (Planning Web)',
-  content: '**Standup (09/03/2026)**\n📆 (Planning Web)\n\n- Item base',
+  meetingType: '(Planning Web)',
+  content: '**Standup (09/03/2026)**\n(Planning Web)\n\n- Item base',
   sourceData: '{}',
   customEntries: null,
   status: 'pending_review' as const,
@@ -103,10 +103,7 @@ describe('approveStandup', () => {
 
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
-      expect(result.value.kind).toBe('success')
-      if (result.value.kind === 'success') {
-        expect(result.value.standup).toEqual(approvedRecord)
-      }
+      expect(result.value).toEqual(approvedRecord)
     }
     expect(mocks.getDb).toHaveBeenCalledWith(DATABASE_URL)
     expect(mocks.repoFindByIdForUser).toHaveBeenCalledWith(
@@ -146,10 +143,7 @@ describe('approveStandup', () => {
 
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
-      expect(result.value.kind).toBe('success')
-      if (result.value.kind === 'success') {
-        expect(result.value.standup).toEqual(approvedRecord)
-      }
+      expect(result.value).toEqual(approvedRecord)
     }
     expect(mocks.repoUpdateCustomEntriesForUser).not.toHaveBeenCalled()
     expect(mocks.repoUpdateContentForUser).not.toHaveBeenCalled()
@@ -161,7 +155,7 @@ describe('approveStandup', () => {
     )
   })
 
-  it('retorna invalid_transition quando a transicao nao e permitida', async () => {
+  it('retorna Err(InvalidStateTransitionError) quando a transicao nao e permitida', async () => {
     const invalidTransition = new InvalidStateTransitionError({
       from: 'draft',
       to: 'approved',
@@ -178,16 +172,14 @@ describe('approveStandup', () => {
       databaseUrl: DATABASE_URL,
     })
 
-    expect(result.isOk()).toBe(true)
-    if (result.isOk()) {
-      expect(result.value.kind).toBe('invalid_transition')
-      if (result.value.kind === 'invalid_transition') {
-        expect(result.value.error).toBe(invalidTransition)
-      }
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(InvalidStateTransitionError.is(result.error)).toBe(true)
+      expect(result.error).toBe(invalidTransition)
     }
   })
 
-  it('retorna not_found quando o standup nao pertence ao usuario', async () => {
+  it('retorna Err(NotFoundError) quando o standup nao pertence ao usuario', async () => {
     const notFound = new NotFoundError({
       resource: 'standup',
       id: 'standup-abc',
@@ -199,12 +191,10 @@ describe('approveStandup', () => {
       databaseUrl: DATABASE_URL,
     })
 
-    expect(result.isOk()).toBe(true)
-    if (result.isOk()) {
-      expect(result.value.kind).toBe('not_found')
-      if (result.value.kind === 'not_found') {
-        expect(result.value.error).toBe(notFound)
-      }
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(NotFoundError.is(result.error)).toBe(true)
+      expect(result.error).toBe(notFound)
     }
     expect(mocks.repoUpdateStatusForUser).not.toHaveBeenCalled()
   })

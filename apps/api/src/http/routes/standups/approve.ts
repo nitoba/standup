@@ -1,10 +1,18 @@
 import { sValidator } from '@hono/standard-validator'
 import type { CustomEntries } from '@standup/domain'
-import { CustomEntriesSchema, DbError } from '@standup/domain'
+import { CustomEntriesSchema } from '@standup/domain'
+import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import * as z from 'zod'
 import { notifyStandupStatusChanged } from '../../../notifications/notify-standup-status-changed.js'
 import { approveStandup } from '../../../services/standup-approve-service.js'
+import { getUserId } from '../../utils/get-user-id.js'
+import { mapDomainErrorToResponse } from '../../utils/map-domain-error.js'
+
+const logger = createServiceLogger({
+  service: 'api',
+  component: 'standup-approve',
+})
 
 export const approveBodySchema = z.object({
   customEntries: CustomEntriesSchema.nullable().optional(),
@@ -18,14 +26,9 @@ export interface ApproveHandlerDeps {
   internalSecret: string
 }
 
-function getUserId(c: { get: (key: string) => unknown }): string | undefined {
-  const user = c.get('user') as Record<string, unknown> | undefined
-  return user?.id as string | undefined
-}
-
 /**
  * POST /standups/:id/approve
- * Fluxo dedicado de aprovação + publicação via bot.
+ * Fluxo dedicado de aprovacao + publicacao via bot.
  */
 export function registerApproveStandupRoute(
   app: Hono<any>,
@@ -51,28 +54,23 @@ export function registerApproveStandupRoute(
       )
 
       if (result.isErr()) {
-        if (DbError.is(result.error)) {
-          return c.json({ error: 'Internal server error' }, 500)
-        }
-        return c.json({ error: 'Internal server error' }, 500)
+        logger.error('Failed to approve standup', {
+          standupId,
+          message: result.error.message,
+        })
+        return mapDomainErrorToResponse(result.error, c)
       }
 
-      switch (result.value.kind) {
-        case 'not_found':
-          return c.json({ error: result.value.error.message }, 404)
-        case 'invalid_transition':
-          return c.json({ error: result.value.error.message }, 409)
-        case 'success': {
-          const standup = result.value.standup
-          void notifyStandupStatusChanged({
-            botInternalUrl: opts.botInternalUrl,
-            internalSecret: opts.internalSecret,
-            standupId: standup.id,
-            newStatus: 'approved',
-          })
-          return c.json({ data: standup }, 200)
-        }
-      }
+      const standup = result.value
+
+      void notifyStandupStatusChanged({
+        botInternalUrl: opts.botInternalUrl,
+        internalSecret: opts.internalSecret,
+        standupId: standup.id,
+        newStatus: 'approved',
+      })
+
+      return c.json({ data: standup }, 200)
     },
   )
 }
