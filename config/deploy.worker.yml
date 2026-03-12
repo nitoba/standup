@@ -2,7 +2,8 @@
 #
 # Cron scheduler + standup job pipeline + internal HTTP trigger.
 # No public proxy — uses Docker network alias for internal traffic.
-# The worker needs read-only access to git repositories on the host for commit collection.
+# The worker needs read-write access to git repositories on the host so that
+# git fetch can update .git/FETCH_HEAD before collecting commits.
 #
 # No published ports: other containers reach this service via the "standup-worker"
 # network alias on the shared "kamal" Docker network. This avoids port conflicts
@@ -44,7 +45,7 @@ ssh:
     - ~/.ssh/deploy_key
 
 volumes:
-  - /Users/nitoba/repos:/repos:ro
+  - /Users/nitoba/repos:/repos:rw
 
 env:
   clear:
