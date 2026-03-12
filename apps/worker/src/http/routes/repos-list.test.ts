@@ -3,7 +3,7 @@ import { ExternalServiceError, Result } from '@standup/domain'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 import { internalAuthMiddleware } from '../http/middleware/auth.js'
-import { handleListRepos } from './repos-list.js'
+import { registerReposListRoute } from '../http/routes/repos-list.js'
 
 const SECRET = 'test-secret'
 
@@ -18,16 +18,14 @@ const fakeReposCheckmilk = [
 function makeApp(mcpClient: AzureMcpClient) {
   const app = new Hono()
   app.use('/internal/*', internalAuthMiddleware(SECRET))
-  app.get('/internal/repos/list', (c) =>
-    handleListRepos(c, {
-      mcpClient,
-      projects: ['AGROTRACE', 'CHECKMILK'],
-    }),
-  )
+  registerReposListRoute(app, {
+    mcpClient,
+    azureProjects: ['AGROTRACE', 'CHECKMILK'],
+  })
   return app
 }
 
-describe('handleListRepos', () => {
+describe('registerReposListRoute', () => {
   it('returns 401 without auth header', async () => {
     const mcpClient = {
       listRepositories: vi.fn().mockResolvedValue(Result.ok([])),

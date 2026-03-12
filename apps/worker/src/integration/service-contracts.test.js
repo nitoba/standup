@@ -64,8 +64,8 @@ vi.mock('@standup/db', () => ({
 }))
 
 const INTERNAL_SECRET = 'test-secret'
-const TEST_USER_ID = 'test-user-1'
-const TEST_DISCORD_USER_ID = 'discord-user-1'
+const TEST_USER_ID = 'a1b2c3d4-e5f6-4789-a012-b34567890001'
+const TEST_DISCORD_USER_ID = 'a1b2c3d4-e5f6-4789-a012-b34567890002'
 
 function createApiApp(workerInternalUrl) {
   const app = new Hono()
@@ -302,16 +302,18 @@ describe('Cross-service HTTP contracts', () => {
       )
 
       expect(result.isOk()).toBe(true)
-      expect(triggerStandupJob).toHaveBeenCalledWith({
-        userId: TEST_USER_ID,
-        discordUserId: TEST_DISCORD_USER_ID,
-        reposRootPath: '/tmp/repos',
-        selectedRepos: ['agrotrace-web', 'agrotrace-api'],
-        gitAuthor: 'dev@example.com',
-        timezone: 'America/Sao_Paulo',
-        extraContext: 'focar em PR review',
-        forceRegenerate: true,
-      })
+      expect(triggerStandupJob).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: TEST_USER_ID,
+          discordUserId: TEST_DISCORD_USER_ID,
+          reposRootPath: '/tmp/repos',
+          selectedRepos: ['agrotrace-web', 'agrotrace-api'],
+          gitAuthor: 'dev@example.com',
+          timezone: 'America/Sao_Paulo',
+          extraContext: 'focar em PR review',
+          forceRegenerate: true,
+        }),
+      )
     } finally {
       await server.close()
     }
