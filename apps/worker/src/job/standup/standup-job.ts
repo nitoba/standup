@@ -38,8 +38,7 @@ function toLocalDateString(date: Date, timezone: string): string {
 
 export function resolveRunMode(options: StandupJobOptions): StandupRunMode {
   if (options.rewriteInstruction?.trim()) return 'adjust'
-  if (options.forceRegenerate || options.reuseExistingSource)
-    return 'regenerate'
+  if (options.reuseExistingSource) return 'regenerate'
   return 'generate'
 }
 
