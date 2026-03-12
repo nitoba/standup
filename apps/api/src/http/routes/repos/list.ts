@@ -2,7 +2,6 @@ import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import type { WorkerFacadeDeps } from '../../../services/worker-facade-service.js'
 import { listRepos } from '../../../services/worker-facade-service.js'
-import type { AppContext } from '../../types.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -20,7 +19,7 @@ function getUserId(c: { get: (key: string) => unknown }): string | undefined {
  * GET /repos
  */
 export function registerListReposRoute(
-  app: Hono<AppContext>,
+  app: Hono<any>,
   opts: WorkerFacadeDeps,
 ): void {
   app.get('/repos', async (c) => {

@@ -4,7 +4,6 @@ import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import * as z from 'zod'
 import { listStandups } from '../../../services/standup-service.js'
-import type { AppContext } from '../../types.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -54,7 +53,7 @@ function getUserId(c: { get: (key: string) => unknown }): string | undefined {
  * Lista standups com filtros opcionais ?status= e ?date=YYYY-MM-DD.
  */
 export function registerListStandupsRoute(
-  app: Hono<AppContext>,
+  app: Hono<any>,
   opts: { databaseUrl: string },
 ): void {
   app.get('/standups', sValidator('query', listQuerySchema), async (c) => {

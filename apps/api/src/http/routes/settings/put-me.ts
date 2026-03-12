@@ -2,7 +2,6 @@ import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import * as z from 'zod'
 import { upsertUserSettings } from '../../../services/settings-service.js'
-import type { AppContext } from '../../types.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -59,7 +58,7 @@ function getUserId(c: { get: (key: string) => unknown }): string | undefined {
  */
 
 export function registerPutMySettingsRoute(
-  app: Hono<AppContext>,
+  app: Hono<any>,
   opts: PutMySettingsDeps,
 ): void {
   app.put('/settings/me', async (c) => {

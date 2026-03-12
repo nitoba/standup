@@ -1,7 +1,6 @@
 import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import { triggerWeeklyDigestJob } from '../../../services/digest-trigger-service.js'
-import type { AppContext } from '../../types.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -19,7 +18,7 @@ export interface DigestTriggerDeps {
  */
 
 export function registerTriggerWeeklyDigestRoute(
-  app: Hono<AppContext>,
+  app: Hono<any>,
   opts: DigestTriggerDeps,
 ): void {
   app.post('/digests/trigger', async (c) => {

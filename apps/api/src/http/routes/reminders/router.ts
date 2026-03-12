@@ -1,5 +1,4 @@
 import type { Hono } from 'hono'
-import type { AppContext } from '../../types.js'
 import { registerCancelTodayReminderRoute } from './cancel-today.js'
 import { registerRunNowReminderRoute } from './run-now.js'
 import { registerSnoozeReminderRoute } from './snooze.js'
@@ -16,7 +15,7 @@ export interface RemindersRoutesDeps {
  */
 
 export function registerRemindersRoutes(
-  app: Hono<AppContext>,
+  app: Hono<any>,
   opts: RemindersRoutesDeps,
 ): void {
   registerRunNowReminderRoute(app, {

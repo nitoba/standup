@@ -2,7 +2,6 @@ import { NotFoundError } from '@standup/domain'
 import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import { getStandupById } from '../../../services/standup-service.js'
-import type { AppContext } from '../../types.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -19,7 +18,7 @@ function getUserId(c: { get: (key: string) => unknown }): string | undefined {
  * Retorna um standup pelo ID.
  */
 export function registerGetStandupByIdRoute(
-  app: Hono<AppContext>,
+  app: Hono<any>,
   opts: { databaseUrl: string },
 ): void {
   app.get('/standups/:id', async (c) => {

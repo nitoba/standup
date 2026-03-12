@@ -2,7 +2,6 @@ import { getDb, UserRepository, UserSettingsRepository } from '@standup/db'
 import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import { runStandupNow } from '../../../services/worker-facade-service.js'
-import type { AppContext } from '../../types.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -39,7 +38,7 @@ function getUserId(c: { get: (key: string) => unknown }): string | undefined {
  */
 
 export function registerRunNowReminderRoute(
-  app: Hono<AppContext>,
+  app: Hono<any>,
   opts: RunNowReminderDeps,
 ): void {
   app.post('/reminders/run-now', async (c) => {

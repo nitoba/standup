@@ -1,5 +1,4 @@
 import type { Hono } from 'hono'
-import type { AppContext } from '../../types.js'
 import { registerTriggerWeeklyDigestRoute } from './trigger.js'
 
 export interface DigestRoutesDeps {
@@ -12,7 +11,7 @@ export interface DigestRoutesDeps {
  */
 
 export function registerDigestRoutes(
-  app: Hono<AppContext>,
+  app: Hono<any>,
   opts: DigestRoutesDeps,
 ): void {
   registerTriggerWeeklyDigestRoute(app, opts)

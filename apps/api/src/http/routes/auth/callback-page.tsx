@@ -1,14 +1,14 @@
-import { readFileSync } from "node:fs";
-import type { Context } from "hono";
-import type { FC } from "hono/jsx";
+import { readFileSync } from 'node:fs'
+import type { Context } from 'hono'
+import type { FC } from 'hono/jsx'
 
 // `import ... with { type: "file" }` makes bun bundle the asset into the
 // compiled binary (bun build --compile).  At runtime the import resolves to
 // the embedded file path, so readFileSync works both locally and in the
 // standalone executable without any external file dependency.
-import avatarFilePath from "../../../public/avatar.webp" with { type: "file" };
+import avatarFilePath from '../../../public/avatar.webp' with { type: 'file' }
 
-const AVATAR_DATA_URI = `data:image/webp;base64,${readFileSync(avatarFilePath).toString("base64")}`;
+const AVATAR_DATA_URI = `data:image/webp;base64,${readFileSync(avatarFilePath).toString('base64')}`
 
 const STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
@@ -203,7 +203,7 @@ body {
   vertical-align: middle;
   animation: blink 1.1s step-end infinite;
 }
-`;
+`
 
 const AuthCallbackPage: FC = () => {
   return (
@@ -267,7 +267,7 @@ const AuthCallbackPage: FC = () => {
 
           {/* description */}
           <p class="subtitle">
-            Autenticação concluída. Você já pode usar o comando{" "}
+            Autenticação concluída. Você já pode usar o comando{' '}
             <code class="command-badge">/standup</code> no Discord.
           </p>
 
@@ -281,8 +281,8 @@ const AuthCallbackPage: FC = () => {
         </main>
       </body>
     </html>
-  );
-};
+  )
+}
 
 /**
  * Página de callback após OAuth bem-sucedido.
@@ -290,5 +290,5 @@ const AuthCallbackPage: FC = () => {
  * "document is not defined" no SSR do Bun).
  */
 export function handleAuthCallback(c: Context): Response | Promise<Response> {
-  return c.html(<AuthCallbackPage />);
+  return c.html(<AuthCallbackPage />)
 }

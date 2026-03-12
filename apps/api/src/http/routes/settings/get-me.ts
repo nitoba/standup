@@ -1,7 +1,6 @@
 import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import { getUserSettingsOrDefaults } from '../../../services/settings-service.js'
-import type { AppContext } from '../../types.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -22,7 +21,7 @@ export interface GetMeSettingsDeps {
  */
 
 export function registerGetMeSettingsRoute(
-  app: Hono<AppContext>,
+  app: Hono<any>,
   opts: GetMeSettingsDeps,
 ): void {
   app.get('/settings/me', async (c) => {

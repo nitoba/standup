@@ -9,7 +9,6 @@ import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import * as z from 'zod'
 import { triggerStandupJob } from '../../../services/standup-trigger-service.js'
-import type { AppContext } from '../../types.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -51,7 +50,7 @@ function getSessionUserId(c: {
  * Trigger manual. userId vem da sessão (Better Auth) ou do body (internal calls).
  */
 export function registerTriggerStandupRoute(
-  app: Hono<AppContext>,
+  app: Hono<any>,
   opts: TriggerHandlerDeps,
 ): void {
   app.post(

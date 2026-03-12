@@ -1,7 +1,6 @@
 import { createServiceLogger } from '@standup/logger'
 import type { Hono } from 'hono'
 import { cancelReminderForToday } from '../../../services/worker-facade-service.js'
-import type { AppContext } from '../../types.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -23,7 +22,7 @@ function getUserId(c: { get: (key: string) => unknown }): string | undefined {
  */
 
 export function registerCancelTodayReminderRoute(
-  app: Hono<AppContext>,
+  app: Hono<any>,
   opts: CancelTodayDeps,
 ): void {
   app.post('/reminders/cancel-today', async (c) => {

@@ -9,7 +9,6 @@ import type { Hono } from 'hono'
 import * as z from 'zod'
 import { notifyStandupStatusChanged } from '../../../notifications/notify-standup-status-changed.js'
 import { updateStandupStatus } from '../../../services/standup-service.js'
-import type { AppContext } from '../../types.js'
 
 const logger = createServiceLogger({
   service: 'api',
@@ -38,7 +37,7 @@ function getUserId(c: { get: (key: string) => unknown }): string | undefined {
  * Transições diretas/rejeição. Aprovação tem rota dedicada.
  */
 export function registerUpdateStandupStatusRoute(
-  app: Hono<AppContext>,
+  app: Hono<any>,
   opts: UpdateStatusDeps,
 ): void {
   app.patch(

@@ -5,7 +5,6 @@ import type { Hono } from 'hono'
 import * as z from 'zod'
 import { notifyStandupStatusChanged } from '../../../notifications/notify-standup-status-changed.js'
 import { approveStandup } from '../../../services/standup-approve-service.js'
-import type { AppContext } from '../../types.js'
 
 export const approveBodySchema = z.object({
   customEntries: CustomEntriesSchema.nullable().optional(),
@@ -29,7 +28,7 @@ function getUserId(c: { get: (key: string) => unknown }): string | undefined {
  * Fluxo dedicado de aprovação + publicação via bot.
  */
 export function registerApproveStandupRoute(
-  app: Hono<AppContext>,
+  app: Hono<any>,
   opts: ApproveHandlerDeps,
 ): void {
   app.post(
