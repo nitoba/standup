@@ -34,6 +34,8 @@ jobs:
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
       DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
       MESSAGE_ID: ${{ inputs.message_id }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
