@@ -87,6 +87,7 @@
       "name": "@standup/worker",
       "dependencies": {
         "@hono/otel": "^1.1.1",
+        "@hono/standard-validator": "catalog:",
         "@standup/azure-devops": "workspace:*",
         "@standup/config": "workspace:*",
         "@standup/db": "workspace:*",
@@ -98,6 +99,7 @@
         "@standup/standup-generator": "workspace:*",
         "croner": "^10.0.1",
         "hono": "catalog:",
+        "zod": "catalog:",
       },
     },
     "packages/azure-devops": {
@@ -126,13 +128,13 @@
       "name": "@standup/db",
       "version": "0.0.0",
       "dependencies": {
+        "@libsql/client": "^0.17.0",
         "@standup/config": "workspace:*",
         "@standup/domain": "workspace:*",
         "@standup/logger": "workspace:*",
         "drizzle-orm": "^0.43.1",
       },
       "devDependencies": {
-        "@libsql/client": "^0.17.0",
         "@types/bun": "catalog:tooling",
         "drizzle-kit": "catalog:tooling",
         "typescript": "catalog:tooling",
