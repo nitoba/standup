@@ -11,18 +11,18 @@ const logger = createServiceLogger({
 })
 
 const bodySchema = z.object({
-  userId: z.uuid(),
-  discordUserId: z.uuid(),
+  userId: z.string().min(1),
+  discordUserId: z.string().min(1),
   reposRootPath: z.string(),
   selectedRepos: z.array(z.string()).min(1),
-  gitAuthor: z.email(),
+  gitAuthor: z.string().min(1),
   gitSincePeriod: z.string().optional().default('8 hours ago'),
   timezone: z.string(),
   extraContext: z.string().optional(),
   reuseExistingSource: z.boolean().default(false),
   forceRegenerate: z.boolean().default(false),
-  rewriteFromStandupId: z.uuid().optional(),
-  replaceStandupId: z.uuid().optional(),
+  rewriteFromStandupId: z.string().optional(),
+  replaceStandupId: z.string().optional(),
   rewriteInstruction: z.string().optional(),
 })
 
