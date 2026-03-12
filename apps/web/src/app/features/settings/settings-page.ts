@@ -15,13 +15,26 @@ import {
   type ZardComboboxOption,
 } from '../../shared/components/combobox'
 import { ZardInputDirective } from '../../shared/components/input'
+import {
+  ZardPopoverComponent,
+  ZardPopoverDirective,
+} from '../../shared/components/popover'
 import { ZardSwitchComponent } from '../../shared/components/switch'
+import { CronBuilderComponent } from './components/cron-builder/cron-builder'
 import { SettingsSkeleton } from './components/settings-skeleton/settings-skeleton'
 import {
   type RepoOption,
   type SaveSettingsInput,
   SettingsService,
 } from './services/settings-service'
+
+type CronFieldKey = 'standupCron' | 'reminderCron' | 'recoveryCron'
+
+const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
+  standupCron: false,
+  reminderCron: false,
+  recoveryCron: false,
+}
 
 @Component({
   selector: 'app-settings-page',
@@ -32,7 +45,10 @@ import {
     ZardComboboxComponent,
     ZardCheckboxComponent,
     ZardInputDirective,
+    ZardPopoverComponent,
+    ZardPopoverDirective,
     ZardSwitchComponent,
+    CronBuilderComponent,
     SettingsSkeleton,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -102,15 +118,48 @@ import {
                   <div class="flex flex-col gap-[6px]">
                     <label
                       for="standup-cron"
-                        class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
-                      >standup_cron</label
+                      class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
                     >
-                    <input
-                      id="standup-cron"
-                      type="text"
-                      z-input
-                      [formField]="settingsForm.standupCron"
-                    />
+                      standup_cron
+                    </label>
+                    <div class="relative">
+                      <input
+                        id="standup-cron"
+                        type="text"
+                        z-input
+                        zPopover
+                        readonly
+                        title="Click to open the visual cron builder"
+                        class="cursor-pointer pr-[86px]"
+                        [value]="settingsModel().standupCron"
+                        [zContent]="standupCronPopover"
+                        [zVisible]="cronPopoverVisibility().standupCron"
+                        [attr.aria-haspopup]="'dialog'"
+                        [attr.aria-expanded]="cronPopoverVisibility().standupCron"
+                        (zVisibleChange)="onCronPopoverVisibilityChange('standupCron', $event)"
+                      />
+                      <span
+                        class="pointer-events-none absolute right-[12px] top-1/2 -translate-y-1/2 font-[var(--font-jetbrains)] text-[11px] text-primary"
+                      >
+                        // build
+                      </span>
+                    </div>
+                    <ng-template #standupCronPopover>
+                      <z-popover
+                        [class]="'max-w-[calc(100vw-32px)] w-[340px] border-[#2a2a2a] bg-[#0a0a0a] p-0 text-white shadow-[0_20px_60px_rgba(0,0,0,0.65)]'"
+                      >
+                        <app-cron-builder
+                          [value]="settingsModel().standupCron"
+                          (applied)="onCronBuilderApply('standupCron', $event)"
+                          (canceled)="onCronBuilderCancel('standupCron')"
+                        />
+                      </z-popover>
+                    </ng-template>
+                    <span
+                      class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]"
+                    >
+                      // click to build the schedule visually
+                    </span>
                     @if (
                       settingsForm.standupCron().touched() &&
                       settingsForm.standupCron().invalid()
@@ -125,15 +174,48 @@ import {
                   <div class="flex flex-col gap-[6px]">
                     <label
                       for="reminder-cron"
-                        class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
-                      >reminder_cron</label
+                      class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
                     >
-                    <input
-                      id="reminder-cron"
-                      type="text"
-                      z-input
-                      [formField]="settingsForm.reminderCron"
-                    />
+                      reminder_cron
+                    </label>
+                    <div class="relative">
+                      <input
+                        id="reminder-cron"
+                        type="text"
+                        z-input
+                        zPopover
+                        readonly
+                        title="Click to open the visual cron builder"
+                        class="cursor-pointer pr-[86px]"
+                        [value]="settingsModel().reminderCron"
+                        [zContent]="reminderCronPopover"
+                        [zVisible]="cronPopoverVisibility().reminderCron"
+                        [attr.aria-haspopup]="'dialog'"
+                        [attr.aria-expanded]="cronPopoverVisibility().reminderCron"
+                        (zVisibleChange)="onCronPopoverVisibilityChange('reminderCron', $event)"
+                      />
+                      <span
+                        class="pointer-events-none absolute right-[12px] top-1/2 -translate-y-1/2 font-[var(--font-jetbrains)] text-[11px] text-primary"
+                      >
+                        // build
+                      </span>
+                    </div>
+                    <ng-template #reminderCronPopover>
+                      <z-popover
+                        [class]="'max-w-[calc(100vw-32px)] w-[340px] border-[#2a2a2a] bg-[#0a0a0a] p-0 text-white shadow-[0_20px_60px_rgba(0,0,0,0.65)]'"
+                      >
+                        <app-cron-builder
+                          [value]="settingsModel().reminderCron"
+                          (applied)="onCronBuilderApply('reminderCron', $event)"
+                          (canceled)="onCronBuilderCancel('reminderCron')"
+                        />
+                      </z-popover>
+                    </ng-template>
+                    <span
+                      class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]"
+                    >
+                      // click to build the schedule visually
+                    </span>
                     @if (
                       settingsForm.reminderCron().touched() &&
                       settingsForm.reminderCron().invalid()
@@ -152,15 +234,48 @@ import {
                   <div class="flex flex-col gap-[6px]">
                     <label
                       for="recovery-cron"
-                        class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
-                      >recovery_cron</label
+                      class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
                     >
-                    <input
-                      id="recovery-cron"
-                      type="text"
-                      z-input
-                      [formField]="settingsForm.recoveryCron"
-                    />
+                      recovery_cron
+                    </label>
+                    <div class="relative">
+                      <input
+                        id="recovery-cron"
+                        type="text"
+                        z-input
+                        zPopover
+                        readonly
+                        title="Click to open the visual cron builder"
+                        class="cursor-pointer pr-[86px]"
+                        [value]="settingsModel().recoveryCron"
+                        [zContent]="recoveryCronPopover"
+                        [zVisible]="cronPopoverVisibility().recoveryCron"
+                        [attr.aria-haspopup]="'dialog'"
+                        [attr.aria-expanded]="cronPopoverVisibility().recoveryCron"
+                        (zVisibleChange)="onCronPopoverVisibilityChange('recoveryCron', $event)"
+                      />
+                      <span
+                        class="pointer-events-none absolute right-[12px] top-1/2 -translate-y-1/2 font-[var(--font-jetbrains)] text-[11px] text-primary"
+                      >
+                        // build
+                      </span>
+                    </div>
+                    <ng-template #recoveryCronPopover>
+                      <z-popover
+                        [class]="'max-w-[calc(100vw-32px)] w-[340px] border-[#2a2a2a] bg-[#0a0a0a] p-0 text-white shadow-[0_20px_60px_rgba(0,0,0,0.65)]'"
+                      >
+                        <app-cron-builder
+                          [value]="settingsModel().recoveryCron"
+                          (applied)="onCronBuilderApply('recoveryCron', $event)"
+                          (canceled)="onCronBuilderCancel('recoveryCron')"
+                        />
+                      </z-popover>
+                    </ng-template>
+                    <span
+                      class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]"
+                    >
+                      // click to build the schedule visually
+                    </span>
                     @if (
                       settingsForm.recoveryCron().touched() &&
                       settingsForm.recoveryCron().invalid()
@@ -411,6 +526,7 @@ export class SettingsPage {
   readonly loading = signal(true)
   readonly loadError = signal(false)
   readonly saving = signal(false)
+  readonly cronPopoverVisibility = signal(DEFAULT_CRON_POPOVER_STATE)
 
   readonly settingsModel = signal<SaveSettingsInput>({
     standupCron: '',
@@ -499,6 +615,25 @@ export class SettingsPage {
 
   onEmailThemeChange(emailTheme: 'light' | 'dark') {
     this.settingsModel.update((m) => ({ ...m, emailTheme }))
+  }
+
+  onCronPopoverVisibilityChange(field: CronFieldKey, visible: boolean) {
+    this.cronPopoverVisibility.update((state) => ({
+      ...state,
+      [field]: visible,
+    }))
+  }
+
+  onCronBuilderApply(field: CronFieldKey, cronExpression: string) {
+    this.settingsModel.update((model) => ({
+      ...model,
+      [field]: cronExpression,
+    }))
+    this.onCronPopoverVisibilityChange(field, false)
+  }
+
+  onCronBuilderCancel(field: CronFieldKey) {
+    this.onCronPopoverVisibilityChange(field, false)
   }
 
   onTimezoneChange(timezone: string | null) {
