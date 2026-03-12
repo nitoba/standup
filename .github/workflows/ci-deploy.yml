@@ -112,6 +112,8 @@ jobs:
           SMTP_FROM=$SMTP_FROM
           SMTP_USER=$SMTP_USER
           SMTP_PASS=$SMTP_PASS
+          DATABASE_URL=$DATABASE_URL
+          DATABASE_AUTH_TOKEN=$DATABASE_AUTH_TOKEN
           EOF
 
       - name: Validate Kamal config (API)
