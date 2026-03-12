@@ -17,7 +17,7 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 3. **Geracao**: LLM gera o standup formatado em portugues
 4. **Revisao**: Bot do Discord envia DM com preview + botoes (Aprovar/Rejeitar/Regenerar)
 5. **Publicacao**: Standup aprovado e publicado no canal do Discord
-6. **Persistencia**: Todos os standups ficam salvos no SQLite para busca/filtro/resumos
+6. **Persistencia**: Todos os standups ficam salvos em banco SQLite/libSQL (local ou Turso) para busca/filtro/resumos
 
 ### Modos de Operacao
 
@@ -31,7 +31,7 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 - Linguagem: TypeScript (strict mode)
 - Testes: Vitest (pacotes com mocks complexos) + bun test (pacotes simples)
 - Linter/Formatter: Biome
-- ORM: Drizzle ORM + SQLite (WAL mode)
+- ORM: Drizzle ORM + SQLite/libSQL (Turso-ready)
 - HTTP Server: Hono
 - Validacao: Zod
 - Error Handling: better-result (Result + TaggedError)
@@ -301,7 +301,7 @@ standup/
         prompt/       # determineMeetingType + buildSystemPrompt + buildUserMessage
         generator.ts  # generateStandup + generateAdjustedStandup (retry interno + fallback MCP)
 
-  data/               # SQLite files (gitignored)
+  data/               # SQLite files locais para dev (gitignored)
   drizzle/            # Migrations SQL geradas pelo Drizzle Kit
   turbo.json          # Pipeline: lint → typecheck → test → build
 ```
@@ -319,8 +319,11 @@ standup/
 - **NUNCA criar arquivos de migration manualmente** — sempre usar `bun run db:generate` no pacote `packages/db`
 - `db:generate` atualiza o `_journal.json` e cria o snapshot corretamente; criar arquivos `.sql` manualmente quebra o journal e pode causar migrations aplicadas parcialmente
 - `db:migrate` aplica as migrations pendentes usando `packages/db/src/migrate.ts` com `--env-file=../../.env.local`
-- Sempre rodar `db:migrate` apos `db:generate` para aplicar no banco local
-- O marcador `--> statement-breakpoint` e obrigatorio entre statements distintos (ex: `ALTER TABLE` + `CREATE TABLE`); sem ele, `bun:sqlite` executa apenas o primeiro statement
+- Sempre rodar `db:migrate` apos `db:generate` para aplicar no banco configurado no ambiente (`file:...`, `http://127.0.0.1:8080`, `libsql://...`)
+- Desenvolvimento local pode usar:
+  - `DATABASE_URL=file:./data/standup.db` para SQLite local
+  - `turso dev --db-file ./data/standup.db` + `DATABASE_URL=http://127.0.0.1:8080` para libSQL local via Turso CLI
+  - `DATABASE_URL=libsql://...` + `DATABASE_AUTH_TOKEN=...` para Turso remoto
 
 Fluxo correto para adicionar ou alterar schema:
 1. Editar `packages/db/src/schema.ts`
@@ -341,7 +344,8 @@ Fluxo correto para adicionar ou alterar schema:
 ```
 # Base (compartilhado entre apps quando aplicavel)
 NODE_ENV=development
-DATABASE_URL=./data/standup.db
+DATABASE_URL=file:./data/standup.db
+DATABASE_AUTH_TOKEN=
 INTERNAL_SECRET=change-me-in-production
 REPOS_ROOT_PATH=/home/nitoba/Documents/repos/ibs/repos
 
@@ -462,10 +466,10 @@ vi.mock("../notifications/notify-standup-ready.js", () => ({
 }));
 ```
 
-### Vitest + import transitive de router (bun:sqlite)
+### Vitest + import transitive de router (driver de banco)
 
 Quando um teste importa `router.ts`, ele carrega handlers e services transitivamente.
-Se algum service importa `@standup/db`, o Vitest (Node) tenta resolver `bun:sqlite` e falha.
+Se algum service importa `@standup/db`, o Vitest (Node) pode carregar o driver real de banco transitivamente e quebrar o teste/unit boundary.
 
 Padrao para testes de router: mockar **todos** os services importados pelo router,
 mesmo os nao usados diretamente no teste.

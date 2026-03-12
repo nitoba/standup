@@ -71,12 +71,12 @@ export class WeeklyDigestRepository {
   constructor(private db: Db) {}
 
   /** Find digest for a specific user and week (idempotency check). */
-  findByUserAndWeek(
+  async findByUserAndWeek(
     userId: string,
     weekStart: string,
-  ): Result<WeeklyDigestRecord | null, DbError> {
+  ): Promise<Result<WeeklyDigestRecord | null, DbError>> {
     try {
-      const row = this.db
+      const row = await this.db
         .select()
         .from(weeklyDigests)
         .where(
@@ -95,7 +95,9 @@ export class WeeklyDigestRepository {
   }
 
   /** Create a new weekly digest record. */
-  create(input: CreateWeeklyDigestInput): Result<WeeklyDigestRecord, DbError> {
+  async create(
+    input: CreateWeeklyDigestInput,
+  ): Promise<Result<WeeklyDigestRecord, DbError>> {
     try {
       const now = Date.now()
       const newRow: NewWeeklyDigestRow = {
@@ -112,7 +114,11 @@ export class WeeklyDigestRepository {
         updatedAt: now,
       }
 
-      const row = this.db.insert(weeklyDigests).values(newRow).returning().get()
+      const row = await this.db
+        .insert(weeklyDigests)
+        .values(newRow)
+        .returning()
+        .get()
 
       return Result.ok(toRecord(row))
     } catch (error) {
@@ -121,10 +127,10 @@ export class WeeklyDigestRepository {
   }
 
   /** Mark a digest as sent. */
-  markSent(id: string): Result<WeeklyDigestRecord, DbError> {
+  async markSent(id: string): Promise<Result<WeeklyDigestRecord, DbError>> {
     try {
       const now = Date.now()
-      const row = this.db
+      const row = await this.db
         .update(weeklyDigests)
         .set({ status: 'sent', sentAt: now, updatedAt: now })
         .where(eq(weeklyDigests.id, id))
@@ -147,13 +153,13 @@ export class WeeklyDigestRepository {
   }
 
   /** Mark a digest as failed with an error message. */
-  markFailed(
+  async markFailed(
     id: string,
     errorMessage: string,
-  ): Result<WeeklyDigestRecord, DbError> {
+  ): Promise<Result<WeeklyDigestRecord, DbError>> {
     try {
       const now = Date.now()
-      const row = this.db
+      const row = await this.db
         .update(weeklyDigests)
         .set({ status: 'failed', error: errorMessage, updatedAt: now })
         .where(eq(weeklyDigests.id, id))
@@ -176,10 +182,10 @@ export class WeeklyDigestRepository {
   }
 
   /** Mark a digest as skipped (no approved standups found). */
-  markSkipped(id: string): Result<WeeklyDigestRecord, DbError> {
+  async markSkipped(id: string): Promise<Result<WeeklyDigestRecord, DbError>> {
     try {
       const now = Date.now()
-      const row = this.db
+      const row = await this.db
         .update(weeklyDigests)
         .set({ status: 'skipped', updatedAt: now })
         .where(eq(weeklyDigests.id, id))
@@ -206,14 +212,14 @@ export class WeeklyDigestRepository {
    * Called after insights generation succeeds, before sending the email.
    * Allows the digest record to be a complete audit trail of what was sent.
    */
-  saveContent(
+  async saveContent(
     id: string,
     standupIds: string[],
     insights: string,
-  ): Result<WeeklyDigestRecord, DbError> {
+  ): Promise<Result<WeeklyDigestRecord, DbError>> {
     try {
       const now = Date.now()
-      const row = this.db
+      const row = await this.db
         .update(weeklyDigests)
         .set({
           standupIds: JSON.stringify(standupIds),
@@ -249,13 +255,13 @@ export class WeeklyDigestRepository {
    *
    * This is Akita's Padrão 2 (Atomic Claiming): the UPDATE itself is the lock.
    */
-  claimForSending(
+  async claimForSending(
     userId: string,
     weekStart: string,
-  ): Result<WeeklyDigestRecord | null, DbError> {
+  ): Promise<Result<WeeklyDigestRecord | null, DbError>> {
     try {
       const now = Date.now()
-      const row = this.db
+      const row = await this.db
         .update(weeklyDigests)
         .set({ status: 'sending', updatedAt: now })
         .where(
@@ -283,13 +289,13 @@ export class WeeklyDigestRepository {
    * retried (Akita's Padrão 3: smtp_accepted flag + Padrão 4: immutable
    * terminal states).
    */
-  markUnknown(
+  async markUnknown(
     id: string,
     errorMessage: string,
-  ): Result<WeeklyDigestRecord, DbError> {
+  ): Promise<Result<WeeklyDigestRecord, DbError>> {
     try {
       const now = Date.now()
-      const row = this.db
+      const row = await this.db
         .update(weeklyDigests)
         .set({ status: 'unknown', error: errorMessage, updatedAt: now })
         .where(eq(weeklyDigests.id, id))

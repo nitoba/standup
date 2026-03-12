@@ -22,6 +22,8 @@
     "@standup/observability": "workspace:*",
     "@standup/standup-generator": "workspace:*",
     "croner": "^10.0.1",
-    "hono": "catalog:"
+    "zod": "catalog:",
+    "hono": "catalog:",
+    "@hono/standard-validator": "catalog:"
   }
 }

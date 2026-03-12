@@ -6,7 +6,7 @@ export const inputVariants = cva('w-full font-[var(--font-jetbrains)]', {
   variants: {
     zType: {
       default:
-        'flex rounded-none border border-border bg-background px-4 font-normal text-foreground outline-none transition-all duration-150 file:border-0 file:bg-transparent file:font-medium file:text-foreground placeholder:text-muted-foreground/80 focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-[color:color-mix(in_srgb,var(--accent-green)_18%,transparent)] disabled:cursor-not-allowed disabled:opacity-50',
+        'flex rounded-none border border-border bg-background px-4 font-normal text-foreground outline-none transition-all duration-150 file:border-0 file:bg-transparent file:font-medium file:text-foreground placeholder:text-muted-foreground/80 focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-[color:color-mix(in_srgb,var(--primary)_18%,transparent)] disabled:cursor-not-allowed disabled:opacity-50',
       textarea:
         'flex h-auto min-h-20 rounded-none border border-border bg-background px-4 py-3 text-[13px] text-foreground leading-[1.6] outline-none transition-all duration-150 placeholder:text-muted-foreground/80 focus-visible:border-[var(--accent-cyan)] focus-visible:ring-[3px] focus-visible:ring-[color:color-mix(in_srgb,var(--accent-cyan)_18%,transparent)] disabled:cursor-not-allowed disabled:opacity-50',
     },
@@ -21,7 +21,7 @@ export const inputVariants = cva('w-full font-[var(--font-jetbrains)]', {
       warning:
         'border-[var(--accent-amber)] focus-visible:border-[var(--accent-amber)] focus-visible:ring-[color:color-mix(in_srgb,var(--accent-amber)_18%,transparent)]',
       success:
-        'border-primary focus-visible:border-primary focus-visible:ring-[color:color-mix(in_srgb,var(--accent-green)_18%,transparent)]',
+        'border-primary focus-visible:border-primary focus-visible:ring-[color:color-mix(in_srgb,var(--primary)_18%,transparent)]',
     },
     zBorderless: {
       true: 'flex-1 border-0 bg-transparent p-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0',

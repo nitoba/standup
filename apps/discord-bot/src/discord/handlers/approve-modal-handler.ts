@@ -69,7 +69,7 @@ export async function handleApproveModal(
 
   const db = getDb(env.DATABASE_URL)
   const userRepo = new UserRepository(db)
-  const userResult = userRepo.hasActiveSession(interaction.user.id)
+  const userResult = await userRepo.hasActiveSession(interaction.user.id)
   if (userResult.isErr() || !userResult.value || !userResult.value.hasSession) {
     await updateReviewMessage(interaction, {
       content:

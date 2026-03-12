@@ -9,7 +9,7 @@ import { StandupRepository } from './standup.js'
 // ---------------------------------------------------------------------------
 
 async function setupTables(db: Db): Promise<void> {
-  db.run(sql`
+  await db.run(sql`
     CREATE TABLE IF NOT EXISTS user (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -20,7 +20,7 @@ async function setupTables(db: Db): Promise<void> {
       updated_at INTEGER NOT NULL
     )
   `)
-  db.run(sql`
+  await db.run(sql`
     CREATE TABLE IF NOT EXISTS standups (
       id          TEXT PRIMARY KEY,
       date        TEXT NOT NULL,
@@ -36,7 +36,7 @@ async function setupTables(db: Db): Promise<void> {
     )
   `)
   // Seed a test user for FK constraints
-  db.run(
+  await db.run(
     sql`INSERT OR IGNORE INTO user (id, name, email, email_verified, created_at, updated_at) VALUES ('test-user-1', 'Test User', 'test@test.com', 0, 1000, 1000)`,
   )
 }

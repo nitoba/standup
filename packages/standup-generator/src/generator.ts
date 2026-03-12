@@ -281,9 +281,11 @@ export async function generateStandup(
 
     // Stage 1: MCP enrichment with retry — falls back to git-only data on failure.
     // Never short-circuits the pipeline: if MCP is unavailable the LLM still runs.
+    await config.onStageChange?.('enriching_data')
     const enrichedActivity = await withEnrichmentRetry(input, config)
 
     // Stage 2: LLM generation with retry
+    await config.onStageChange?.('generating_standup')
     const llmProvider = createGoogleGenerativeAI({ apiKey })
     const systemPrompt = buildSystemPrompt()
 

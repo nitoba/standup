@@ -78,7 +78,9 @@ export async function handleTriggerButtonInteraction(
   // Resolve userId from discordUserId (requires active session)
   const db = getDb(deps.databaseUrl)
   const userRepo = new UserRepository(db)
-  const userIdResult = userRepo.hasActiveSession(pendingRequest.discordUserId)
+  const userIdResult = await userRepo.hasActiveSession(
+    pendingRequest.discordUserId,
+  )
   if (
     userIdResult.isErr() ||
     !userIdResult.value ||

@@ -2,7 +2,7 @@ import { createServiceLogger } from '@standup/logger'
 import type { Context } from 'hono'
 import { Hono } from 'hono'
 import * as z from 'zod'
-import type { EventBus } from '../sse/event-bus.js'
+import type { EventBus } from './sse/event-bus.js'
 
 const logger = createServiceLogger({
   service: 'api',

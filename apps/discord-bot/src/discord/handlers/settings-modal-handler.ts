@@ -36,7 +36,7 @@ export async function handleSettingsModal(
 
   const modalLogger = withContext(logger, { discordId })
 
-  const userResult = userRepo.hasActiveSession(discordId)
+  const userResult = await userRepo.hasActiveSession(discordId)
   if (userResult.isErr() || !userResult.value || !userResult.value.hasSession) {
     modalLogger.error('Failed to resolve user or session expired', {
       error: userResult.isErr() ? userResult.error.message : 'not found',
@@ -90,7 +90,7 @@ export async function handleSettingsModal(
     timezone,
   })
 
-  const upsertResult = settingsRepo.upsert({
+  const upsertResult = await settingsRepo.upsert({
     userId,
     standupCron,
     reminderCron,

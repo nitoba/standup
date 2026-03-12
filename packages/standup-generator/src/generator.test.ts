@@ -404,6 +404,28 @@ describe('generateStandup', () => {
     }
   })
 
+  it('emite mudanças de estágio conforme a geração avança', async () => {
+    const { createAzureMcpClient, enrichGitActivity, generateStandup } =
+      await setup()
+    const fakeMcp = makeFakeMcpClient()
+    const stages: string[] = []
+
+    vi.mocked(createAzureMcpClient).mockReturnValue(fakeMcp)
+    vi.mocked(enrichGitActivity).mockResolvedValue(
+      Result.ok(fakeEnrichedActivity) as never,
+    )
+
+    const result = await generateStandup(makeInput(), {
+      ...baseConfig,
+      onStageChange: async (stage) => {
+        stages.push(stage)
+      },
+    })
+
+    expect(result.status).toBe('ok')
+    expect(stages).toEqual(['enriching_data', 'generating_standup'])
+  })
+
   it('rewrites standup when initial content exceeds max characters', async () => {
     const { createAzureMcpClient, enrichGitActivity, generateStandup } =
       await setup()

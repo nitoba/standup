@@ -5,64 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1772660317767,
-      "tag": "0000_plain_wild_child",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1772746800000,
-      "tag": "0001_add_custom_entries",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1772857077034,
-      "tag": "0002_majestic_dracula",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1772858574722,
-      "tag": "0003_melodic_morph",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1772889843467,
-      "tag": "0004_unknown_ogun",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1772900000000,
-      "tag": "0005_account_provider_account_unique",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "6",
-      "when": 1772920000000,
-      "tag": "0006_rename_repos_base_path_to_selected_repos",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "6",
-      "when": 1773000000000,
-      "tag": "0007_add_dm_message_id",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "6",
-      "when": 1773100000000,
-      "tag": "0008_add_weekly_digest",
+      "when": 1773270543966,
+      "tag": "0000_parched_rafael_vega",
       "breakpoints": true
     }
   ]

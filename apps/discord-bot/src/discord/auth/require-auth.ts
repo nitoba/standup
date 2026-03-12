@@ -32,7 +32,7 @@ export async function requireAuth(
   const discordId = interaction.user.id
   const db = getDb(deps.databaseUrl)
   const repo = new UserRepository(db)
-  const result = repo.hasActiveSession(discordId)
+  const result = await repo.hasActiveSession(discordId)
 
   if (Result.isError(result)) {
     logger.error('Failed to check user auth', {

@@ -2,11 +2,11 @@ import { createServer } from 'node:http'
 import { Result } from '@standup/domain'
 import { Hono } from 'hono'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { handleCancelTodayReminder } from '../../../api/src/reminders/cancel-today.js'
-import { handleSnoozeReminder as handleApiSnoozeReminder } from '../../../api/src/reminders/snooze.js'
-import { handleListRepos as handleApiListRepos } from '../../../api/src/repos/list.js'
-import { triggerStandupJob as triggerStandupFromApi } from '../../../api/src/services/standup-trigger-service.js'
-import { createStandupRouter as createApiStandupRouter } from '../../../api/src/standup/router.js'
+import { registerCancelTodayReminderRoute } from '../../../api/src/http/routes/reminders/cancel-today.js'
+import { registerSnoozeReminderRoute } from '../../../api/src/http/routes/reminders/snooze.js'
+import { registerListReposRoute } from '../../../api/src/http/routes/repos/list.js'
+import { registerStandupRoutes } from '../../../api/src/http/routes/standups/router.js'
+import { triggerStandupJob as triggerStandupFromApi } from '../../../api/src/services/worker-client.js'
 import { handleReminderInteraction } from '../../../discord-bot/src/discord/handlers/reminder-handler.js'
 import { createInternalRouter as createBotRouter } from '../../../discord-bot/src/http/router.js'
 import { createInternalRouter as createWorkerRouter } from '../http/router.js'
@@ -44,6 +44,7 @@ vi.mock('../../../discord-bot/src/services/standup-sync-service.js', () => ({
 
 const dbMocks = vi.hoisted(() => ({
   hasActiveSession: vi.fn(),
+  findByUserId: vi.fn(),
   updateSnoozedUntil: vi.fn(),
   updateCancelledDate: vi.fn(),
 }))
@@ -55,6 +56,7 @@ vi.mock('@standup/db', () => ({
   },
   UserSettingsRepository: function UserSettingsRepository() {
     return {
+      findByUserId: dbMocks.findByUserId,
       updateSnoozedUntil: dbMocks.updateSnoozedUntil,
       updateCancelledDate: dbMocks.updateCancelledDate,
     }
@@ -62,8 +64,8 @@ vi.mock('@standup/db', () => ({
 }))
 
 const INTERNAL_SECRET = 'test-secret'
-const TEST_USER_ID = 'test-user-1'
-const TEST_DISCORD_USER_ID = 'discord-user-1'
+const TEST_USER_ID = 'a1b2c3d4-e5f6-4789-a012-b34567890001'
+const TEST_DISCORD_USER_ID = 'a1b2c3d4-e5f6-4789-a012-b34567890002'
 
 function createApiApp(workerInternalUrl) {
   const app = new Hono()
@@ -73,38 +75,29 @@ function createApiApp(workerInternalUrl) {
     return next()
   })
 
-  app.get('/repos', (c) =>
-    handleApiListRepos(c, {
-      workerInternalUrl,
-      internalSecret: INTERNAL_SECRET,
-    }),
-  )
+  registerListReposRoute(app, {
+    workerInternalUrl,
+    internalSecret: INTERNAL_SECRET,
+  })
 
-  app.post('/reminders/snooze', (c) =>
-    handleApiSnoozeReminder(c, {
-      workerInternalUrl,
-      internalSecret: INTERNAL_SECRET,
-    }),
-  )
+  registerSnoozeReminderRoute(app, {
+    workerInternalUrl,
+    internalSecret: INTERNAL_SECRET,
+  })
 
-  app.post('/reminders/cancel-today', (c) =>
-    handleCancelTodayReminder(c, {
-      workerInternalUrl,
-      internalSecret: INTERNAL_SECRET,
-    }),
-  )
+  registerCancelTodayReminderRoute(app, {
+    workerInternalUrl,
+    internalSecret: INTERNAL_SECRET,
+  })
 
-  app.route(
-    '/',
-    createApiStandupRouter({
-      databaseUrl: ':memory:',
-      reposRootPath: '/tmp/repos',
-      workerInternalUrl,
-      internalSecret: INTERNAL_SECRET,
-      botInternalUrl: 'http://localhost:3334',
-      eventBus: { subscribe: vi.fn(), emit: vi.fn(), emitToAll: vi.fn() },
-    }),
-  )
+  registerStandupRoutes(app, {
+    databaseUrl: ':memory:',
+    reposRootPath: '/tmp/repos',
+    workerInternalUrl,
+    internalSecret: INTERNAL_SECRET,
+    botInternalUrl: 'http://localhost:3334',
+    eventBus: { subscribe: vi.fn(), emit: vi.fn(), emitToAll: vi.fn() },
+  })
 
   return app
 }
@@ -293,21 +286,25 @@ describe('Cross-service HTTP contracts', () => {
           reposRootPath: '/tmp/repos',
           selectedRepos: ['agrotrace-web', 'agrotrace-api'],
           gitAuthor: 'dev@example.com',
+          timezone: 'America/Sao_Paulo',
           extraContext: 'focar em PR review',
           forceRegenerate: true,
         },
       )
 
       expect(result.isOk()).toBe(true)
-      expect(triggerStandupJob).toHaveBeenCalledWith({
-        userId: TEST_USER_ID,
-        discordUserId: TEST_DISCORD_USER_ID,
-        reposRootPath: '/tmp/repos',
-        selectedRepos: ['agrotrace-web', 'agrotrace-api'],
-        gitAuthor: 'dev@example.com',
-        extraContext: 'focar em PR review',
-        forceRegenerate: true,
-      })
+      expect(triggerStandupJob).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: TEST_USER_ID,
+          discordUserId: TEST_DISCORD_USER_ID,
+          reposRootPath: '/tmp/repos',
+          selectedRepos: ['agrotrace-web', 'agrotrace-api'],
+          gitAuthor: 'dev@example.com',
+          timezone: 'America/Sao_Paulo',
+          extraContext: 'focar em PR review',
+          forceRegenerate: true,
+        }),
+      )
     } finally {
       await server.close()
     }
@@ -355,6 +352,9 @@ describe('Cross-service HTTP contracts', () => {
   })
 
   it('api -> worker: reminder proxy routes usam contratos aceitos pelo router do worker', async () => {
+    dbMocks.findByUserId.mockResolvedValue(
+      Result.ok({ timezone: 'America/Sao_Paulo' }),
+    )
     dbMocks.updateSnoozedUntil.mockResolvedValue(Result.ok(undefined))
     dbMocks.updateCancelledDate.mockResolvedValue(Result.ok(undefined))
 
@@ -430,7 +430,7 @@ describe('Cross-service HTTP contracts', () => {
           directCalls: ['Sync com produto'],
         })
 
-        return Result.ok({ kind: 'success', standup: approvedRecord })
+        return Result.ok(approvedRecord)
       },
     )
 
@@ -462,6 +462,9 @@ describe('Cross-service HTTP contracts', () => {
     // Mock DB lookups for the reminder handler
     dbMocks.hasActiveSession.mockReturnValue(
       Result.ok({ userId: TEST_USER_ID, hasSession: true }),
+    )
+    dbMocks.findByUserId.mockResolvedValue(
+      Result.ok({ timezone: 'America/Sao_Paulo' }),
     )
     dbMocks.updateSnoozedUntil.mockResolvedValue(Result.ok(undefined))
     dbMocks.updateCancelledDate.mockResolvedValue(Result.ok(undefined))

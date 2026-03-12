@@ -164,7 +164,7 @@ export async function runWeeklyDigestJob(
     return
   }
 
-  const db = getDb(env.DATABASE_URL)
+  const db = getDb(env.DATABASE_URL, env.DATABASE_AUTH_TOKEN)
   const digestRepo = new WeeklyDigestRepository(db)
   const standupRepo = new StandupRepository(db)
   const userRepo = new UserRepository(db)
@@ -175,7 +175,10 @@ export async function runWeeklyDigestJob(
   // (Padrão 4 — terminal states: sent, unknown, skipped are never re-run)
   // ---------------------------------------------------------------------------
 
-  const existingResult = digestRepo.findByUserAndWeek(options.userId, weekStart)
+  const existingResult = await digestRepo.findByUserAndWeek(
+    options.userId,
+    weekStart,
+  )
   if (existingResult.isErr()) {
     jobLogger.error('Failed to check existing digest', {
       error: existingResult.error.message,
@@ -203,7 +206,7 @@ export async function runWeeklyDigestJob(
 
   if (!existingResult.value) {
     const digestId = crypto.randomUUID()
-    const createResult = digestRepo.create({
+    const createResult = await digestRepo.create({
       id: digestId,
       userId: options.userId,
       weekStart,
@@ -227,7 +230,10 @@ export async function runWeeklyDigestJob(
   // Returns null if another process already claimed it.
   // ---------------------------------------------------------------------------
 
-  const claimResult = digestRepo.claimForSending(options.userId, weekStart)
+  const claimResult = await digestRepo.claimForSending(
+    options.userId,
+    weekStart,
+  )
   if (claimResult.isErr()) {
     jobLogger.error('Failed to claim digest for sending', {
       error: claimResult.error.message,
@@ -269,7 +275,7 @@ export async function runWeeklyDigestJob(
     jobLogger.error('Failed to fetch approved standups', {
       error: standupsResult.error.message,
     })
-    digestRepo.markFailed(digestId, standupsResult.error.message)
+    await digestRepo.markFailed(digestId, standupsResult.error.message)
     return
   }
 
@@ -277,7 +283,7 @@ export async function runWeeklyDigestJob(
 
   if (approvedStandups.length === 0) {
     jobLogger.info('No approved standups found for the week — skipping digest')
-    digestRepo.markSkipped(digestId)
+    await digestRepo.markSkipped(digestId)
     return
   }
 
@@ -289,18 +295,18 @@ export async function runWeeklyDigestJob(
   // Fetch user email
   // ---------------------------------------------------------------------------
 
-  const userResult = userRepo.findById(options.userId)
+  const userResult = await userRepo.findById(options.userId)
   if (userResult.isErr()) {
     const errMsg = userResult.error.message
     jobLogger.error('Failed to fetch user', { error: errMsg })
-    digestRepo.markFailed(digestId, errMsg)
+    await digestRepo.markFailed(digestId, errMsg)
     return
   }
 
   const userEmail = userResult.value?.email
   if (!userEmail) {
     jobLogger.warn('User has no email address — skipping digest')
-    digestRepo.markSkipped(digestId)
+    await digestRepo.markSkipped(digestId)
     return
   }
 
@@ -308,7 +314,7 @@ export async function runWeeklyDigestJob(
   // Fetch user email theme preference
   // ---------------------------------------------------------------------------
 
-  const settingsResult = settingsRepo.findByUserId(options.userId)
+  const settingsResult = await settingsRepo.findByUserId(options.userId)
   const emailTheme = settingsResult.isOk()
     ? (settingsResult.value?.emailTheme ?? 'dark')
     : 'dark'
@@ -336,7 +342,7 @@ export async function runWeeklyDigestJob(
     jobLogger.error('Failed to generate weekly insights', {
       error: insightsResult.error.message,
     })
-    digestRepo.markFailed(digestId, insightsResult.error.message)
+    await digestRepo.markFailed(digestId, insightsResult.error.message)
     return
   }
 
@@ -348,7 +354,7 @@ export async function runWeeklyDigestJob(
   // Failure here marks as failed — the email hasn't been sent yet, so retry is safe.
   // ---------------------------------------------------------------------------
 
-  const saveContentResult = digestRepo.saveContent(
+  const saveContentResult = await digestRepo.saveContent(
     digestId,
     approvedStandups.map((s) => s.id),
     insights,
@@ -359,7 +365,7 @@ export async function runWeeklyDigestJob(
     jobLogger.error('Failed to save digest content (standup IDs + insights)', {
       error: errMsg,
     })
-    digestRepo.markFailed(digestId, errMsg)
+    await digestRepo.markFailed(digestId, errMsg)
     return
   }
 
@@ -428,7 +434,7 @@ export async function runWeeklyDigestJob(
     jobLogger.error('Failed to send weekly digest email (SMTP rejected)', {
       error: sendResult.error.message,
     })
-    digestRepo.markFailed(digestId, sendResult.error.message)
+    await digestRepo.markFailed(digestId, sendResult.error.message)
     return
   }
 
@@ -442,7 +448,7 @@ export async function runWeeklyDigestJob(
   // Persist success
   // ---------------------------------------------------------------------------
 
-  const updateResult = digestRepo.markSent(digestId)
+  const updateResult = await digestRepo.markSent(digestId)
   if (updateResult.isErr()) {
     // SMTP accepted but DB write failed — state is ambiguous (Padrão 3)
     const errMsg = updateResult.error.message
@@ -450,7 +456,7 @@ export async function runWeeklyDigestJob(
       'SMTP accepted email but failed to mark digest as sent in DB — marking unknown',
       { error: errMsg, messageId, smtpAccepted },
     )
-    digestRepo.markUnknown(digestId, errMsg)
+    await digestRepo.markUnknown(digestId, errMsg)
     return
   }
 

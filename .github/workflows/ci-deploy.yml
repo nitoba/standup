@@ -184,10 +184,10 @@ jobs:
              echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u nitoba --password-stdin && \
              docker pull ghcr.io/nitoba/standup-migrate:sha-${DEPLOY_VERSION} && \
              docker run --rm \
-               -v /opt/standup/data:/app/data \
-               -e DATABASE_URL=/app/data/standup.db \
-               -e NODE_ENV=production \
-               ghcr.io/nitoba/standup-migrate:sha-${DEPLOY_VERSION}"
+                -e DATABASE_URL='${{ secrets.DATABASE_URL }}' \
+                -e DATABASE_AUTH_TOKEN='${{ secrets.DATABASE_AUTH_TOKEN }}' \
+                -e NODE_ENV=production \
+                ghcr.io/nitoba/standup-migrate:sha-${DEPLOY_VERSION}"
 
       - name: Create SSH config for deploy
         run: |

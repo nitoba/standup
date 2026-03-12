@@ -8,8 +8,8 @@ import { UserSettingsRepository } from './user-settings.js'
 // Helpers
 // ---------------------------------------------------------------------------
 
-function setupTables(db: Db): void {
-  db.run(sql`
+async function setupTables(db: Db): Promise<void> {
+  await db.run(sql`
     CREATE TABLE IF NOT EXISTS user (
       id         TEXT PRIMARY KEY,
       name       TEXT NOT NULL,
@@ -20,7 +20,7 @@ function setupTables(db: Db): void {
       updated_at INTEGER NOT NULL
     )
   `)
-  db.run(sql`
+  await db.run(sql`
     CREATE TABLE IF NOT EXISTS user_settings (
       id               TEXT PRIMARY KEY,
       user_id          TEXT NOT NULL UNIQUE REFERENCES user(id),
@@ -41,9 +41,9 @@ function setupTables(db: Db): void {
   `)
 }
 
-function seedUser(db: Db, id = 'user-1'): void {
+async function seedUser(db: Db, id = 'user-1'): Promise<void> {
   const now = Date.now()
-  db.run(
+  await db.run(
     sql`INSERT INTO user (id, name, email, email_verified, created_at, updated_at)
         VALUES (${id}, ${'Test User'}, ${`${id}@test.com`}, ${0}, ${now}, ${now})`,
   )
@@ -65,10 +65,10 @@ function makeInput(overrides?: Record<string, unknown>) {
 let db: Db
 let repo: UserSettingsRepository
 
-beforeEach(() => {
+beforeEach(async () => {
   db = createTestDb()
-  setupTables(db)
-  seedUser(db)
+  await setupTables(db)
+  await seedUser(db)
   repo = new UserSettingsRepository(db)
 })
 
@@ -78,16 +78,16 @@ beforeEach(() => {
 
 describe('UserSettingsRepository', () => {
   describe('findByUserId', () => {
-    it('returns null when no settings exist', () => {
-      const result = repo.findByUserId('user-1')
+    it('returns null when no settings exist', async () => {
+      const result = await repo.findByUserId('user-1')
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') return
       expect(result.value).toBeNull()
     })
 
-    it('returns the settings row when it exists', () => {
-      repo.upsert(makeInput({ gitSincePeriod: '12 hours ago' }))
-      const result = repo.findByUserId('user-1')
+    it('returns the settings row when it exists', async () => {
+      await repo.upsert(makeInput({ gitSincePeriod: '12 hours ago' }))
+      const result = await repo.findByUserId('user-1')
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') return
       expect(result.value).not.toBeNull()
@@ -101,8 +101,8 @@ describe('UserSettingsRepository', () => {
   })
 
   describe('upsert', () => {
-    it('creates a new settings row', () => {
-      const result = repo.upsert(makeInput())
+    it('creates a new settings row', async () => {
+      const result = await repo.upsert(makeInput())
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') return
 
@@ -115,10 +115,10 @@ describe('UserSettingsRepository', () => {
       expect(result.value.cancelledDate).toBeNull()
     })
 
-    it('updates an existing settings row on conflict', () => {
-      repo.upsert(makeInput())
+    it('updates an existing settings row on conflict', async () => {
+      await repo.upsert(makeInput())
 
-      const result = repo.upsert(
+      const result = await repo.upsert(
         makeInput({
           standupCron: '0 18 * * 1-5',
           timezone: 'Europe/London',
@@ -133,8 +133,8 @@ describe('UserSettingsRepository', () => {
       expect(result.value.gitSincePeriod).toBe('24 hours ago')
     })
 
-    it('creates with custom values', () => {
-      const result = repo.upsert(
+    it('creates with custom values', async () => {
+      const result = await repo.upsert(
         makeInput({
           standupCron: '0 9 * * 1-5',
           reminderCron: '50 8 * * 1-5',
@@ -155,10 +155,10 @@ describe('UserSettingsRepository', () => {
       expect(result.value.active).toBe(false)
     })
 
-    it('keeps the existing gitSincePeriod when omitted on update', () => {
-      repo.upsert(makeInput({ gitSincePeriod: '38 hours ago' }))
+    it('keeps the existing gitSincePeriod when omitted on update', async () => {
+      await repo.upsert(makeInput({ gitSincePeriod: '38 hours ago' }))
 
-      const result = repo.upsert(
+      const result = await repo.upsert(
         makeInput({
           standupCron: '15 18 * * 1-5',
         }),
@@ -172,36 +172,36 @@ describe('UserSettingsRepository', () => {
   })
 
   describe('findAllActive', () => {
-    it('returns empty array when no settings exist', () => {
-      const result = repo.findAllActive()
+    it('returns empty array when no settings exist', async () => {
+      const result = await repo.findAllActive()
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') return
       expect(result.value).toEqual([])
     })
 
-    it('returns only active settings', () => {
-      seedUser(db, 'user-2')
-      repo.upsert(makeInput({ active: true }))
-      repo.upsert(
+    it('returns only active settings', async () => {
+      await seedUser(db, 'user-2')
+      await repo.upsert(makeInput({ active: true }))
+      await repo.upsert(
         makeInput({
           userId: 'user-2',
           active: false,
         }),
       )
 
-      const result = repo.findAllActive()
+      const result = await repo.findAllActive()
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') return
       expect(result.value).toHaveLength(1)
       expect(result.value[0]?.userId).toBe('user-1')
     })
 
-    it('returns multiple active users', () => {
-      seedUser(db, 'user-2')
-      repo.upsert(makeInput())
-      repo.upsert(makeInput({ userId: 'user-2' }))
+    it('returns multiple active users', async () => {
+      await seedUser(db, 'user-2')
+      await repo.upsert(makeInput())
+      await repo.upsert(makeInput({ userId: 'user-2' }))
 
-      const result = repo.findAllActive()
+      const result = await repo.findAllActive()
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') return
       expect(result.value).toHaveLength(2)
@@ -210,23 +210,23 @@ describe('UserSettingsRepository', () => {
 
   describe('updateSnoozedUntil', () => {
     it('sets snoozedUntil on an existing row', async () => {
-      repo.upsert(makeInput())
+      await repo.upsert(makeInput())
       const future = Date.now() + 15 * 60_000
 
       const result = await repo.updateSnoozedUntil('user-1', future)
       expect(result.status).toBe('ok')
 
-      const found = repo.findByUserId('user-1')
+      const found = await repo.findByUserId('user-1')
       if (found.status !== 'ok') return
       expect(found.value?.snoozedUntil).toBe(future)
     })
 
     it('clears snoozedUntil by setting null', async () => {
-      repo.upsert(makeInput())
+      await repo.upsert(makeInput())
       await repo.updateSnoozedUntil('user-1', Date.now() + 60_000)
       await repo.updateSnoozedUntil('user-1', null)
 
-      const found = repo.findByUserId('user-1')
+      const found = await repo.findByUserId('user-1')
       if (found.status !== 'ok') return
       expect(found.value?.snoozedUntil).toBeNull()
     })
@@ -234,22 +234,22 @@ describe('UserSettingsRepository', () => {
 
   describe('updateCancelledDate', () => {
     it('sets cancelledDate on an existing row', async () => {
-      repo.upsert(makeInput())
+      await repo.upsert(makeInput())
 
       const result = await repo.updateCancelledDate('user-1', '2026-03-07')
       expect(result.status).toBe('ok')
 
-      const found = repo.findByUserId('user-1')
+      const found = await repo.findByUserId('user-1')
       if (found.status !== 'ok') return
       expect(found.value?.cancelledDate).toBe('2026-03-07')
     })
 
     it('clears cancelledDate by setting null', async () => {
-      repo.upsert(makeInput())
+      await repo.upsert(makeInput())
       await repo.updateCancelledDate('user-1', '2026-03-07')
       await repo.updateCancelledDate('user-1', null)
 
-      const found = repo.findByUserId('user-1')
+      const found = await repo.findByUserId('user-1')
       if (found.status !== 'ok') return
       expect(found.value?.cancelledDate).toBeNull()
     })
@@ -257,7 +257,7 @@ describe('UserSettingsRepository', () => {
 
   describe('clearExpiredSnoozes', () => {
     it('clears snoozes that have expired', async () => {
-      repo.upsert(makeInput())
+      await repo.upsert(makeInput())
       await repo.updateSnoozedUntil('user-1', Date.now() - 60_000)
 
       const result = await repo.clearExpiredSnoozes()
@@ -265,13 +265,13 @@ describe('UserSettingsRepository', () => {
       if (result.status !== 'ok') return
       expect(result.value).toBe(1)
 
-      const found = repo.findByUserId('user-1')
+      const found = await repo.findByUserId('user-1')
       if (found.status !== 'ok') return
       expect(found.value?.snoozedUntil).toBeNull()
     })
 
     it('does not clear snoozes that are still in the future', async () => {
-      repo.upsert(makeInput())
+      await repo.upsert(makeInput())
       const future = Date.now() + 15 * 60_000
       await repo.updateSnoozedUntil('user-1', future)
 
@@ -280,7 +280,7 @@ describe('UserSettingsRepository', () => {
       if (result.status !== 'ok') return
       expect(result.value).toBe(0)
 
-      const found = repo.findByUserId('user-1')
+      const found = await repo.findByUserId('user-1')
       if (found.status !== 'ok') return
       expect(found.value?.snoozedUntil).toBe(future)
     })

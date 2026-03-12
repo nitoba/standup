@@ -8,8 +8,8 @@ import { UserRepository } from './user.js'
 // Helpers
 // ---------------------------------------------------------------------------
 
-function setupTables(db: Db): void {
-  db.run(sql`
+async function setupTables(db: Db): Promise<void> {
+  await db.run(sql`
     CREATE TABLE IF NOT EXISTS user (
       id         TEXT PRIMARY KEY,
       name       TEXT NOT NULL,
@@ -20,7 +20,7 @@ function setupTables(db: Db): void {
       updated_at INTEGER NOT NULL
     )
   `)
-  db.run(sql`
+  await db.run(sql`
     CREATE TABLE IF NOT EXISTS account (
       id                       TEXT PRIMARY KEY,
       account_id               TEXT NOT NULL,
@@ -37,11 +37,11 @@ function setupTables(db: Db): void {
       updated_at               INTEGER NOT NULL
     )
   `)
-  db.run(sql`
+  await db.run(sql`
     CREATE UNIQUE INDEX IF NOT EXISTS account_provider_account_unique
     ON account(provider_id, account_id)
   `)
-  db.run(sql`
+  await db.run(sql`
     CREATE TABLE IF NOT EXISTS session (
       id         TEXT PRIMARY KEY,
       expires_at INTEGER NOT NULL,
@@ -57,31 +57,31 @@ function setupTables(db: Db): void {
 
 const NOW = Math.floor(Date.now() / 1000)
 
-function seedUser(db: Db, id = 'user-1'): void {
-  db.run(
+async function seedUser(db: Db, id = 'user-1'): Promise<void> {
+  await db.run(
     sql`INSERT INTO user (id, name, email, email_verified, created_at, updated_at)
         VALUES (${id}, ${'Test User'}, ${`${id}@test.com`}, ${0}, ${NOW}, ${NOW})`,
   )
 }
 
-function seedAccount(
+async function seedAccount(
   db: Db,
   userId = 'user-1',
   discordId = 'discord-123',
-): void {
-  db.run(
+): Promise<void> {
+  await db.run(
     sql`INSERT INTO account (id, account_id, provider_id, user_id, created_at, updated_at)
         VALUES (${`acc-${userId}`}, ${discordId}, ${'discord'}, ${userId}, ${NOW}, ${NOW})`,
   )
 }
 
-function seedSession(
+async function seedSession(
   db: Db,
   userId = 'user-1',
   expiresAtEpochSeconds = NOW + 86400,
   sessionId = 'session-1',
-): void {
-  db.run(
+): Promise<void> {
+  await db.run(
     sql`INSERT INTO session (id, expires_at, token, created_at, updated_at, user_id)
         VALUES (${sessionId}, ${expiresAtEpochSeconds}, ${`token-${sessionId}`}, ${NOW}, ${NOW}, ${userId})`,
   )
@@ -95,18 +95,18 @@ describe('UserRepository', () => {
   let db: Db
   let repo: UserRepository
 
-  beforeEach(() => {
+  beforeEach(async () => {
     db = createTestDb()
-    setupTables(db)
+    await setupTables(db)
     repo = new UserRepository(db)
   })
 
   describe('findByDiscordId', () => {
-    it('returns user when account exists', () => {
-      seedUser(db)
-      seedAccount(db)
+    it('returns user when account exists', async () => {
+      await seedUser(db)
+      await seedAccount(db)
 
-      const result = repo.findByDiscordId('discord-123')
+      const result = await repo.findByDiscordId('discord-123')
 
       expect(result.status).toBe('ok')
       if (result.isOk()) {
@@ -116,8 +116,8 @@ describe('UserRepository', () => {
       }
     })
 
-    it('returns null when account does not exist', () => {
-      const result = repo.findByDiscordId('nonexistent')
+    it('returns null when account does not exist', async () => {
+      const result = await repo.findByDiscordId('nonexistent')
 
       expect(result.status).toBe('ok')
       if (result.isOk()) {
@@ -127,11 +127,11 @@ describe('UserRepository', () => {
   })
 
   describe('findUserIdByDiscordId', () => {
-    it('returns userId when account exists', () => {
-      seedUser(db)
-      seedAccount(db)
+    it('returns userId when account exists', async () => {
+      await seedUser(db)
+      await seedAccount(db)
 
-      const result = repo.findUserIdByDiscordId('discord-123')
+      const result = await repo.findUserIdByDiscordId('discord-123')
 
       expect(result.status).toBe('ok')
       if (result.isOk()) {
@@ -139,8 +139,8 @@ describe('UserRepository', () => {
       }
     })
 
-    it('returns null when account does not exist', () => {
-      const result = repo.findUserIdByDiscordId('nonexistent')
+    it('returns null when account does not exist', async () => {
+      const result = await repo.findUserIdByDiscordId('nonexistent')
 
       expect(result.status).toBe('ok')
       if (result.isOk()) {
@@ -150,11 +150,11 @@ describe('UserRepository', () => {
   })
 
   describe('findDiscordIdByUserId', () => {
-    it('returns discordId when account exists', () => {
-      seedUser(db)
-      seedAccount(db)
+    it('returns discordId when account exists', async () => {
+      await seedUser(db)
+      await seedAccount(db)
 
-      const result = repo.findDiscordIdByUserId('user-1')
+      const result = await repo.findDiscordIdByUserId('user-1')
 
       expect(result.status).toBe('ok')
       if (result.isOk()) {
@@ -162,8 +162,8 @@ describe('UserRepository', () => {
       }
     })
 
-    it('returns null when account does not exist', () => {
-      const result = repo.findDiscordIdByUserId('nonexistent')
+    it('returns null when account does not exist', async () => {
+      const result = await repo.findDiscordIdByUserId('nonexistent')
 
       expect(result.status).toBe('ok')
       if (result.isOk()) {
@@ -177,8 +177,8 @@ describe('UserRepository', () => {
   // ---------------------------------------------------------------------------
 
   describe('hasActiveSession', () => {
-    it('returns null when account does not exist', () => {
-      const result = repo.hasActiveSession('nonexistent')
+    it('returns null when account does not exist', async () => {
+      const result = await repo.hasActiveSession('nonexistent')
 
       expect(result.status).toBe('ok')
       if (result.isOk()) {
@@ -186,11 +186,11 @@ describe('UserRepository', () => {
       }
     })
 
-    it('returns { hasSession: false } when account exists but no sessions', () => {
-      seedUser(db)
-      seedAccount(db)
+    it('returns { hasSession: false } when account exists but no sessions', async () => {
+      await seedUser(db)
+      await seedAccount(db)
 
-      const result = repo.hasActiveSession('discord-123')
+      const result = await repo.hasActiveSession('discord-123')
 
       expect(result.status).toBe('ok')
       if (result.isOk()) {
@@ -201,13 +201,13 @@ describe('UserRepository', () => {
       }
     })
 
-    it('returns { hasSession: false } when all sessions are expired', () => {
-      seedUser(db)
-      seedAccount(db)
+    it('returns { hasSession: false } when all sessions are expired', async () => {
+      await seedUser(db)
+      await seedAccount(db)
       // Expired 1 hour ago
-      seedSession(db, 'user-1', NOW - 3600)
+      await seedSession(db, 'user-1', NOW - 3600)
 
-      const result = repo.hasActiveSession('discord-123')
+      const result = await repo.hasActiveSession('discord-123')
 
       expect(result.status).toBe('ok')
       if (result.isOk()) {
@@ -218,13 +218,13 @@ describe('UserRepository', () => {
       }
     })
 
-    it('returns { hasSession: true } when a non-expired session exists', () => {
-      seedUser(db)
-      seedAccount(db)
+    it('returns { hasSession: true } when a non-expired session exists', async () => {
+      await seedUser(db)
+      await seedAccount(db)
       // Expires in 24 hours
-      seedSession(db, 'user-1', NOW + 86400)
+      await seedSession(db, 'user-1', NOW + 86400)
 
-      const result = repo.hasActiveSession('discord-123')
+      const result = await repo.hasActiveSession('discord-123')
 
       expect(result.status).toBe('ok')
       if (result.isOk()) {
@@ -235,13 +235,13 @@ describe('UserRepository', () => {
       }
     })
 
-    it('returns { hasSession: true } when at least one session is active among expired ones', () => {
-      seedUser(db)
-      seedAccount(db)
-      seedSession(db, 'user-1', NOW - 3600, 'expired-session')
-      seedSession(db, 'user-1', NOW + 86400, 'active-session')
+    it('returns { hasSession: true } when at least one session is active among expired ones', async () => {
+      await seedUser(db)
+      await seedAccount(db)
+      await seedSession(db, 'user-1', NOW - 3600, 'expired-session')
+      await seedSession(db, 'user-1', NOW + 86400, 'active-session')
 
-      const result = repo.hasActiveSession('discord-123')
+      const result = await repo.hasActiveSession('discord-123')
 
       expect(result.status).toBe('ok')
       if (result.isOk()) {
@@ -258,8 +258,8 @@ describe('UserRepository', () => {
   // ---------------------------------------------------------------------------
 
   describe('deleteSessionsByDiscordId', () => {
-    it('returns null when account does not exist', () => {
-      const result = repo.deleteSessionsByDiscordId('nonexistent')
+    it('returns null when account does not exist', async () => {
+      const result = await repo.deleteSessionsByDiscordId('nonexistent')
 
       expect(result.status).toBe('ok')
       if (result.isOk()) {
@@ -267,13 +267,13 @@ describe('UserRepository', () => {
       }
     })
 
-    it('returns true and deletes all sessions for the user', () => {
-      seedUser(db)
-      seedAccount(db)
-      seedSession(db, 'user-1', NOW + 86400, 'session-1')
-      seedSession(db, 'user-1', NOW + 86400, 'session-2')
+    it('returns true and deletes all sessions for the user', async () => {
+      await seedUser(db)
+      await seedAccount(db)
+      await seedSession(db, 'user-1', NOW + 86400, 'session-1')
+      await seedSession(db, 'user-1', NOW + 86400, 'session-2')
 
-      const result = repo.deleteSessionsByDiscordId('discord-123')
+      const result = await repo.deleteSessionsByDiscordId('discord-123')
 
       expect(result.status).toBe('ok')
       if (result.isOk()) {
@@ -281,17 +281,17 @@ describe('UserRepository', () => {
       }
 
       // Verify sessions are gone
-      const sessionCheck = repo.hasActiveSession('discord-123')
+      const sessionCheck = await repo.hasActiveSession('discord-123')
       if (sessionCheck.isOk()) {
         expect(sessionCheck.value?.hasSession).toBe(false)
       }
     })
 
-    it('returns true even when there are no sessions to delete', () => {
-      seedUser(db)
-      seedAccount(db)
+    it('returns true even when there are no sessions to delete', async () => {
+      await seedUser(db)
+      await seedAccount(db)
 
-      const result = repo.deleteSessionsByDiscordId('discord-123')
+      const result = await repo.deleteSessionsByDiscordId('discord-123')
 
       expect(result.status).toBe('ok')
       if (result.isOk()) {
@@ -299,24 +299,24 @@ describe('UserRepository', () => {
       }
     })
 
-    it('does not delete sessions of other users', () => {
-      seedUser(db, 'user-1')
-      seedUser(db, 'user-2')
-      seedAccount(db, 'user-1', 'discord-111')
-      seedAccount(db, 'user-2', 'discord-222')
-      seedSession(db, 'user-1', NOW + 86400, 'session-u1')
-      seedSession(db, 'user-2', NOW + 86400, 'session-u2')
+    it('does not delete sessions of other users', async () => {
+      await seedUser(db, 'user-1')
+      await seedUser(db, 'user-2')
+      await seedAccount(db, 'user-1', 'discord-111')
+      await seedAccount(db, 'user-2', 'discord-222')
+      await seedSession(db, 'user-1', NOW + 86400, 'session-u1')
+      await seedSession(db, 'user-2', NOW + 86400, 'session-u2')
 
-      repo.deleteSessionsByDiscordId('discord-111')
+      await repo.deleteSessionsByDiscordId('discord-111')
 
       // user-1 sessions gone
-      const check1 = repo.hasActiveSession('discord-111')
+      const check1 = await repo.hasActiveSession('discord-111')
       if (check1.isOk()) {
         expect(check1.value?.hasSession).toBe(false)
       }
 
       // user-2 sessions intact
-      const check2 = repo.hasActiveSession('discord-222')
+      const check2 = await repo.hasActiveSession('discord-222')
       if (check2.isOk()) {
         expect(check2.value?.hasSession).toBe(true)
       }

@@ -74,7 +74,7 @@ export async function handleRegenerateModal(
   // Step 2: Resolve userId from Discord ID (requires active session)
   const db = getDb(env.DATABASE_URL)
   const userRepo = new UserRepository(db)
-  const userIdResult = userRepo.hasActiveSession(interaction.user.id)
+  const userIdResult = await userRepo.hasActiveSession(interaction.user.id)
   if (
     userIdResult.isErr() ||
     !userIdResult.value ||

@@ -44,14 +44,12 @@ ssh:
     - ~/.ssh/deploy_key
 
 volumes:
-  - /opt/standup/data:/app/data
   - /Users/nitoba/repos:/repos:ro
 
 env:
   clear:
     NODE_ENV: production
     WORKER_INTERNAL_PORT: "3335"
-    DATABASE_URL: /app/data/standup.db
     REPOS_ROOT_PATH: /repos
     BOT_INTERNAL_URL: http://standup-bot:3334
     API_INTERNAL_URL: http://standup-api:3333
@@ -61,6 +59,8 @@ env:
     # OpenTelemetry — Jaeger runs on the host; containers reach it via host.docker.internal.
     OTEL_EXPORTER_OTLP_ENDPOINT: http://host.docker.internal:4318
   secret:
+    - DATABASE_URL
+    - DATABASE_AUTH_TOKEN
     - AI_PROVIDER_API_KEY
     - AZURE_DEVOPS_ORG
     - AZURE_DEVOPS_PAT

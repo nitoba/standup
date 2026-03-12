@@ -184,7 +184,7 @@ export async function handleStandupInteraction(
   const repo = new StandupRepository(db)
   const userRepo = new UserRepository(db)
 
-  const actorResult = userRepo.hasActiveSession(deps.actorDiscordId)
+  const actorResult = await userRepo.hasActiveSession(deps.actorDiscordId)
   if (
     actorResult.isErr() ||
     !actorResult.value ||

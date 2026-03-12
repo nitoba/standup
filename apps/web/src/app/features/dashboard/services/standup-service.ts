@@ -1,8 +1,12 @@
-import { HttpClient, httpResource } from '@angular/common/http'
+import {
+  HttpClient,
+  HttpErrorResponse,
+  httpResource,
+} from '@angular/common/http'
 import { computed, Injectable, inject, signal } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { toast } from 'ngx-sonner'
-import { firstValueFrom, map } from 'rxjs'
+import { catchError, firstValueFrom, map, of } from 'rxjs'
 import { METRIC_CHANGES } from '../../../shared/models/mock-data'
 import type {
   ApproveStandupResponseDto,
@@ -253,6 +257,7 @@ export class StandupService {
       this.http.post<TriggerAck>('/standups/trigger', {
         forceRegenerate: true,
         replaceStandupId: id,
+        reuseExistingSource: true,
       }),
     )
   }
@@ -263,10 +268,20 @@ export class StandupService {
       body.extraContext = extraContext.trim()
     }
     return firstValueFrom(
-      this.http.post<TriggerAck>('/standups/trigger', {
-        ...body,
-        forceRegenerate: true,
-      }),
+      this.http
+        .post<TriggerAck>('/standups/trigger', {
+          ...body,
+          forceRegenerate: true,
+        })
+        .pipe(
+          catchError((error) => {
+            return of({
+              ok: false,
+              accepted: false,
+              error: (error as HttpErrorResponse).error.error,
+            })
+          }),
+        ),
     )
     // NOTE: no standups.reload() here — the SSE event will trigger the reload
     // when the standup is actually ready

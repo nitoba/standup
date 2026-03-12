@@ -1,1 +1,0 @@
-ALTER TABLE `standups` ADD COLUMN `custom_entries` text;

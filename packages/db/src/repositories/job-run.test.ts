@@ -9,7 +9,7 @@ import { JobRunRepository } from './job-run.js'
 // ---------------------------------------------------------------------------
 
 async function setupTables(db: Db): Promise<void> {
-  db.run(sql`
+  await db.run(sql`
     CREATE TABLE IF NOT EXISTS job_runs (
       id          TEXT PRIMARY KEY,
       job_name    TEXT NOT NULL,

@@ -1,10 +1,11 @@
 import { Result } from '@standup/domain'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { StandupJobOptions } from '../handlers/trigger-standup.js'
+import type { StandupJobOptions } from '../job/standup/types.js'
 import { createInternalRouter } from './router.js'
 
 const mocks = vi.hoisted(() => ({
   getDb: vi.fn(),
+  findByUserId: vi.fn(),
   updateSnoozedUntil: vi.fn(),
   updateCancelledDate: vi.fn(),
 }))
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@standup/db', () => {
   function UserSettingsRepository() {
     return {
+      findByUserId: mocks.findByUserId,
       updateSnoozedUntil: mocks.updateSnoozedUntil,
       updateCancelledDate: mocks.updateCancelledDate,
     }
@@ -20,14 +22,16 @@ vi.mock('@standup/db', () => {
 })
 
 const INTERNAL_SECRET = 'test-secret'
-const TEST_USER_ID = 'test-user-1'
-const TEST_DISCORD_USER_ID = 'discord-user-123'
+const TEST_USER_ID = 'a1b2c3d4-e5f6-4789-a012-b34567890001'
+const TEST_DISCORD_USER_ID = 'a1b2c3d4-e5f6-4789-a012-b34567890002'
+const TEST_STANDUP_ID = 'a1b2c3d4-e5f6-4789-a012-b34567890abc'
 const TRIGGER_BODY = {
   userId: TEST_USER_ID,
   discordUserId: TEST_DISCORD_USER_ID,
   reposRootPath: '/repos',
   selectedRepos: ['agrotrace-web', 'checkmilk-api'],
   gitAuthor: 'dev@example.com',
+  timezone: 'America/Sao_Paulo',
 }
 
 const triggerStandupJob = vi.fn<(options: StandupJobOptions) => Promise<void>>()
@@ -66,6 +70,9 @@ describe('createInternalRouter', () => {
     triggerStandupJob.mockResolvedValue(undefined)
     mocks.updateSnoozedUntil.mockResolvedValue(Result.ok(undefined))
     mocks.updateCancelledDate.mockResolvedValue(Result.ok(undefined))
+    mocks.findByUserId.mockResolvedValue(
+      Result.ok({ timezone: 'America/Sao_Paulo' }),
+    )
   })
 
   afterEach(() => {
@@ -172,11 +179,13 @@ describe('createInternalRouter', () => {
     )
 
     expect(res.status).toBe(202)
-    expect(triggerStandupJob).toHaveBeenCalledWith({
-      ...TRIGGER_BODY,
-      extraContext: 'focar mais no card #123',
-      forceRegenerate: true,
-    })
+    expect(triggerStandupJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...TRIGGER_BODY,
+        extraContext: 'focar mais no card #123',
+        forceRegenerate: true,
+      }),
+    )
   })
 
   it('passa rewriteFromStandupId e rewriteInstruction ao triggerStandupJob quando fornecidos', async () => {
@@ -186,18 +195,20 @@ describe('createInternalRouter', () => {
       makeRequest('/internal/trigger/standup', INTERNAL_SECRET, {
         ...TRIGGER_BODY,
         forceRegenerate: true,
-        rewriteFromStandupId: 'standup-abc',
+        rewriteFromStandupId: TEST_STANDUP_ID,
         rewriteInstruction: 'Remover seção X e adicionar seção Y',
       }),
     )
 
     expect(res.status).toBe(202)
-    expect(triggerStandupJob).toHaveBeenCalledWith({
-      ...TRIGGER_BODY,
-      forceRegenerate: true,
-      rewriteFromStandupId: 'standup-abc',
-      rewriteInstruction: 'Remover seção X e adicionar seção Y',
-    })
+    expect(triggerStandupJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...TRIGGER_BODY,
+        forceRegenerate: true,
+        rewriteFromStandupId: TEST_STANDUP_ID,
+        rewriteInstruction: 'Remover seção X e adicionar seção Y',
+      }),
+    )
   })
 
   it('passa replaceStandupId ao triggerStandupJob quando fornecido', async () => {
@@ -207,16 +218,18 @@ describe('createInternalRouter', () => {
       makeRequest('/internal/trigger/standup', INTERNAL_SECRET, {
         ...TRIGGER_BODY,
         forceRegenerate: true,
-        replaceStandupId: 'standup-abc',
+        replaceStandupId: TEST_STANDUP_ID,
       }),
     )
 
     expect(res.status).toBe(202)
-    expect(triggerStandupJob).toHaveBeenCalledWith({
-      ...TRIGGER_BODY,
-      forceRegenerate: true,
-      replaceStandupId: 'standup-abc',
-    })
+    expect(triggerStandupJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...TRIGGER_BODY,
+        forceRegenerate: true,
+        replaceStandupId: TEST_STANDUP_ID,
+      }),
+    )
   })
 
   it('passa reuseExistingSource ao triggerStandupJob quando fornecido', async () => {
@@ -226,18 +239,20 @@ describe('createInternalRouter', () => {
       makeRequest('/internal/trigger/standup', INTERNAL_SECRET, {
         ...TRIGGER_BODY,
         forceRegenerate: true,
-        replaceStandupId: 'standup-abc',
+        replaceStandupId: TEST_STANDUP_ID,
         reuseExistingSource: true,
       }),
     )
 
     expect(res.status).toBe(202)
-    expect(triggerStandupJob).toHaveBeenCalledWith({
-      ...TRIGGER_BODY,
-      forceRegenerate: true,
-      replaceStandupId: 'standup-abc',
-      reuseExistingSource: true,
-    })
+    expect(triggerStandupJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...TRIGGER_BODY,
+        forceRegenerate: true,
+        replaceStandupId: TEST_STANDUP_ID,
+        reuseExistingSource: true,
+      }),
+    )
   })
 
   // ---------------------------------------------------------------------------
@@ -295,7 +310,9 @@ describe('createInternalRouter', () => {
 
   it('cancel: retorna 200 e persiste cancelledDate no DB', async () => {
     const app = makeRouter()
-    const today = new Date().toISOString().slice(0, 10)
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+    }).format(new Date())
 
     const res = await app.fetch(
       makeRequest('/internal/reminder/cancel', INTERNAL_SECRET, {

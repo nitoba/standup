@@ -11,21 +11,15 @@ import { JsonHighlightPipe } from '../../pipes/json-highlight.pipe'
 
 @Component({
   selector: 'app-json-viewer',
-  imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
+  providers: [JsonHighlightPipe],
   styles: `
     app-json-viewer pre {
-      margin: 0;
-      white-space: pre-wrap;
-      word-break: break-words;
-      font-family: var(--font-ibm);
-      font-size: 12px;
-      line-height: 1.7;
-      color: var(--muted-foreground);
+      font-family: var(--font-jetbrains);
     }
 
-    app-json-viewer .json-key     { color: var(--accent-green); }
+    app-json-viewer .json-key     { color: var(--primary); }
     app-json-viewer .json-string  { color: var(--foreground); opacity: 0.85; }
     app-json-viewer .json-number  { color: #f59e0b; }
     app-json-viewer .json-boolean { color: #3b82f6; }
@@ -36,6 +30,7 @@ import { JsonHighlightPipe } from '../../pipes/json-highlight.pipe'
   template: `
     <pre
       role="region"
+      class="font-semibold leading-relaxed tracking-wide m-0 wrap-break-word text-xs text-muted-foreground whitespace-pre-wrap"
       [attr.aria-label]="ariaLabel()"
       [innerHTML]="safeHtml()"
     ></pre>
@@ -43,7 +38,7 @@ import { JsonHighlightPipe } from '../../pipes/json-highlight.pipe'
 })
 export class JsonViewerComponent {
   private readonly sanitizer = inject(DomSanitizer)
-  private readonly pipe = new JsonHighlightPipe()
+  private readonly pipe = inject(JsonHighlightPipe)
 
   readonly value = input<string | null | undefined>('')
   readonly ariaLabel = input<string>('JSON data')

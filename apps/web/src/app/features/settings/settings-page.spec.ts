@@ -101,8 +101,42 @@ describe('SettingsPage', () => {
     expect(standupCron?.value).toBe('30 17 * * 1-5')
     expect(reminderCron?.value).toBe('20 17 * * 1-5')
     expect(recoveryCron?.value).toBe('0 18 * * 1-5')
+    expect(standupCron?.readOnly).toBe(true)
+    expect(reminderCron?.readOnly).toBe(true)
+    expect(recoveryCron?.readOnly).toBe(true)
     expect(timezone?.textContent).toContain('america/sao_paulo')
     expect(gitAuthor?.value).toBe('nitoba')
+  })
+
+  it('opens the cron builder popover and applies the selected schedule', async () => {
+    const fixture = await renderAndLoad()
+    const el = fixture.nativeElement as HTMLElement
+
+    fixture.componentInstance.onCronPopoverVisibilityChange('standupCron', true)
+    fixture.detectChanges()
+    await appRef.whenStable()
+
+    const overlayRoot = document.querySelector('z-popover')
+    expect(overlayRoot?.textContent).toContain('cron_builder')
+    expect(overlayRoot?.textContent).toContain('every weekday at 17:30')
+
+    overlayRoot
+      ?.querySelector<HTMLButtonElement>('[aria-label="Increase hour"]')
+      ?.click()
+    fixture.detectChanges()
+
+    Array.from(overlayRoot?.querySelectorAll('button') ?? [])
+      .find((button) => button.textContent?.includes('apply'))
+      ?.click()
+    fixture.detectChanges()
+    await appRef.whenStable()
+
+    expect(fixture.componentInstance.settingsModel().standupCron).toBe(
+      '30 18 * * 1-5',
+    )
+    expect(el.querySelector<HTMLInputElement>('#standup-cron')?.value).toBe(
+      '30 18 * * 1-5',
+    )
   })
 
   it('shows available repos as checkboxes with correct selection', async () => {

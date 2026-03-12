@@ -32,9 +32,11 @@ function dbErr(error: unknown, operation: string): DbError {
 export class UserSettingsRepository {
   constructor(private db: Db) {}
 
-  findByUserId(userId: string): Result<UserSettingsRow | null, DbError> {
+  async findByUserId(
+    userId: string,
+  ): Promise<Result<UserSettingsRow | null, DbError>> {
     try {
-      const row = this.db
+      const row = await this.db
         .select()
         .from(userSettings)
         .where(eq(userSettings.userId, userId))
@@ -47,9 +49,9 @@ export class UserSettingsRepository {
     }
   }
 
-  findAllActive(): Result<UserSettingsRow[], DbError> {
+  async findAllActive(): Promise<Result<UserSettingsRow[], DbError>> {
     try {
-      const rows = this.db
+      const rows = await this.db
         .select()
         .from(userSettings)
         .where(eq(userSettings.active, true))
@@ -61,12 +63,14 @@ export class UserSettingsRepository {
     }
   }
 
-  upsert(input: UpsertUserSettingsInput): Result<UserSettingsRow, DbError> {
+  async upsert(
+    input: UpsertUserSettingsInput,
+  ): Promise<Result<UserSettingsRow, DbError>> {
     try {
       const now = Date.now()
       const id = crypto.randomUUID()
 
-      const row = this.db
+      const row = await this.db
         .insert(userSettings)
         .values({
           id,
@@ -153,7 +157,7 @@ export class UserSettingsRepository {
   async clearExpiredSnoozes(): Promise<Result<number, DbError>> {
     try {
       const now = Date.now()
-      const expiredRows = this.db
+      const expiredRows = await this.db
         .select({ id: userSettings.id })
         .from(userSettings)
         .where(lt(userSettings.snoozedUntil, now))
