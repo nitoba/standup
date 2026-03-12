@@ -74,12 +74,12 @@ describe('PATCH /standups/:id/status', () => {
       reposRootPath: '/repos',
       workerInternalUrl: WORKER_INTERNAL_URL,
       internalSecret: INTERNAL_SECRET,
-      botInternalUrl: 'http://../../sse/event-bus.js
+      botInternalUrl: 'http://localhost:3334',
       eventBus: {
         subscribe: vi.fn(),
         emit: vi.fn(),
         emitToAll: vi.fn(),
-      } as unknown as import('../../../sse/event-bus.js').EventBus,
+      } as unknown as import('../../../http/sse/event-bus.js').EventBus,
     })
   })
 

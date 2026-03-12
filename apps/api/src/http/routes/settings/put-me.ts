@@ -37,19 +37,6 @@ export type PutMySettingsBody = z.infer<typeof putMySettingsBodySchema>
 export interface PutMySettingsDeps {
   databaseUrl: string
 }
-
-interface ValidationErrorItem {
-  field: string
-  message: string
-}
-
-function mapValidationErrors(error: z.ZodError): ValidationErrorItem[] {
-  return error.issues.map((issue) => ({
-    field: issue.path.length > 0 ? issue.path.join('.') : 'body',
-    message: issue.message,
-  }))
-}
-
 /**
  * PUT /settings/me
  */
@@ -60,7 +47,16 @@ export function registerPutMySettingsRoute(
 ): void {
   app.put(
     '/settings/me',
-    sValidator('json', putMySettingsBodySchema),
+    sValidator('json', putMySettingsBodySchema, (result, c) => {
+      if (result.success) return
+      const errors = result.error.map((issue) => ({
+        field: Array.isArray(issue.path)
+          ? issue.path.join('.')
+          : String(issue.path ?? ''),
+        message: issue.message,
+      }))
+      return c.json({ error: 'Invalid settings payload', errors }, 400)
+    }),
     async (c) => {
       const userId = getUserId(c)
 
