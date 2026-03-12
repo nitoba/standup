@@ -1,4 +1,5 @@
 import type { MiddlewareHandler } from 'hono'
+import { createMiddleware } from 'hono/factory'
 import { markActiveSpanError } from './span.js'
 
 /**
@@ -25,7 +26,7 @@ import { markActiveSpanError } from './span.js'
  * app.use('*', spanStatusMiddleware())
  */
 export function spanStatusMiddleware(): MiddlewareHandler {
-  return async (c, next) => {
+  return createMiddleware(async (c, next) => {
     await next()
 
     const status = c.res.status
@@ -44,5 +45,5 @@ export function spanStatusMiddleware(): MiddlewareHandler {
     }
 
     markActiveSpanError(message)
-  }
+  })
 }

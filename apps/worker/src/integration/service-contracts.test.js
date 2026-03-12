@@ -2,11 +2,11 @@ import { createServer } from 'node:http'
 import { Result } from '@standup/domain'
 import { Hono } from 'hono'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { handleCancelTodayReminder } from '../../../api/src/reminders/cancel-today.js'
-import { handleSnoozeReminder as handleApiSnoozeReminder } from '../../../api/src/reminders/snooze.js'
-import { handleListRepos as handleApiListRepos } from '../../../api/src/repos/list.js'
+import { registerCancelTodayReminderRoute } from '../../../api/src/http/routes/reminders/cancel-today.js'
+import { registerSnoozeReminderRoute } from '../../../api/src/http/routes/reminders/snooze.js'
+import { registerListReposRoute } from '../../../api/src/http/routes/repos/list.js'
+import { registerStandupRoutes } from '../../../api/src/http/routes/standups/router.js'
 import { triggerStandupJob as triggerStandupFromApi } from '../../../api/src/services/standup-trigger-service.js'
-import { createStandupRouter as createApiStandupRouter } from '../../../api/src/standup/router.js'
 import { handleReminderInteraction } from '../../../discord-bot/src/discord/handlers/reminder-handler.js'
 import { createInternalRouter as createBotRouter } from '../../../discord-bot/src/http/router.js'
 import { createInternalRouter as createWorkerRouter } from '../http/router.js'
@@ -75,38 +75,29 @@ function createApiApp(workerInternalUrl) {
     return next()
   })
 
-  app.get('/repos', (c) =>
-    handleApiListRepos(c, {
-      workerInternalUrl,
-      internalSecret: INTERNAL_SECRET,
-    }),
-  )
+  registerListReposRoute(app, {
+    workerInternalUrl,
+    internalSecret: INTERNAL_SECRET,
+  })
 
-  app.post('/reminders/snooze', (c) =>
-    handleApiSnoozeReminder(c, {
-      workerInternalUrl,
-      internalSecret: INTERNAL_SECRET,
-    }),
-  )
+  registerSnoozeReminderRoute(app, {
+    workerInternalUrl,
+    internalSecret: INTERNAL_SECRET,
+  })
 
-  app.post('/reminders/cancel-today', (c) =>
-    handleCancelTodayReminder(c, {
-      workerInternalUrl,
-      internalSecret: INTERNAL_SECRET,
-    }),
-  )
+  registerCancelTodayReminderRoute(app, {
+    workerInternalUrl,
+    internalSecret: INTERNAL_SECRET,
+  })
 
-  app.route(
-    '/',
-    createApiStandupRouter({
-      databaseUrl: ':memory:',
-      reposRootPath: '/tmp/repos',
-      workerInternalUrl,
-      internalSecret: INTERNAL_SECRET,
-      botInternalUrl: 'http://localhost:3334',
-      eventBus: { subscribe: vi.fn(), emit: vi.fn(), emitToAll: vi.fn() },
-    }),
-  )
+  registerStandupRoutes(app, {
+    databaseUrl: ':memory:',
+    reposRootPath: '/tmp/repos',
+    workerInternalUrl,
+    internalSecret: INTERNAL_SECRET,
+    botInternalUrl: 'http://localhost:3334',
+    eventBus: { subscribe: vi.fn(), emit: vi.fn(), emitToAll: vi.fn() },
+  })
 
   return app
 }

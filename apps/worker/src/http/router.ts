@@ -28,8 +28,8 @@ export interface InternalRouterOptions {
 export function createInternalRouter(opts: InternalRouterOptions): Hono {
   const app = new Hono()
 
-  app.use('*', httpInstrumentationMiddleware({ serviceName: 'standup-worker' }))
-  app.use('*', spanStatusMiddleware())
+  app.use(httpInstrumentationMiddleware({ serviceName: 'standup-worker' }))
+  app.use(spanStatusMiddleware())
 
   // Health — sem autenticação, acessível por Docker/Kamal healthcheck
   app.get('/health', (c) =>

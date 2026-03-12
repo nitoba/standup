@@ -71,7 +71,7 @@ export function startScheduler(
     await settingsRepo.clearExpiredSnoozes()
 
     // 2. Get all active user settings
-    const activeResult = settingsRepo.findAllActive()
+    const activeResult = await settingsRepo.findAllActive()
     if (activeResult.isErr()) {
       logger.error('Failed to fetch active user settings', {
         error: activeResult.error.message,
@@ -154,7 +154,7 @@ async function processUserSettings({
   if (settings.snoozedUntil && settings.snoozedUntil > now.getTime()) return
 
   // Resolve discordUserId
-  const discordResult = userRepo.findDiscordIdByUserId(settings.userId)
+  const discordResult = await userRepo.findDiscordIdByUserId(settings.userId)
   if (discordResult.isErr() || !discordResult.value) return
   const discordUserId = discordResult.value
 
@@ -207,6 +207,7 @@ async function processUserSettings({
           reposRootPath: env.REPOS_ROOT_PATH,
           selectedRepos,
           gitAuthor: settings.gitAuthor,
+          timezone: settings.timezone,
         },
         mcpClient,
       ).catch((error: unknown) => {
@@ -279,6 +280,7 @@ async function processUserSettings({
         reposRootPath: env.REPOS_ROOT_PATH,
         selectedRepos: recoveryRepos,
         gitAuthor: settings.gitAuthor,
+        timezone: settings.timezone,
       },
       mcpClient,
     ).catch((error: unknown) => {

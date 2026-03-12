@@ -91,5 +91,3 @@ export function registerTriggerStandupRoute(
     },
   )
 }
-
-

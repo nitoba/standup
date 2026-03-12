@@ -64,7 +64,11 @@ export async function executeGenerateStrategy(
   }
 
   const meetingType = determineMeetingType(today)
-  const generatorConfig = buildGeneratorConfig(env, ctx.mcpClient, reportProgress)
+  const generatorConfig = buildGeneratorConfig(
+    env,
+    ctx.mcpClient,
+    reportProgress,
+  )
 
   const generated = await withSpan(
     'standup.llm.generate',

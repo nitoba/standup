@@ -2,8 +2,8 @@ import type { AzureMcpClient } from '@standup/azure-devops'
 import { ExternalServiceError, Result } from '@standup/domain'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
-import { internalAuthMiddleware } from '../http/middleware/auth.js'
-import { registerReposListRoute } from '../http/routes/repos-list.js'
+import { internalAuthMiddleware } from '../middleware/auth.js'
+import { registerReposListRoute } from './repos-list.js'
 
 const SECRET = 'test-secret'
 

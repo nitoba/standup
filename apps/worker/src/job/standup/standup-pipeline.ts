@@ -198,7 +198,6 @@ async function runStrategy(mode: StandupRunMode, pipelineCtx: PipelineContext) {
         reportProgress,
       })
 
-    case 'generate':
     default:
       return executeGenerateStrategy({
         env,
