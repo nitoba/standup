@@ -13,7 +13,11 @@ image: nitoba/standup-api
 
 servers:
   web:
-    - colima.tail2ee1d6.ts.net
+    hosts:
+      - colima.tail2ee1d6.ts.net
+    options:
+      network-alias:
+        - standup-api
 
 registry:
   server: ghcr.io
