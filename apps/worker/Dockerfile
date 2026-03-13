@@ -60,7 +60,7 @@ RUN bun build \
 FROM debian:bookworm-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-  git ca-certificates \
+  git ca-certificates openssh-client \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
