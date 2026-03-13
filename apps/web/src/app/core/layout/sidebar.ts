@@ -2,7 +2,6 @@ import { DOCUMENT } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   effect,
   inject,
   signal,
@@ -11,6 +10,7 @@ import { Router, RouterLink, RouterLinkActive } from '@angular/router'
 import { ZardButtonComponent } from '../../shared/components/button'
 import { ThemeToggleComponent } from '../../shared/components/theme-toggle'
 import { SessionService } from '../auth/session-service'
+import { UserPopoverComponent } from './user-popover'
 
 @Component({
   selector: 'app-sidebar-layout',
@@ -19,6 +19,7 @@ import { SessionService } from '../auth/session-service'
     RouterLinkActive,
     ZardButtonComponent,
     ThemeToggleComponent,
+    UserPopoverComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -128,27 +129,13 @@ import { SessionService } from '../auth/session-service'
           </nav>
         </div>
 
-        <footer class="flex flex-col gap-[16px]">
-          <button
-            type="button"
-            z-button
-            zType="destructive"
-            zSize="sm"
-            zFull
-            class="justify-start"
-            (click)="handleSignOut()"
-          >
-            <span>$</span>
-            <span>logout</span>
-          </button>
-
-          <div class="flex items-center gap-[8px]">
-            <span class="h-[8px] w-[8px] rounded-full bg-primary"></span>
-            <div class="flex flex-col gap-[2px]">
-              <span class="text-foreground font-[var(--font-jetbrains)] text-[13px]">{{ displayName() }}</span>
-              <span class="text-muted-foreground font-[var(--font-ibm)] text-[12px]">online</span>
-            </div>
-          </div>
+        <footer>
+          <app-user-popover
+            [userName]="currentUser()?.name ?? null"
+            [userEmail]="currentUser()?.email ?? null"
+            [userImage]="currentUser()?.image ?? null"
+            (logoutRequested)="handleSignOut()"
+          />
         </footer>
       </aside>
 
@@ -164,6 +151,7 @@ export class SidebarLayout {
   private readonly router = inject(Router)
 
   readonly mobileMenuOpen = signal(false)
+  readonly currentUser = this.sessionService.user
 
   constructor() {
     effect((onCleanup) => {
@@ -179,13 +167,6 @@ export class SidebarLayout {
       })
     })
   }
-
-  readonly displayName = computed(() => {
-    const user = this.sessionService.user()
-    if (user?.name) return `${user.name}/`
-    if (user?.email) return `${user.email}/`
-    return 'user/'
-  })
 
   async handleSignOut() {
     await this.sessionService.signOut()

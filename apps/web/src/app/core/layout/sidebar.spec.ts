@@ -54,7 +54,7 @@ describe('SidebarLayout', () => {
     fixture.detectChanges()
 
     const element = fixture.nativeElement as HTMLElement
-    expect(element.textContent).toContain('nitoba/')
+    expect(element.textContent).toContain('nitoba')
   })
 
   it('falls back to email when name is not available', async () => {
@@ -76,7 +76,7 @@ describe('SidebarLayout', () => {
     fixture.detectChanges()
 
     const element = fixture.nativeElement as HTMLElement
-    expect(element.textContent).toContain('nito@test.com/')
+    expect(element.textContent).toContain('nito@test.com')
   })
 
   it('shows generic user/ when no session', async () => {
@@ -94,10 +94,38 @@ describe('SidebarLayout', () => {
     fixture.detectChanges()
 
     const element = fixture.nativeElement as HTMLElement
-    expect(element.textContent).toContain('user/')
+    expect(element.textContent).toContain('user')
   })
 
-  it('calls signOut and navigates to /login on logout click', async () => {
+  it('renders the desktop user popover trigger', async () => {
+    const mockSession = createMockSessionService({
+      id: 'u1',
+      name: 'nitoba',
+      email: 'nito@test.com',
+    })
+
+    await TestBed.configureTestingModule({
+      imports: [SidebarLayout],
+      providers: [
+        provideRouter([]),
+        { provide: SessionService, useValue: mockSession },
+      ],
+    }).compileComponents()
+
+    const fixture = TestBed.createComponent(SidebarLayout)
+    fixture.detectChanges()
+
+    const aside = fixture.nativeElement.querySelector('aside') as HTMLElement
+    const trigger = aside.querySelector(
+      'footer button[aria-haspopup="menu"]',
+    ) as HTMLButtonElement | null
+
+    expect(trigger).not.toBeNull()
+    expect(trigger?.textContent).toContain('nitoba')
+    expect(trigger?.textContent).toContain('online')
+  })
+
+  it('calls signOut and navigates to /login on logout request', async () => {
     const mockSession = createMockSessionService({
       id: 'u1',
       name: 'nitoba',
@@ -113,17 +141,6 @@ describe('SidebarLayout', () => {
 
     const fixture = TestBed.createComponent(SidebarLayout)
     fixture.detectChanges()
-
-    // Find the desktop logout button (inside <aside>)
-    const aside = fixture.nativeElement.querySelector('aside') as HTMLElement
-    const logoutButton = aside.querySelector(
-      'button',
-    ) as HTMLButtonElement | null
-    // The first button in footer is the logout button (reports button is in nav)
-    const footerButtons = aside.querySelectorAll('footer button')
-    const logoutBtn = footerButtons[0] as HTMLButtonElement
-
-    expect(logoutBtn.textContent).toContain('logout')
 
     await fixture.componentInstance.handleSignOut()
 
