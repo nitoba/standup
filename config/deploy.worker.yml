@@ -46,6 +46,7 @@ ssh:
 
 volumes:
   - /Users/nitoba/repos:/repos:rw
+  - /Users/nitoba/.ssh:/root/.ssh:ro
 
 env:
   clear:
