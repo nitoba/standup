@@ -128,6 +128,8 @@ services:
       # Git repositories: bind-mounted read-only from host.
       # HOST_REPOS_ROOT_PATH points to the host path; inside the container the runtime root is /repos.
       - ${HOST_REPOS_ROOT_PATH:-/home/nitoba/Documents/repos/ibs/repos}:/repos:ro,z
+      # SSH keys for git fetch over SSH (read-only)
+      - ${HOST_SSH_PATH:-~/.ssh}:/root/.ssh:ro
     env_file: .env.local
     environment:
       WORKER_INTERNAL_PORT: "3335"
