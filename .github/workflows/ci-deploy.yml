@@ -58,6 +58,16 @@ jobs:
 
           ssh-keyscan -H -t ed25519 "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
+      - name: Create SSH config for deploy
+        run: |
+          cat > ~/.ssh/config <<EOF
+          Host *
+            IdentityFile ~/.ssh/deploy_key
+            UserKnownHostsFile ~/.ssh/known_hosts
+            StrictHostKeyChecking accept-new
+          EOF
+          chmod 600 ~/.ssh/config
+
       - name: Install Kamal
         run: sudo gem install kamal --no-document
 
@@ -94,16 +104,6 @@ jobs:
 
       - name: Validate Kamal config (Infra)
         run: kamal config -c config/deploy.infra.yml
-
-      - name: Create SSH config for deploy
-        run: |
-          cat > ~/.ssh/config <<EOF
-          Host *
-            IdentityFile ~/.ssh/deploy_key
-            UserKnownHostsFile ~/.ssh/known_hosts
-            StrictHostKeyChecking accept-new
-          EOF
-          chmod 600 ~/.ssh/config
 
       - name: Ensure Jaeger accessory is running
         continue-on-error: true
