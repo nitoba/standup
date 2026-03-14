@@ -29,30 +29,30 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 
 - Runtime: Bun 1.x
 - Linguagem: TypeScript (strict mode)
-- Testes: Vitest (pacotes com mocks complexos) + bun test (pacotes simples)
+- Testes: Vitest
 - Linter/Formatter: Biome
 - ORM: Drizzle ORM + SQLite/libSQL (Turso-ready)
-- HTTP Server: Hono
-- Validacao: Zod
+- HTTP Server: NestJS 11 com `@kiyasov/platform-hono`
+- Validacao: `class-validator`/`class-transformer` para DTOs HTTP; Zod para env e alguns schemas internos
 - Error Handling: better-result (Result + TaggedError)
 - LLM: AI SDK da Vercel (provider configuravel)
 - Azure DevOps: MCP client para work items e PRs
-- Discord: discord.js (bot com botoes + DM)
-- Scheduler: croner (cron expressions em Bun)
-- Logs: Winston (estruturado com contexto por servico)
-- Observabilidade: OpenTelemetry + Jaeger (tracing distribuido opt-in)
-- Deploy: Docker + Kamal + VPS (ARM64 Mac mini via Tailscale)
+- Discord: discord.js (gateway, slash commands, modais, DMs)
+- Scheduler: `@nestjs/schedule` + `croner` para avaliacao de cron por usuario
+- Logs: Winston via `nest-winston`
+- Observabilidade: OpenTelemetry via `nestjs-otel` + NodeSDK
+- Deploy: Docker + Kamal + Colima ARM64 via Tailscale
 
 ## Design Patterns
 
-- Monorepo com apps independentes em `apps/*` e codigo compartilhado em `packages/*`
-- Cada app deve ser focado em uma responsabilidade unica
-- Regra: bot nao contem regra de negocio; bot apenas dispara fluxos
-- Services para logica de negocio em pacotes compartilhados
-- Schemas Zod para validacao de entrada e saida
+- Workspace ativo com `apps/api` e `apps/web`
+- O backend roda como um monolito modular em NestJS
+- Modulos independentes nao devem se chamar diretamente quando o contrato for de integracao; use eventos internos
+- Services encapsulam logica de aplicacao por contexto funcional
+- DTOs com `class-validator` para body; parse pipes built-in do Nest para query/path params
 - Erros explicitos com better-result (Result + TaggedError, sem try/catch)
 - Jobs idempotentes
-- Logs estruturados; evitar `console.log` em apps/pacotes
+- Logs estruturados; evitar `console.log`
 - Barrel exports apenas em modulos publicos
 - Nunca use `any` — prefira `unknown` + type guard
 - Prefira composicao sobre heranca
@@ -60,74 +60,44 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 
 ## Configuracao de Ambiente
 
-- `packages/config` nao usa mais um schema global unico para o monorepo
-- Sempre modelar env por contexto de app, com `baseEnvSchema` compartilhado
-- Loaders atuais:
-  - `loadApiEnv()`
-  - `loadBotEnv()`
-  - `loadWorkerEnv()`
-- Tipos atuais:
-  - `ApiEnv`
-  - `BotEnv`
-  - `WorkerEnv`
-- Cada entrypoint valida apenas as vars que o proprio processo usa
-- Nao reintroduzir `loadEnv()` global ou um `AppEnv` monolitico
-- Se uma nova env for necessaria, adicionar no schema do app correto; so promover para `baseEnvSchema` se for realmente compartilhada
+- O backend usa um unico schema em `apps/api/src/shared/env/env.schema.ts`
+- O acesso tipado a env fica em `EnvService`
+- Nao reintroduzir loaders separados por processo antigo (`loadApiEnv`, `loadBotEnv`, `loadWorkerEnv`)
+- Se uma nova env for necessaria, adicione no schema e exponha via `EnvService`
 
 ## Arquitetura de Comunicacao
 
 ```
-                    ┌─────────────────────────────────────────────────────────┐
-                    │                        web (Angular)                    │
-                    │  StandupEventsService (EventSource /standups/events)    │
-                    └────────────┬────────────────────────────────────────────┘
-                                 │ GET /standups/events (SSE, credenciais)
-                                 ▼
-┌───────────────────────────────────────────────────────────────────────────────────┐
-│                              api  (porta 3333)                                    │
-│  GET  /standups/events      ← SSE stream por userId (EventBus in-memory)          │
-│  POST /standups/trigger     ← sessao Better Auth OU x-internal-secret             │
-│  POST /standups/:id/approve ← sessao Better Auth                                  │
-│  GET/PATCH /standups/*      ← sessao Better Auth                                  │
-│  POST /internal/events/standup-generated  ← worker (x-internal-secret)            │
-└──────────┬──────────────────────────────────┬────────────────────────────────────┘
-           │ POST /internal/trigger/standup   │ POST /internal/notify/standup-status-changed
-           ▼                                  ▼
-┌──────────────────────┐          ┌────────────────────────────────────────────────┐
-│  worker (porta 3335) │          │            discord-bot (porta 3334)            │
-│  scheduler + HTTP    │          │  Hono interno + Gateway Discord (discord.js)   │
-│                      │          │                                                │
-│  runStandupJob():    │          │  POST /internal/notify/standup-ready           │
-│  1. acquireLock      │          │  POST /internal/notify/standup-reminder        │
-│  2. notifyUserDm     │          │  POST /internal/notify/job-failed              │
-│     "em processamento│          │  POST /internal/notify/standup-status-changed  │
-│  3. collectGit       │          │  POST /internal/notify/user-dm                 │
-│  4. generateStandup  │          └────────────────────────────────────────────────┘
-│  5. persist (draft)  │                       ▲            │
-│  6. notifyReady ─────┼───────────────────────┘            │ snooze/cancel
-│  7. notifyGenerated ─┼─► api /internal/events/...         ▼
-│                      │          ┌──────────────────────────────┐
-│  POST /internal/      │          │  worker /internal/reminder/* │
-│    reminder/snooze   │◄─────────┤  snooze / cancel-today       │
-│    reminder/cancel   │          └──────────────────────────────┘
-└──────────────────────┘
+                    ┌──────────────────────────────────────────────────┐
+                    │                    web (Angular)                 │
+                    │  REST + EventSource /standups/events            │
+                    └───────────────────┬──────────────────────────────┘
+                                        │
+                                        ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│                            apps/api (porta 3333)                          │
+│                                                                            │
+│  Auth + Better Auth                                                        │
+│  HTTP + SSE                                                                │
+│  Standups CRUD/trigger/approve/status/settings                             │
+│  Scheduler + reminders + digests                                           │
+│  Git collector + Azure DevOps enrichment + geracao via LLM                 │
+│  Discord gateway + slash commands + DMs + publicacao                       │
+│  Email + SMTP                                                              │
+│  Event bus interno para desacoplar modulos                                 │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Regras de comunicacao
 
-- Worker nao sabe que Discord existe — apenas faz POST HTTP generico para bot e API
-- API nao executa job inline — apenas encaminha trigger para o worker (202 Accepted)
-- Web recebe atualizacoes via SSE (`/standups/events`) — sem polling
-- Aprovacao via web: API transiciona status → notifica bot (fire-and-forget) → bot edita DM + publica no canal
-- `POST /standups/trigger` aceita sessao Better Auth (web) ou `x-internal-secret` (Discord slash command)
-- discord-bot sobe **dois servidores** na mesma instancia:
-  - Hono na `BOT_INTERNAL_PORT` (3334) para rotas internas
-  - Gateway Discord (discord.js) para interacoes com botoes e modais
-- worker sobe scheduler + Hono interno na `WORKER_INTERNAL_PORT` (3335)
-- Autenticacao interna: header `x-internal-secret` com `INTERNAL_SECRET`
-- Falha no DM e **non-fatal**: standup salvo no DB, usuario aprova via web ou API
-- `ReminderState` e in-memory no worker — snooze/cancel afetam apenas o cron do dia corrente
-- Portas: `api=3333`, `discord-bot=3334`, `worker=3335`
+- O frontend conversa com a API por REST + SSE (`/standups/events`)
+- O monolito nao usa mais HTTP interno nem `x-internal-secret`
+- Modulos independentes se coordenam por eventos internos do Nest
+- Triggers HTTP e Discord convergem para os mesmos services/eventos de aplicacao
+- Falha em DM/email e non-fatal quando o dado principal do standup ja foi persistido
+- O scheduler roda dentro da API e pode ser desabilitado por `SCHEDULER_ENABLED`
+- O gateway do Discord roda dentro da API e pode ser desabilitado por `DISCORD_GATEWAY_ENABLED`
+- Porta publica do backend: `3333`
 
 ### DMs enviadas ao usuario (Discord)
 
@@ -214,27 +184,28 @@ porque e usado tanto por `notifications/` quanto potencialmente por `handlers/`.
 ```
 standup/
   apps/
-    api/                    # Hono API — auth, standups CRUD, SSE, trigger proxy
+    api/                    # Monolito NestJS ativo
       src/
-        auth/               # Better Auth (Discord OAuth), session middleware, login/logout
-        http/
-          internal-router.ts  # POST /internal/events/standup-generated
-          middleware.ts        # requestLogger
-        notifications/
-          notify-standup-status-changed.ts  # fire-and-forget → bot (aprovacao/rejeicao via web)
-        reminders/          # Proxy de lembretes para o worker (run-now, snooze, cancel)
-        repos/              # GET /repos — lista repos do worker
-        services/
-          standup-approve-service.ts   # logica de aprovacao (DB + notify bot)
-          standup-trigger-service.ts   # POST → worker /internal/trigger/standup
-        settings/           # GET/PUT /settings/me — user_settings
-        sse/
-          event-bus.ts      # EventBus in-memory (Map<userId, Set<Listener>>)
-          sse-handler.ts    # GET /standups/events — streamSSE com keepalive + onAbort
-        standup/
-          router.ts         # createStandupRouter — IMPORTANTE: /events ANTES de /:id
-          list.ts / get-by-id.ts / trigger.ts / approve.ts / update-status.ts
-        index.ts            # Bootstrap: auth + SSE + routers
+        app.module.ts
+        main.ts
+        modules/
+          auth/             # Better Auth, OAuth Discord, session
+          discord/          # Gateway, slash commands, interacoes, DMs
+          email/            # SMTP client, templates, composicao de email
+          events/           # Event bus interno e contratos de eventos
+          http/             # Health endpoints
+          settings/         # GET/PUT /settings/me
+          standups/         # query, trigger, approval, status, SSE
+          worker/           # scheduler, repos, reminders, digests, pipeline
+        shared/
+          auth/            # helpers de sessao
+          database/        # schema, migrations, repositories, runner
+          domain/          # types, errors, state machine, schemas
+          env/             # env schema + EnvService
+          logger/          # nest-winston + factory tipada
+          observability/   # NodeSDK + nestjs-otel
+          repos/           # parse-selected-repos
+          time/            # local date/time services
 
     web/                    # Angular 21 SPA — dashboard, detalhe, settings
       src/app/
@@ -247,62 +218,7 @@ standup/
           standup-detail/   # detalhe com acoes (approve/reject fire-and-forget via SSE)
           settings/
 
-    discord-bot/            # Bot Discord — DMs, botoes, slash commands, HTTP interno
-      src/
-        discord/
-          commands/         # /standup trigger | list | approve
-          handlers/
-            button-handler.ts        # routing standup:* e standup-reminder:*
-            interaction-handler.ts   # approve/reject/regenerate + transicoes de estado
-            approve-modal-handler.ts # modal de aprovacao com custom entries
-            adjust-modal-handler.ts  # modal de ajuste de texto
-            modal-handler.ts         # modal de regeneracao completa
-            reminder-handler.ts      # run-now / snooze / cancel-today
-            update-review-message.ts # editReply — sem message.edit (nao cachead em DM)
-          notifications/    # send-review-dm | publish-standup | send-reminder-dm | send-channel-notification
-          embeds.ts         # buildReviewEmbed | buildPublishedEmbed | buildJobFailedEmbed | buildReminderEmbed
-        http/
-          notify/
-            standup-ready.ts         # POST /internal/notify/standup-ready
-            standup-status-changed.ts # POST /internal/notify/standup-status-changed
-            job-failed.ts / standup-reminder.ts / user-dm.ts
-          routes/           # registerXxxRoute — um arquivo por rota
-          router.ts         # createInternalRouter — todas as rotas /internal/*
-        services/
-          standup-notification-service.ts  # notifyStandupReady → sendReviewDm + updateDmMessageId
-          standup-sync-service.ts          # syncStandupStatus — edita DM + publica apos aprovacao web
-          trigger-standup-service.ts / job-notification-service.ts
-        index.ts            # Bootstrap: env + Client + HTTP server + event listeners
-
-    worker/                 # Scheduler e pipeline de geracao
-      src/
-        job/
-          standup-job.ts    # acquireLock → notifyUserDm(inicio) → collect → generate → persist → notifyReady → notifyGenerated
-        http/
-          router.ts         # /internal/trigger/standup + /reminder/snooze + /reminder/cancel + /health
-          handlers/         # trigger-standup | reminder-snooze | reminder-cancel | repos-list
-        notifications/
-          notify-standup-ready.ts      # POST bot /internal/notify/standup-ready
-          notify-standup-generated.ts  # POST api /internal/events/standup-generated (SSE)
-          notify-job-failed.ts / notify-standup-reminder.ts / notify-user-dm.ts
-        scheduler.ts        # standupCron + reminderCron + recoveryCron + ReminderState
-        index.ts            # Bootstrap: scheduler + HTTP interno
-
-  packages/
-    config/           # baseEnvSchema + loadApiEnv / loadBotEnv / loadWorkerEnv
-    domain/           # StandupStatus, state machine, TaggedErrors, Zod schemas
-    db/               # Drizzle schema, StandupRepository, JobRunRepository, UserRepository
-    logger/           # Winston estruturado com createServiceLogger / withContext
-    observability/    # OpenTelemetry: initTracing, tracedFetch, withSpan (opt-in via OTEL_EXPORTER_OTLP_ENDPOINT)
-    git-collector/    # collectGitActivity — git log por repo, autor e periodo
-    standup-generator/
-      src/
-        azure/        # AzureMcpClient (Result pattern) + enrichGitActivity
-        prompt/       # determineMeetingType + buildSystemPrompt + buildUserMessage
-        generator.ts  # generateStandup + generateAdjustedStandup (retry interno + fallback MCP)
-
   data/               # SQLite files locais para dev (gitignored)
-  drizzle/            # Migrations SQL geradas pelo Drizzle Kit
   turbo.json          # Pipeline: lint → typecheck → test → build
 ```
 
@@ -319,6 +235,7 @@ standup/
 - **NUNCA criar arquivos de migration manualmente** — sempre usar `bun run db:generate` no `apps/api`
 - `db:generate` atualiza o `_journal.json` e cria o snapshot corretamente; criar arquivos `.sql` manualmente quebra o journal e pode causar migrations aplicadas parcialmente
 - `db:migrate` aplica as migrations pendentes usando `apps/api/src/shared/database/migrate.ts` com `--env-file=../../.env.local`
+- Em container, as migrations rodam no entrypoint da API antes do binario compilado subir
 - Sempre rodar `db:migrate` apos `db:generate` para aplicar no banco configurado no ambiente (`file:...`, `http://127.0.0.1:8080`, `libsql://...`)
 - Desenvolvimento local pode usar:
   - `DATABASE_URL=file:./data/standup.db` para SQLite local
@@ -342,91 +259,68 @@ Fluxo correto para adicionar ou alterar schema:
 ## Env Vars Necessarias
 
 ```
-# Base (compartilhado entre apps quando aplicavel)
+# Core
 NODE_ENV=development
+PORT=3333
+CORS_ORIGIN=http://localhost:4200
+APP_URL=http://localhost:4200
 DATABASE_URL=file:./data/standup.db
 DATABASE_AUTH_TOKEN=
-INTERNAL_SECRET=change-me-in-production
 REPOS_ROOT_PATH=/home/nitoba/Documents/repos/ibs/repos
 
-# API (loadApiEnv)
-PORT=3333
+# Auth
 DISCORD_CLIENT_ID=
 DISCORD_CLIENT_SECRET=
 BETTER_AUTH_SECRET=
 BETTER_AUTH_URL=http://localhost:3333
-WORKER_INTERNAL_URL=http://localhost:3335
 
-# Discord Bot (loadBotEnv)
-BOT_INTERNAL_PORT=3334
-API_BASE_URL=http://localhost:3333
-WORKER_INTERNAL_URL=http://localhost:3335
+# Discord
 DISCORD_BOT_TOKEN=
-DISCORD_CHANNEL_ID=       # Canal onde publica standups
-DISCORD_GUILD_ID=         # Opcional: guild commands (dev) vs global (prod)
+DISCORD_CHANNEL_ID=
+DISCORD_GUILD_ID=
+DISCORD_GATEWAY_ENABLED=true
 
-# Worker (loadWorkerEnv)
-# Nota: timezone, crons, gitAuthor, gitSincePeriod e repos subpath
-# agora sao preferencias persistidas por usuario em user_settings.
-WORKER_INTERNAL_PORT=3335
-BOT_INTERNAL_URL=http://localhost:3334
+# Worker internals
+SCHEDULER_ENABLED=true
 AI_PROVIDER_API_KEY=
 AZURE_DEVOPS_ORG=
 AZURE_DEVOPS_PAT=
 AZURE_DEVOPS_DEFAULT_PROJECT=AGROTRACE
+AZURE_DEVOPS_PROJECTS=
 
-# OpenTelemetry (opcional — tracing desabilitado quando ausente)
+# SMTP
+SMTP_HOST=
+SMTP_PORT=1025
+SMTP_SECURE=false
+SMTP_FROM=
+SMTP_USER=
+SMTP_PASS=
+
+# OpenTelemetry (opcional)
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 
-# Docker Compose (infra, opcional)
+# Docker Compose (infra)
 HOST_REPOS_ROOT_PATH=/home/nitoba/Documents/repos/ibs/repos
+HOST_SSH_PATH=~/.ssh
 ```
-
-Cada processo deve chamar apenas seu loader:
-
-- API: `loadApiEnv()`
-- Bot: `loadBotEnv()`
-- Worker: `loadWorkerEnv()`
 
 ## Hurdles (Barreiras Conhecidas)
 
 - discord.js com Bun: funciona nativamente desde Bun 1.1+
-- SQLite WAL mode: necessario para leitura concorrente (bot + scheduler + API)
+- SQLite WAL mode: necessario para leitura concorrente entre HTTP, scheduler e jobs
 - AI SDK: usar provider configuravel com `generateObject` para geracao de standups
-- croner: alternativa leve ao node-cron, funciona bem com Bun
+- croner: usado para avaliar cron por usuario dentro do scheduler do Nest
 
-### Vitest + Bun globals (oven-sh/bun#4145)
+### Vitest roda em Node
 
-Vitest roda seus workers em **Node**, nao no runtime Bun. Globais como `Bun.randomUUIDv7()`
-nao existem no ambiente de teste. Solucao adotada: shim em `vitest.setup.ts`:
-
-```ts
-// apps/worker/src/vitest.setup.ts
-import { randomUUID } from "node:crypto";
-if (typeof globalThis.Bun === "undefined") {
-  Object.assign(globalThis, {
-    Bun: { randomUUIDv7: (): string => randomUUID() },
-  });
-}
-```
-
-Referenciar no `vitest.config.ts` local do pacote:
-
-```ts
-// apps/worker/vitest.config.ts
-export default defineConfig({
-  test: { setupFiles: ["./src/vitest.setup.ts"] },
-});
-```
-
-`bunx --bun vitest` nao funciona com monorepo ESM (imports SSR corrompidos). Manter
-`vitest run` via `bun run test` e usar o shim acima.
+Vitest nao roda no runtime Bun. Evite depender de globais exclusivas do Bun no codigo
+que precisa ser testado. Prefira `node:crypto`, APIs Web padrao e mocks explicitos.
 
 ### Biome --unsafe pode trocar node:crypto por Bun globals
 
 `biome check --write --unsafe` pode substituir `crypto.randomUUID()` por `Bun.randomUUIDv7()`.
-Isso quebra testes Vitest (que rodam em Node). Sempre revisar o diff apos `--unsafe`.
-Se ocorrer, o shim em `vitest.setup.ts` resolve sem precisar reverter o codigo.
+Isso quebra testes Vitest (que rodam em Node). Sempre revisar o diff apos `--unsafe`
+e manter `node:crypto` quando o codigo tambem roda em testes.
 
 ### vi.mock com classes instanciadas com `new`
 
@@ -434,11 +328,11 @@ Se ocorrer, o shim em `vitest.setup.ts` resolve sem precisar reverter o codigo.
 Usar funcao construtora real:
 
 ```ts
-vi.mock("@standup/db", () => {
+vi.mock("../shared/database/repositories/standup.repository", () => {
   function StandupRepository() {
     return { create: mocks.repoCreate };
   }
-  return { getDb: mocks.getDb, StandupRepository };
+  return { StandupRepository };
 });
 ```
 
@@ -468,14 +362,15 @@ vi.mock("../notifications/notify-standup-ready.js", () => ({
 
 ### Vitest + import transitive de router (driver de banco)
 
-Quando um teste importa `router.ts`, ele carrega handlers e services transitivamente.
-Se algum service importa `@standup/db`, o Vitest (Node) pode carregar o driver real de banco transitivamente e quebrar o teste/unit boundary.
+Quando um teste importa um controller/module, ele carrega services e repositories
+transitivamente. Se algum caminho tocar no driver real de banco, o teste deixa de
+ser unitario e pode quebrar por boundary errado.
 
-Padrao para testes de router: mockar **todos** os services importados pelo router,
-mesmo os nao usados diretamente no teste.
+Padrao para testes de controller/module: mockar **todos** os services e repositories
+importados transitivamente, mesmo os nao usados diretamente no caso testado.
 
-Exemplo (`apps/api/src/standup/trigger.test.ts`): ao testar apenas `/standups/trigger`,
-foi necessario mockar tambem `listStandups/getStandupById/updateStandupStatus`.
+Exemplo: ao testar `POST /standups/trigger`, mockar tambem dependencias de query/status
+caso o modulo carregue esses providers juntos.
 
 ### discord.js: race condition no ClientReady
 
@@ -550,32 +445,13 @@ function makeChannel() {
 }
 ```
 
-### Hono SSE: nao usar stream.sleep() para manter conexao aberta
+### Nest SSE: bus separado do EventEmitter interno
 
-`stream.sleep(Number.MAX_SAFE_INTEGER)` causa `TimeoutOverflowWarning` porque o Hono
-usa `setTimeout` internamente, que aceita no maximo int32 (~24.8 dias). O valor estourado
-vira `1` e a conexao fecha e reabre a cada 1ms.
+Nao reutilize o `EventEmitter2` diretamente como stream de SSE. O padrao atual e:
 
-Padrao correto: bloquear o generator com uma Promise que so resolve no `onAbort`:
-
-```ts
-await new Promise<void>((resolve) => {
-  stream.onAbort(() => {
-    cleanup()
-    resolve()
-  })
-})
-```
-
-### Hono router: rotas estaticas antes de rotas com parametro
-
-`GET /standups/events` registrada DEPOIS de `GET /standups/:id` faz o Hono capturar
-`events` como valor do parametro `:id`. Sempre registrar rotas estaticas primeiro:
-
-```ts
-app.get('/standups/events', handler)   // ANTES
-app.get('/standups/:id', handler)      // DEPOIS
-```
+- `EventBusService` para eventos internos entre modulos
+- `StandupSseBusService` para conexoes abertas por `userId`
+- `@Sse()` retornando `Observable<MessageEvent>`
 
 ### discord.js: message.edit() em DM causa "channel not in cache"
 
@@ -593,21 +469,14 @@ await interaction.message?.edit(payload)  // ← remove isso
 await interaction.editReply(payload)
 ```
 
-### Hono middleware deve retornar `next()` explicitamente
+### Docker ARM + libsql nativo
 
-```ts
-// ERRADO — causa "Not all code paths return a value"
-app.use("/internal/*", async (c, next) => {
-  if (!valid) return c.json({ error: "Unauthorized" }, 401);
-  await next(); // nao retorna
-});
+O runtime de producao e ARM64 e a API e compilada com `bun build --compile`.
+`@libsql/client` ainda carrega addon nativo dinamicamente, entao o Dockerfile precisa:
 
-// CORRETO
-app.use("/internal/*", async (c, next) => {
-  if (!valid) return c.json({ error: "Unauthorized" }, 401);
-  return next(); // retorna a Promise
-});
-```
+- copiar o binario do Bun para o runtime
+- copiar o pacote nativo `@libsql/linux-arm64-gnu` para `/app/node_modules/@libsql`
+- rodar `migrate.ts` no entrypoint antes do binario compilado
 
 ### Padroes do Akita (Discord como Admin Panel)
 
@@ -627,22 +496,22 @@ app.use("/internal/*", async (c, next) => {
 
 **Padrao 8 — Notificacoes de Status em Producao:**
 
-- `POST /internal/notify/job-failed` no bot (body: `{ error, context? }`)
-- `notifyJobFailed()` no worker quando o pipeline falha
-- Bot publica embed vermelho no canal para visibilidade imediata
+- `notifyJobFailed()` publica evento interno
+- `DiscordMessagesService` e `StandupNotificationService` cuidam das mensagens finais
+- Falha na notificacao e logada, mas nao deve derrubar o fluxo principal quando o dado ja foi salvo
 - Non-fatal em dois niveis: falha na notificacao e logada mas nao propaga
 
 **Padrao 13 — Application Commands:**
 
 - `SlashCommandBuilder` com `/standup` e 3 subcommands: `trigger`, `list`, `approve <id>`
-- `trigger` chama `POST /standups/trigger` no API com `discordUserId = interaction.user.id`
+- `trigger` dispara o mesmo fluxo de aplicacao usado pelo endpoint HTTP
 - `registerApplicationCommands()` chamado no `ClientReady` — idempotente, safe on reconnect
 - Guild commands (propagacao instantanea) quando `DISCORD_GUILD_ID` presente, global caso contrario
-- Implementado em `discord/commands/register.ts`
+- Implementado em `modules/discord/commands/command-registration.service.ts`
 
 ## Padroes de Jobs Resilientes (Akita)
 
-Implementados em `apps/worker/src/job/standup-job.ts` e `packages/db`:
+Implementados em `apps/api/src/modules/worker` e `apps/api/src/shared/database`:
 
 **Padrao 1 — Retry com Backoff Exponencial:**
 
@@ -671,9 +540,10 @@ Implementados em `apps/worker/src/job/standup-job.ts` e `packages/db`:
 
 **Padrao 6 — Notificacoes (ja existia):**
 
-- `notifyStandupReady()` e `notifyJobFailed()` em `apps/worker/src/notifications/`
+- `WorkerEventPublisherService` publica eventos de dominio
+- `discord` e `standups/events` reagem sem acoplamento direto
 
-### Novos TaggedErrors (packages/domain)
+### TaggedErrors
 
 ```ts
 LlmTemporaryError; // erro transitorio de LLM (safe to retry)
@@ -682,48 +552,16 @@ LockAlreadyHeldError; // job ja esta rodando para (jobName, date)
 JobAlreadyCompletedError; // job ja completou com sucesso para (jobName, date)
 ```
 
-### JobRunRepository (packages/db)
+### JobRunRepository
 
 `acquireLock(jobName, date)`, `releaseLock(id, status, error?)`, `findStaleRuns(maxAgeMs)`, `findByJobAndDate(jobName, date)` — 13 testes unitarios.
 
 Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock por dia.
 
-## Estado Atual (o que esta completo)
+## Estado Atual
 
-### Pacotes completos (com testes)
-
-- `packages/domain` — types, schemas Zod, state machine, TaggedErrors
-- `packages/config` — `baseEnvSchema` + loaders por app; `BotEnv` inclui `WORKER_INTERNAL_URL`
-- `packages/logger` — Winston estruturado + injecao de traceId/spanId nos logs
-- `packages/observability` — initTracing, tracedFetch, withSpan (OTel opt-in via OTEL_EXPORTER_OTLP_ENDPOINT)
-- `packages/git-collector` — 31 testes (bun test)
-- `packages/db` — StandupRepository + JobRunRepository + UserRepository, migracao `dm_message_id`
-- `packages/standup-generator` — generateStandup + generateAdjustedStandup, retry interno + fallback MCP
-
-### Apps completos
-
-- `apps/api` — EventBus + SSE handler + internal router + approve-service + status-changed notify
-  - Rotas: `GET /standups/events` (SSE), `GET/PATCH /standups/*`, `POST /standups/trigger`, `POST /standups/:id/approve`
-  - **ATENCAO**: `/standups/events` deve ficar registrado ANTES de `/standups/:id` no router — senao Hono captura `events` como param `:id`
-  - Rota interna: `POST /internal/events/standup-generated` (worker → SSE push)
-
-- `apps/worker` — pipeline completo com DM de inicio, lock, retry, notify SSE
-  - `notifyUserDm` disparado logo apos `acquireLock` com sucesso (feedback imediato ao usuario)
-  - `notifyStandupGenerated` apos `notifyStandupReady` (step 5) para push SSE ao web client
-
-- `apps/discord-bot` — DMs, botoes, modais, slash commands, sync apos aprovacao web
-  - `standup-notification-service`: salva `dmMessageId` apos enviar DM de revisao
-  - `standup-sync-service`: edita DM + publica no canal quando aprovacao vem via web
-  - `update-review-message`: usa `editReply` apenas — `message.edit()` causa erro em DM (canal nao cacheado)
-  - Rota nova: `POST /internal/notify/standup-status-changed`
-
-- `apps/web` — Angular 21 SPA com SSE, trigger fire-and-forget, tabela com pulse
-  - `StandupEventsService`: EventSource fora do NgZone, re-emite como `standupGenerated$`
-  - `StandupService`: subscreve SSE no constructor → `standups.reload()` + `selectedStandup.reload()`
-  - `trigger()`, `regenerate()`, `adjust()`: fire-and-forget (sem loading spinner)
-  - Tabela: pulse `animate-pulse` no standup `pending_review` mais recente
-  - Cores: verde=approved, amarelo=pending, vermelho=rejected
-
-### CI
-
-- `bun run ci` — 38/38 tasks verde
+- `apps/api` e a fonte de verdade do backend, do scheduler, do Discord, do email, das migrations e da observabilidade
+- `apps/web` continua como frontend Angular consumindo REST + SSE
+- Os antigos apps e packages foram internalizados ou arquivados
+- O deploy sobe 2 imagens: `standup-api` e `standup-web`
+- As migrations rodam no startup da API, nao em container separado

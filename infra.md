@@ -48,7 +48,7 @@ Monorepo com **2 imagens Docker ativas**: API e Web.
                           serve  static files  ← Angular SPA
 ```
 
-Bot (3334) e Worker (3335) nao passam pelo kamal-proxy.
+Toda a funcionalidade de bot, scheduler, jobs e email roda dentro do monolito `standup-api`.
 As aplicacoes rodam dentro da VM Linux do Colima, nao diretamente no macOS host.
 
 ### Fluxo de deploy (CI → Kamal → MacBook)
@@ -91,7 +91,7 @@ SSH e portas internas so acessiveis via Tailscale. Apenas a API fica publica via
 | Container runtime  | Colima (Docker engine em VM Linux)                          |
 | Arquitetura        | `aarch64` (arm64)                                           |
 | Diretorio de dados | `/opt/standup/data` (dentro da VM Colima, SQLite WAL)       |
-| Diretorio de repos | `/Users/nitoba/repos` (virtiofs mount, read-only no worker) |
+| Diretorio de repos | `/Users/nitoba/repos` (virtiofs mount, read-only no container da API) |
 
 Observacao: o MacBook hospeda o Colima, mas a API e o Web executam dentro da VM Linux do Colima.
 O diretorio `/opt/standup/data` existe apenas dentro da VM — nao confundir com um path no macOS host.
@@ -240,18 +240,27 @@ push/PR (qualquer branch)     push na main
 
 ### App secrets
 
-| Secret                 | Usado por        |
-| ---------------------- | ---------------- |
-| `DISCORD_CLIENT_ID`    | API              |
-| `DISCORD_CLIENT_SECRET`| API              |
-| `BETTER_AUTH_SECRET`   | API              |
-| `DISCORD_BOT_TOKEN`    | Bot              |
-| `DISCORD_CHANNEL_ID`   | Bot              |
-| `DISCORD_DEPLOY_WEBHOOK_URL` | CI deploy notifications |
-| `AI_PROVIDER_API_KEY`  | Worker           |
-| `AZURE_DEVOPS_ORG`     | Worker           |
-| `AZURE_DEVOPS_PAT`     | Worker           |
-| `INTERNAL_SECRET`      | API, Bot, Worker |
+| Secret                    | Usado por                      |
+| ------------------------- | ------------------------------ |
+| `DISCORD_CLIENT_ID`       | API                            |
+| `DISCORD_CLIENT_SECRET`   | API                            |
+| `BETTER_AUTH_SECRET`      | API                            |
+| `DISCORD_BOT_TOKEN`       | API                            |
+| `DISCORD_CHANNEL_ID`      | API                            |
+| `DISCORD_GUILD_ID`        | API                            |
+| `AI_PROVIDER_API_KEY`     | API                            |
+| `AZURE_DEVOPS_ORG`        | API                            |
+| `AZURE_DEVOPS_PAT`        | API                            |
+| `AZURE_DEVOPS_DEFAULT_PROJECT` | API                       |
+| `SMTP_HOST`               | API                            |
+| `SMTP_PORT`               | API                            |
+| `SMTP_SECURE`             | API                            |
+| `SMTP_FROM`               | API                            |
+| `SMTP_USER`               | API                            |
+| `SMTP_PASS`               | API                            |
+| `DATABASE_URL`            | API                            |
+| `DATABASE_AUTH_TOKEN`     | API                            |
+| `DISCORD_DEPLOY_WEBHOOK_URL` | CI deploy notifications     |
 
 O `KAMAL_REGISTRY_PASSWORD` usa o secret `GHCR_PAT` (PAT pessoal com scope `read:packages`).
 O build job usa `GITHUB_TOKEN` para push; o deploy job usa `GHCR_PAT` para pull via Kamal.
@@ -262,7 +271,7 @@ no `config/deploy.api.yml`.
 
 ## Cloudflare Tunnel
 
-Um tunnel, 2 hostnames publicos (API e Web). Bot e Worker sao internos.
+Um tunnel, 2 hostnames publicos (API e Web).
 
 O `cloudflared` roda como servico LaunchDaemon no MacBook (`com.cloudflare.cloudflared`).
 Rotas sao carregadas no startup — o CI faz reload automatico apos cada deploy via `launchctl stop/start`.
@@ -308,12 +317,10 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 
 - **API** (`api.nitodev.com.br`): servico publico. Protegido por Cloudflare WAF/rate limiting.
 - **Web** (`app.nitodev.com.br`): SPA publica servida pelo nginx. Chamadas de API sao proxiadas para `standup-api` internamente.
-- **Bot**: interno, acessivel apenas via network alias `standup-bot` na rede Docker `kamal`. Sem porta publicada no host.
-- **Worker**: interno, acessivel apenas via network alias `standup-worker` na rede Docker `kamal`. Sem porta publicada no host.
 - **SSH**: apenas via Tailscale (chave Ed25519, sem senha). Mesma chave usada para VM Colima e MacBook host.
 - **Secrets**: nunca commitados. `.kamal/secrets-common` e `*.env` no `.gitignore`.
 - **GHCR**: autenticacao via `GITHUB_TOKEN` (automatico no CI).
-- **Comunicacao interna**: header `x-internal-secret` com `INTERNAL_SECRET` compartilhado.
+- **Comunicacao interna**: modulos independentes se coordenam por eventos internos do Nest, sem segredo HTTP interno.
 
 ---
 
@@ -338,15 +345,13 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 | Decisao | Alternativa descartada | Motivo |
 |---|---|---|
 | SSE para notificacoes web em tempo real | Polling ou WebSocket | SSE e unidirecional, sem estado, reconecta automaticamente; polling e ineficiente; WebSocket e overhead desnecessario para este caso |
-| EventBus in-memory na API | Redis pub/sub | Processo unico (Bun single-threaded); Redis seria over-engineering para 1 usuario |
-| Worker notifica API via HTTP para push SSE | Worker acessa EventBus diretamente | Worker e API sao processos separados; comunicacao via HTTP mantem isolamento de responsabilidades |
+| EventBus interno no Nest | Chamadas diretas entre modulos | Mantem `standups`, `worker`, `discord` e `auth` desacoplados dentro do mesmo processo |
+| Scheduler, bot e jobs dentro da API | Containers/processos separados | Simplifica deploy, elimina autenticacao HTTP interna e reduz duplicacao de infraestrutura |
 | `forceRegenerate` derruba lock `running` | So derruba lock `success` | Lock preso em `running` (crash) impedia regeneracao manual; fix necessario para UX |
 | `interaction.editReply()` em modais | `interaction.message.edit()` | Canais de DM nao sao cacheados pelo discord.js; `editReply` usa webhook da interacao sem precisar do cache |
-| `new Promise` para manter SSE aberta | `stream.sleep(Number.MAX_SAFE_INTEGER)` | `setTimeout` do Node/Bun e 32-bit; valor >2^31ms estoura para 1ms causando reconexao constante |
-| Rotas estaticas antes de parametrizadas no Hono | Ordem qualquer | Hono resolve por ordem de registro; `/standups/events` apos `/:id` captura "events" como param |
+| `new Promise`/`Observable` para manter SSE aberta | polling intervalar | stream de SSE precisa ficar aberta e limpa no disconnect, sem busy loop |
 | `trigger/regenerate/adjust` fire-and-forget na web | Loading spinner ate completar | Geracao leva 10-30s; SSE notifica quando pronto; UX mais fluida sem bloquear a UI |
 | `bun install --ignore-scripts` no Dockerfile web | Install padrao | `@angular/build` tem `lmdb` como dep opcional que compila via `node-gyp`; falha no arm64 sem `--ignore-scripts` |
-| `import file with { type: 'file' }` para assets em binarios | `readFileSync` + path em runtime | `bun build --compile` nao inclui arquivos externos; o import `with { type: 'file' }` embute o asset no binario |
 | nginx `resolver 127.0.0.11` + `set $upstream` | `proxy_pass` com hostname literal | nginx resolve DNS de upstreams no startup; se `standup-api` nao estiver disponivel, nginx falha ao subir |
 | Reload `cloudflared` via CI apos deploy web | Reload manual | `cloudflared` carrega rotas no startup; novas rotas no painel do Cloudflare nao sao aplicadas sem restart |
 | SSH direto no MacBook host para reload cloudflared | Configurar tunnel remoto via API | Mais simples; `MAC_HOST` e o hostname Tailscale do MacBook (`nitoba-mac.tail2ee1d6.ts.net`), distinto do Colima |
@@ -356,7 +361,7 @@ Configurar em: [login.tailscale.com/admin/acls/file](https://login.tailscale.com
 ## Redundancias eliminadas
 
 - **Caddy**: desnecessario — Cloudflare ja resolve TLS na borda.
-- **Subdominio publico para bot/worker**: desnecessario — comunicacao interna via rede privada do Colima.
+- **Subdominio publico para bot/worker**: desnecessario — toda essa funcionalidade foi internalizada no monolito.
 - **Build no servidor**: desnecessario — imagens pre-buildadas no CI via runner arm64 nativo.
 - **QEMU cross-compilation**: desnecessario — GitHub oferece `ubuntu-24.04-arm` com arm64 nativo.
-- **Portas publicadas para bot/worker**: desnecessario — Docker network aliases evitam conflitos durante redeploys.
+- **Container dedicado de migrations**: desnecessario — a API roda `migrate.ts` no entrypoint antes de iniciar o binario compilado.

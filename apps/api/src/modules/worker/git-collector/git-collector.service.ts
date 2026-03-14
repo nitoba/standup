@@ -75,9 +75,7 @@ export class GitCollectorService {
   ): Promise<RepoActivity> {
     const repositoryName = repositoryPath.split('/').pop() ?? repositoryPath
 
-    const fetchResult = await $`git -C ${repositoryPath} fetch --all --quiet`
-      .quiet()
-      .nothrow()
+    const fetchResult = await this.fetchRepository(repositoryPath)
 
     if (fetchResult.exitCode !== 0) {
       this.logger.warn(
@@ -126,6 +124,81 @@ export class GitCollectorService {
       cardNumbers: this.extractCardNumbers(text),
       branchCardNumber: this.extractBranchCardNumber(currentBranch),
     }
+  }
+
+  private async fetchRepository(repositoryPath: string) {
+    const remoteUrlResult =
+      await $`git -C ${repositoryPath} remote get-url origin`.quiet().nothrow()
+    const remoteUrl = remoteUrlResult.stdout.toString().trim()
+
+    if (remoteUrlResult.exitCode !== 0) {
+      return remoteUrlResult
+    }
+
+    const httpRemoteUrl = this.buildAzureDevopsHttpRemoteUrl(remoteUrl)
+    if (!httpRemoteUrl) {
+      return {
+        ...remoteUrlResult,
+        exitCode: 1,
+        stderr: Buffer.from(
+          `Unsupported git remote for PAT fetch: ${remoteUrl || '<empty>'}`,
+        ),
+      }
+    }
+
+    const azurePat = this.runtimeConfig.config.AZURE_DEVOPS_PAT
+    if (!azurePat) {
+      return {
+        ...remoteUrlResult,
+        exitCode: 1,
+        stderr: Buffer.from('AZURE_DEVOPS_PAT not configured'),
+      }
+    }
+
+    const authHeader = this.buildAzureDevopsAuthHeader(azurePat)
+    return $`git -c credential.helper= -c core.askPass=echo -c http.extraheader=${authHeader} -c remote.origin.url=${httpRemoteUrl} -C ${repositoryPath} fetch origin --quiet`
+      .quiet()
+      .nothrow()
+  }
+
+  private buildAzureDevopsAuthHeader(pat: string): string {
+    const basicAuth = Buffer.from(`:${pat}`).toString('base64')
+    return `AUTHORIZATION: Basic ${basicAuth}`
+  }
+
+  private buildAzureDevopsHttpRemoteUrl(remoteUrl: string): string | null {
+    if (remoteUrl.startsWith('https://')) {
+      try {
+        const parsedUrl = new URL(remoteUrl)
+        if (parsedUrl.hostname !== 'dev.azure.com') {
+          return null
+        }
+
+        parsedUrl.username = ''
+        parsedUrl.password = ''
+        return parsedUrl.toString()
+      } catch {
+        return null
+      }
+    }
+
+    const scpLikeMatch = remoteUrl.match(
+      /^git@ssh\.dev\.azure\.com:v3\/([^/]+)\/([^/]+)\/(.+)$/,
+    )
+    if (scpLikeMatch) {
+      const [, organization, project, repository] = scpLikeMatch
+      return `https://dev.azure.com/${organization}/${project}/_git/${repository}`
+    }
+
+    const sshMatch = remoteUrl.match(
+      /^ssh:\/\/git@ssh\.dev\.azure\.com\/v3\/([^/]+)\/([^/]+)\/(.+)$/,
+    )
+    if (sshMatch) {
+      const [, organization, project, repository] = sshMatch
+      return `https://dev.azure.com/${organization}/${project}/_git/${repository}`
+    }
+
+    return null
   }
 
   private isRelevantCommitBlock(block: CommitBlock): boolean {

@@ -2,6 +2,12 @@
 FROM oven/bun:1.3.10 AS builder
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  python3 \
+  make \
+  g++ \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY package.json bun.lock ./
 COPY tsconfig.base.json ./
 
@@ -27,6 +33,18 @@ RUN set -eux; \
     --bytecode \
     --target="bun-linux-${BUN_TARGET_ARCH}" \
     --no-compile-autoload-dotenv \
+    --external @nestjs/graphql \
+    --external @nestjs/graphql/* \
+    --external @nestjs/apollo \
+    --external @nestjs/apollo/* \
+    --external @nestjs/microservices \
+    --external @nestjs/microservices/* \
+    --external @nestjs/websockets \
+    --external @nestjs/websockets/* \
+    --external @apollo/subgraph \
+    --external @apollo/subgraph/* \
+    --external ts-morph \
+    --external class-transformer/storage \
     apps/api/src/main.ts \
     --outfile /app/bin/api
 
@@ -54,7 +72,7 @@ ARG TARGETARCH
 RUN set -eux; \
   LIBSQL_TARGET="$([ "${TARGETARCH:-}" = "amd64" ] && echo "linux-x64-gnu" || echo "linux-${TARGETARCH:-arm64}-gnu")"; \
   mkdir -p /app/node_modules/@libsql; \
-  cp -R "/app/node_modules/.bun/node_modules/@libsql/${LIBSQL_TARGET}" "/app/node_modules/@libsql/${LIBSQL_TARGET}"; \
+  cp -RL "/app/node_modules/.bun/node_modules/@libsql/${LIBSQL_TARGET}" "/app/node_modules/@libsql/${LIBSQL_TARGET}"; \
   chmod +x /usr/local/bin/start-api /app/bin/api
 
 EXPOSE 3333

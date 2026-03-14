@@ -1,6 +1,6 @@
 import { Controller, Get, Header } from '@nestjs/common'
 import { Session } from '@thallesp/nestjs-better-auth'
-import { Session as AuthSession } from 'better-auth'
+import type { AuthSession } from '../../shared/auth/auth-session'
 import { UserRepository } from '../../shared/database/repositories/user.repository'
 import { EventBusService } from '../events/event-bus.service'
 
@@ -86,7 +86,7 @@ export class AuthController {
   @Get('callback')
   @Header('content-type', 'text/html; charset=utf-8')
   async getAuthCallback(@Session() session: AuthSession): Promise<string> {
-    const userId = session.userId
+    const userId = session.user.id
 
     if (userId) {
       const discordResult =
