@@ -51,6 +51,10 @@ export class EnvService {
       azureDevopsOrg: this.get('AZURE_DEVOPS_ORG'),
       azureDevopsPat: this.get('AZURE_DEVOPS_PAT'),
       azureDevopsDefaultProject: this.get('AZURE_DEVOPS_DEFAULT_PROJECT'),
+      azureDevopsProjects: this.get('AZURE_DEVOPS_PROJECTS')
+        ?.split(',')
+        .map((value) => value.trim())
+        .filter(Boolean) ?? [this.get('AZURE_DEVOPS_DEFAULT_PROJECT')],
     }
   }
 

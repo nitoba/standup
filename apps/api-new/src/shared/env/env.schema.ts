@@ -31,6 +31,7 @@ export const environmentVariablesSchema = z.object({
   AZURE_DEVOPS_ORG: z.string().optional(),
   AZURE_DEVOPS_PAT: z.string().optional(),
   AZURE_DEVOPS_DEFAULT_PROJECT: z.string().default('AGROTRACE'),
+  AZURE_DEVOPS_PROJECTS: z.string().optional(),
   APP_URL: z.string().default('http://localhost:4200'),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().default(587),

@@ -1,0 +1,108 @@
+import { Result } from '@standup/domain'
+import { describe, expect, it, vi } from 'vitest'
+import { StandupDispatchService } from './standup-dispatch.service'
+
+describe('StandupDispatchService', () => {
+  it('returns validation error when settings are missing', async () => {
+    const service = new StandupDispatchService(
+      { findDiscordIdByUserId: vi.fn() } as never,
+      { findByUserId: vi.fn().mockResolvedValue(Result.ok(null)) } as never,
+      { run: vi.fn() } as never,
+    )
+
+    const result = await service.dispatchStandupJobForUser('user-1')
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.message).toBe('User settings not found')
+    }
+  })
+
+  it('returns validation error when discord identity is missing', async () => {
+    const service = new StandupDispatchService(
+      {
+        findDiscordIdByUserId: vi.fn().mockResolvedValue(Result.ok(null)),
+      } as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(
+          Result.ok({
+            selectedRepos: '["repo-a"]',
+            gitAuthor: 'nitoba',
+            timezone: 'America/Sao_Paulo',
+            gitSincePeriod: '8 hours ago',
+          }),
+        ),
+      } as never,
+      { run: vi.fn() } as never,
+    )
+
+    const result = await service.dispatchStandupJobForUser('user-1')
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.message).toBe('Discord identity not found')
+    }
+  })
+
+  it('returns validation error when selected repos are empty', async () => {
+    const service = new StandupDispatchService(
+      {
+        findDiscordIdByUserId: vi
+          .fn()
+          .mockResolvedValue(Result.ok('discord-1')),
+      } as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(
+          Result.ok({
+            selectedRepos: '[]',
+            gitAuthor: 'nitoba',
+            timezone: 'America/Sao_Paulo',
+            gitSincePeriod: '8 hours ago',
+          }),
+        ),
+      } as never,
+      { run: vi.fn() } as never,
+    )
+
+    const result = await service.dispatchStandupJobForUser('user-1')
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.message).toBe('No repositories selected')
+    }
+  })
+
+  it('dispatches the standup job with the resolved user settings', async () => {
+    const run = vi.fn().mockResolvedValue(undefined)
+    const service = new StandupDispatchService(
+      {
+        findDiscordIdByUserId: vi
+          .fn()
+          .mockResolvedValue(Result.ok('discord-1')),
+      } as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(
+          Result.ok({
+            selectedRepos: '["repo-a","repo-b"]',
+            gitAuthor: 'nitoba',
+            timezone: 'America/Sao_Paulo',
+            gitSincePeriod: '8 hours ago',
+          }),
+        ),
+      } as never,
+      { run } as never,
+    )
+
+    const result = await service.dispatchStandupJobForUser('user-1')
+
+    expect(result.isOk()).toBe(true)
+    expect(run).toHaveBeenCalledWith({
+      userId: 'user-1',
+      discordUserId: 'discord-1',
+      selectedRepos: ['repo-a', 'repo-b'],
+      gitAuthor: 'nitoba',
+      timezone: 'America/Sao_Paulo',
+      gitSincePeriod: '8 hours ago',
+    })
+  })
+})

@@ -1,0 +1,101 @@
+import { Injectable } from '@nestjs/common'
+import { Result } from '@standup/domain'
+import { createServiceLogger } from '@standup/logger'
+import { withSpan } from '@standup/observability'
+import { GitCollectorService } from '../../git-collector/git-collector.service'
+import { StandupGeneratorService } from '../../standup-generator/standup-generator.service'
+import type {
+  GeneratedContent,
+  StrategyExecutionInput,
+  StrategyResult,
+} from '../types'
+import { StandupStrategyBase } from './standup-strategy.base'
+
+const logger = createServiceLogger({
+  service: 'api-new',
+  component: 'generate-strategy',
+})
+
+@Injectable()
+export class ExecuteGenerateStrategy extends StandupStrategyBase {
+  constructor(
+    private readonly gitCollector: GitCollectorService,
+    private readonly standupGenerator: StandupGeneratorService,
+  ) {
+    super()
+  }
+
+  async execute(input: StrategyExecutionInput): Promise<StrategyResult> {
+    const { options, today, reportProgress } = input
+
+    await this.reportStage(
+      reportProgress,
+      'collecting_git',
+      'Coletando commits dos repositorios',
+    )
+
+    const gitActivity = await withSpan(
+      'standup.git.collect',
+      {
+        'git.author': options.gitAuthor,
+        'git.repos': options.selectedRepos.length,
+      },
+      () =>
+        this.gitCollector.collect(
+          options.selectedRepos,
+          options.gitAuthor,
+          options.gitSincePeriod ?? '8 hours ago',
+        ),
+    )
+
+    if (gitActivity.isErr()) {
+      return gitActivity
+    }
+
+    if (gitActivity.value.repos.length === 0) {
+      logger.info('No commits found today', { userId: options.userId })
+      return Result.ok(null)
+    }
+
+    const meetingType = this.standupGenerator.determineMeetingType(today)
+    const generated = await withSpan(
+      'standup.llm.generate',
+      { 'standup.meeting_type': meetingType, 'standup.mode': 'generate' },
+      () =>
+        this.standupGenerator.generateStandup(
+          {
+            date: today,
+            meetingType,
+            gitActivity: gitActivity.value,
+            extraContext: options.extraContext?.trim() || undefined,
+          },
+          async (stage) => {
+            if (stage === 'enriching_data') {
+              await this.reportStage(
+                reportProgress,
+                'enriching_data',
+                'Enriquecendo contexto para o standup',
+              )
+              return
+            }
+
+            await this.reportStage(
+              reportProgress,
+              'generating_standup',
+              'Gerando texto do standup',
+            )
+          },
+        ),
+    )
+
+    if (generated.isErr()) {
+      return generated
+    }
+
+    return Result.ok<GeneratedContent>({
+      content: generated.value.content,
+      meetingType,
+      sourceData: JSON.stringify(gitActivity.value),
+    })
+  }
+}

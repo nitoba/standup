@@ -1,11 +1,66 @@
 import { Module } from '@nestjs/common'
+import { DatabaseModule } from '../../shared/database/database.module'
+import { EmailModule } from '../email/email.module'
 import { EventsModule } from '../events/events.module'
-import { StandupWorkflowService } from './standup-workflow.service'
-import { WorkerSchedulerService } from './worker-scheduler.service'
+import { AzureDevopsModule } from './azure-devops/azure-devops.module'
+import { DigestsController } from './digests/digests.controller'
+import { RunWeeklyDigestJobService } from './digests/run-weekly-digest-job.service'
+import { WeeklyDigestDispatchService } from './digests/weekly-digest-dispatch.service'
+import { GitCollectorModule } from './git-collector/git-collector.module'
+import { ReminderActionsService } from './reminders/reminder-actions.service'
+import { RemindersController } from './reminders/reminders.controller'
+import { WorkerReminderActionRequestedListener } from './reminders/worker-reminder-action-requested.listener'
+import { ListWorkerReposService } from './repos/list-worker-repos.service'
+import { ReposController } from './repos/repos.controller'
+import { WorkerReposRequestedListener } from './repos/worker-repos-requested.listener'
+import { WorkerSchedulerService } from './scheduler/worker-scheduler.service'
+import { RunStandupJobService } from './standup/run-standup-job.service'
+import { StandupDispatchService } from './standup/standup-dispatch.service'
+import { StandupJobDispatchRequestedListener } from './standup/standup-job-dispatch-requested.listener'
+import { StandupPipelineService } from './standup/standup-pipeline.service'
+import { ExecuteAdjustStrategy } from './standup/strategies/execute-adjust-strategy'
+import { ExecuteGenerateStrategy } from './standup/strategies/execute-generate-strategy'
+import { ExecuteRegenerateStrategy } from './standup/strategies/execute-regenerate-strategy'
+import { StandupGeneratorModule } from './standup-generator/standup-generator.module'
+import { WorkerEventPublisherService } from './worker-event-publisher.service'
+import { WorkerRuntimeConfigService } from './worker-runtime-config.service'
 
 @Module({
-  imports: [EventsModule],
-  providers: [StandupWorkflowService, WorkerSchedulerService],
-  exports: [StandupWorkflowService],
+  imports: [
+    EventsModule,
+    DatabaseModule,
+    EmailModule,
+    AzureDevopsModule,
+    GitCollectorModule,
+    StandupGeneratorModule,
+  ],
+  controllers: [ReposController, RemindersController, DigestsController],
+  providers: [
+    WorkerRuntimeConfigService,
+    WorkerEventPublisherService,
+    ReminderActionsService,
+    WorkerReminderActionRequestedListener,
+    ListWorkerReposService,
+    WorkerReposRequestedListener,
+    ExecuteGenerateStrategy,
+    ExecuteRegenerateStrategy,
+    ExecuteAdjustStrategy,
+    StandupPipelineService,
+    RunStandupJobService,
+    StandupDispatchService,
+    StandupJobDispatchRequestedListener,
+    RunWeeklyDigestJobService,
+    WeeklyDigestDispatchService,
+    WorkerSchedulerService,
+  ],
+  exports: [
+    WorkerRuntimeConfigService,
+    WorkerEventPublisherService,
+    ReminderActionsService,
+    ListWorkerReposService,
+    StandupDispatchService,
+    RunWeeklyDigestJobService,
+    WeeklyDigestDispatchService,
+  ],
 })
 export class WorkerModule {}

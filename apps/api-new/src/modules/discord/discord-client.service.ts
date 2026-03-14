@@ -41,7 +41,11 @@ export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(error.message, error.stack)
     })
 
-    await this.client.login(this.env.discord.token)
+    await new Promise<void>((resolve, reject) => {
+      this.client?.once(Events.ClientReady, () => resolve())
+      this.client?.once(Events.Error, reject)
+      this.client?.login(this.env.discord.token).catch(reject)
+    })
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -55,5 +59,9 @@ export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
 
   get currentClient(): Client | null {
     return this.client
+  }
+
+  get isReady(): boolean {
+    return this.client?.isReady() ?? false
   }
 }
