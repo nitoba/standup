@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException } from "@nestjs/common";
 import { HttpAdapterHost } from "@nestjs/core";
 import { describe, expect, it, vi } from "vitest";
-import { ValidationError } from "../../domain";
+import { ValidationError } from "../../../domain";
 import { GlobalExceptionFilter } from "./global-exception.filter";
 
 describe("GlobalExceptionFilter", () => {

@@ -17,7 +17,7 @@ import {
   McpConnectionError,
   NotFoundError,
   ValidationError,
-} from "../../domain";
+} from "../../../domain";
 import { AppLoggerFactory } from "../../logger";
 
 type ErrorResponseBody = {
