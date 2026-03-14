@@ -15,7 +15,12 @@ describe('ReminderActionsService', () => {
         updateCancelledDate: vi.fn().mockResolvedValue(Result.ok(undefined)),
       } as never,
       { notifyStandupReminder: vi.fn() } as never,
-      { today: vi.fn().mockReturnValue('2026-03-13') } as never,
+      {
+        today: vi.fn().mockReturnValue({
+          iso: '2026-03-13',
+          display: '13/03/2026',
+        }),
+      } as never,
     )
   }
 

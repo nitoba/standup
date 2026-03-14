@@ -9,7 +9,7 @@ describe('StandupSseListener', () => {
     listener.handleProgress({
       userId: 'user-1',
       runId: 'run-1',
-      date: '2026-03-13',
+      date: '13/03/2026',
       mode: 'generate',
       step: 'collecting_git',
       message: 'Collecting commits',
@@ -26,7 +26,7 @@ describe('StandupSseListener', () => {
     expect(emit).toHaveBeenNthCalledWith(1, 'user-1', {
       type: 'standup_progress',
       runId: 'run-1',
-      date: '2026-03-13',
+      date: '13/03/2026',
       mode: 'generate',
       step: 'collecting_git',
       message: 'Collecting commits',

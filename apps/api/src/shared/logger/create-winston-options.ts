@@ -55,7 +55,7 @@ function getTraceContext(): { traceId: string; spanId: string } {
 
 function createDevelopmentFormat() {
   return format.combine(
-    format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    format.timestamp({ format: 'DD/MM/YYYY HH:mm:ss' }),
     format.errors({ stack: true }),
     format.splat(),
     format.colorize({ all: false }),

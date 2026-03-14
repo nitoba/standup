@@ -9,6 +9,7 @@ import {
   transitionStandupStatus,
 } from '../../domain'
 import { AppLoggerFactory } from '../../logger'
+import { isDisplayDate, toIsoDateFromDisplay } from '../../time/date-only'
 import { DatabaseService } from '../database.service'
 import { standups } from '../schema'
 
@@ -140,9 +141,12 @@ function buildListConditions(filters?: ListStandupFilters): SQL<unknown>[] {
   const search = filters?.search?.trim()
   if (search) {
     const term = `%${search}%`
+    const isoSearch =
+      isDisplayDate(search) ? `%${toIsoDateFromDisplay(search)}%` : null
     const searchCondition = or(
       like(standups.id, term),
       like(standups.date, term),
+      ...(isoSearch ? [like(standups.date, isoSearch)] : []),
       like(standups.content, term),
     )
 

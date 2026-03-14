@@ -73,7 +73,9 @@ function renderInsights(data: WeeklyDigestData, theme: EmailTheme): string {
 }
 
 function renderViewButton(data: WeeklyDigestData, theme: EmailTheme): string {
-  const viewUrl = `${data.appUrl}/weekly-digest?from=${data.weekStart}&to=${data.weekEnd}`
+  const viewUrl =
+    `${data.appUrl}/weekly-digest?from=${encodeURIComponent(data.weekStart)}` +
+    `&to=${encodeURIComponent(data.weekEnd)}`
   const labelStyle = `font-family: ${FONT_STACK}; font-size: 13px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: ${theme.textMuted}; margin: 0 0 16px 0; padding: 0; text-align: center;`
   const buttonStyle =
     `display: inline-block; background: ${theme.headerBg}; color: ${theme.text}; ` +
@@ -149,7 +151,9 @@ export function renderWeeklyDigest(
 }
 
 export function renderWeeklyDigestText(data: WeeklyDigestData): string {
-  const viewUrl = `${data.appUrl}/weekly-digest?from=${data.weekStart}&to=${data.weekEnd}`
+  const viewUrl =
+    `${data.appUrl}/weekly-digest?from=${encodeURIComponent(data.weekStart)}` +
+    `&to=${encodeURIComponent(data.weekEnd)}`
 
   const lines: string[] = [
     `RESUMO SEMANAL — ${data.weekLabel}`,

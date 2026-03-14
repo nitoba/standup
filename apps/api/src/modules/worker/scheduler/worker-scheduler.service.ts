@@ -70,9 +70,9 @@ export class WorkerSchedulerService {
     now: Date,
   ): Promise<void> {
     const timezone = settings.timezone
-    const today = this.localDateService.format(now, timezone)
+    const today = this.localDateService.fromDate(now, timezone)
 
-    if (settings.cancelledDate === today) {
+    if (settings.cancelledDate === today.iso) {
       return
     }
 
@@ -121,7 +121,7 @@ export class WorkerSchedulerService {
 
       const runResult = await this.jobRunRepository.findByJobAndDate(
         'standup',
-        today,
+        today.iso,
         settings.userId,
       )
       if (runResult.isOk() && runResult.value?.status === 'success') {

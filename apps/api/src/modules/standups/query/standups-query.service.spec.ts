@@ -8,7 +8,7 @@ describe('StandupsQueryService', () => {
     const standupRepository = {
       list: vi.fn().mockResolvedValue(
         Result.ok({
-          items: [],
+          items: [{ id: 'standup-1', date: '2026-03-13' }],
           page: 1,
           pageSize: 20,
           total: 0,
@@ -18,10 +18,26 @@ describe('StandupsQueryService', () => {
       ),
       findByIdForUser: vi.fn(),
     }
-    const service = new StandupsQueryService(standupRepository as never)
+    const service = new StandupsQueryService(
+      standupRepository as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(
+          Result.ok({ timezone: 'America/Fortaleza' }),
+        ),
+      } as never,
+      {
+        formatIsoForTimezone: vi.fn().mockReturnValue('13/03/2026'),
+        normalizeDateInput: vi.fn((value: string) => value),
+        today: vi.fn().mockReturnValue({
+          iso: '2026-03-13',
+          display: '13/03/2026',
+        }),
+        shiftIsoDate: vi.fn().mockReturnValue('2026-03-07'),
+      } as never,
+    )
 
     await expect(service.list('user-1', { page: 1 })).resolves.toEqual({
-      items: [],
+      items: [{ id: 'standup-1', date: '13/03/2026' }],
       page: 1,
       pageSize: 20,
       total: 0,
@@ -35,20 +51,36 @@ describe('StandupsQueryService', () => {
   })
 
   it('maps repository errors for list and getById', async () => {
-    const service = new StandupsQueryService({
-      list: vi
-        .fn()
-        .mockResolvedValue(
-          Result.err(new DbError({ operation: 'list', message: 'disk full' })),
-        ),
-      findByIdForUser: vi
-        .fn()
-        .mockResolvedValue(
-          Result.err(
-            new NotFoundError({ resource: 'standup', id: 'standup-1' }),
+    const service = new StandupsQueryService(
+      {
+        list: vi
+          .fn()
+          .mockResolvedValue(
+            Result.err(
+              new DbError({ operation: 'list', message: 'disk full' }),
+            ),
           ),
-        ),
-    } as never)
+        findByIdForUser: vi
+          .fn()
+          .mockResolvedValue(
+            Result.err(
+              new NotFoundError({ resource: 'standup', id: 'standup-1' }),
+            ),
+          ),
+      } as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(Result.ok(null)),
+      } as never,
+      {
+        formatIsoForTimezone: vi.fn(),
+        normalizeDateInput: vi.fn((value: string) => value),
+        today: vi.fn().mockReturnValue({
+          iso: '2026-03-13',
+          display: '13/03/2026',
+        }),
+        shiftIsoDate: vi.fn().mockReturnValue('2026-03-07'),
+      } as never,
+    )
 
     await expect(service.list('user-1', {})).rejects.toThrow(
       InternalServerErrorException,

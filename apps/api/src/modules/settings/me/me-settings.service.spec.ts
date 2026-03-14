@@ -21,6 +21,11 @@ describe('MeSettingsService', () => {
       service: new MeSettingsService(
         loggerFactory as never,
         userSettingsRepository as never,
+        {
+          formatIsoForTimezone: vi.fn((value: string) =>
+            value === '2026-03-13' ? '13/03/2026' : value,
+          ),
+        } as never,
       ),
     }
   }
@@ -73,7 +78,7 @@ describe('MeSettingsService', () => {
       active: false,
       emailTheme: 'light',
       snoozedUntil: 10,
-      cancelledDate: '2026-03-13',
+      cancelledDate: '13/03/2026',
     })
   })
 

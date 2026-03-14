@@ -21,6 +21,7 @@ function buildMockSettings() {
     active: true,
     snoozedUntil: null,
     cancelledDate: null,
+    emailTheme: 'dark' as const,
   }
 }
 
@@ -63,6 +64,8 @@ describe('SettingsPage', () => {
   async function renderAndLoad() {
     const fixture = await renderPage()
     flushInitialLoad()
+    TestBed.tick()
+    await fixture.whenStable()
     await appRef.whenStable()
     fixture.detectChanges()
     return fixture
@@ -82,6 +85,8 @@ describe('SettingsPage', () => {
 
     // Flush to avoid httpMock.verify() failures
     flushInitialLoad()
+    TestBed.tick()
+    await fixture.whenStable()
     await appRef.whenStable()
   })
 
@@ -225,6 +230,7 @@ describe('SettingsPage', () => {
       gitAuthor: 'nitoba',
       selectedRepos: ['agrotrace-web', 'agrotrace-api'],
       active: true,
+      emailTheme: 'dark',
     })
     putReq.flush({ data: buildMockSettings() })
     await appRef.whenStable()
@@ -247,6 +253,8 @@ describe('SettingsPage', () => {
       status: 500,
       statusText: 'Internal Server Error',
     })
+    TestBed.tick()
+    await fixture.whenStable()
     await appRef.whenStable()
     fixture.detectChanges()
 
@@ -269,6 +277,8 @@ describe('SettingsPage', () => {
     TestBed.tick()
     httpMock.expectOne('/settings/me').flush({ data: buildMockSettings() })
     httpMock.expectOne('/repos').flush({ data: buildMockRepos() })
+    TestBed.tick()
+    await fixture.whenStable()
     await appRef.whenStable()
     fixture.detectChanges()
 

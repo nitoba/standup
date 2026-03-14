@@ -15,7 +15,7 @@ describe('StandupTable', () => {
     const standups: Standup[] = [
       {
         id: '7f3a2b1c',
-        date: '2026-03-09',
+        date: '09/03/2026',
         status: 'pending_review',
         createdAt: '17:32',
         contentPreview: 'implemented retry logic...',

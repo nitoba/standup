@@ -5,6 +5,20 @@ import type {
   StandupStatus,
 } from './standup-models'
 
+function toComparableDateValue(value: string): string {
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (isoMatch) {
+    return `${isoMatch[1]}${isoMatch[2]}${isoMatch[3]}`
+  }
+
+  const displayMatch = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value)
+  if (displayMatch) {
+    return `${displayMatch[3]}${displayMatch[2]}${displayMatch[1]}`
+  }
+
+  return value
+}
+
 export const METRIC_CHANGES = {
   total: '++ 12 this_week',
   approved: '++ 8 this_week',
@@ -43,7 +57,7 @@ export function buildMockStandups(): Standup[] {
 
     return {
       id: `auto-${index + 1}`,
-      date: `2026-03-${day}`,
+      date: `${day}/03/2026`,
       status,
       createdAt: '17:20',
       contentPreview:
@@ -69,7 +83,7 @@ export function filterStandups(
       !filters.date || filters.date === 'all'
         ? true
         : filters.date === 'this_week'
-          ? standup.date >= '2026-03-03'
+          ? toComparableDateValue(standup.date) >= '20260303'
           : standup.date === filters.date
     const normalizedSearch = filters.search?.trim().toLowerCase()
     const matchesSearch = !normalizedSearch
@@ -118,7 +132,7 @@ function buildFeaturedStandups(): Standup[] {
   return [
     {
       id: '7f3a2b1c',
-      date: '2026-03-09',
+      date: '09/03/2026',
       status: 'pending_review',
       createdAt: '17:32',
       contentPreview:
@@ -128,7 +142,7 @@ function buildFeaturedStandups(): Standup[] {
     },
     {
       id: 'standup-2026-03-08',
-      date: '2026-03-08',
+      date: '08/03/2026',
       status: 'pending_review',
       createdAt: '17:31',
       contentPreview:
@@ -138,7 +152,7 @@ function buildFeaturedStandups(): Standup[] {
     },
     {
       id: 'standup-2026-03-07',
-      date: '2026-03-07',
+      date: '07/03/2026',
       status: 'approved',
       createdAt: '17:30',
       contentPreview:
@@ -148,7 +162,7 @@ function buildFeaturedStandups(): Standup[] {
     },
     {
       id: 'standup-2026-03-06',
-      date: '2026-03-06',
+      date: '06/03/2026',
       status: 'rejected',
       createdAt: '17:29',
       contentPreview:
@@ -158,7 +172,7 @@ function buildFeaturedStandups(): Standup[] {
     },
     {
       id: 'standup-2026-03-05',
-      date: '2026-03-05',
+      date: '05/03/2026',
       status: 'approved',
       createdAt: '17:28',
       contentPreview:

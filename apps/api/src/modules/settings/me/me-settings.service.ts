@@ -2,6 +2,7 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common'
 import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
 import { AppLoggerFactory } from '../../../shared/logger'
 import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
+import { LocalDateService } from '../../../shared/time/local-date.service'
 import type { MeSettingsRecord } from './me-settings.dto'
 import { PutMeSettingsDto } from './me-settings.dto'
 
@@ -33,6 +34,7 @@ export class MeSettingsService {
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
     private readonly userSettingsRepository: UserSettingsRepository,
+    private readonly localDateService: LocalDateService,
   ) {
     this.logger = this.loggerFactory.create('me-settings-service')
   }
@@ -63,7 +65,12 @@ export class MeSettingsService {
       active: result.value.active,
       emailTheme: result.value.emailTheme,
       snoozedUntil: result.value.snoozedUntil,
-      cancelledDate: result.value.cancelledDate,
+      cancelledDate: result.value.cancelledDate
+        ? this.localDateService.formatIsoForTimezone(
+            result.value.cancelledDate,
+            result.value.timezone,
+          )
+        : null,
     }
   }
 
@@ -100,7 +107,12 @@ export class MeSettingsService {
       active: result.value.active,
       emailTheme: result.value.emailTheme,
       snoozedUntil: result.value.snoozedUntil,
-      cancelledDate: result.value.cancelledDate,
+      cancelledDate: result.value.cancelledDate
+        ? this.localDateService.formatIsoForTimezone(
+            result.value.cancelledDate,
+            result.value.timezone,
+          )
+        : null,
     }
   }
 }

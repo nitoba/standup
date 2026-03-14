@@ -30,14 +30,14 @@ describe('StandupSseBusService', () => {
       type: 'standup_generated',
       runId: 'run-1',
       standupId: 'standup-1',
-      date: '2026-03-13',
+      date: '13/03/2026',
       mode: 'generate',
     })
     service.emit('user-2', {
       type: 'standup_generated',
       runId: 'run-2',
       standupId: 'standup-2',
-      date: '2026-03-13',
+      date: '13/03/2026',
       mode: 'generate',
     })
 
@@ -49,7 +49,7 @@ describe('StandupSseBusService', () => {
           type: 'standup_generated',
           runId: 'run-1',
           standupId: 'standup-1',
-          date: '2026-03-13',
+          date: '13/03/2026',
           mode: 'generate',
         },
       },

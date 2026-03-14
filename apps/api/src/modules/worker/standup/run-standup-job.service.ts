@@ -34,13 +34,13 @@ export class RunStandupJobService {
     const jobLogger = this.logger.child({
       job: 'standup',
       run: runId,
-      date: today,
+      date: today.iso,
     })
 
     const lockResult = await this.jobRunRepository.acquireLock({
       id: runId,
       jobName: 'standup',
-      date: today,
+      date: today.iso,
       userId: options.userId,
       forceRegenerate: options.forceRegenerate,
     })
@@ -63,7 +63,8 @@ export class RunStandupJobService {
     const result = await this.pipeline.execute({
       options,
       runId,
-      today,
+      todayIso: today.iso,
+      todayDisplay: today.display,
       runMode,
     })
 
@@ -76,7 +77,7 @@ export class RunStandupJobService {
       this.notifications.emitStandupFailed({
         userId: options.userId,
         runId,
-        date: today,
+        date: today.display,
         mode: runMode,
         message: result.error.message,
       })

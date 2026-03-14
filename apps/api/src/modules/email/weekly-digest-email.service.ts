@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { EnvService } from '../../shared/env/env.service'
+import { LocalDateService } from '../../shared/time/local-date.service'
 import type { SendEmailInput } from './email-client.service'
 import { markdownToEmailHtml } from './markdown-to-email-html'
 import {
@@ -13,6 +14,7 @@ export interface ComposeWeeklyDigestEmailInput {
   recipientName: string
   weekStart: string
   weekEnd: string
+  timezone: string
   standupCount: number
   insightsMarkdown: string
   emailTheme?: EmailThemeKey
@@ -20,13 +22,24 @@ export interface ComposeWeeklyDigestEmailInput {
 
 @Injectable()
 export class WeeklyDigestEmailService {
-  constructor(private readonly env: EnvService) {}
+  constructor(
+    private readonly env: EnvService,
+    private readonly localDateService: LocalDateService,
+  ) {}
 
   async composeEmail(
     input: ComposeWeeklyDigestEmailInput,
   ): Promise<SendEmailInput> {
     const theme = getTheme(input.emailTheme ?? 'dark')
-    const weekLabel = this.formatWeekLabel(input.weekStart, input.weekEnd)
+    const weekStartDisplay = this.localDateService.formatIsoForTimezone(
+      input.weekStart,
+      input.timezone,
+    )
+    const weekEndDisplay = this.localDateService.formatIsoForTimezone(
+      input.weekEnd,
+      input.timezone,
+    )
+    const weekLabel = this.formatWeekLabel(weekStartDisplay, weekEndDisplay)
     const appUrl = this.env.app.appUrl
     const unsubscribeUrl = `${appUrl}/settings?unsubscribe=digest`
     const insightsHtml = await markdownToEmailHtml(
@@ -37,8 +50,8 @@ export class WeeklyDigestEmailService {
     const digestData = {
       recipientName: input.recipientName,
       weekLabel,
-      weekStart: input.weekStart,
-      weekEnd: input.weekEnd,
+      weekStart: weekStartDisplay,
+      weekEnd: weekEndDisplay,
       standupCount: input.standupCount,
       insightsHtml,
       appUrl,
@@ -47,7 +60,7 @@ export class WeeklyDigestEmailService {
 
     return {
       to: input.to,
-      subject: `Resumo da semana ${input.weekStart} -> ${input.weekEnd}`,
+      subject: `Resumo da semana ${weekStartDisplay} -> ${weekEndDisplay}`,
       html: renderWeeklyDigest(digestData, theme),
       text: renderWeeklyDigestText(digestData),
       unsubscribeUrl,
@@ -55,12 +68,12 @@ export class WeeklyDigestEmailService {
   }
 
   private formatWeekLabel(weekStart: string, weekEnd: string): string {
-    const endYear = weekEnd.split('-')[0] ?? ''
+    const endYear = weekEnd.split('/')[2] ?? ''
     return `${this.formatShortDate(weekStart)} a ${this.formatShortDate(weekEnd)}/${endYear}`
   }
 
   private formatShortDate(date: string): string {
-    const [, mm, dd] = date.split('-')
+    const [dd, mm] = date.split('/')
     return `${dd}/${mm}`
   }
 }

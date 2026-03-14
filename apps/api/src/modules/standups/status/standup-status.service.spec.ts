@@ -16,12 +16,21 @@ describe('StandupStatusService', () => {
       updateStatusForUser: vi.fn().mockResolvedValue(
         Result.ok({
           id: 'standup-1',
+          date: '2026-03-13',
           status: 'rejected',
         }),
       ),
     }
     const service = new StandupStatusService(
       standupRepository as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(
+          Result.ok({ timezone: 'America/Fortaleza' }),
+        ),
+      } as never,
+      {
+        formatIsoForTimezone: vi.fn().mockReturnValue('13/03/2026'),
+      } as never,
       eventBus as never,
     )
 
@@ -29,6 +38,7 @@ describe('StandupStatusService', () => {
       service.update('user-1', 'standup-1', 'rejected'),
     ).resolves.toEqual({
       id: 'standup-1',
+      date: '13/03/2026',
       status: 'rejected',
     })
     expect(eventBus.emitStandupStatusChanged).toHaveBeenCalledWith({
@@ -57,6 +67,12 @@ describe('StandupStatusService', () => {
               }),
             ),
           ),
+      } as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(Result.ok(null)),
+      } as never,
+      {
+        formatIsoForTimezone: vi.fn().mockReturnValue('13/03/2026'),
       } as never,
       { emitStandupStatusChanged: vi.fn() } as never,
     )

@@ -1,5 +1,6 @@
 import type { APIEmbed } from 'discord.js'
 import type { StandupRecord } from '../../shared/domain'
+import { isIsoDate, toDisplayDateFromIso } from '../../shared/time/date-only'
 
 export const EMBED_COLORS = {
   REVIEW: 0x3498db,
@@ -23,9 +24,13 @@ function truncate(value: string, max: number): string {
   return `${value.slice(0, max - 3)}...`
 }
 
+function displayDate(value: string): string {
+  return isIsoDate(value) ? toDisplayDateFromIso(value) : value
+}
+
 export function buildReviewEmbed(record: StandupRecord): APIEmbed {
   return {
-    title: truncate(`Standup de ${record.date}`, LIMITS.TITLE),
+    title: truncate(`Standup de ${displayDate(record.date)}`, LIMITS.TITLE),
     color: EMBED_COLORS.REVIEW,
     description: truncate(record.content, LIMITS.DESCRIPTION),
     fields: [
@@ -52,7 +57,7 @@ export function buildReviewEmbed(record: StandupRecord): APIEmbed {
 
 export function buildPublishedEmbed(record: StandupRecord): APIEmbed {
   return {
-    title: truncate(`Standup — ${record.date}`, LIMITS.TITLE),
+    title: truncate(`Standup — ${displayDate(record.date)}`, LIMITS.TITLE),
     color: EMBED_COLORS.APPROVED,
     description: truncate(record.content, LIMITS.DESCRIPTION),
     fields: [

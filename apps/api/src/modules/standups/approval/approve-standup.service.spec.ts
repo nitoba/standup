@@ -34,6 +34,7 @@ describe('ApproveStandupService', () => {
       updateStatusForUser: vi.fn().mockResolvedValue(
         Result.ok({
           id: 'standup-1',
+          date: '2026-03-13',
           status: 'approved',
         }),
       ),
@@ -43,6 +44,14 @@ describe('ApproveStandupService', () => {
     }
     const service = new ApproveStandupService(
       standupRepository as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(
+          Result.ok({ timezone: 'America/Fortaleza' }),
+        ),
+      } as never,
+      {
+        formatIsoForTimezone: vi.fn().mockReturnValue('13/03/2026'),
+      } as never,
       eventBus as never,
     )
 
@@ -53,6 +62,7 @@ describe('ApproveStandupService', () => {
       }),
     ).resolves.toEqual({
       id: 'standup-1',
+      date: '13/03/2026',
       status: 'approved',
     })
     expect(standupRepository.updateCustomEntriesForUser).toHaveBeenCalled()
@@ -79,12 +89,19 @@ describe('ApproveStandupService', () => {
       updateStatusForUser: vi.fn().mockResolvedValue(
         Result.ok({
           id: 'standup-1',
+          date: '2026-03-13',
           status: 'approved',
         }),
       ),
     }
     const service = new ApproveStandupService(
       standupRepository as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(Result.ok(null)),
+      } as never,
+      {
+        formatIsoForTimezone: vi.fn().mockReturnValue('13/03/2026'),
+      } as never,
       { emitStandupStatusChanged: vi.fn() } as never,
     )
 
@@ -124,6 +141,12 @@ describe('ApproveStandupService', () => {
             }),
           ),
         ),
+      } as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(Result.ok(null)),
+      } as never,
+      {
+        formatIsoForTimezone: vi.fn().mockReturnValue('13/03/2026'),
       } as never,
       { emitStandupStatusChanged: vi.fn() } as never,
     )

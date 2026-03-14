@@ -8,6 +8,7 @@ import { StandupRepository } from '../../../shared/database/repositories/standup
 import { UserRepository } from '../../../shared/database/repositories/user.repository'
 import type { StandupStatus } from '../../../shared/domain'
 import { Result } from '../../../shared/domain'
+import { isIsoDate, toDisplayDateFromIso } from '../../../shared/time/date-only'
 import { EMBED_COLORS } from '../embeds'
 import { DiscordAuthService } from '../services/discord-auth.service'
 import {
@@ -74,6 +75,10 @@ function summaryColor(okCount: number, totalCount: number): number {
   }
 
   return EMBED_COLORS.WARNING
+}
+
+function displayDate(value: string): string {
+  return isIsoDate(value) ? toDisplayDateFromIso(value) : value
 }
 
 @Injectable()
@@ -239,7 +244,7 @@ export class SlashCommandHandlerService {
     }
 
     const embeds = result.value.items.map((record) => ({
-      title: `Standup de ${record.date}`,
+      title: `Standup de ${displayDate(record.date)}`,
       color: EMBED_COLORS.REVIEW,
       fields: [
         {

@@ -3,6 +3,7 @@ import type {
   GenerateStandupInput,
   StandupRecord,
 } from '../../../shared/domain'
+import { LocalDateService } from '../../../shared/time/local-date.service'
 import type {
   EnrichedGitActivity,
   EnrichedWorkItem,
@@ -12,10 +13,10 @@ export const MAX_STANDUP_CONTENT_CHARS = 2000
 
 @Injectable()
 export class StandupPromptService {
+  constructor(private readonly localDateService: LocalDateService) {}
+
   determineMeetingType(dateString: string): string {
-    const [year, month, day] = dateString.split('-').map(Number)
-    const date = new Date(year ?? 2000, (month ?? 1) - 1, day ?? 1)
-    const weekDay = date.getDay()
+    const weekDay = this.localDateService.getDayOfWeek(dateString)
 
     if (weekDay === 1) return '📆 (Start of week meeting)'
     if (weekDay === 3) return '📆 (Planing Web)'
@@ -94,12 +95,10 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
     input: GenerateStandupInput,
     enrichedActivity: EnrichedGitActivity,
   ): string {
-    const date = new Date(input.date)
-    const formattedDate = date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    })
+    const formattedDate = this.localDateService.formatIsoForTimezone(
+      input.date,
+      'America/Sao_Paulo',
+    )
     const meetingType =
       input.meetingType || this.determineMeetingType(input.date)
 
@@ -256,7 +255,9 @@ ${content}
     ]
 
     for (const standup of standups) {
-      lines.push(`### ${standup.date} — ${standup.meetingType}`)
+      lines.push(
+        `### ${this.localDateService.formatIsoForTimezone(standup.date, 'America/Sao_Paulo')} — ${standup.meetingType}`,
+      )
       lines.push(standup.content)
       lines.push('')
     }

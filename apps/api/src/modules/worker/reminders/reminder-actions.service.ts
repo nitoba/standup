@@ -64,11 +64,11 @@ export class ReminderActionsService {
         : 'America/Sao_Paulo'
     const today = this.localDateService.today(timezone)
 
-    await this.userSettingsRepository.updateCancelledDate(userId, today)
+    await this.userSettingsRepository.updateCancelledDate(userId, today.iso)
 
     return {
       ok: true,
-      cancelledDate: today,
+      cancelledDate: today.display,
     }
   }
 

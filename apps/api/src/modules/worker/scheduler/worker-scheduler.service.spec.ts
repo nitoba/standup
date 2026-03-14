@@ -83,7 +83,12 @@ describe('WorkerSchedulerService', () => {
       { dispatchStandupJob: vi.fn() } as never,
       { dispatchWeeklyDigestJob: vi.fn() } as never,
       reminderActions as never,
-      { format: vi.fn().mockReturnValue('2026-03-13') } as never,
+      {
+        fromDate: vi.fn().mockReturnValue({
+          iso: '2026-03-13',
+          display: '13/03/2026',
+        }),
+      } as never,
     )
 
     await service.handleSchedulerTick()
@@ -122,7 +127,12 @@ describe('WorkerSchedulerService', () => {
       standupDispatch as never,
       { dispatchWeeklyDigestJob: vi.fn() } as never,
       { notifyReminder: vi.fn() } as never,
-      { format: vi.fn().mockReturnValue('2026-03-13') } as never,
+      {
+        fromDate: vi.fn().mockReturnValue({
+          iso: '2026-03-13',
+          display: '13/03/2026',
+        }),
+      } as never,
     )
 
     await service.handleSchedulerTick()
@@ -168,7 +178,12 @@ describe('WorkerSchedulerService', () => {
       standupDispatch as never,
       { dispatchWeeklyDigestJob: vi.fn() } as never,
       { notifyReminder: vi.fn() } as never,
-      { format: vi.fn().mockReturnValue('2026-03-13') } as never,
+      {
+        fromDate: vi.fn().mockReturnValue({
+          iso: '2026-03-13',
+          display: '13/03/2026',
+        }),
+      } as never,
     )
 
     await service.handleSchedulerTick()

@@ -15,7 +15,8 @@ import type { StandupJobOptions, StrategyProgressUpdate } from './types'
 interface PipelineContext {
   options: StandupJobOptions
   runId: string
-  today: string
+  todayIso: string
+  todayDisplay: string
   runMode: StandupRunMode
 }
 
@@ -34,12 +35,12 @@ export class StandupPipelineService {
   }
 
   async execute(ctx: PipelineContext): Promise<Result<string | null, Error>> {
-    const { options, runId, today, runMode } = ctx
+    const { options, runId, todayIso, todayDisplay, runMode } = ctx
 
     await this.emitProgress({
       userId: options.userId,
       runId,
-      date: today,
+      date: todayDisplay,
       mode: runMode,
       step: 'queued',
       message: 'Geracao do standup iniciada',
@@ -56,7 +57,7 @@ export class StandupPipelineService {
       await this.emitProgress({
         userId: options.userId,
         runId,
-        date: today,
+        date: todayDisplay,
         mode: runMode,
         step: 'no_activity',
         message: 'Nenhuma atividade encontrada hoje',
@@ -78,14 +79,14 @@ export class StandupPipelineService {
     await this.emitProgress({
       userId: options.userId,
       runId,
-      date: today,
+      date: todayDisplay,
       mode: runMode,
       step: 'saving_draft',
       message: 'Salvando rascunho do standup',
     })
 
     const saveResult = await this.saveGeneratedStandup(options, {
-      date: today,
+      date: todayIso,
       meetingType: generated.meetingType,
       content: generated.content,
       sourceData: generated.sourceData,
@@ -102,7 +103,7 @@ export class StandupPipelineService {
     await this.emitProgress({
       userId: options.userId,
       runId,
-      date: today,
+      date: todayDisplay,
       mode: runMode,
       step: 'notifying_review',
       message: 'Enviando standup para revisao',
@@ -117,7 +118,7 @@ export class StandupPipelineService {
     await this.emitProgress({
       userId: options.userId,
       runId,
-      date: today,
+      date: todayDisplay,
       mode: runMode,
       step: 'completed',
       message: 'Standup pronto para revisao',
@@ -128,7 +129,7 @@ export class StandupPipelineService {
       userId: options.userId,
       runId,
       standupId,
-      date: today,
+      date: todayDisplay,
       mode: runMode,
     })
 
@@ -138,11 +139,11 @@ export class StandupPipelineService {
   private async runStrategy(mode: StandupRunMode, ctx: PipelineContext) {
     const executionInput = {
       options: ctx.options,
-      today: ctx.today,
+      today: ctx.todayIso,
       reportProgress: this.createStrategyProgressReporter(
         ctx.options.userId,
         ctx.runId,
-        ctx.today,
+        ctx.todayDisplay,
         ctx.runMode,
       ),
     }

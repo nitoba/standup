@@ -6,24 +6,10 @@ import { UserSettingsRepository } from '../../../shared/database/repositories/us
 import { WeeklyDigestRepository } from '../../../shared/database/repositories/weekly-digest.repository'
 import { AppLoggerFactory } from '../../../shared/logger'
 import { AppTracingService } from '../../../shared/observability/app-tracing.service'
+import { LocalDateService } from '../../../shared/time/local-date.service'
 import { EmailClientService } from '../../email/email-client.service'
 import { WeeklyDigestEmailService } from '../../email/weekly-digest-email.service'
 import { StandupGeneratorService } from '../standup-generator/standup-generator.service'
-
-function getPreviousWeekStart(now: Date): string {
-  const day = now.getDay()
-  const daysToLastMonday = day === 0 ? 13 : day + 6
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - daysToLastMonday)
-  return monday.toISOString().slice(0, 10)
-}
-
-function getPreviousWeekEnd(weekStart: string): string {
-  const monday = new Date(`${weekStart}T00:00:00Z`)
-  const friday = new Date(monday)
-  friday.setDate(monday.getDate() + 4)
-  return friday.toISOString().slice(0, 10)
-}
 
 export interface WeeklyDigestJobOptions {
   userId: string
@@ -43,6 +29,7 @@ export class RunWeeklyDigestJobService {
     private readonly userSettingsRepository: UserSettingsRepository,
     private readonly standupGenerator: StandupGeneratorService,
     private readonly tracing: AppTracingService,
+    private readonly localDateService: LocalDateService,
   ) {
     this.logger = this.loggerFactory.create('weekly-digest-job')
   }
@@ -51,8 +38,17 @@ export class RunWeeklyDigestJobService {
   async run(options: WeeklyDigestJobOptions): Promise<void> {
     const runId = crypto.randomUUID()
     const now = new Date()
-    const weekStart = getPreviousWeekStart(now)
-    const weekEnd = getPreviousWeekEnd(weekStart)
+    const settingsResult = await this.userSettingsRepository.findByUserId(
+      options.userId,
+    )
+    const timezone =
+      settingsResult.isOk() && settingsResult.value?.timezone
+        ? settingsResult.value.timezone
+        : 'America/Sao_Paulo'
+    const { weekStart, weekEnd } = this.localDateService.getPreviousWeekRange(
+      now,
+      timezone,
+    )
 
     const jobLogger = this.logger.child({
       job: 'weekly-digest',
@@ -151,9 +147,6 @@ export class RunWeeklyDigestJobService {
       return
     }
 
-    const settingsResult = await this.userSettingsRepository.findByUserId(
-      options.userId,
-    )
     const emailTheme =
       settingsResult.isOk() && settingsResult.value?.emailTheme
         ? settingsResult.value.emailTheme
@@ -204,6 +197,7 @@ export class RunWeeklyDigestJobService {
           recipientName: userName,
           weekStart,
           weekEnd,
+          timezone,
           standupCount: standupsResult.value.length,
           insightsMarkdown: insightsResult.value,
           emailTheme,

@@ -65,7 +65,7 @@ describe('FilterBar', () => {
     const filterBar = fixture.componentInstance
     const localDate = new Date(2026, 2, 9, 23, 30)
 
-    expect(filterBar.formatDate(localDate)).toBe('2026-03-09')
+    expect(filterBar.formatDate(localDate)).toBe('09/03/2026')
   })
 
   it('treats null combobox values as reset to all and all_time', async () => {

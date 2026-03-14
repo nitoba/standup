@@ -166,7 +166,7 @@ describe('StandupService', () => {
   it('re-fetches dashboard standups with status and date filters', async () => {
     service.setDashboardFilters({
       status: 'approved',
-      date: '2026-03-09',
+      date: '09/03/2026',
     })
     TestBed.tick()
 
@@ -174,7 +174,7 @@ describe('StandupService', () => {
       (req) =>
         req.url === '/standups' &&
         req.params.get('status') === 'approved' &&
-        req.params.get('date') === '2026-03-09',
+        req.params.get('date') === '09/03/2026',
     )
     expect(request.request.method).toBe('GET')
     request.flush(
@@ -382,7 +382,7 @@ describe('StandupService', () => {
     stubEventsService.standupEvents$.next({
       type: 'standup_progress',
       runId: 'run-1',
-      date: '2026-03-09',
+      date: '09/03/2026',
       mode: 'generate',
       step: 'collecting_git',
       message: 'Coletando commits dos repositorios',
@@ -399,7 +399,7 @@ describe('StandupService', () => {
       type: 'standup_generated',
       runId: 'run-1',
       standupId: '7f3a2b1c',
-      date: '2026-03-09',
+      date: '09/03/2026',
       mode: 'generate',
     })
 
@@ -416,7 +416,7 @@ describe('StandupService', () => {
     stubEventsService.standupEvents$.next({
       type: 'standup_progress',
       runId: 'run-2',
-      date: '2026-03-09',
+      date: '09/03/2026',
       mode: 'generate',
       step: 'generating_standup',
       message: 'Gerando texto do standup',
@@ -425,7 +425,7 @@ describe('StandupService', () => {
     stubEventsService.standupEvents$.next({
       type: 'standup_failed',
       runId: 'run-2',
-      date: '2026-03-09',
+      date: '09/03/2026',
       mode: 'generate',
       message: 'LLM indisponivel',
     })
@@ -437,7 +437,7 @@ describe('StandupService', () => {
 function makeStandupDto(overrides: Partial<StandupDto> = {}): StandupDto {
   return {
     id: 'standup-1',
-    date: '2026-03-09',
+    date: '09/03/2026',
     meetingType: 'daily',
     content: '## o que foi feito\n- shipped the dashboard filters',
     sourceData: JSON.stringify({

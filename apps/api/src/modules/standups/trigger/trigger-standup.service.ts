@@ -93,7 +93,7 @@ export class TriggerStandupService {
 
     const today = this.localDateService.today(settings.timezone)
     const todayStandupResult =
-      await this.standupRepository.findLatestByUserAndDate(userId, today)
+      await this.standupRepository.findLatestByUserAndDate(userId, today.iso)
 
     if (todayStandupResult.isErr()) {
       throw new BadRequestException(

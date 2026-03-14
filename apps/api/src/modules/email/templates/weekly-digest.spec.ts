@@ -6,8 +6,8 @@ import { renderWeeklyDigest, renderWeeklyDigestText } from './weekly-digest'
 const sampleData: WeeklyDigestData = {
   recipientName: 'João',
   weekLabel: '10/03 a 14/03/2026',
-  weekStart: '2026-03-10',
-  weekEnd: '2026-03-14',
+  weekStart: '10/03/2026',
+  weekEnd: '14/03/2026',
   standupCount: 2,
   insightsHtml: '<p>Semana produtiva com foco em melhorias de performance.</p>',
   appUrl: 'http://localhost:4200',
@@ -43,7 +43,7 @@ describe('renderWeeklyDigest', () => {
   it('includes view button linking to weekly-digest with week range', () => {
     const html = renderWeeklyDigest(sampleData, LIGHT_THEME)
     expect(html).toContain(
-      'http://localhost:4200/weekly-digest?from=2026-03-10&to=2026-03-14',
+      'http://localhost:4200/weekly-digest?from=10%2F03%2F2026&to=14%2F03%2F2026',
     )
     expect(html).toContain('Ver standups no app')
   })
@@ -106,7 +106,7 @@ describe('renderWeeklyDigestText', () => {
   it('includes view URL with week range', () => {
     const text = renderWeeklyDigestText(sampleData)
     expect(text).toContain(
-      'http://localhost:4200/weekly-digest?from=2026-03-10&to=2026-03-14',
+      'http://localhost:4200/weekly-digest?from=10%2F03%2F2026&to=14%2F03%2F2026',
     )
   })
 

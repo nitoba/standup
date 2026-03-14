@@ -41,7 +41,7 @@ describe('RemindersController', () => {
       }),
       cancelReminderForToday: vi.fn().mockResolvedValue({
         ok: true,
-        cancelledDate: '2026-03-13',
+        cancelledDate: '13/03/2026',
       }),
     }
     const standupDispatch = {
@@ -68,7 +68,7 @@ describe('RemindersController', () => {
     ).resolves.toEqual({
       data: {
         ok: true,
-        cancelledDate: '2026-03-13',
+        cancelledDate: '13/03/2026',
       },
     })
 

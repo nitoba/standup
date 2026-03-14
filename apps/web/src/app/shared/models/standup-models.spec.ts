@@ -30,7 +30,7 @@ describe('standup types', () => {
 
     const dto: StandupDto = {
       id: 'id-1',
-      date: '2026-03-09',
+      date: '09/03/2026',
       meetingType: 'daily',
       content: '## o que foi feito\n- item',
       sourceData: '{"repos":[]}',
@@ -43,8 +43,8 @@ describe('standup types', () => {
 
     const standup: Standup = {
       ...dto,
-      createdAt: '2026-03-09 17:32',
-      updatedAt: '2026-03-09 17:40',
+      createdAt: '09/03/2026 17:32',
+      updatedAt: '09/03/2026 17:40',
       contentPreview: '## o que foi feito - item',
       sections,
       sources,
@@ -100,7 +100,7 @@ describe('standup types', () => {
     const accepted: ReminderAcceptedDto = { ok: true, accepted: true }
     const cancelled: CancelTodayReminderAckDto = {
       ok: true,
-      cancelledDate: '2026-03-09',
+      cancelledDate: '09/03/2026',
     }
     const settingsResponse: UpdateSettingsResponseDto = { data: settings }
     const statuses: StandupStatus[] = [
@@ -125,7 +125,7 @@ describe('standup types', () => {
     expect(settingsResponse.data.selectedRepos).toEqual(['repo-a'])
     expect(session.user.email).toBe('dev@example.com')
     expect(accepted.accepted).toBe(true)
-    expect(cancelled.cancelledDate).toBe('2026-03-09')
+    expect(cancelled.cancelledDate).toBe('09/03/2026')
     expect(statuses).toContain('draft')
     expect(statuses).toContain('published')
     expect(metrics.total.count).toBe(1)
