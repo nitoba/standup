@@ -1,11 +1,15 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common'
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { ListWorkerReposService } from './list-worker-repos.service'
 
+@ApiTags('repos')
 @Controller('repos')
 export class ReposController {
   constructor(private readonly listWorkerRepos: ListWorkerReposService) {}
 
   @Get()
+  @ApiOperation({ summary: 'Lista os repositórios disponíveis para coleta' })
+  @ApiOkResponse({ description: 'Lista de repositórios configurados.' })
   async list() {
     const result = await this.listWorkerRepos.listRepos()
 

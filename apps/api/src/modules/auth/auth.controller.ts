@@ -1,9 +1,16 @@
 import { Controller, Get, Header } from '@nestjs/common'
+import {
+  ApiExcludeEndpoint,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger'
 import { Session } from '@thallesp/nestjs-better-auth'
 import type { AuthSession } from '../../shared/auth/auth-session'
 import { UserRepository } from '../../shared/database/repositories/user.repository'
 import { EventBusService } from '../events/event-bus.service'
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -12,6 +19,8 @@ export class AuthController {
   ) {}
 
   @Get('session')
+  @ApiOperation({ summary: 'Retorna a sessão autenticada atual' })
+  @ApiOkResponse({ description: 'Sessão atual do usuário.' })
   getSession(@Session() session: unknown) {
     return {
       authenticated: session !== null,
@@ -21,6 +30,7 @@ export class AuthController {
 
   @Get('login/discord')
   @Header('content-type', 'text/html; charset=utf-8')
+  @ApiExcludeEndpoint()
   getDiscordLoginPage(): string {
     return `<!doctype html>
 <html lang="pt-BR">
@@ -85,6 +95,7 @@ export class AuthController {
 
   @Get('callback')
   @Header('content-type', 'text/html; charset=utf-8')
+  @ApiExcludeEndpoint()
   async getAuthCallback(@Session() session: AuthSession): Promise<string> {
     const userId = session.user.id
 

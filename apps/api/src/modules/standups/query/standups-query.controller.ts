@@ -8,6 +8,13 @@ import {
   ParseUUIDPipe,
   Query,
 } from '@nestjs/common'
+import {
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger'
 import { Session } from '@thallesp/nestjs-better-auth'
 import type { AuthSession } from '../../../shared/auth/auth-session'
 import { requireSessionUserId } from '../../../shared/auth/require-session-user-id'
@@ -22,11 +29,25 @@ const STANDUP_STATUS_QUERY = {
   published: 'published',
 } as const
 
+@ApiTags('standups')
 @Controller('standups')
 export class StandupsQueryController {
   constructor(private readonly standupsQuery: StandupsQueryService) {}
 
   @Get()
+  @ApiOperation({ summary: 'Lista standups do usuário autenticado' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: Object.values(STANDUP_STATUS_QUERY),
+  })
+  @ApiQuery({ name: 'date', required: false, type: String })
+  @ApiQuery({ name: 'from', required: false, type: String })
+  @ApiQuery({ name: 'to', required: false, type: String })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'pageSize', required: false, type: Number, example: 20 })
+  @ApiOkResponse({ description: 'Lista paginada de standups.' })
   async list(
     @Session() session: AuthSession | null,
     @Query(
@@ -65,6 +86,9 @@ export class StandupsQueryController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Busca um standup pelo identificador' })
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
+  @ApiOkResponse({ description: 'Standup encontrado.' })
   async getById(
     @Session() session: AuthSession | null,
     @Param('id', new ParseUUIDPipe()) id: string,
