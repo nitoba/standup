@@ -7,10 +7,10 @@ import { HttpModule } from "./shared/module/http/http.module";
 import { SettingsModule } from "./modules/settings/settings.module";
 import { StandupsModule } from "./modules/standups/standups.module";
 import { WorkerModule } from "./modules/worker/worker.module";
-import { DatabaseModule } from "./shared/database/database.module";
-import { EnvModule } from "./shared/env/env.module";
-import { LoggerModule } from "./shared/logger/logger.module";
-import { ObservabilityModule } from "./shared/observability/observability.module";
+import { DatabaseModule } from "./shared/module/database/database.module";
+import { EnvModule } from "./shared/module/env/env.module";
+import { LoggerModule } from "./shared/module/logger/logger.module";
+import { ObservabilityModule } from "./shared/module/observability/observability.module";
 import { TimeModule } from "./shared/time/time.module";
 
 @Module({
