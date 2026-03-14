@@ -11,11 +11,7 @@ import { toast } from 'ngx-sonner'
 import { SidebarLayout } from '../../core/layout/sidebar'
 import { ZardButtonComponent } from '../../shared/components/button'
 import { ZardDialogService } from '../../shared/components/dialog'
-import {
-  formatLocalDate,
-  minusDays,
-  startOfLocalDay,
-} from '../../shared/utils'
+import { formatLocalDate, minusDays, startOfLocalDay } from '../../shared/utils'
 import { DashboardSkeleton } from './components/dashboard-skeleton/dashboard-skeleton'
 import { FilterBar } from './components/filter-bar/filter-bar'
 import { MetricCard } from './components/metric-card/metric-card'
@@ -223,11 +219,7 @@ export class DashboardPage {
         )
         await this.router.navigate(['/dashboard'])
       } else {
-        toast.error(
-          'error' in result
-            ? result.error
-            : 'Falha ao disparar geração do standup',
-        )
+        toast.error(result.error ?? 'Falha ao disparar geração do standup')
       }
     } catch {
       toast.error('Falha ao disparar geração do standup')

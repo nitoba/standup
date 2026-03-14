@@ -111,6 +111,7 @@ export class TriggerStandupService {
       throw new ConflictException({
         ok: false,
         accepted: false,
+        message: 'Já existe um standup pendente de revisão para hoje.',
         reason: 'pending_review_exists',
         standupId: todayStandup.id,
       })
@@ -123,6 +124,7 @@ export class TriggerStandupService {
       throw new ConflictException({
         ok: false,
         accepted: false,
+        message: 'O standup de hoje já foi aprovado ou publicado.',
         reason: 'already_approved_today',
         standupId: todayStandup.id,
       })
