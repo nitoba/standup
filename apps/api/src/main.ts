@@ -5,6 +5,7 @@ import { NestFactory } from '@nestjs/core'
 import { SwaggerModule } from '@nestjs/swagger'
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston'
 import { AppModule } from './app.module'
+import { BetterAuthFactory } from './modules/auth/better-auth.factory'
 import { EnvService } from './shared/env/env.service'
 import { startOpenTelemetry } from './shared/observability/tracing'
 import { createOpenApiDocument } from './shared/openapi/create-openapi-document'
@@ -39,7 +40,8 @@ async function bootstrap() {
   })
   app.enableShutdownHooks()
 
-  const openApiDocument = createOpenApiDocument(app, env)
+  const betterAuthFactory = app.get(BetterAuthFactory)
+  const openApiDocument = createOpenApiDocument(app, env, betterAuthFactory)
   SwaggerModule.setup(OPENAPI_SETUP_PATH, app, openApiDocument, {
     ui: false,
     raw: ['json'],
