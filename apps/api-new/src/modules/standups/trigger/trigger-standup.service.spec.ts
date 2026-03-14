@@ -235,4 +235,69 @@ describe('TriggerStandupService', () => {
       reuseExistingSource: false,
     })
   })
+
+  it('returns accepted=false when a pending review conflict comes from the event bus', async () => {
+    const service = new TriggerStandupService(
+      { findDiscordIdByUserId: vi.fn() } as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(
+          Result.ok({
+            selectedRepos: '["repo-a"]',
+            gitAuthor: 'nitoba',
+            timezone: 'America/Sao_Paulo',
+            gitSincePeriod: '8 hours ago',
+          }),
+        ),
+      } as never,
+      {
+        findLatestByUserAndDate: vi.fn().mockResolvedValue(
+          Result.ok({
+            id: 'standup-1',
+            status: 'pending_review',
+          }),
+        ),
+      } as never,
+      createEventBusMock() as never,
+      { today: vi.fn().mockReturnValue('2026-03-13') } as never,
+    )
+
+    await expect(
+      service.handleRequestedTrigger({
+        userId: 'user-1',
+        discordUserId: 'discord-1',
+      }),
+    ).resolves.toEqual(
+      Result.ok({
+        accepted: false,
+        reason: 'pending_review_exists',
+        standupId: 'standup-1',
+      }),
+    )
+  })
+
+  it('returns external service error when the event bus trigger fails unexpectedly', async () => {
+    const service = new TriggerStandupService(
+      {
+        findDiscordIdByUserId: vi
+          .fn()
+          .mockResolvedValue(Result.ok('discord-1')),
+      } as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(Result.ok(null)),
+      } as never,
+      { findLatestByUserAndDate: vi.fn() } as never,
+      createEventBusMock() as never,
+      { today: vi.fn() } as never,
+    )
+
+    const result = await service.handleRequestedTrigger({
+      userId: 'user-1',
+      discordUserId: 'discord-1',
+    })
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.message).toContain('Failed to trigger standup')
+    }
+  })
 })

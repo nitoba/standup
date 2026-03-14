@@ -3,12 +3,19 @@ import {
   ConflictException,
   Injectable,
 } from '@nestjs/common'
+import { OnEvent } from '@nestjs/event-emitter'
+import { ExternalServiceError, Result } from '@standup/domain'
 import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
 import { UserRepository } from '../../../shared/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
 import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
 import { LocalDateService } from '../../../shared/time/local-date.service'
 import { EventBusService } from '../../events/event-bus.service'
+import {
+  STANDUP_TRIGGER_REQUESTED_EVENT,
+  type StandupTriggerRequestEvent,
+  type StandupTriggerRequestOutcome,
+} from '../../events/standup-events'
 import type { TriggerStandupDto } from './trigger-standup.dto'
 
 type AuthSession = {
@@ -26,6 +33,29 @@ export class TriggerStandupService {
     private readonly eventBus: EventBusService,
     private readonly localDateService: LocalDateService,
   ) {}
+
+  @OnEvent(STANDUP_TRIGGER_REQUESTED_EVENT)
+  async handleRequestedTrigger(
+    event: StandupTriggerRequestEvent,
+  ): Promise<Result<StandupTriggerRequestOutcome, ExternalServiceError>> {
+    try {
+      await this.trigger(event, null)
+      return Result.ok({ accepted: true })
+    } catch (error) {
+      const payload = this.toTriggerOutcome(error)
+
+      if (payload) {
+        return Result.ok(payload)
+      }
+
+      return Result.err(
+        new ExternalServiceError({
+          service: 'standups',
+          message: `Failed to trigger standup: ${error instanceof Error ? error.message : String(error)}`,
+        }),
+      )
+    }
+  }
 
   async trigger(body: TriggerStandupDto, session: AuthSession | null) {
     let userId = body.userId
@@ -120,5 +150,40 @@ export class TriggerStandupService {
     })
 
     return { ok: true, accepted: true }
+  }
+
+  private toTriggerOutcome(
+    error: unknown,
+  ): Exclude<StandupTriggerRequestOutcome, { accepted: true }> | null {
+    if (
+      !error ||
+      typeof error !== 'object' ||
+      !('getResponse' in error) ||
+      typeof error.getResponse !== 'function'
+    ) {
+      return null
+    }
+
+    const response = error.getResponse()
+    const payload =
+      typeof response === 'object' && response !== null
+        ? (response as {
+            reason?: 'pending_review_exists' | 'already_approved_today'
+            standupId?: string
+          })
+        : null
+
+    if (
+      payload?.reason !== 'pending_review_exists' &&
+      payload?.reason !== 'already_approved_today'
+    ) {
+      return null
+    }
+
+    return {
+      accepted: false,
+      reason: payload.reason,
+      standupId: payload.standupId,
+    }
   }
 }

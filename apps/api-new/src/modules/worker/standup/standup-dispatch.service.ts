@@ -1,9 +1,14 @@
 import { Injectable } from '@nestjs/common'
+import { OnEvent } from '@nestjs/event-emitter'
 import { Result, ValidationError } from '@standup/domain'
 import { UserRepository } from '../../../shared/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
 import { AppLoggerFactory } from '../../../shared/logger'
 import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
+import {
+  STANDUP_JOB_DISPATCH_REQUESTED_EVENT,
+  type StandupJobDispatchRequestedEvent,
+} from '../../events/standup-events'
 import { RunStandupJobService } from './run-standup-job.service'
 import type { StandupJobOptions } from './types'
 
@@ -19,6 +24,14 @@ export class StandupDispatchService {
     this.logger = this.loggerFactory.create('standup-dispatch')
   }
 
+  @OnEvent(STANDUP_JOB_DISPATCH_REQUESTED_EVENT)
+  handleRequestedDispatch(event: StandupJobDispatchRequestedEvent): {
+    ok: true
+  } {
+    this.dispatchStandupJob(event)
+    return { ok: true }
+  }
+
   dispatchStandupJob(options: StandupJobOptions): void {
     void this.standupJob.run(options).catch((error: unknown) => {
       this.logger.error('Standup job threw unexpectedly', {
@@ -31,6 +44,20 @@ export class StandupDispatchService {
   async dispatchStandupJobForUser(
     userId: string,
   ): Promise<Result<void, ValidationError>> {
+    const optionsResult = await this.resolveStandupJobOptionsForUser(userId)
+
+    if (optionsResult.isErr()) {
+      return optionsResult
+    }
+
+    this.dispatchStandupJob(optionsResult.value)
+
+    return Result.ok(undefined)
+  }
+
+  private async resolveStandupJobOptionsForUser(
+    userId: string,
+  ): Promise<Result<StandupJobOptions, ValidationError>> {
     const settingsResult =
       await this.userSettingsRepository.findByUserId(userId)
     if (settingsResult.isErr() || !settingsResult.value) {
@@ -63,7 +90,7 @@ export class StandupDispatchService {
       )
     }
 
-    this.dispatchStandupJob({
+    return Result.ok({
       userId,
       discordUserId: discordResult.value,
       selectedRepos,
@@ -71,7 +98,5 @@ export class StandupDispatchService {
       timezone: settingsResult.value.timezone,
       gitSincePeriod: settingsResult.value.gitSincePeriod,
     })
-
-    return Result.ok(undefined)
   }
 }

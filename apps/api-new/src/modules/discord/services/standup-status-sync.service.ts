@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { OnEvent } from '@nestjs/event-emitter'
 import {
   type DbError,
   ExternalServiceError,
@@ -9,6 +10,10 @@ import { StandupRepository } from '../../../shared/database/repositories/standup
 import { UserRepository } from '../../../shared/database/repositories/user.repository'
 import { EnvService } from '../../../shared/env/env.service'
 import { AppLoggerFactory } from '../../../shared/logger'
+import {
+  STANDUP_STATUS_CHANGED_EVENT,
+  type StandupStatusChangedEvent,
+} from '../../events/standup-events'
 import { DiscordMessagesService } from '../notifications/discord-messages.service'
 
 export interface SyncStandupStatusInput {
@@ -29,6 +34,34 @@ export class StandupStatusSyncService {
     private readonly env: EnvService,
   ) {
     this.logger = this.loggerFactory.create('discord-standup-status-sync')
+  }
+
+  @OnEvent(STANDUP_STATUS_CHANGED_EVENT)
+  async handleStatusChanged(event: StandupStatusChangedEvent): Promise<void> {
+    if (event.source === 'discord') {
+      return
+    }
+
+    if (
+      event.newStatus !== 'approved' &&
+      event.newStatus !== 'rejected' &&
+      event.newStatus !== 'published'
+    ) {
+      return
+    }
+
+    const result = await this.syncStatus({
+      standupId: event.standupId,
+      newStatus: event.newStatus,
+    })
+
+    if (result.isErr()) {
+      this.logger.warn('Failed to sync standup status to Discord', {
+        standupId: event.standupId,
+        newStatus: event.newStatus,
+        error: result.error.message,
+      })
+    }
   }
 
   async syncStatus(

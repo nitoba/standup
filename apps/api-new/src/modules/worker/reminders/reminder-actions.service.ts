@@ -1,7 +1,17 @@
 import { Injectable } from '@nestjs/common'
+import { OnEvent } from '@nestjs/event-emitter'
+import { Result, ValidationError } from '@standup/domain'
 import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
 import { LocalDateService } from '../../../shared/time/local-date.service'
+import {
+  WORKER_REMINDER_ACTION_REQUESTED_EVENT,
+  type WorkerReminderActionRequestedEvent,
+} from '../../events/standup-events'
 import { WorkerEventPublisherService } from '../worker-event-publisher.service'
+
+type ReminderActionOutcome =
+  | { ok: true; snoozedUntil: string }
+  | { ok: true; cancelledDate: string }
 
 @Injectable()
 export class ReminderActionsService {
@@ -10,6 +20,26 @@ export class ReminderActionsService {
     private readonly notifications: WorkerEventPublisherService,
     private readonly localDateService: LocalDateService,
   ) {}
+
+  @OnEvent(WORKER_REMINDER_ACTION_REQUESTED_EVENT)
+  async handleRequestedAction(
+    event: WorkerReminderActionRequestedEvent,
+  ): Promise<Result<ReminderActionOutcome, ValidationError>> {
+    if (event.action === 'snooze') {
+      return Result.ok(await this.snoozeReminder(event.userId))
+    }
+
+    if (event.action === 'cancel-today') {
+      return Result.ok(await this.cancelReminderForToday(event.userId))
+    }
+
+    return Result.err(
+      new ValidationError({
+        field: 'action',
+        message: `Unknown reminder action: ${event.action}`,
+      }),
+    )
+  }
 
   async snoozeReminder(
     userId: string,

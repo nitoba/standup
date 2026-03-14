@@ -9,7 +9,6 @@ import { StandupsQueryController } from './query/standups-query.controller'
 import { StandupsQueryService } from './query/standups-query.service'
 import { StandupStatusController } from './status/standup-status.controller'
 import { StandupStatusService } from './status/standup-status.service'
-import { StandupTriggerRequestedListener } from './trigger/standup-trigger-requested.listener'
 import { TriggerStandupController } from './trigger/trigger-standup.controller'
 import { TriggerStandupService } from './trigger/trigger-standup.service'
 
@@ -24,7 +23,6 @@ import { TriggerStandupService } from './trigger/trigger-standup.service'
   ],
   providers: [
     TriggerStandupService,
-    StandupTriggerRequestedListener,
     StandupSseBusService,
     StandupSseListener,
     StandupsQueryService,

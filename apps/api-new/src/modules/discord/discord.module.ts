@@ -11,12 +11,6 @@ import { SlashCommandHandlerService } from './handlers/slash-command-handler.ser
 import { StandupInteractionService } from './handlers/standup-interaction.service'
 import { TriggerConfirmationService } from './handlers/trigger-confirmation.service'
 import { DiscordGatewayService } from './listeners/discord-gateway.service'
-import { JobFailedListener } from './listeners/job-failed.listener'
-import { LoginSuccessListener } from './listeners/login-success.listener'
-import { StandupReadyListener } from './listeners/standup-ready.listener'
-import { StandupReminderListener } from './listeners/standup-reminder.listener'
-import { StandupStatusChangedListener } from './listeners/standup-status-changed.listener'
-import { UserDmListener } from './listeners/user-dm.listener'
 import { DiscordMessagesService } from './notifications/discord-messages.service'
 import { DiscordAuthService } from './services/discord-auth.service'
 import { DiscordAvailableReposService } from './services/discord-available-repos.service'
@@ -46,12 +40,6 @@ import { StandupStatusSyncService } from './services/standup-status-sync.service
     ModalInteractionService,
     SlashCommandHandlerService,
     DiscordGatewayService,
-    LoginSuccessListener,
-    StandupReadyListener,
-    StandupReminderListener,
-    StandupStatusChangedListener,
-    UserDmListener,
-    JobFailedListener,
   ],
   exports: [
     DiscordClientService,

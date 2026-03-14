@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { OnEvent } from '@nestjs/event-emitter'
 import type {
   ExternalServiceError,
   Result,
@@ -16,9 +17,21 @@ import {
   type Client,
   type MessageEditOptions,
 } from 'discord.js'
+import { EnvService } from '../../../shared/env/env.service'
 import { AppLoggerFactory } from '../../../shared/logger'
+import {
+  DISCORD_LOGIN_SUCCESS_REQUESTED_EVENT,
+  type DiscordLoginSuccessRequestedEvent,
+  JOB_FAILED_NOTIFICATION_EVENT,
+  type JobFailedNotificationEvent,
+  STANDUP_REMINDER_EVENT,
+  type StandupReminderEvent,
+  USER_DM_REQUESTED_EVENT,
+  type UserDmRequestedEvent,
+} from '../../events/standup-events'
 import { DiscordClientService } from '../discord-client.service'
 import {
+  buildJobFailedEmbed,
   buildPublishedEmbed,
   buildReminderEmbed,
   buildReviewEmbed,
@@ -32,8 +45,70 @@ export class DiscordMessagesService {
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
     private readonly discordClient: DiscordClientService,
+    private readonly env: EnvService,
   ) {
     this.logger = this.loggerFactory.create('discord-messages')
+  }
+
+  @OnEvent(USER_DM_REQUESTED_EVENT)
+  async handleUserDmRequested(event: UserDmRequestedEvent): Promise<void> {
+    const result = await this.sendUserDm(event)
+
+    if (result.isErr()) {
+      this.logger.warn('Failed to send direct user DM', {
+        discordUserId: event.discordUserId,
+        error: result.error.message,
+      })
+    }
+  }
+
+  @OnEvent(DISCORD_LOGIN_SUCCESS_REQUESTED_EVENT)
+  async handleLoginSuccessRequested(
+    event: DiscordLoginSuccessRequestedEvent,
+  ): Promise<void> {
+    const result = await this.sendLoginSuccessDm(event.discordUserId)
+
+    if (result.isErr()) {
+      this.logger.warn('Failed to send login success DM', {
+        discordUserId: event.discordUserId,
+        error: result.error.message,
+      })
+    }
+  }
+
+  @OnEvent(STANDUP_REMINDER_EVENT)
+  async handleStandupReminder(event: StandupReminderEvent): Promise<void> {
+    const result = await this.sendReminderDm(
+      event.nextRunAt,
+      event.discordUserId,
+    )
+
+    if (result.isErr()) {
+      this.logger.warn('Failed to send reminder DM', {
+        discordUserId: event.discordUserId,
+        error: result.error.message,
+      })
+    }
+  }
+
+  @OnEvent(JOB_FAILED_NOTIFICATION_EVENT)
+  async handleJobFailedNotification(
+    event: JobFailedNotificationEvent,
+  ): Promise<void> {
+    if (!this.env.discord.channelId) {
+      return
+    }
+
+    const result = await this.sendChannelNotification(
+      this.env.discord.channelId,
+      buildJobFailedEmbed(event.error, event.context),
+    )
+
+    if (result.isErr()) {
+      this.logger.warn('Failed to send job failed notification', {
+        error: result.error.message,
+      })
+    }
   }
 
   async sendReviewDm(

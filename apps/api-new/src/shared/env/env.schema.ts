@@ -1,10 +1,5 @@
 import * as z from 'zod'
 
-const booleanStringSchema = z
-  .enum(['true', 'false'])
-  .default('false')
-  .transform((value) => value === 'true')
-
 export const environmentVariablesSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
@@ -21,11 +16,8 @@ export const environmentVariablesSchema = z.object({
   DISCORD_BOT_TOKEN: z.string().optional(),
   DISCORD_CHANNEL_ID: z.string().optional(),
   DISCORD_GUILD_ID: z.string().optional(),
-  DISCORD_GATEWAY_ENABLED: booleanStringSchema,
-  SCHEDULER_ENABLED: z
-    .enum(['true', 'false'])
-    .default('true')
-    .transform((value) => value === 'true'),
+  DISCORD_GATEWAY_ENABLED: z.coerce.boolean().default(false),
+  SCHEDULER_ENABLED: z.coerce.boolean().default(true),
   AI_PROVIDER_API_KEY: z.string().optional(),
   AZURE_DEVOPS_ORG: z.string().optional(),
   AZURE_DEVOPS_PAT: z.string().optional(),
@@ -38,5 +30,5 @@ export const environmentVariablesSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().optional(),
-  SMTP_SECURE: booleanStringSchema,
+  SMTP_SECURE: z.coerce.boolean().default(false),
 })

@@ -120,4 +120,32 @@ describe('StandupDispatchService', () => {
       gitSincePeriod: '8 hours ago',
     })
   })
+
+  it('handles standup dispatch requests from the event bus', () => {
+    const run = vi.fn().mockResolvedValue(undefined)
+    const service = new StandupDispatchService(
+      makeLoggerFactory() as never,
+      { findDiscordIdByUserId: vi.fn() } as never,
+      { findByUserId: vi.fn() } as never,
+      { run } as never,
+    )
+
+    expect(
+      service.handleRequestedDispatch({
+        userId: 'user-1',
+        discordUserId: 'discord-1',
+        selectedRepos: ['repo-a'],
+        gitAuthor: 'nitoba',
+        timezone: 'America/Sao_Paulo',
+      }),
+    ).toEqual({ ok: true })
+
+    expect(run).toHaveBeenCalledWith({
+      userId: 'user-1',
+      discordUserId: 'discord-1',
+      selectedRepos: ['repo-a'],
+      gitAuthor: 'nitoba',
+      timezone: 'America/Sao_Paulo',
+    })
+  })
 })

@@ -1,8 +1,13 @@
 import { Injectable } from '@nestjs/common'
+import { OnEvent } from '@nestjs/event-emitter'
 import { type DbError, type NotFoundError, Result } from '@standup/domain'
 import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
 import { AppLoggerFactory } from '../../../shared/logger'
 import { EventBusService } from '../../events/event-bus.service'
+import {
+  STANDUP_READY_EVENT,
+  type StandupReadyEvent,
+} from '../../events/standup-events'
 import { DiscordMessagesService } from '../notifications/discord-messages.service'
 
 export interface StandupReadyResult {
@@ -21,6 +26,21 @@ export class StandupNotificationService {
     private readonly eventBus: EventBusService,
   ) {
     this.logger = this.loggerFactory.create('discord-standup-notification')
+  }
+
+  @OnEvent(STANDUP_READY_EVENT)
+  async handleStandupReady(event: StandupReadyEvent): Promise<void> {
+    const result = await this.notifyStandupReady(
+      event.standupId,
+      event.discordUserId,
+    )
+
+    if (result.isErr()) {
+      this.logger.warn('Failed to process standup ready event', {
+        standupId: event.standupId,
+        error: result.error.message,
+      })
+    }
   }
 
   async notifyStandupReady(
