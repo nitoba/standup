@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common'
-import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { UserSettingsRepository } from '../../../shared/module/database/repositories/user-settings.repository'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
 import { LocalDateService } from '../../../shared/time/local-date.service'
 import type { MeSettingsRecord } from './me-settings.dto'

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common'
-import { DatabaseModule } from '../../shared/database/database.module'
+import { DatabaseModule } from '../../shared/module/database/database.module'
 import { ApproveStandupController } from './approval/approve-standup.controller'
 import { ApproveStandupService } from './approval/approve-standup.service'
 import { StandupEventsController } from './events/standup-events.controller'

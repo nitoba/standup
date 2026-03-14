@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { UserRepository } from '../../../shared/database/repositories/user.repository'
-import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
+import { UserRepository } from '../../../shared/module/database/repositories/user.repository'
+import { UserSettingsRepository } from '../../../shared/module/database/repositories/user-settings.repository'
 import { Result, ValidationError } from '../../../shared/domain'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
 import {
   STANDUP_JOB_DISPATCH_REQUESTED_EVENT,

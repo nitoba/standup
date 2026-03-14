@@ -1,7 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { Client, Events, GatewayIntentBits } from 'discord.js'
-import { EnvService } from '../../shared/env/env.service'
-import { AppLoggerFactory } from '../../shared/logger'
+import { EnvService } from '../../shared/module/env/env.service'
+import { AppLoggerFactory } from '../../shared/module/logger'
 
 @Injectable()
 export class DiscordClientService implements OnModuleInit, OnModuleDestroy {

@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common'
 import type { OpenAPIObject } from '@nestjs/swagger'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import type { BetterAuthFactory } from '../../modules/auth/better-auth.factory'
-import type { EnvService } from '../env/env.service'
+import type { EnvService } from '../module/env/env.service'
 import { mergeBetterAuthOpenApi } from './merge-better-auth-openapi'
 
 export function createOpenApiDocument(

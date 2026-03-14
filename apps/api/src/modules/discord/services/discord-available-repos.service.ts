@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { Result } from '../../../shared/domain'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 import { EventBusService } from '../../events/event-bus.service'
 
 const CACHE_TTL_MS = 5 * 60 * 1000

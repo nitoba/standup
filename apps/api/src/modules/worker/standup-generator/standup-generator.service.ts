@@ -9,7 +9,7 @@ import type {
   StandupRecord,
 } from '../../../shared/domain'
 import { ExternalServiceError, Result } from '../../../shared/domain'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 import { AzureDevopsEnrichmentService } from '../azure-devops/azure-devops-enrichment.service'
 import type { EnrichedGitActivity } from '../azure-devops/types'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'

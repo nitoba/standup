@@ -4,9 +4,9 @@ import {
   type Client,
   MessageFlags,
 } from 'discord.js'
-import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
-import { UserRepository } from '../../../shared/database/repositories/user.repository'
-import type { StandupStatus } from '../../../shared/domain'
+import { StandupRepository } from '../../../shared/module/database/repositories/standup.repository'
+import { UserRepository } from '../../../shared/module/database/repositories/user.repository'
+import type { StandupRecord, StandupStatus } from '../../../shared/domain'
 import { Result } from '../../../shared/domain'
 import { isIsoDate, toDisplayDateFromIso } from '../../../shared/time/date-only'
 import { EMBED_COLORS } from '../embeds'
@@ -243,7 +243,7 @@ export class SlashCommandHandlerService {
       return
     }
 
-    const embeds = result.value.items.map((record) => ({
+    const embeds = result.value.items.map((record: StandupRecord) => ({
       title: `Standup de ${displayDate(record.date)}`,
       color: EMBED_COLORS.REVIEW,
       fields: [

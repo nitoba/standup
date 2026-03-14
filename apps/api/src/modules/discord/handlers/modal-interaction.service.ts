@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { type Client, type ModalSubmitInteraction } from 'discord.js'
-import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
+import { StandupRepository } from '../../../shared/module/database/repositories/standup.repository'
 import type { CustomEntries } from '../../../shared/domain'
 import { hasCustomEntries, mergeCustomEntries } from '../../../shared/domain'
 import { DiscordAuthService } from '../services/discord-auth.service'

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { EnvService } from '../../shared/env/env.service'
+import { EnvService } from '../../shared/module/env/env.service'
 
 export interface WorkerRuntimeConfig {
   DATABASE_URL: string

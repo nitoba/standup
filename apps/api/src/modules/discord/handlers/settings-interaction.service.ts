@@ -15,7 +15,7 @@ import {
   TextInputBuilder,
   TextInputStyle,
 } from 'discord.js'
-import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
+import { UserSettingsRepository } from '../../../shared/module/database/repositories/user-settings.repository'
 import { DiscordAuthService } from '../services/discord-auth.service'
 import { DiscordAvailableReposService } from '../services/discord-available-repos.service'
 

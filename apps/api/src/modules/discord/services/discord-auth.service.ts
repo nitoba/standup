@@ -9,9 +9,9 @@ import {
   MessageFlags,
   type ModalSubmitInteraction,
 } from 'discord.js'
-import { UserRepository } from '../../../shared/database/repositories/user.repository'
-import { EnvService } from '../../../shared/env/env.service'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { UserRepository } from '../../../shared/module/database/repositories/user.repository'
+import { EnvService } from '../../../shared/module/env/env.service'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 
 type ReplyCapableInteraction =
   | ChatInputCommandInteraction

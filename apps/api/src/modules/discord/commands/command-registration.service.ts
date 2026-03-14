@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import type { Client } from 'discord.js'
 import { REST, Routes, SlashCommandBuilder } from 'discord.js'
-import { EnvService } from '../../../shared/env/env.service'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { EnvService } from '../../../shared/module/env/env.service'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 
 const STATUS_CHOICES = [
   { name: 'Draft', value: 'draft' },

@@ -1,9 +1,9 @@
 import { access } from 'node:fs/promises'
 import { Injectable } from '@nestjs/common'
 import { sql } from 'drizzle-orm'
-import { DatabaseService } from '../../../shared/database/database.service'
-import { user } from '../../../shared/database/schema'
-import { EnvService } from '../../../shared/env/env.service'
+import { DatabaseService } from '../../../shared/module/database/database.service'
+import { user } from '../../../shared/module/database/schema'
+import { EnvService } from '../../../shared/module/env/env.service'
 import { DiscordMessagesService } from '../notifications/discord-messages.service'
 
 export type DiscordServiceName = 'api' | 'worker' | 'bot'

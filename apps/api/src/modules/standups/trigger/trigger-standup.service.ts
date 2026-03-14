@@ -4,9 +4,9 @@ import {
   Injectable,
 } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
-import { UserRepository } from '../../../shared/database/repositories/user.repository'
-import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
+import { StandupRepository } from '../../../shared/module/database/repositories/standup.repository'
+import { UserRepository } from '../../../shared/module/database/repositories/user.repository'
+import { UserSettingsRepository } from '../../../shared/module/database/repositories/user-settings.repository'
 import { ExternalServiceError, Result } from '../../../shared/domain'
 import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
 import { LocalDateService } from '../../../shared/time/local-date.service'

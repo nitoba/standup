@@ -2,8 +2,9 @@ import { BadRequestException, Injectable } from '@nestjs/common'
 import {
   type ListStandupFilters,
   StandupRepository,
-} from '../../../shared/database/repositories/standup.repository'
-import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
+} from '../../../shared/module/database/repositories/standup.repository'
+import type { StandupRecord } from '../../../shared/domain'
+import { UserSettingsRepository } from '../../../shared/module/database/repositories/user-settings.repository'
 import { LocalDateService } from '../../../shared/time/local-date.service'
 import { formatStandupRecord } from '../shared/format-standup-record'
 import { throwStandupHttpError } from '../shared/throw-standup-http-error'
@@ -29,7 +30,7 @@ export class StandupsQueryService {
 
     return {
       ...result.value,
-      items: result.value.items.map((record) =>
+      items: result.value.items.map((record: StandupRecord) =>
         formatStandupRecord(record, this.localDateService, timezone),
       ),
     }

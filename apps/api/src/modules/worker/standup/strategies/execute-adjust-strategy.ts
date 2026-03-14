@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { StandupRepository } from '../../../../shared/database/repositories/standup.repository'
+import { StandupRepository } from '../../../../shared/module/database/repositories/standup.repository'
 import { Result, ValidationError } from '../../../../shared/domain'
 import { StandupGeneratorService } from '../../standup-generator/standup-generator.service'
 import type {

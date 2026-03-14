@@ -8,7 +8,7 @@ import {
   type InteractionReplyOptions,
   MessageFlags,
 } from 'discord.js'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 import { DiscordAuthService } from '../services/discord-auth.service'
 import { DiscordTriggerService } from '../services/discord-trigger.service'
 import {

@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common'
 import { Span } from 'nestjs-otel'
-import { JobRunRepository } from '../../../shared/database/repositories/job-run.repository'
+import { JobRunRepository } from '../../../shared/module/database/repositories/job-run.repository'
 import {
   JobAlreadyCompletedError,
   LockAlreadyHeldError,
 } from '../../../shared/domain'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 import { LocalDateService } from '../../../shared/time/local-date.service'
 import { WorkerEventPublisherService } from '../worker-event-publisher.service'
 import { resolveRunMode } from './resolve-run-mode'

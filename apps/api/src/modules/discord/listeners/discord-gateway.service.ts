@@ -1,6 +1,6 @@
 import { Injectable, OnApplicationBootstrap } from '@nestjs/common'
 import { Events } from 'discord.js'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 import { CommandRegistrationService } from '../commands/command-registration.service'
 import { DiscordClientService } from '../discord-client.service'
 import { ButtonInteractionService } from '../handlers/button-interaction.service'

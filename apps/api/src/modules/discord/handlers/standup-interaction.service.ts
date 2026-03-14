@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
-import { UserRepository } from '../../../shared/database/repositories/user.repository'
+import { StandupRepository } from '../../../shared/module/database/repositories/standup.repository'
+import { UserRepository } from '../../../shared/module/database/repositories/user.repository'
 import type { StandupRecord } from '../../../shared/domain'
 import {
   type DbError,
@@ -9,8 +9,8 @@ import {
   Result,
   ValidationError,
 } from '../../../shared/domain'
-import { EnvService } from '../../../shared/env/env.service'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { EnvService } from '../../../shared/module/env/env.service'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 import { EventBusService } from '../../events/event-bus.service'
 import { DiscordMessagesService } from '../notifications/discord-messages.service'
 

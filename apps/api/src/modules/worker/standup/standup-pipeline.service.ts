@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
-import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
+import { StandupRepository } from '../../../shared/module/database/repositories/standup.repository'
 import { DbError, NotFoundError, Result } from '../../../shared/domain'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 import type {
   StandupProgressStep,
   StandupRunMode,

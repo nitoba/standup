@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { DatabaseService } from '../../shared/database/database.service'
-import { EnvService } from '../../shared/env/env.service'
+import { DatabaseService } from '../../shared/module/database/database.service'
+import { EnvService } from '../../shared/module/env/env.service'
 
 @Injectable()
 export class BetterAuthFactory {

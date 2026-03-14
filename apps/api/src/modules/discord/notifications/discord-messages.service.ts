@@ -17,8 +17,8 @@ import {
   ExternalServiceError as DiscordError,
   Result as ResultFactory,
 } from '../../../shared/domain'
-import { EnvService } from '../../../shared/env/env.service'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { EnvService } from '../../../shared/module/env/env.service'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 import {
   DISCORD_LOGIN_SUCCESS_REQUESTED_EVENT,
   type DiscordLoginSuccessRequestedEvent,

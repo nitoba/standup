@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { type ButtonInteraction, MessageFlags } from 'discord.js'
-import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
+import { StandupRepository } from '../../../shared/module/database/repositories/standup.repository'
 import { NotFoundError } from '../../../shared/domain'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 
 export type CopyAction = 'content'
 

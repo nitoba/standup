@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
-import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
+import { StandupRepository } from '../../../shared/module/database/repositories/standup.repository'
+import { UserSettingsRepository } from '../../../shared/module/database/repositories/user-settings.repository'
 import {
   type CustomEntries,
   hasCustomEntries,

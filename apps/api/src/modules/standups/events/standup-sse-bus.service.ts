@@ -2,7 +2,7 @@ import { Injectable, type MessageEvent } from '@nestjs/common'
 import type { Observable } from 'rxjs'
 import { interval, merge, of, Observable as RxObservable } from 'rxjs'
 import { map } from 'rxjs/operators'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 import type { StandupSseEvent } from './standup-sse.types'
 
 const KEEPALIVE_INTERVAL_MS = 30_000

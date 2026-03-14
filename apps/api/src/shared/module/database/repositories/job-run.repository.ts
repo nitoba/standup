@@ -5,7 +5,7 @@ import {
   JobAlreadyCompletedError,
   LockAlreadyHeldError,
   Result,
-} from '../../domain'
+} from '../../../domain'
 import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { jobRuns } from '../schema'

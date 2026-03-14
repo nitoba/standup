@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common'
-import { DatabaseModule } from '../../shared/database/database.module'
+import { DatabaseModule } from '../../shared/module/database/database.module'
 import { MeSettingsController } from './me/me-settings.controller'
 import { MeSettingsService } from './me/me-settings.service'
 

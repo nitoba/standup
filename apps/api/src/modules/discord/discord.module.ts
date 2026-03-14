@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common'
-import { DatabaseModule } from '../../shared/database/database.module'
+import { DatabaseModule } from '../../shared/module/database/database.module'
 import { CommandRegistrationService } from './commands/command-registration.service'
 import { DiscordClientService } from './discord-client.service'
 import { ButtonInteractionService } from './handlers/button-interaction.service'

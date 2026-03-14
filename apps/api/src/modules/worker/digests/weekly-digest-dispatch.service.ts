@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 import {
   RunWeeklyDigestJobService,
   type WeeklyDigestJobOptions,

@@ -6,8 +6,8 @@ import { SwaggerModule } from '@nestjs/swagger'
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston'
 import { AppModule } from './app.module'
 import { BetterAuthFactory } from './modules/auth/better-auth.factory'
-import { EnvService } from './shared/env/env.service'
-import { startOpenTelemetry } from './shared/observability/tracing'
+import { EnvService } from './shared/module/env/env.service'
+import { startOpenTelemetry } from './shared/module/observability/tracing'
 import { createOpenApiDocument } from './shared/openapi/create-openapi-document'
 import {
   OPENAPI_JSON_PATH,

@@ -7,7 +7,7 @@ import {
 } from '@nestjs/swagger'
 import { Session } from '@thallesp/nestjs-better-auth'
 import type { AuthSession } from '../../shared/auth/auth-session'
-import { UserRepository } from '../../shared/database/repositories/user.repository'
+import { UserRepository } from '../../shared/module/database/repositories/user.repository'
 import { EventBusService } from '../events/event-bus.service'
 
 @ApiTags('auth')

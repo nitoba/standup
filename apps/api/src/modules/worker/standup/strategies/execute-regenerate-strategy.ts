@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { StandupRepository } from '../../../../shared/database/repositories/standup.repository'
+import { StandupRepository } from '../../../../shared/module/database/repositories/standup.repository'
 import {
   GenerateStandupInputSchema,
   Result,

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { userSettings } from '../../../shared/database/schema'
+import { userSettings } from '../../../shared/module/database/schema'
 import { Result } from '../../../shared/domain'
 
 const { isCronDueNowMock } = vi.hoisted(() => ({

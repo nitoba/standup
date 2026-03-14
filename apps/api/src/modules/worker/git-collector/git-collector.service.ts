@@ -7,7 +7,7 @@ import type {
   RepoActivity,
 } from '../../../shared/domain'
 import { ExternalServiceError, Result } from '../../../shared/domain'
-import { AppLoggerFactory } from '../../../shared/logger'
+import { AppLoggerFactory } from '../../../shared/module/logger'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
 
 interface CommitBlock {

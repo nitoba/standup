@@ -1,54 +1,54 @@
-import { Injectable } from '@nestjs/common'
-import { createTransport } from 'nodemailer'
-import { ExternalServiceError, Result } from '../../shared/domain'
-import { EnvService } from '../../shared/env/env.service'
-import { AppLoggerFactory } from '../../shared/logger'
+import { Injectable } from "@nestjs/common";
+import { createTransport } from "nodemailer";
+import { ExternalServiceError, Result } from "../../../shared/domain";
+import { EnvService } from "../../../shared/module/env/env.service";
+import { AppLoggerFactory } from "../../../shared/module/logger";
 
 export interface SmtpConfig {
-  host: string
-  port: number
-  secure: boolean
-  user: string
-  pass: string
-  fromAddress: string
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  fromAddress: string;
 }
 
 export interface SendEmailInput {
-  to: string
-  subject: string
-  html: string
-  text: string
-  unsubscribeUrl?: string
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  unsubscribeUrl?: string;
 }
 
 export interface SendEmailResult {
-  messageId: string
+  messageId: string;
 }
 
 @Injectable()
 export class EmailClientService {
-  private readonly logger: ReturnType<AppLoggerFactory['create']>
+  private readonly logger: ReturnType<AppLoggerFactory["create"]>;
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
     private readonly env: EnvService,
   ) {
-    this.logger = this.loggerFactory.create('email-client')
+    this.logger = this.loggerFactory.create("email-client");
   }
 
   isConfigured(): boolean {
-    const smtp = this.env.smtp
-    return Boolean(smtp.host && smtp.user && smtp.pass && smtp.from)
+    const smtp = this.env.smtp;
+    return Boolean(smtp.host && smtp.user && smtp.pass && smtp.from);
   }
 
   async sendEmail(
     input: SendEmailInput,
   ): Promise<Result<SendEmailResult, ExternalServiceError>> {
-    const configResult = this.getSmtpConfig()
+    const configResult = this.getSmtpConfig();
     if (configResult.isErr()) {
-      return configResult
+      return configResult;
     }
 
-    const config = configResult.value
+    const config = configResult.value;
 
     return Result.tryPromise({
       try: async () => {
@@ -60,12 +60,12 @@ export class EmailClientService {
             user: config.user,
             pass: config.pass,
           },
-        })
+        });
 
-        const headers: Record<string, string> = {}
+        const headers: Record<string, string> = {};
         if (input.unsubscribeUrl) {
-          headers['List-Unsubscribe'] = `<${input.unsubscribeUrl}>`
-          headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
+          headers["List-Unsubscribe"] = `<${input.unsubscribeUrl}>`;
+          headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
         }
 
         const info = await transport.sendMail({
@@ -75,41 +75,41 @@ export class EmailClientService {
           text: input.text,
           html: input.html,
           headers,
-        })
+        });
 
-        this.logger.info('Email sent', {
+        this.logger.info("Email sent", {
           to: input.to,
           subject: input.subject,
           messageId: info.messageId,
-        })
+        });
 
-        return { messageId: info.messageId as string }
+        return { messageId: info.messageId as string };
       },
       catch: (error) => {
-        const message = error instanceof Error ? error.message : String(error)
-        this.logger.error('Failed to send email', {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error("Failed to send email", {
           to: input.to,
           subject: input.subject,
           error: message,
-        })
+        });
         return new ExternalServiceError({
-          service: 'smtp',
+          service: "smtp",
           message,
-        })
+        });
       },
-    })
+    });
   }
 
   private getSmtpConfig(): Result<SmtpConfig, ExternalServiceError> {
-    const smtp = this.env.smtp
+    const smtp = this.env.smtp;
 
     if (!smtp.host || !smtp.user || !smtp.pass || !smtp.from) {
       return Result.err(
         new ExternalServiceError({
-          service: 'smtp',
-          message: 'SMTP not configured',
+          service: "smtp",
+          message: "SMTP not configured",
         }),
-      )
+      );
     }
 
     return Result.ok({
@@ -119,6 +119,6 @@ export class EmailClientService {
       user: smtp.user,
       pass: smtp.pass,
       fromAddress: smtp.from,
-    })
+    });
   }
 }
