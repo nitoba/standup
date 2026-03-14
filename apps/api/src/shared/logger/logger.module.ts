@@ -14,7 +14,7 @@ import { createWinstonOptions } from './create-winston-options'
       inject: [EnvService],
       useFactory: (envService: EnvService) =>
         createWinstonOptions({
-          service: 'api-new',
+          service: 'standup-api',
           component: 'nestjs',
           nodeEnv: envService.app.nodeEnv,
         }),

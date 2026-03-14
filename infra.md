@@ -1,6 +1,6 @@
 # Infraestrutura — Standup Bot
 
-Monorepo com **5 imagens Docker separadas** + 1 imagem de migracao.
+Monorepo com **2 imagens Docker ativas**: API e Web.
 
 ---
 
@@ -59,12 +59,11 @@ As aplicacoes rodam dentro da VM Linux do Colima, nao diretamente no macOS host.
 [ GitHub Actions ]
    ├─ quality: lint + typecheck + test (ubuntu-latest)
    ├─ build: Docker images arm64 → GHCR (ubuntu-24.04-arm nativo, sem QEMU)
-   │         5 imagens: api, bot, worker, migrate, web
+   │         2 imagens: api e web
    └─ deploy:
         ├─ Tailscale connect (OAuth, tag:ci, efemero)
         ├─ SSH na VM Colima via Tailscale
-        ├─ docker run migrate (one-shot)
-        ├─ kamal deploy x4 (api, bot, worker, web) com --skip-push
+        ├─ kamal deploy x2 (api, web) com --skip-push
         └─ SSH no MacBook host → launchctl reload cloudflared
 ```
 
@@ -94,7 +93,7 @@ SSH e portas internas so acessiveis via Tailscale. Apenas a API fica publica via
 | Diretorio de dados | `/opt/standup/data` (dentro da VM Colima, SQLite WAL)       |
 | Diretorio de repos | `/Users/nitoba/repos` (virtiofs mount, read-only no worker) |
 
-Observacao: o MacBook hospeda o Colima, mas API, Bot e Worker executam dentro da VM Linux do Colima.
+Observacao: o MacBook hospeda o Colima, mas a API e o Web executam dentro da VM Linux do Colima.
 O diretorio `/opt/standup/data` existe apenas dentro da VM — nao confundir com um path no macOS host.
 
 ---
@@ -105,12 +104,11 @@ Todas as imagens sao arm64, buildadas no GitHub Actions com runner nativo `ubunt
 
 | Imagem                           | Dockerfile                    | Base runtime             | Porta |
 | -------------------------------- | ----------------------------- | ------------------------ | ----- |
-| `ghcr.io/nitoba/standup-api`     | `apps/api-new/Dockerfile`     | `oven/bun:1.3.10`        | 3333  |
+| `ghcr.io/nitoba/standup-api`     | `apps/api/Dockerfile`         | `debian:bookworm-slim`   | 3333  |
 | `ghcr.io/nitoba/standup-web`     | `apps/web/Dockerfile`         | `nginx:alpine`           | 80    |
 
 **Build strategy**: multi-stage com `bun build --compile --target=bun-linux-arm64`.
-O worker usa `debian:12-slim` (nao Alpine) porque Bun nao tem target arm64-musl.
-O migrate roda `bun` diretamente (nao compilado) porque precisa de `import.meta.url` para SQL files.
+A API usa `debian:bookworm-slim` no runtime, copia o binario do Bun para o entrypoint e executa `migrate.ts` antes de iniciar o binario compilado.
 O web compila a SPA Angular via `bun install --ignore-scripts` (evita falha de compilacao nativa do `lmdb` no arm64) e serve com nginx.
 
 Tags no GHCR:
@@ -135,38 +133,28 @@ standup/
 
 ### Servicos
 
-| App    | Service name     | Proxy       | Acesso                          | Hostname publico      |
-| ------ | ---------------- | ----------- | ------------------------------- | --------------------- |
-| API    | `standup-api`    | kamal-proxy | via proxy (:80)                 | `api.nitodev.com.br`  |
-| Web    | `standup-web`    | kamal-proxy | via proxy (:80)                 | `app.nitodev.com.br`  |
-| Bot    | `standup-bot`    | nenhum      | network alias `standup-bot`     | nenhum (interno)      |
-| Worker | `standup-worker` | nenhum      | network alias `standup-worker`  | nenhum (interno)      |
-
-Bot e Worker **nao publicam portas no host** — usam Docker network aliases na rede `kamal`.
-Isso evita conflitos de porta durante redeploys (Kamal renomeia o container antigo mas nao o para antes de iniciar o novo).
+| App | Service name    | Proxy       | Acesso          | Hostname publico     |
+| --- | --------------- | ----------- | --------------- | -------------------- |
+| API | `standup-api`   | kamal-proxy | via proxy (:80) | `api.nitodev.com.br` |
+| Web | `standup-web`   | kamal-proxy | via proxy (:80) | `app.nitodev.com.br` |
 
 ### Comunicacao interna entre containers
 
-Os 3 containers rodam na rede Docker `kamal` dentro da VM Colima.
+Os containers rodam na rede Docker `kamal` dentro da VM Colima.
 URLs internas usam os network aliases dos containers.
 
-| De           | Para                         | URL                                           | Finalidade                                     |
-| ------------ | ---------------------------- | --------------------------------------------- | ---------------------------------------------- |
-| API → Worker | `standup-worker:3335`        | `http://standup-worker:3335`                  | trigger manual de standup                      |
-| Worker → Bot | `standup-bot:3334`           | `http://standup-bot:3334`                     | standup-ready, job-failed, reminder, user-dm   |
-| Worker → API | `standup-api:3333`           | `http://standup-api:3333`                     | push SSE via `/internal/events/standup-generated` |
-| API → Bot    | `standup-bot:3334`           | `http://standup-bot:3334`                     | standup-status-changed (aprovacao/rejeicao web) |
-| Bot → API    | `api.nitodev.com.br`         | `https://api.nitodev.com.br`                  | slash commands trigger (via Cloudflare)        |
-| Web → API    | `standup-api:3333` (nginx)   | `http://standup-api:3333`                     | REST + SSE `/standups` proxiado pelo nginx     |
+| De        | Para                       | URL                         | Finalidade                                 |
+| --------- | -------------------------- | --------------------------- | ------------------------------------------ |
+| Web → API | `standup-api:3333` (nginx) | `http://standup-api:3333`   | REST + SSE `/standups` proxiado pelo nginx |
 
 Obs: o nginx do `standup-web` usa `resolver 127.0.0.11` + `set $upstream` para deferir a resolucao DNS ao runtime (evita falha fatal no boot quando `standup-api` ainda nao esta disponivel).
 
 ### Volumes
 
-| Volume      | Host path             | Container path | Quem usa         |
-| ----------- | --------------------- | -------------- | ---------------- |
-| SQLite data | `/opt/standup/data`   | `/app/data`    | API, Bot, Worker |
-| Git repos   | `/Users/nitoba/repos` | `/repos` (ro)  | Worker           |
+| Volume      | Host path             | Container path | Quem usa |
+| ----------- | --------------------- | -------------- | -------- |
+| SQLite data | `/opt/standup/data`   | `/app/data`    | API      |
+| Git repos   | `/Users/nitoba/repos` | `/repos` (ro)  | API      |
 
 `REPOS_ROOT_PATH` deve ser `/repos` em todos os containers. Fora de containers
 (ex.: `bun run dev` local), ele deve apontar para um path absoluto do host.
@@ -176,20 +164,15 @@ nao conflitar com o path de runtime dentro do container.
 ### Healthcheck
 
 Apenas a API tem healthcheck via kamal-proxy (`GET /health`, interval 3s).
-Bot e Worker usam `readiness_delay: 10` (tempo para boot antes de ser considerado pronto).
 
 ### Deploy commands
 
 ```bash
 # Deploy individual
 kamal deploy -c config/deploy.api.yml --skip-push --version "sha-<commit>"
-kamal deploy -c config/deploy.bot.yml --skip-push --version "sha-<commit>"
-kamal deploy -c config/deploy.worker.yml --skip-push --version "sha-<commit>"
 
 # Logs
 kamal app logs -c config/deploy.api.yml
-kamal app logs -c config/deploy.bot.yml
-kamal app logs -c config/deploy.worker.yml
 
 # First-time setup (bootstraps kamal-proxy + containers)
 kamal setup -c config/deploy.api.yml
@@ -206,9 +189,9 @@ push/PR (qualquer branch)     push na main
          |                         |
       quality                   quality → build → deploy
    (lint, typecheck, test)         |         |         |
-                                   |     4 imagens   Tailscale
+                                   |     2 imagens   Tailscale
                                    |     arm64       + SSH
-                                   |     → GHCR      + kamal deploy x3
+                                   |     → GHCR      + kamal deploy x2
 ```
 
 ### Job: quality
@@ -220,7 +203,7 @@ push/PR (qualquer branch)     push na main
 
 - Roda **apenas em push na main**, apos quality passar
 - Runner nativo arm64 (`ubuntu-24.04-arm`) — sem QEMU, sem emulacao
-- Builds sequenciais (api → bot → worker → migrate → web) no mesmo job para evitar cancelamentos por concurrency
+- Builds sequenciais (api → web) no mesmo job para evitar cancelamentos por concurrency
 - Docker Buildx com cache GHA (scope por app)
 - Login no GHCR via `GITHUB_TOKEN` (permissao `packages: write`)
 - Push com tags `sha-<commit>` + `latest`
@@ -232,9 +215,8 @@ push/PR (qualquer branch)     push na main
 - `tailscale/github-action@v4` com OAuth client (tag:ci, efemero)
 - SSH key setup (`~/.ssh/deploy_key`) com `StrictHostKeyChecking accept-new`
 - Instala Kamal via `gem install kamal`
-- Roda migracao via `docker run --rm` (SSH na VM Colima, com `docker login ghcr.io` antes)
 - `kamal deploy --skip-push --version "sha-<commit>"` para cada app
-- Sequencial: API → Bot → Worker → Web (bot/worker pulam se API falhar)
+- Sequencial: API → Web
 - Apos deploy web: SSH no MacBook host (`MAC_HOST`) e reload do `cloudflared` via `launchctl`
 
 ### Concurrency

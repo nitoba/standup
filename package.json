@@ -22,17 +22,17 @@
   },
   "scripts": {
     "dev": "turbo run dev",
-    "dev:local": "turbo run dev:local --filter=@standup/api-new --filter=@standup/web",
-    "dev:local:api": "bun run --cwd apps/api-new dev:local",
+    "dev:local": "turbo run dev:local --filter=@standup-api --filter=@standup/web",
+    "dev:local:api": "bun run --cwd apps/api dev:local",
     "dev:local:web": "bun run --cwd apps/web dev:local",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "ci": "turbo run lint typecheck test",
-    "db:generate": "turbo run db:generate --filter=@standup/api-new",
-    "db:migrate": "turbo run db:migrate --filter=@standup/api-new",
-    "db:studio": "bun run --bun turbo run db:studio --filter=@standup/api-new"
+    "db:generate": "turbo run db:generate --filter=@standup-api",
+    "db:migrate": "turbo run db:migrate --filter=@standup-api",
+    "db:studio": "bun run --bun turbo run db:studio --filter=@standup-api"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.5",

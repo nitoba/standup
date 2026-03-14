@@ -26,7 +26,7 @@ registry:
 
 builder:
   context: .
-  dockerfile: apps/api-new/Dockerfile
+  dockerfile: apps/api/Dockerfile
   arch: arm64
 
 proxy:

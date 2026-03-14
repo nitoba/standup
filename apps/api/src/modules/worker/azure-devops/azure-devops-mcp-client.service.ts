@@ -69,7 +69,7 @@ export class AzureDevopsMcpClientService
           },
         })
 
-        this.client = new Client({ name: 'standup-api-new', version: '0.0.1' })
+        this.client = new Client({ name: 'standup-api', version: '0.0.1' })
         await this.client.connect(transport)
       },
       catch: (error) =>

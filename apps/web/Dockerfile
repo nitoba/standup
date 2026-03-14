@@ -9,14 +9,12 @@ COPY tsconfig.base.json ./
 # All workspace member manifests so bun can resolve the full workspace graph.
 # --filter only installs deps for the target app, but bun still needs every
 # workspace member's package.json to reconcile the lockfile.
-COPY apps/api-new/package.json apps/api-new/
+COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY apps/web/tsconfig.json apps/web/
 COPY apps/web/tsconfig.app.json apps/web/
 COPY apps/web/angular.json apps/web/
 COPY apps/web/.postcssrc.json apps/web/
-COPY packages/config/package.json packages/config/
-COPY packages/domain/package.json packages/domain/
 
 # Install dependencies scoped to @standup/web.
 # --frozen-lockfile is incompatible with partial workspace installs.

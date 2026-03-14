@@ -44,7 +44,7 @@ src/
 
 ## Banco e migrations
 
-O `api-new` e a fonte de verdade do schema e das migrations do banco.
+O `api` e a fonte de verdade do schema e das migrations do banco.
 
 - Schema: `src/shared/database/schema.ts`
 - Migrations: `src/shared/database/migrations`
@@ -58,9 +58,11 @@ bun run db:migrate
 bun run db:studio
 ```
 
-No root do monorepo, os mesmos comandos delegam para `@standup/api-new`.
+No root do monorepo, os mesmos comandos delegam para `@standup-api`.
+
+No container, o entrypoint roda `src/shared/database/migrate.ts` antes de iniciar o binario compilado da API. Nao existe mais um container dedicado de migrations.
 
 ## Status
 
-O `api-new` concentra o backend, o scheduler, o Discord e as migrations do
+O `api` concentra o backend, o scheduler, o Discord e as migrations do
 banco.

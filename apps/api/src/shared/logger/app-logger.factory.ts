@@ -12,7 +12,7 @@ export class AppLoggerFactory {
 
   create(component: string, defaultMeta: LoggerMeta = {}): Logger {
     return this.rootLogger.child({
-      service: 'api-new',
+      service: 'standup-api',
       component,
       ...defaultMeta,
     })

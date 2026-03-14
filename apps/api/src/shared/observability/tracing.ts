@@ -8,7 +8,7 @@ import {
   ATTR_SERVICE_VERSION,
 } from '@opentelemetry/semantic-conventions'
 
-const SERVICE_NAME = 'standup-api-new'
+const SERVICE_NAME = 'standup-api'
 const SERVICE_VERSION = '0.0.1'
 
 let sdk: NodeSDK | null = null

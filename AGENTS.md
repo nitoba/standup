@@ -316,9 +316,9 @@ standup/
 
 ## Regras de Banco de Dados (Drizzle)
 
-- **NUNCA criar arquivos de migration manualmente** — sempre usar `bun run db:generate` no `apps/api-new`
+- **NUNCA criar arquivos de migration manualmente** — sempre usar `bun run db:generate` no `apps/api`
 - `db:generate` atualiza o `_journal.json` e cria o snapshot corretamente; criar arquivos `.sql` manualmente quebra o journal e pode causar migrations aplicadas parcialmente
-- `db:migrate` aplica as migrations pendentes usando `apps/api-new/src/shared/database/migrate.ts` com `--env-file=../../.env.local`
+- `db:migrate` aplica as migrations pendentes usando `apps/api/src/shared/database/migrate.ts` com `--env-file=../../.env.local`
 - Sempre rodar `db:migrate` apos `db:generate` para aplicar no banco configurado no ambiente (`file:...`, `http://127.0.0.1:8080`, `libsql://...`)
 - Desenvolvimento local pode usar:
   - `DATABASE_URL=file:./data/standup.db` para SQLite local
@@ -326,9 +326,9 @@ standup/
   - `DATABASE_URL=libsql://...` + `DATABASE_AUTH_TOKEN=...` para Turso remoto
 
 Fluxo correto para adicionar ou alterar schema:
-1. Editar `apps/api-new/src/shared/database/schema.ts`
-2. `bun run db:generate` (dentro de `apps/api-new`) — gera o `.sql` e atualiza o journal
-3. `bun run db:migrate` (dentro de `apps/api-new`) — aplica no banco
+1. Editar `apps/api/src/shared/database/schema.ts`
+2. `bun run db:generate` (dentro de `apps/api`) — gera o `.sql` e atualiza o journal
+3. `bun run db:migrate` (dentro de `apps/api`) — aplica no banco
 
 ## Regras de Monorepo (Turborepo)
 

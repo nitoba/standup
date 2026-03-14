@@ -6,7 +6,7 @@ export class HealthController {
   getHealth() {
     return {
       status: 'ok',
-      service: 'standup-api-new',
+      service: 'standup-api',
       uptimeSeconds: Math.floor(process.uptime()),
     }
   }

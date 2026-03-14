@@ -2,7 +2,7 @@
 
 Monorepo com a topologia atual concentrada em:
 
-- `apps/api-new`: monólito NestJS com HTTP, scheduler, Discord, jobs e email
+- `apps/api`: monólito NestJS com HTTP, scheduler, Discord, jobs e email
 - `apps/web`: frontend Angular
 
 ## Setup
@@ -57,10 +57,12 @@ bun run ci
 
 ## Banco e migrations
 
-O schema, as migrations e a configuração do Drizzle ficam em `apps/api-new`.
+O schema, as migrations e a configuração do Drizzle ficam em `apps/api`.
 
 ```bash
 bun run db:generate
 bun run db:migrate
 bun run db:studio
 ```
+
+Em container, a API roda as migrations no entrypoint antes de subir o binario compilado. Nao existe mais um servico `migrate` separado no deploy.

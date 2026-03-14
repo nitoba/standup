@@ -95,19 +95,6 @@ jobs:
       - name: Validate Kamal config (Infra)
         run: kamal config -c config/deploy.infra.yml
 
-      - name: Run database migrations
-        run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "set -e && \
-             echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u nitoba --password-stdin && \
-             docker pull ghcr.io/nitoba/standup-api:sha-${DEPLOY_VERSION} && \
-             docker run --rm \
-               -e DATABASE_URL='${{ secrets.DATABASE_URL }}' \
-               -e DATABASE_AUTH_TOKEN='${{ secrets.DATABASE_AUTH_TOKEN }}' \
-               -e NODE_ENV=production \
-               ghcr.io/nitoba/standup-api:sha-${DEPLOY_VERSION} \
-               bun src/shared/database/migrate.ts"
-
       - name: Create SSH config for deploy
         run: |
           cat > ~/.ssh/config <<EOF

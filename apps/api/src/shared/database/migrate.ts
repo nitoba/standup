@@ -13,7 +13,7 @@ import { createWinstonOptions } from '../logger'
 
 const logger = createLogger(
   createWinstonOptions({
-    service: 'api-new',
+    service: 'standup-api',
     component: 'db-migrator',
   }),
 )
