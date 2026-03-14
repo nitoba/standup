@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common'
-import { withSpan } from '@standup/observability'
+import { Span } from 'nestjs-otel'
 import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
 import { UserRepository } from '../../../shared/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
 import { WeeklyDigestRepository } from '../../../shared/database/repositories/weekly-digest.repository'
 import { AppLoggerFactory } from '../../../shared/logger'
+import { AppTracingService } from '../../../shared/observability/app-tracing.service'
 import { EmailClientService } from '../../email/email-client.service'
 import { WeeklyDigestEmailService } from '../../email/weekly-digest-email.service'
 import { StandupGeneratorService } from '../standup-generator/standup-generator.service'
@@ -41,10 +42,12 @@ export class RunWeeklyDigestJobService {
     private readonly userRepository: UserRepository,
     private readonly userSettingsRepository: UserSettingsRepository,
     private readonly standupGenerator: StandupGeneratorService,
+    private readonly tracing: AppTracingService,
   ) {
     this.logger = this.loggerFactory.create('weekly-digest-job')
   }
 
+  @Span('worker.digest.job.run')
   async run(options: WeeklyDigestJobOptions): Promise<void> {
     const runId = crypto.randomUUID()
     const now = new Date()
@@ -108,7 +111,7 @@ export class RunWeeklyDigestJobService {
     }
 
     const digestId = claimResult.value.id
-    const standupsResult = await withSpan(
+    const standupsResult = await this.tracing.withSpan(
       'digest.db.find_standups',
       {
         'digest.user_id': options.userId,
@@ -156,7 +159,7 @@ export class RunWeeklyDigestJobService {
         ? settingsResult.value.emailTheme
         : 'dark'
 
-    const insightsResult = await withSpan(
+    const insightsResult = await this.tracing.withSpan(
       'digest.llm.generate',
       {
         'digest.standup_count': standupsResult.value.length,
@@ -189,7 +192,7 @@ export class RunWeeklyDigestJobService {
     }
 
     const userName = userResult.value?.name ?? 'Desenvolvedor'
-    const emailPayload = await withSpan(
+    const emailPayload = await this.tracing.withSpan(
       'digest.email.render',
       {
         'digest.week_start': weekStart,
@@ -207,7 +210,7 @@ export class RunWeeklyDigestJobService {
         }),
     )
 
-    const sendResult = await withSpan(
+    const sendResult = await this.tracing.withSpan(
       'digest.email.send',
       {
         'email.to': userEmail,

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { JobAlreadyCompletedError, LockAlreadyHeldError } from '@standup/domain'
+import { Span } from 'nestjs-otel'
 import { JobRunRepository } from '../../../shared/database/repositories/job-run.repository'
 import { AppLoggerFactory } from '../../../shared/logger'
 import { LocalDateService } from '../../../shared/time/local-date.service'
@@ -22,6 +23,7 @@ export class RunStandupJobService {
     this.logger = this.loggerFactory.create('standup-job')
   }
 
+  @Span('worker.standup.job.run')
   async run(options: StandupJobOptions): Promise<void> {
     const runId = crypto.randomUUID()
     const today = this.localDateService.today(options.timezone)

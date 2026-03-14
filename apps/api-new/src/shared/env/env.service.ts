@@ -68,6 +68,12 @@ export class EnvService {
     }
   }
 
+  get observability() {
+    return {
+      otlpEndpoint: this.get('OTEL_EXPORTER_OTLP_ENDPOINT'),
+    }
+  }
+
   get<K extends keyof EnvironmentVariables>(key: K): EnvironmentVariables[K] {
     return this.configService.get(key, { infer: true })
   }

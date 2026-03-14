@@ -10,11 +10,13 @@ import { WorkerModule } from './modules/worker/worker.module'
 import { DatabaseModule } from './shared/database/database.module'
 import { EnvModule } from './shared/env/env.module'
 import { LoggerModule } from './shared/logger/logger.module'
+import { ObservabilityModule } from './shared/observability/observability.module'
 import { TimeModule } from './shared/time/time.module'
 
 @Module({
   imports: [
     EnvModule,
+    ObservabilityModule,
     LoggerModule,
     TimeModule,
     EventsModule,

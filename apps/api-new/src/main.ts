@@ -5,8 +5,11 @@ import { NestFactory } from '@nestjs/core'
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston'
 import { AppModule } from './app.module'
 import { EnvService } from './shared/env/env.service'
+import { startOpenTelemetry } from './shared/observability/tracing'
 
 async function bootstrap() {
+  await startOpenTelemetry()
+
   const app = await NestFactory.create<NestHonoApplication>(
     AppModule,
     new HonoAdapter(),

@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { Result } from '@standup/domain'
-import { withSpan } from '@standup/observability'
+import { Span } from 'nestjs-otel'
 import { AppLoggerFactory } from '../../../../shared/logger'
+import { AppTracingService } from '../../../../shared/observability/app-tracing.service'
 import { GitCollectorService } from '../../git-collector/git-collector.service'
 import { StandupGeneratorService } from '../../standup-generator/standup-generator.service'
 import type {
@@ -18,11 +19,13 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
     private readonly loggerFactory: AppLoggerFactory,
     private readonly gitCollector: GitCollectorService,
     private readonly standupGenerator: StandupGeneratorService,
+    private readonly tracing: AppTracingService,
   ) {
     super()
     this.logger = this.loggerFactory.create('generate-strategy')
   }
 
+  @Span('worker.standup.generate.execute')
   async execute(input: StrategyExecutionInput): Promise<StrategyResult> {
     const { options, today, reportProgress } = input
 
@@ -32,7 +35,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
       'Coletando commits dos repositorios',
     )
 
-    const gitActivity = await withSpan(
+    const gitActivity = await this.tracing.withSpan(
       'standup.git.collect',
       {
         'git.author': options.gitAuthor,
@@ -56,7 +59,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
     }
 
     const meetingType = this.standupGenerator.determineMeetingType(today)
-    const generated = await withSpan(
+    const generated = await this.tracing.withSpan(
       'standup.llm.generate',
       { 'standup.meeting_type': meetingType, 'standup.mode': 'generate' },
       () =>
