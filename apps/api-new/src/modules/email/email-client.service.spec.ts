@@ -1,5 +1,5 @@
-import { ExternalServiceError } from '@standup/domain'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ExternalServiceError } from '../../shared/domain'
 
 const { createTransportMock, sendMailMock } = vi.hoisted(() => ({
   createTransportMock: vi.fn(),

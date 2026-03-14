@@ -1,10 +1,10 @@
 import { ConflictException, NotFoundException } from '@nestjs/common'
+import { describe, expect, it, vi } from 'vitest'
 import {
   InvalidStateTransitionError,
   NotFoundError,
   Result,
-} from '@standup/domain'
-import { describe, expect, it, vi } from 'vitest'
+} from '../../../shared/domain'
 import { StandupStatusService } from './standup-status.service'
 
 describe('StandupStatusService', () => {

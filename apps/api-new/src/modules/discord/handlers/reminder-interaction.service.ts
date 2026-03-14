@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { Result, ValidationError } from '@standup/domain'
 import { type ButtonInteraction } from 'discord.js'
+import { Result, ValidationError } from '../../../shared/domain'
 import { EventBusService } from '../../events/event-bus.service'
 import { DiscordAuthService } from '../services/discord-auth.service'
 import { DiscordTriggerService } from '../services/discord-trigger.service'

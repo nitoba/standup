@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common'
+import { StandupRepository } from '../../../../shared/database/repositories/standup.repository'
 import {
   GenerateStandupInputSchema,
   Result,
   ValidationError,
-} from '@standup/domain'
-import { StandupRepository } from '../../../../shared/database/repositories/standup.repository'
+} from '../../../../shared/domain'
 import { StandupGeneratorService } from '../../standup-generator/standup-generator.service'
 import type {
   GeneratedContent,

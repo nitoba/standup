@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { ExternalServiceError, Result } from '@standup/domain'
 import { createTransport } from 'nodemailer'
+import { ExternalServiceError, Result } from '../../shared/domain'
 import { EnvService } from '../../shared/env/env.service'
 import { AppLoggerFactory } from '../../shared/logger'
 

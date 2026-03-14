@@ -1,18 +1,18 @@
 # API Nova
 
-Esta app substitui a topologia atual de `apps/api`, `apps/worker` e
-`apps/discord-bot` por um monolito modular em NestJS.
+Esta app e o backend ativo do projeto. A antiga topologia separada foi
+arquivada fora do workspace.
 
 ## Mapeamento da arquitetura
 
-- `apps/api` -> `src/modules/http`
-  Responsavel por controllers HTTP, auth, SSE e coordenacao de casos de uso.
-- `apps/worker` -> `src/modules/worker`
-  Responsavel por scheduler, pipeline de geracao e jobs internos.
-- `apps/discord-bot` -> `src/modules/discord`
-  Responsavel por gateway Discord, DMs, slash commands e publicacao.
-- Comunicacao interna HTTP -> `src/modules/events`
-  Eventos do Nest substituem chamadas `POST /internal/*` entre processos.
+- `src/modules/http`
+  Controllers HTTP, auth, SSE e coordenacao de casos de uso.
+- `src/modules/worker`
+  Scheduler, pipeline de geracao e jobs internos.
+- `src/modules/discord`
+  Gateway Discord, DMs, slash commands e publicacao.
+- `src/modules/events`
+  Eventos do Nest para desacoplamento interno entre modulos.
 
 ## Fundacoes implementadas
 
@@ -42,9 +42,25 @@ src/
     worker/
 ```
 
-## Proximo passo de migracao
+## Banco e migrations
 
-1. Mover os casos de uso do `api` atual para `modules/standups` e `modules/http`.
-2. Portar o pipeline do `worker` para `modules/worker`.
-3. Portar o cliente Discord e handlers para `modules/discord`.
-4. Remover os apps antigos quando as rotas e automacoes estiverem paritarias.
+O `api-new` e a fonte de verdade do schema e das migrations do banco.
+
+- Schema: `src/shared/database/schema.ts`
+- Migrations: `src/shared/database/migrations`
+- Config do Drizzle: `drizzle.config.ts`
+
+Comandos:
+
+```bash
+bun run db:generate
+bun run db:migrate
+bun run db:studio
+```
+
+No root do monorepo, os mesmos comandos delegam para `@standup/api-new`.
+
+## Status
+
+O `api-new` concentra o backend, o scheduler, o Discord e as migrations do
+banco.

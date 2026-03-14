@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException } from '@nestjs/common'
-import { DbError, Result } from '@standup/domain'
 import { describe, expect, it, vi } from 'vitest'
+import { DbError, Result } from '../../../shared/domain'
 import { TriggerStandupService } from './trigger-standup.service'
 
 describe('TriggerStandupService', () => {

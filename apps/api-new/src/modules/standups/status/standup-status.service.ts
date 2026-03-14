@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import type { StandupStatus } from '@standup/domain'
 import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
+import type { StandupStatus } from '../../../shared/domain'
 import { EventBusService } from '../../events/event-bus.service'
 import { throwStandupHttpError } from '../shared/throw-standup-http-error'
 

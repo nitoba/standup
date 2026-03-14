@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { DbError, Result } from '@standup/domain'
 import { eq, lt } from 'drizzle-orm'
+import { DbError, Result } from '../../domain'
 import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { userSettings } from '../schema'

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { Result, ValidationError } from '@standup/domain'
 import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
+import { Result, ValidationError } from '../../../shared/domain'
 import { LocalDateService } from '../../../shared/time/local-date.service'
 import {
   WORKER_REMINDER_ACTION_REQUESTED_EVENT,

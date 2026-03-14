@@ -1,5 +1,5 @@
-import { Result } from '@standup/domain'
 import { describe, expect, it, vi } from 'vitest'
+import { Result } from '../../../shared/domain'
 import { ReminderActionsService } from './reminder-actions.service'
 
 describe('ReminderActionsService', () => {

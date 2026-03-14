@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { Result } from '@standup/domain'
 import { Span } from 'nestjs-otel'
+import { Result } from '../../../../shared/domain'
 import { AppLoggerFactory } from '../../../../shared/logger'
 import { AppTracingService } from '../../../../shared/observability/app-tracing.service'
 import { GitCollectorService } from '../../git-collector/git-collector.service'

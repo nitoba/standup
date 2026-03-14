@@ -1,12 +1,12 @@
 import { join } from 'node:path'
 import { Injectable } from '@nestjs/common'
+import { $ } from 'bun'
 import type {
   CommitInfo,
   GatheredGitActivity,
   RepoActivity,
-} from '@standup/domain'
-import { ExternalServiceError, Result } from '@standup/domain'
-import { $ } from 'bun'
+} from '../../../shared/domain'
+import { ExternalServiceError, Result } from '../../../shared/domain'
 import { AppLoggerFactory } from '../../../shared/logger'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
 

@@ -1,4 +1,4 @@
-import type { CommitInfo } from '@standup/domain'
+import type { CommitInfo } from '../../../shared/domain'
 
 export interface WorkItemDetail {
   id: string

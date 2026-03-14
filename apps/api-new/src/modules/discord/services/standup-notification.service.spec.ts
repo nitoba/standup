@@ -1,5 +1,5 @@
-import { Result } from '@standup/domain'
 import { describe, expect, it, vi } from 'vitest'
+import { Result } from '../../../shared/domain'
 import { StandupNotificationService } from './standup-notification.service'
 
 describe('StandupNotificationService', () => {

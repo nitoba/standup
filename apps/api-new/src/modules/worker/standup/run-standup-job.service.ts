@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common'
-import { JobAlreadyCompletedError, LockAlreadyHeldError } from '@standup/domain'
 import { Span } from 'nestjs-otel'
 import { JobRunRepository } from '../../../shared/database/repositories/job-run.repository'
+import {
+  JobAlreadyCompletedError,
+  LockAlreadyHeldError,
+} from '../../../shared/domain'
 import { AppLoggerFactory } from '../../../shared/logger'
 import { LocalDateService } from '../../../shared/time/local-date.service'
 import { WorkerEventPublisherService } from '../worker-event-publisher.service'

@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common'
-import type { GenerateStandupInput, StandupRecord } from '@standup/domain'
+import type {
+  GenerateStandupInput,
+  StandupRecord,
+} from '../../../shared/domain'
 import type {
   EnrichedGitActivity,
   EnrichedWorkItem,

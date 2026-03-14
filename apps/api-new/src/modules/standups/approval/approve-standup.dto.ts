@@ -1,4 +1,3 @@
-import type { CustomEntries } from '@standup/domain'
 import { Type } from 'class-transformer'
 import {
   IsArray,
@@ -7,6 +6,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator'
+import type { CustomEntries } from '../../../shared/domain'
 
 class CustomEntriesDto {
   @IsArray()

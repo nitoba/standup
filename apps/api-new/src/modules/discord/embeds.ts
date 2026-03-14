@@ -1,5 +1,5 @@
-import type { StandupRecord } from '@standup/domain'
 import type { APIEmbed } from 'discord.js'
+import type { StandupRecord } from '../../shared/domain'
 
 export const EMBED_COLORS = {
   REVIEW: 0x3498db,

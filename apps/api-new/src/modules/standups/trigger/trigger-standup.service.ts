@@ -4,10 +4,10 @@ import {
   Injectable,
 } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { ExternalServiceError, Result } from '@standup/domain'
 import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
 import { UserRepository } from '../../../shared/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
+import { ExternalServiceError, Result } from '../../../shared/domain'
 import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
 import { LocalDateService } from '../../../shared/time/local-date.service'
 import { EventBusService } from '../../events/event-bus.service'

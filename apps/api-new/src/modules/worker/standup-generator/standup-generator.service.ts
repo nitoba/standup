@@ -1,14 +1,14 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { Injectable } from '@nestjs/common'
+import { generateText, Output } from 'ai'
+import * as z from 'zod'
 import type {
   GatheredGitActivity,
   GeneratedStandup,
   GenerateStandupInput,
   StandupRecord,
-} from '@standup/domain'
-import { ExternalServiceError, Result } from '@standup/domain'
-import { generateText, Output } from 'ai'
-import * as z from 'zod'
+} from '../../../shared/domain'
+import { ExternalServiceError, Result } from '../../../shared/domain'
 import { AppLoggerFactory } from '../../../shared/logger'
 import { AzureDevopsEnrichmentService } from '../azure-devops/azure-devops-enrichment.service'
 import type { EnrichedGitActivity } from '../azure-devops/types'

@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { type DbError, type NotFoundError, Result } from '@standup/domain'
 import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
+import {
+  type DbError,
+  type NotFoundError,
+  Result,
+} from '../../../shared/domain'
 import { AppLoggerFactory } from '../../../shared/logger'
 import { EventBusService } from '../../events/event-bus.service'
 import {

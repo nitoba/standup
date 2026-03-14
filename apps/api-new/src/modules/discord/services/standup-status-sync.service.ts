@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
+import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
+import { UserRepository } from '../../../shared/database/repositories/user.repository'
 import {
   type DbError,
   ExternalServiceError,
   type NotFoundError,
   Result,
-} from '@standup/domain'
-import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
-import { UserRepository } from '../../../shared/database/repositories/user.repository'
+} from '../../../shared/domain'
 import { EnvService } from '../../../shared/env/env.service'
 import { AppLoggerFactory } from '../../../shared/logger'
 import {

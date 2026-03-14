@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { Result } from '@standup/domain'
+import { Result } from '../../../shared/domain'
 import { AppLoggerFactory } from '../../../shared/logger'
 import { EventBusService } from '../../events/event-bus.service'
 

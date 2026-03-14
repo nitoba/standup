@@ -1,5 +1,5 @@
-import type { StandupStatus } from '@standup/domain'
 import { IsIn } from 'class-validator'
+import type { StandupStatus } from '../../../shared/domain'
 
 const ALLOWED_STATUSES = ['draft', 'pending_review', 'rejected', 'published']
 

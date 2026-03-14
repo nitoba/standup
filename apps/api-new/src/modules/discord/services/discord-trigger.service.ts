@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { ExternalServiceError, Result } from '@standup/domain'
+import { ExternalServiceError, Result } from '../../../shared/domain'
 import { EventBusService } from '../../events/event-bus.service'
 import type { StandupTriggerRequestOutcome } from '../../events/standup-events'
 

@@ -22,29 +22,22 @@ jobs:
       BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
       DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
       DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+      DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
       AI_PROVIDER_API_KEY: ${{ secrets.AI_PROVIDER_API_KEY }}
       AZURE_DEVOPS_ORG: ${{ secrets.AZURE_DEVOPS_ORG }}
       AZURE_DEVOPS_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
-      INTERNAL_SECRET: ${{ secrets.INTERNAL_SECRET }}
+      AZURE_DEVOPS_DEFAULT_PROJECT: ${{ secrets.AZURE_DEVOPS_DEFAULT_PROJECT }}
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
       SMTP_PORT: ${{ secrets.SMTP_PORT }}
       SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
       SMTP_FROM: ${{ secrets.SMTP_FROM }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
-      DISCORD_DEPLOY_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
-      MESSAGE_ID: ${{ inputs.message_id }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Collect CI metadata
-        id: ci-meta
-        uses: ./.github/actions/ci-metadata
-        with:
-          branch: ${{ github.ref_name }}
 
       - name: Set up Tailscale
         uses: tailscale/github-action@v4
@@ -63,34 +56,10 @@ jobs:
           EOF
           chmod 600 ~/.ssh/deploy_key
 
-          DEPLOY_HOST="${{ secrets.DEPLOY_HOST }}"
-          DEPLOY_IP="$(getent ahostsv4 "$DEPLOY_HOST" | awk '{print $1; exit}')"
-          echo "Resolved deploy host: ${DEPLOY_HOST} -> ${DEPLOY_IP}"
-
-          : > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
-          ssh-keyscan -H -t ed25519 "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          if [ -n "$DEPLOY_IP" ]; then
-            ssh-keyscan -H -t ed25519 "$DEPLOY_IP" >> ~/.ssh/known_hosts 2>/dev/null
-          fi
-
-          echo "Known hosts entries: $(wc -l < ~/.ssh/known_hosts)"
-
-      - name: Check remote host
-        run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} '
-            set -e
-            echo "user=$(whoami)"
-            echo "host=$(hostname)"
-            docker info >/dev/null
-            test -d /opt/standup/data
-            test -d /Users/nitoba/repos
-          '
+          ssh-keyscan -H -t ed25519 "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Install Kamal
-        run: |
-          sudo gem install kamal --no-document
+        run: sudo gem install kamal --no-document
 
       - name: Create Kamal secrets file
         run: |
@@ -102,10 +71,11 @@ jobs:
           BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
           DISCORD_BOT_TOKEN=$DISCORD_BOT_TOKEN
           DISCORD_CHANNEL_ID=$DISCORD_CHANNEL_ID
+          DISCORD_GUILD_ID=$DISCORD_GUILD_ID
           AI_PROVIDER_API_KEY=$AI_PROVIDER_API_KEY
           AZURE_DEVOPS_ORG=$AZURE_DEVOPS_ORG
           AZURE_DEVOPS_PAT=$AZURE_DEVOPS_PAT
-          INTERNAL_SECRET=$INTERNAL_SECRET
+          AZURE_DEVOPS_DEFAULT_PROJECT=$AZURE_DEVOPS_DEFAULT_PROJECT
           SMTP_HOST=$SMTP_HOST
           SMTP_PORT=$SMTP_PORT
           SMTP_SECURE=$SMTP_SECURE
@@ -119,79 +89,24 @@ jobs:
       - name: Validate Kamal config (API)
         run: kamal config -c config/deploy.api.yml
 
-      - name: Validate Kamal config (Bot)
-        run: kamal config -c config/deploy.bot.yml
-
-      - name: Validate Kamal config (Worker)
-        run: kamal config -c config/deploy.worker.yml
-
       - name: Validate Kamal config (Web)
         run: kamal config -c config/deploy.web.yml
 
       - name: Validate Kamal config (Infra)
         run: kamal config -c config/deploy.infra.yml
 
-      - name: "Notify: Deploy started payload"
-        id: notify-deploy-start-payload
-        if: env.MESSAGE_ID != ''
-        continue-on-error: true
-        run: |
-          payload=$(jq -n \
-            --arg sha "${{ steps.ci-meta.outputs.short_sha }}" \
-            --arg commit_url "${{ steps.ci-meta.outputs.commit_url }}" \
-            --arg branch "${{ steps.ci-meta.outputs.branch }}" \
-            --arg actor "${{ steps.ci-meta.outputs.actor }}" \
-            --arg run_url "${{ steps.ci-meta.outputs.run_url }}" \
-            --arg ts "${{ steps.ci-meta.outputs.timestamp }}" \
-            '{
-              "embeds": [{
-                "title": "Standup CI/CD Pipeline",
-                "description": ("**Deploy iniciado** para [`" + $sha + "`](" + $commit_url + ") em `" + $branch + "`"),
-                "color": 15105570,
-                "fields": [
-                  { "name": "Commit", "value": ("[`" + $sha + "`](" + $commit_url + ")"), "inline": true },
-                  { "name": "Branch", "value": ("`" + $branch + "`"), "inline": true },
-                  { "name": "Actor", "value": $actor, "inline": true },
-                  { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Quality", "value": "✅ Passed", "inline": true },
-                  { "name": "Build", "value": "✅ 5 images", "inline": true },
-                  { "name": "Deploy", "value": "⏳ Running...", "inline": true },
-                  { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Deploy Progress", "value": "⏳  **standup-api** — pending\n⏳  **standup-bot** — pending\n⏳  **standup-worker** — pending\n⏳  **standup-web** — pending", "inline": false },
-                  { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
-                ],
-                "footer": { "text": "Standup Bot CI/CD" },
-                "timestamp": $ts
-              }]
-            }')
-
-          {
-            echo 'payload<<EOF'
-            printf '%s\n' "$payload"
-            echo EOF
-          } >> "$GITHUB_OUTPUT"
-
-      - name: "Send: Deploy started"
-        if: always() && steps.notify-deploy-start-payload.outputs.payload != ''
-        continue-on-error: true
-        uses: ./.github/actions/discord-webhook
-        with:
-          webhook-url: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
-          message-id: ${{ inputs.message_id }}
-          payload: ${{ steps.notify-deploy-start-payload.outputs.payload }}
-
       - name: Run database migrations
-        id: migrations
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
             "set -e && \
              echo '${{ secrets.GHCR_PAT }}' | docker login ghcr.io -u nitoba --password-stdin && \
-             docker pull ghcr.io/nitoba/standup-migrate:sha-${DEPLOY_VERSION} && \
+             docker pull ghcr.io/nitoba/standup-api:sha-${DEPLOY_VERSION} && \
              docker run --rm \
-                -e DATABASE_URL='${{ secrets.DATABASE_URL }}' \
-                -e DATABASE_AUTH_TOKEN='${{ secrets.DATABASE_AUTH_TOKEN }}' \
-                -e NODE_ENV=production \
-                ghcr.io/nitoba/standup-migrate:sha-${DEPLOY_VERSION}"
+               -e DATABASE_URL='${{ secrets.DATABASE_URL }}' \
+               -e DATABASE_AUTH_TOKEN='${{ secrets.DATABASE_AUTH_TOKEN }}' \
+               -e NODE_ENV=production \
+               ghcr.io/nitoba/standup-api:sha-${DEPLOY_VERSION} \
+               bun src/shared/database/migrate.ts"
 
       - name: Create SSH config for deploy
         run: |
@@ -208,10 +123,9 @@ jobs:
         run: |
           kamal accessory boot jaeger \
             -c config/deploy.infra.yml \
-            || echo "Jaeger accessory already booted (expected on subsequent deploys)"
+            || echo "Jaeger accessory already booted"
 
       - name: Deploy API
-        id: deploy-api
         run: |
           kamal deploy \
             -c config/deploy.api.yml \
@@ -219,333 +133,10 @@ jobs:
             --version "sha-${DEPLOY_VERSION}" \
             --skip-hooks
 
-      - name: "Notify: API deployed payload"
-        id: notify-deploy-api-payload
-        if: always() && env.MESSAGE_ID != ''
-        continue-on-error: true
-        run: |
-          API_OUTCOME="${{ steps.deploy-api.outcome }}"
-          if [ "$API_OUTCOME" = "success" ]; then
-            API_STATUS="✅  **standup-api** — deployed"
-          else
-            API_STATUS="❌  **standup-api** — failed"
-          fi
-
-          payload=$(jq -n \
-            --arg sha "${{ steps.ci-meta.outputs.short_sha }}" \
-            --arg commit_url "${{ steps.ci-meta.outputs.commit_url }}" \
-            --arg branch "${{ steps.ci-meta.outputs.branch }}" \
-            --arg actor "${{ steps.ci-meta.outputs.actor }}" \
-            --arg run_url "${{ steps.ci-meta.outputs.run_url }}" \
-            --arg ts "${{ steps.ci-meta.outputs.timestamp }}" \
-            --arg api_status "$API_STATUS" \
-            '{
-              "embeds": [{
-                "title": "Standup CI/CD Pipeline",
-                "description": ("**Deploy em andamento** para [`" + $sha + "`](" + $commit_url + ") em `" + $branch + "`"),
-                "color": 15105570,
-                "fields": [
-                  { "name": "Commit", "value": ("[`" + $sha + "`](" + $commit_url + ")"), "inline": true },
-                  { "name": "Branch", "value": ("`" + $branch + "`"), "inline": true },
-                  { "name": "Actor", "value": $actor, "inline": true },
-                  { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Quality", "value": "✅ Passed", "inline": true },
-                  { "name": "Build", "value": "✅ 5 images", "inline": true },
-                  { "name": "Migrations", "value": "✅ Applied", "inline": true },
-                  { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Deploy Progress", "value": ($api_status + "\n⏳  **standup-bot** — deploying...\n⏳  **standup-worker** — pending\n⏳  **standup-web** — pending"), "inline": false },
-                  { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
-                ],
-                "footer": { "text": "Standup Bot CI/CD" },
-                "timestamp": $ts
-              }]
-            }')
-
-          {
-            echo 'payload<<EOF'
-            printf '%s\n' "$payload"
-            echo EOF
-          } >> "$GITHUB_OUTPUT"
-
-      - name: "Send: API deployed"
-        if: always() && steps.notify-deploy-api-payload.outputs.payload != ''
-        continue-on-error: true
-        uses: ./.github/actions/discord-webhook
-        with:
-          webhook-url: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
-          message-id: ${{ inputs.message_id }}
-          payload: ${{ steps.notify-deploy-api-payload.outputs.payload }}
-
-      - name: Deploy Discord Bot
-        id: deploy-bot
-        if: always() && steps.deploy-api.outcome == 'success'
-        run: |
-          kamal deploy \
-            -c config/deploy.bot.yml \
-            --skip-push \
-            --version "sha-${DEPLOY_VERSION}" \
-            --skip-hooks
-
-      - name: "Notify: Bot deployed payload"
-        id: notify-deploy-bot-payload
-        if: always() && env.MESSAGE_ID != ''
-        continue-on-error: true
-        run: |
-          API_OUTCOME="${{ steps.deploy-api.outcome }}"
-          BOT_OUTCOME="${{ steps.deploy-bot.outcome }}"
-
-          if [ "$API_OUTCOME" = "success" ]; then API_STATUS="✅  **standup-api** — deployed"
-          else API_STATUS="❌  **standup-api** — failed"; fi
-
-          if [ "$BOT_OUTCOME" = "success" ]; then BOT_STATUS="✅  **standup-bot** — deployed"
-          elif [ "$BOT_OUTCOME" = "skipped" ]; then BOT_STATUS="⏭️  **standup-bot** — skipped"
-          else BOT_STATUS="❌  **standup-bot** — failed"; fi
-
-          payload=$(jq -n \
-            --arg sha "${{ steps.ci-meta.outputs.short_sha }}" \
-            --arg commit_url "${{ steps.ci-meta.outputs.commit_url }}" \
-            --arg branch "${{ steps.ci-meta.outputs.branch }}" \
-            --arg actor "${{ steps.ci-meta.outputs.actor }}" \
-            --arg run_url "${{ steps.ci-meta.outputs.run_url }}" \
-            --arg ts "${{ steps.ci-meta.outputs.timestamp }}" \
-            --arg api_status "$API_STATUS" \
-            --arg bot_status "$BOT_STATUS" \
-            '{
-              "embeds": [{
-                "title": "Standup CI/CD Pipeline",
-                "description": ("**Deploy em andamento** para [`" + $sha + "`](" + $commit_url + ") em `" + $branch + "`"),
-                "color": 15105570,
-                "fields": [
-                  { "name": "Commit", "value": ("[`" + $sha + "`](" + $commit_url + ")"), "inline": true },
-                  { "name": "Branch", "value": ("`" + $branch + "`"), "inline": true },
-                  { "name": "Actor", "value": $actor, "inline": true },
-                  { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Quality", "value": "✅ Passed", "inline": true },
-                  { "name": "Build", "value": "✅ 5 images", "inline": true },
-                  { "name": "Migrations", "value": "✅ Applied", "inline": true },
-                  { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Deploy Progress", "value": ($api_status + "\n" + $bot_status + "\n⏳  **standup-worker** — deploying...\n⏳  **standup-web** — pending"), "inline": false },
-                  { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
-                ],
-                "footer": { "text": "Standup Bot CI/CD" },
-                "timestamp": $ts
-              }]
-            }')
-
-          {
-            echo 'payload<<EOF'
-            printf '%s\n' "$payload"
-            echo EOF
-          } >> "$GITHUB_OUTPUT"
-
-      - name: "Send: Bot deployed"
-        if: always() && steps.notify-deploy-bot-payload.outputs.payload != ''
-        continue-on-error: true
-        uses: ./.github/actions/discord-webhook
-        with:
-          webhook-url: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
-          message-id: ${{ inputs.message_id }}
-          payload: ${{ steps.notify-deploy-bot-payload.outputs.payload }}
-
-      - name: Deploy Worker
-        id: deploy-worker
-        if: always() && steps.deploy-api.outcome == 'success' && steps.deploy-bot.outcome == 'success'
-        run: |
-          kamal deploy \
-            -c config/deploy.worker.yml \
-            --skip-push \
-            --version "sha-${DEPLOY_VERSION}" \
-            --skip-hooks
-
-      - name: "Notify: Worker deployed payload"
-        id: notify-deploy-worker-payload
-        if: always() && env.MESSAGE_ID != ''
-        continue-on-error: true
-        run: |
-          API_OUTCOME="${{ steps.deploy-api.outcome }}"
-          BOT_OUTCOME="${{ steps.deploy-bot.outcome }}"
-          WORKER_OUTCOME="${{ steps.deploy-worker.outcome }}"
-
-          if [ "$API_OUTCOME" = "success" ]; then API_STATUS="✅  **standup-api** — deployed"
-          else API_STATUS="❌  **standup-api** — failed"; fi
-
-          if [ "$BOT_OUTCOME" = "success" ]; then BOT_STATUS="✅  **standup-bot** — deployed"
-          elif [ "$BOT_OUTCOME" = "skipped" ]; then BOT_STATUS="⏭️  **standup-bot** — skipped"
-          else BOT_STATUS="❌  **standup-bot** — failed"; fi
-
-          if [ "$WORKER_OUTCOME" = "success" ]; then WORKER_STATUS="✅  **standup-worker** — deployed"
-          elif [ "$WORKER_OUTCOME" = "skipped" ]; then WORKER_STATUS="⏭️  **standup-worker** — skipped"
-          else WORKER_STATUS="❌  **standup-worker** — failed"; fi
-
-          payload=$(jq -n \
-            --arg sha "${{ steps.ci-meta.outputs.short_sha }}" \
-            --arg commit_url "${{ steps.ci-meta.outputs.commit_url }}" \
-            --arg branch "${{ steps.ci-meta.outputs.branch }}" \
-            --arg actor "${{ steps.ci-meta.outputs.actor }}" \
-            --arg run_url "${{ steps.ci-meta.outputs.run_url }}" \
-            --arg ts "${{ steps.ci-meta.outputs.timestamp }}" \
-            --arg api_status "$API_STATUS" \
-            --arg bot_status "$BOT_STATUS" \
-            --arg worker_status "$WORKER_STATUS" \
-            '{
-              "embeds": [{
-                "title": "Standup CI/CD Pipeline",
-                "description": ("**Deploy em andamento** para [`" + $sha + "`](" + $commit_url + ") em `" + $branch + "`"),
-                "color": 15105570,
-                "fields": [
-                  { "name": "Commit", "value": ("[`" + $sha + "`](" + $commit_url + ")"), "inline": true },
-                  { "name": "Branch", "value": ("`" + $branch + "`"), "inline": true },
-                  { "name": "Actor", "value": $actor, "inline": true },
-                  { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Quality", "value": "✅ Passed", "inline": true },
-                  { "name": "Build", "value": "✅ 5 images", "inline": true },
-                  { "name": "Migrations", "value": "✅ Applied", "inline": true },
-                  { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Deploy Progress", "value": ($api_status + "\n" + $bot_status + "\n" + $worker_status + "\n⏳  **standup-web** — deploying..."), "inline": false },
-                  { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
-                ],
-                "footer": { "text": "Standup Bot CI/CD" },
-                "timestamp": $ts
-              }]
-            }')
-
-          {
-            echo 'payload<<EOF'
-            printf '%s\n' "$payload"
-            echo EOF
-          } >> "$GITHUB_OUTPUT"
-
-      - name: "Send: Worker deployed"
-        if: always() && steps.notify-deploy-worker-payload.outputs.payload != ''
-        continue-on-error: true
-        uses: ./.github/actions/discord-webhook
-        with:
-          webhook-url: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
-          message-id: ${{ inputs.message_id }}
-          payload: ${{ steps.notify-deploy-worker-payload.outputs.payload }}
-
       - name: Deploy Web
-        id: deploy-web
-        if: always() && steps.deploy-api.outcome == 'success'
         run: |
           kamal deploy \
             -c config/deploy.web.yml \
             --skip-push \
             --version "sha-${DEPLOY_VERSION}" \
             --skip-hooks
-
-      - name: Reload cloudflared
-        if: always() && steps.deploy-web.outcome != 'skipped'
-        continue-on-error: true
-        run: |
-          ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=no \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.MAC_HOST }} \
-            "launchctl stop com.cloudflare.cloudflared && \
-             sleep 2 && \
-             launchctl start com.cloudflare.cloudflared"
-
-      - name: "Notify: Deploy finished payload"
-        id: notify-deploy-finished-payload
-        if: always() && env.MESSAGE_ID != ''
-        continue-on-error: true
-        run: |
-          API_OUTCOME="${{ steps.deploy-api.outcome }}"
-          BOT_OUTCOME="${{ steps.deploy-bot.outcome }}"
-          WORKER_OUTCOME="${{ steps.deploy-worker.outcome }}"
-          WEB_OUTCOME="${{ steps.deploy-web.outcome }}"
-
-          if [ "$API_OUTCOME" = "success" ]; then API_STATUS="✅  **standup-api** — deployed"
-          else API_STATUS="❌  **standup-api** — failed"; fi
-
-          if [ "$BOT_OUTCOME" = "success" ]; then BOT_STATUS="✅  **standup-bot** — deployed"
-          elif [ "$BOT_OUTCOME" = "skipped" ]; then BOT_STATUS="⏭️  **standup-bot** — skipped"
-          else BOT_STATUS="❌  **standup-bot** — failed"; fi
-
-          if [ "$WORKER_OUTCOME" = "success" ]; then WORKER_STATUS="✅  **standup-worker** — deployed"
-          elif [ "$WORKER_OUTCOME" = "skipped" ]; then WORKER_STATUS="⏭️  **standup-worker** — skipped"
-          else WORKER_STATUS="❌  **standup-worker** — failed"; fi
-
-          if [ "$WEB_OUTCOME" = "success" ]; then WEB_STATUS="✅  **standup-web** — deployed"
-          elif [ "$WEB_OUTCOME" = "skipped" ]; then WEB_STATUS="⏭️  **standup-web** — skipped"
-          else WEB_STATUS="❌  **standup-web** — failed"; fi
-
-          MIGRATION_OUTCOME="${{ steps.migrations.outcome }}"
-          if [ "$MIGRATION_OUTCOME" = "success" ]; then MIGRATION_STATUS="✅ Applied"
-          else MIGRATION_STATUS="❌ Failed"; fi
-
-          ALL_OK="true"
-          for outcome in "$API_OUTCOME" "$BOT_OUTCOME" "$WORKER_OUTCOME" "$WEB_OUTCOME"; do
-            if [ "$outcome" != "success" ]; then ALL_OK="false"; break; fi
-          done
-
-          if [ "$ALL_OK" = "true" ]; then
-            TITLE="Standup CI/CD — Deploy Success"
-            DESC="Todos os servicos deployados com sucesso para [\`${{ steps.ci-meta.outputs.short_sha }}\`](${{ steps.ci-meta.outputs.commit_url }})"
-            CONTENT="✅ Pipeline concluido com sucesso"
-            COLOR=3066993
-          else
-            TITLE="Standup CI/CD — Deploy Failed"
-            DESC="Falha no deploy de [\`${{ steps.ci-meta.outputs.short_sha }}\`](${{ steps.ci-meta.outputs.commit_url }}) em \`${{ steps.ci-meta.outputs.branch }}\`"
-            CONTENT="❌ Pipeline falhou no deploy"
-            COLOR=15158332
-          fi
-
-          payload=$(jq -n \
-            --arg content "$CONTENT" \
-            --arg title "$TITLE" \
-            --arg desc "$DESC" \
-            --argjson color "$COLOR" \
-            --arg sha "${{ steps.ci-meta.outputs.short_sha }}" \
-            --arg commit_url "${{ steps.ci-meta.outputs.commit_url }}" \
-            --arg branch "${{ steps.ci-meta.outputs.branch }}" \
-            --arg actor "${{ steps.ci-meta.outputs.actor }}" \
-            --arg run_url "${{ steps.ci-meta.outputs.run_url }}" \
-            --arg ts "${{ steps.ci-meta.outputs.timestamp }}" \
-            --arg migration_status "$MIGRATION_STATUS" \
-            --arg api_status "$API_STATUS" \
-            --arg bot_status "$BOT_STATUS" \
-            --arg worker_status "$WORKER_STATUS" \
-            --arg web_status "$WEB_STATUS" \
-            '{
-              "content": $content,
-              "embeds": [{
-                "title": $title,
-                "description": $desc,
-                "color": $color,
-                "fields": [
-                  { "name": "Commit", "value": ("[`" + $sha + "`](" + $commit_url + ")"), "inline": true },
-                  { "name": "Branch", "value": ("`" + $branch + "`"), "inline": true },
-                  { "name": "Actor", "value": $actor, "inline": true },
-                  { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Quality", "value": "✅ Passed", "inline": true },
-                  { "name": "Build", "value": "✅ 5 images", "inline": true },
-                  { "name": "Migrations", "value": $migration_status, "inline": true },
-                  { "name": "\u200b", "value": "\u200b", "inline": false },
-                  { "name": "Services Deployed", "value": ($api_status + "\n" + $bot_status + "\n" + $worker_status + "\n" + $web_status), "inline": false },
-                  { "name": "Run", "value": ("[View workflow](" + $run_url + ")"), "inline": false }
-                ],
-                "footer": { "text": "Standup Bot CI/CD" },
-                "timestamp": $ts
-              }]
-            }')
-
-          {
-            echo 'payload<<EOF'
-            printf '%s\n' "$payload"
-            echo EOF
-          } >> "$GITHUB_OUTPUT"
-
-      - name: "Send: Deploy finished"
-        if: always() && steps.notify-deploy-finished-payload.outputs.payload != ''
-        continue-on-error: true
-        uses: ./.github/actions/discord-webhook
-        with:
-          webhook-url: ${{ secrets.DISCORD_DEPLOY_WEBHOOK_URL }}
-          message-id: ${{ inputs.message_id }}
-          payload: ${{ steps.notify-deploy-finished-payload.outputs.payload }}
-
-      - name: Cleanup Kamal secrets file
-        if: always()
-        run: |
-          rm -f .kamal/secrets-common

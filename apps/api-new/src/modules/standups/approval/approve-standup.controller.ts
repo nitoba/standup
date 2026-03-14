@@ -20,7 +20,7 @@ export class ApproveStandupController {
   @HttpCode(200)
   async approve(
     @Session() session: AuthSession | null,
-    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() body: ApproveStandupDto,
   ) {
     const userId = requireSessionUserId(session)

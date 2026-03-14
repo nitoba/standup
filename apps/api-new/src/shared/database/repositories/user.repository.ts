@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { Result } from '@standup/domain'
 import { and, eq, gt } from 'drizzle-orm'
+import { Result } from '../../domain'
 import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { account, session, user } from '../schema'

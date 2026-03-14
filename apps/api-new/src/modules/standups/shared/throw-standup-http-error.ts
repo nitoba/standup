@@ -9,7 +9,7 @@ import {
   ExternalServiceError,
   InvalidStateTransitionError,
   NotFoundError,
-} from '@standup/domain'
+} from '../../../shared/domain'
 
 type StandupHttpError =
   | NotFoundError

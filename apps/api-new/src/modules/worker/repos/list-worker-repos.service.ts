@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { ExternalServiceError, Result } from '@standup/domain'
+import { ExternalServiceError, Result } from '../../../shared/domain'
 import {
   WORKER_REPOS_REQUESTED_EVENT,
   type WorkerReposRequestedEvent,

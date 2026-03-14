@@ -105,11 +105,8 @@ Todas as imagens sao arm64, buildadas no GitHub Actions com runner nativo `ubunt
 
 | Imagem                           | Dockerfile                    | Base runtime             | Porta |
 | -------------------------------- | ----------------------------- | ------------------------ | ----- |
-| `ghcr.io/nitoba/standup-api`     | `apps/api/Dockerfile`         | `distroless/cc-debian12` | 3333  |
-| `ghcr.io/nitoba/standup-bot`     | `apps/discord-bot/Dockerfile` | `distroless/cc-debian12` | 3334  |
-| `ghcr.io/nitoba/standup-worker`  | `apps/worker/Dockerfile`      | `debian:12-slim` + git   | 3335  |
+| `ghcr.io/nitoba/standup-api`     | `apps/api-new/Dockerfile`     | `oven/bun:1.3.10`        | 3333  |
 | `ghcr.io/nitoba/standup-web`     | `apps/web/Dockerfile`         | `nginx:alpine`           | 80    |
-| `ghcr.io/nitoba/standup-migrate` | `packages/db/Dockerfile`      | `oven/bun:1.3.9`         | -     |
 
 **Build strategy**: multi-stage com `bun build --compile --target=bun-linux-arm64`.
 O worker usa `debian:12-slim` (nao Alpine) porque Bun nao tem target arm64-musl.
@@ -132,9 +129,7 @@ standup/
   .kamal/
     secrets-common       # Secrets do Kamal (gitignored) — usa $VAR substitution
   config/
-    deploy.api.yml       # API — com kamal-proxy (api.nitodev.com.br)
-    deploy.bot.yml       # Discord bot — sem proxy, network alias standup-bot
-    deploy.worker.yml    # Worker — sem proxy, network alias standup-worker + volumes
+    deploy.api.yml       # Monolito NestJS — com kamal-proxy (api.nitodev.com.br)
     deploy.web.yml       # Web SPA — com kamal-proxy (app.nitodev.com.br)
 ```
 

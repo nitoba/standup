@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common'
-import type { StandupRecord } from '@standup/domain'
+import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
+import { UserRepository } from '../../../shared/database/repositories/user.repository'
+import type { StandupRecord } from '../../../shared/domain'
 import {
   type DbError,
   type InvalidStateTransitionError,
   NotFoundError,
   Result,
   ValidationError,
-} from '@standup/domain'
-import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
-import { UserRepository } from '../../../shared/database/repositories/user.repository'
+} from '../../../shared/domain'
 import { EnvService } from '../../../shared/env/env.service'
 import { AppLoggerFactory } from '../../../shared/logger'
 import { EventBusService } from '../../events/event-bus.service'

@@ -1,7 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
-import { ExternalServiceError, Result } from '@standup/domain'
+import { ExternalServiceError, Result } from '../../../shared/domain'
 import { AppLoggerFactory } from '../../../shared/logger'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
 import type { PullRequestDetail, RepoInfo, WorkItemDetail } from './types'

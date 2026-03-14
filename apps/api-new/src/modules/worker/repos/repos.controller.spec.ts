@@ -1,5 +1,5 @@
-import { ExternalServiceError, Result } from '@standup/domain'
 import { describe, expect, it, vi } from 'vitest'
+import { ExternalServiceError, Result } from '../../../shared/domain'
 import { ReposController } from './repos.controller'
 
 describe('ReposController', () => {

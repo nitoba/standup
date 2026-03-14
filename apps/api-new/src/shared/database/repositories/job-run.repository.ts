@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common'
+import { and, eq, lt } from 'drizzle-orm'
 import {
   DbError,
   JobAlreadyCompletedError,
   LockAlreadyHeldError,
   Result,
-} from '@standup/domain'
-import { and, eq, lt } from 'drizzle-orm'
+} from '../../domain'
 import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { jobRuns } from '../schema'

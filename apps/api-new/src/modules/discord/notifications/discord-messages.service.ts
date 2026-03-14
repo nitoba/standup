@@ -1,14 +1,5 @@
 import { Injectable } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import type {
-  ExternalServiceError,
-  Result,
-  StandupRecord,
-} from '@standup/domain'
-import {
-  ExternalServiceError as DiscordError,
-  Result as ResultFactory,
-} from '@standup/domain'
 import type { APIEmbed } from 'discord.js'
 import {
   ActionRowBuilder,
@@ -17,6 +8,15 @@ import {
   type Client,
   type MessageEditOptions,
 } from 'discord.js'
+import type {
+  ExternalServiceError,
+  Result,
+  StandupRecord,
+} from '../../../shared/domain'
+import {
+  ExternalServiceError as DiscordError,
+  Result as ResultFactory,
+} from '../../../shared/domain'
 import { EnvService } from '../../../shared/env/env.service'
 import { AppLoggerFactory } from '../../../shared/logger'
 import {

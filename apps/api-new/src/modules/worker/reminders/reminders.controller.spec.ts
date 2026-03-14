@@ -1,6 +1,6 @@
 import { BadRequestException, UnauthorizedException } from '@nestjs/common'
-import { Result, ValidationError } from '@standup/domain'
 import { describe, expect, it, vi } from 'vitest'
+import { Result, ValidationError } from '../../../shared/domain'
 import { RemindersController } from './reminders.controller'
 
 describe('RemindersController', () => {

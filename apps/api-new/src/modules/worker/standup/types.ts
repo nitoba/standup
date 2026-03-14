@@ -1,4 +1,4 @@
-import type { Result } from '@standup/domain'
+import type { Result } from '../../../shared/domain'
 
 export interface StandupJobOptions {
   userId: string

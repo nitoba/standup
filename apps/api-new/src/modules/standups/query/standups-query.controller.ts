@@ -8,10 +8,10 @@ import {
   ParseUUIDPipe,
   Query,
 } from '@nestjs/common'
-import type { StandupStatus } from '@standup/domain'
 import { Session } from '@thallesp/nestjs-better-auth'
 import type { AuthSession } from '../../../shared/auth/auth-session'
 import { requireSessionUserId } from '../../../shared/auth/require-session-user-id'
+import type { StandupStatus } from '../../../shared/domain'
 import { StandupsQueryService } from './standups-query.service'
 
 const STANDUP_STATUS_QUERY = {

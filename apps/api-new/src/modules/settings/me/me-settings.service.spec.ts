@@ -1,6 +1,6 @@
 import { InternalServerErrorException } from '@nestjs/common'
-import { DbError, Result } from '@standup/domain'
 import { describe, expect, it, vi } from 'vitest'
+import { DbError, Result } from '../../../shared/domain'
 import { MeSettingsService } from './me-settings.service'
 
 describe('MeSettingsService', () => {

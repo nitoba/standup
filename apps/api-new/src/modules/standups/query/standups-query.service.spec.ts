@@ -1,6 +1,6 @@
 import { InternalServerErrorException, NotFoundException } from '@nestjs/common'
-import { DbError, NotFoundError, Result } from '@standup/domain'
 import { describe, expect, it, vi } from 'vitest'
+import { DbError, NotFoundError, Result } from '../../../shared/domain'
 import { StandupsQueryService } from './standups-query.service'
 
 describe('StandupsQueryService', () => {

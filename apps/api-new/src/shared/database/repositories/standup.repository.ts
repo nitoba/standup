@@ -1,17 +1,13 @@
 import { Injectable } from '@nestjs/common'
-import type {
-  CustomEntries,
-  StandupRecord,
-  StandupStatus,
-} from '@standup/domain'
+import { and, desc, eq, gte, like, lte, or, type SQL, sql } from 'drizzle-orm'
+import type { CustomEntries, StandupRecord, StandupStatus } from '../../domain'
 import {
   DbError,
   InvalidStateTransitionError,
   NotFoundError,
   Result,
   transitionStandupStatus,
-} from '@standup/domain'
-import { and, desc, eq, gte, like, lte, or, type SQL, sql } from 'drizzle-orm'
+} from '../../domain'
 import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { standups } from '../schema'

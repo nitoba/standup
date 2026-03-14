@@ -1,6 +1,4 @@
 import { Injectable } from '@nestjs/common'
-import type { StandupStatus } from '@standup/domain'
-import { Result } from '@standup/domain'
 import {
   type ChatInputCommandInteraction,
   type Client,
@@ -8,6 +6,8 @@ import {
 } from 'discord.js'
 import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
 import { UserRepository } from '../../../shared/database/repositories/user.repository'
+import type { StandupStatus } from '../../../shared/domain'
+import { Result } from '../../../shared/domain'
 import { EMBED_COLORS } from '../embeds'
 import { DiscordAuthService } from '../services/discord-auth.service'
 import {

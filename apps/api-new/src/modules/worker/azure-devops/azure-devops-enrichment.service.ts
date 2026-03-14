@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import type { GatheredGitActivity, RepoActivity } from '@standup/domain'
-import { ExternalServiceError, Result } from '@standup/domain'
+import type { GatheredGitActivity, RepoActivity } from '../../../shared/domain'
+import { ExternalServiceError, Result } from '../../../shared/domain'
 import { AppLoggerFactory } from '../../../shared/logger'
 import { AzureDevopsMcpClientService } from './azure-devops-mcp-client.service'
 import type {
