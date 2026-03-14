@@ -1,28 +1,27 @@
 import { Injectable } from '@nestjs/common'
 import { Result, ValidationError } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import { UserRepository } from '../../../shared/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
+import { AppLoggerFactory } from '../../../shared/logger'
 import { parseSelectedRepos } from './parse-selected-repos'
 import { RunStandupJobService } from './run-standup-job.service'
 import type { StandupJobOptions } from './types'
 
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'standup-dispatch',
-})
-
 @Injectable()
 export class StandupDispatchService {
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
+    private readonly loggerFactory: AppLoggerFactory,
     private readonly userRepository: UserRepository,
     private readonly userSettingsRepository: UserSettingsRepository,
     private readonly standupJob: RunStandupJobService,
-  ) {}
+  ) {
+    this.logger = this.loggerFactory.create('standup-dispatch')
+  }
 
   dispatchStandupJob(options: StandupJobOptions): void {
     void this.standupJob.run(options).catch((error: unknown) => {
-      logger.error('Standup job threw unexpectedly', {
+      this.logger.error('Standup job threw unexpectedly', {
         userId: options.userId,
         error: error instanceof Error ? error.message : String(error),
       })

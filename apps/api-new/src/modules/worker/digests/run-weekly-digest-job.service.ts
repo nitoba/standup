@@ -1,18 +1,13 @@
 import { Injectable } from '@nestjs/common'
-import { createServiceLogger, withContext } from '@standup/logger'
 import { withSpan } from '@standup/observability'
 import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
 import { UserRepository } from '../../../shared/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
 import { WeeklyDigestRepository } from '../../../shared/database/repositories/weekly-digest.repository'
+import { AppLoggerFactory } from '../../../shared/logger'
 import { EmailClientService } from '../../email/email-client.service'
 import { WeeklyDigestEmailService } from '../../email/weekly-digest-email.service'
 import { StandupGeneratorService } from '../standup-generator/standup-generator.service'
-
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'weekly-digest-job',
-})
 
 function getPreviousWeekStart(now: Date): string {
   const day = now.getDay()
@@ -35,7 +30,10 @@ export interface WeeklyDigestJobOptions {
 
 @Injectable()
 export class RunWeeklyDigestJobService {
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
+
   constructor(
+    private readonly loggerFactory: AppLoggerFactory,
     private readonly emailClient: EmailClientService,
     private readonly weeklyDigestEmail: WeeklyDigestEmailService,
     private readonly digestRepository: WeeklyDigestRepository,
@@ -43,7 +41,9 @@ export class RunWeeklyDigestJobService {
     private readonly userRepository: UserRepository,
     private readonly userSettingsRepository: UserSettingsRepository,
     private readonly standupGenerator: StandupGeneratorService,
-  ) {}
+  ) {
+    this.logger = this.loggerFactory.create('weekly-digest-job')
+  }
 
   async run(options: WeeklyDigestJobOptions): Promise<void> {
     const runId = crypto.randomUUID()
@@ -51,7 +51,7 @@ export class RunWeeklyDigestJobService {
     const weekStart = getPreviousWeekStart(now)
     const weekEnd = getPreviousWeekEnd(weekStart)
 
-    const jobLogger = withContext(logger, {
+    const jobLogger = this.logger.child({
       job: 'weekly-digest',
       run: runId,
       userId: options.userId,

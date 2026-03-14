@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { DbError, NotFoundError, Result } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
+import { AppLoggerFactory } from '../../../shared/logger'
 import type {
   StandupProgressStep,
   StandupRunMode,
@@ -12,11 +12,6 @@ import { ExecuteGenerateStrategy } from './strategies/execute-generate-strategy'
 import { ExecuteRegenerateStrategy } from './strategies/execute-regenerate-strategy'
 import type { StandupJobOptions, StrategyProgressUpdate } from './types'
 
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'standup-pipeline',
-})
-
 interface PipelineContext {
   options: StandupJobOptions
   runId: string
@@ -26,13 +21,17 @@ interface PipelineContext {
 
 @Injectable()
 export class StandupPipelineService {
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
+    private readonly loggerFactory: AppLoggerFactory,
     private readonly standupRepository: StandupRepository,
     private readonly notifications: WorkerEventPublisherService,
     private readonly generateStrategy: ExecuteGenerateStrategy,
     private readonly regenerateStrategy: ExecuteRegenerateStrategy,
     private readonly adjustStrategy: ExecuteAdjustStrategy,
-  ) {}
+  ) {
+    this.logger = this.loggerFactory.create('standup-pipeline')
+  }
 
   async execute(ctx: PipelineContext): Promise<Result<string | null, Error>> {
     const { options, runId, today, runMode } = ctx
@@ -98,7 +97,7 @@ export class StandupPipelineService {
     }
 
     const standupId = saveResult.value.id
-    logger.info('Standup draft saved', { standupId })
+    this.logger.info('Standup draft saved', { standupId })
 
     await this.emitProgress({
       userId: options.userId,

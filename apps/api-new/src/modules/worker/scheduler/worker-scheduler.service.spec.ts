@@ -38,6 +38,17 @@ function makeSettings(
 }
 
 describe('WorkerSchedulerService', () => {
+  function makeLoggerFactory() {
+    return {
+      create: vi.fn(() => ({
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        child: vi.fn(),
+      })),
+    }
+  }
+
   afterEach(() => {
     vi.clearAllMocks()
   })
@@ -58,6 +69,7 @@ describe('WorkerSchedulerService', () => {
       notifyReminder: vi.fn(),
     }
     const service = new WorkerSchedulerService(
+      makeLoggerFactory() as never,
       {
         config: { REPOS_ROOT_PATH: '/repos', SCHEDULER_ENABLED: true },
       } as never,
@@ -89,6 +101,7 @@ describe('WorkerSchedulerService', () => {
       dispatchStandupJob: vi.fn(),
     }
     const service = new WorkerSchedulerService(
+      makeLoggerFactory() as never,
       {
         config: { REPOS_ROOT_PATH: '/repos', SCHEDULER_ENABLED: true },
       } as never,
@@ -134,6 +147,7 @@ describe('WorkerSchedulerService', () => {
       dispatchStandupJob: vi.fn(),
     }
     const service = new WorkerSchedulerService(
+      makeLoggerFactory() as never,
       {
         config: { REPOS_ROOT_PATH: '/repos', SCHEDULER_ENABLED: true },
       } as never,

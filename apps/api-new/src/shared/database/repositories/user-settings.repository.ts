@@ -1,20 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { DbError, Result } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import { eq, lt } from 'drizzle-orm'
+import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { userSettings } from '../schema'
-
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'user-settings-repository',
-})
-
-function dbErr(error: unknown, operation: string): DbError {
-  const message = error instanceof Error ? error.message : 'Unknown DB error'
-  logger.error(`Failed to ${operation}`, { error: message })
-  return new DbError({ operation, message: `${operation}: ${message}` })
-}
 
 export interface UpsertUserSettingsInput {
   userId: string
@@ -31,7 +20,14 @@ export interface UpsertUserSettingsInput {
 
 @Injectable()
 export class UserSettingsRepository {
-  constructor(private readonly database: DatabaseService) {}
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
+
+  constructor(
+    private readonly loggerFactory: AppLoggerFactory,
+    private readonly database: DatabaseService,
+  ) {
+    this.logger = this.loggerFactory.create('user-settings-repository')
+  }
 
   async findByUserId(
     userId: string,
@@ -46,7 +42,7 @@ export class UserSettingsRepository {
 
       return Result.ok(row ?? null)
     } catch (error) {
-      return Result.err(dbErr(error, 'findByUserId'))
+      return Result.err(this.dbErr(error, 'findByUserId'))
     }
   }
 
@@ -60,7 +56,7 @@ export class UserSettingsRepository {
 
       return Result.ok(rows)
     } catch (error) {
-      return Result.err(dbErr(error, 'findAllActive'))
+      return Result.err(this.dbErr(error, 'findAllActive'))
     }
   }
 
@@ -124,7 +120,7 @@ export class UserSettingsRepository {
 
       return Result.ok(row)
     } catch (error) {
-      return Result.err(dbErr(error, 'upsert'))
+      return Result.err(this.dbErr(error, 'upsert'))
     }
   }
 
@@ -140,7 +136,7 @@ export class UserSettingsRepository {
 
       return Result.ok(undefined)
     } catch (error) {
-      return Result.err(dbErr(error, 'updateSnoozedUntil'))
+      return Result.err(this.dbErr(error, 'updateSnoozedUntil'))
     }
   }
 
@@ -156,7 +152,7 @@ export class UserSettingsRepository {
 
       return Result.ok(undefined)
     } catch (error) {
-      return Result.err(dbErr(error, 'updateCancelledDate'))
+      return Result.err(this.dbErr(error, 'updateCancelledDate'))
     }
   }
 
@@ -178,7 +174,13 @@ export class UserSettingsRepository {
 
       return Result.ok(expiredRows.length)
     } catch (error) {
-      return Result.err(dbErr(error, 'clearExpiredSnoozes'))
+      return Result.err(this.dbErr(error, 'clearExpiredSnoozes'))
     }
+  }
+
+  private dbErr(error: unknown, operation: string): DbError {
+    const message = error instanceof Error ? error.message : 'Unknown DB error'
+    this.logger.error(`Failed to ${operation}`, { error: message })
+    return new DbError({ operation, message: `${operation}: ${message}` })
   }
 }

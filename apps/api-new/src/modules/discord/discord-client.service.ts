@@ -1,18 +1,19 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common'
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { Client, Events, GatewayIntentBits } from 'discord.js'
 import { EnvService } from '../../shared/env/env.service'
+import { AppLoggerFactory } from '../../shared/logger'
 
 @Injectable()
 export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(DiscordClientService.name)
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
   private client: Client | null = null
 
-  constructor(private readonly env: EnvService) {}
+  constructor(
+    private readonly loggerFactory: AppLoggerFactory,
+    private readonly env: EnvService,
+  ) {
+    this.logger = this.loggerFactory.create('discord-client')
+  }
 
   async onModuleInit(): Promise<void> {
     if (!this.env.discord.gatewayEnabled || !this.env.discord.token) {
@@ -32,7 +33,7 @@ export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
     })
 
     this.client.once(Events.ClientReady, () => {
-      this.logger.log(
+      this.logger.info(
         `Discord conectado como ${this.client?.user?.tag ?? 'n/a'}`,
       )
     })

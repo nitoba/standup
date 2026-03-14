@@ -1,13 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { ExternalServiceError, Result } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import { createTransport } from 'nodemailer'
 import { EnvService } from '../../shared/env/env.service'
-
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'email-client',
-})
+import { AppLoggerFactory } from '../../shared/logger'
 
 export interface SmtpConfig {
   host: string
@@ -32,7 +27,13 @@ export interface SendEmailResult {
 
 @Injectable()
 export class EmailClientService {
-  constructor(private readonly env: EnvService) {}
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
+  constructor(
+    private readonly loggerFactory: AppLoggerFactory,
+    private readonly env: EnvService,
+  ) {
+    this.logger = this.loggerFactory.create('email-client')
+  }
 
   isConfigured(): boolean {
     const smtp = this.env.smtp
@@ -76,7 +77,7 @@ export class EmailClientService {
           headers,
         })
 
-        logger.info('Email sent', {
+        this.logger.info('Email sent', {
           to: input.to,
           subject: input.subject,
           messageId: info.messageId,
@@ -86,7 +87,7 @@ export class EmailClientService {
       },
       catch: (error) => {
         const message = error instanceof Error ? error.message : String(error)
-        logger.error('Failed to send email', {
+        this.logger.error('Failed to send email', {
           to: input.to,
           subject: input.subject,
           error: message,

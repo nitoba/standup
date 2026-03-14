@@ -8,7 +8,6 @@ import {
   ExternalServiceError as DiscordError,
   Result as ResultFactory,
 } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import type { APIEmbed } from 'discord.js'
 import {
   ActionRowBuilder,
@@ -17,6 +16,7 @@ import {
   type Client,
   type MessageEditOptions,
 } from 'discord.js'
+import { AppLoggerFactory } from '../../../shared/logger'
 import { DiscordClientService } from '../discord-client.service'
 import {
   buildPublishedEmbed,
@@ -26,14 +26,15 @@ import {
   EMBED_COLORS,
 } from '../embeds'
 
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'discord-messages',
-})
-
 @Injectable()
 export class DiscordMessagesService {
-  constructor(private readonly discordClient: DiscordClientService) {}
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
+  constructor(
+    private readonly loggerFactory: AppLoggerFactory,
+    private readonly discordClient: DiscordClientService,
+  ) {
+    this.logger = this.loggerFactory.create('discord-messages')
+  }
 
   async sendReviewDm(
     record: StandupRecord,
@@ -67,7 +68,7 @@ export class DiscordMessagesService {
           components: [row],
         })
 
-        logger.info('Review DM sent', {
+        this.logger.info('Review DM sent', {
           standupId: record.id,
           userId: discordUserId,
           messageId: message.id,
@@ -111,7 +112,7 @@ export class DiscordMessagesService {
           components: [row],
         })
 
-        logger.info('Reminder DM sent', {
+        this.logger.info('Reminder DM sent', {
           userId: discordUserId,
           messageId: message.id,
           nextRunAt,

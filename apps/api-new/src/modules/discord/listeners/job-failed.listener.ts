@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { createServiceLogger } from '@standup/logger'
 import { EnvService } from '../../../shared/env/env.service'
+import { AppLoggerFactory } from '../../../shared/logger'
 import {
   JOB_FAILED_NOTIFICATION_EVENT,
   type JobFailedNotificationEvent,
@@ -9,17 +9,16 @@ import {
 import { buildJobFailedEmbed } from '../embeds'
 import { DiscordMessagesService } from '../notifications/discord-messages.service'
 
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'discord-job-failed-listener',
-})
-
 @Injectable()
 export class JobFailedListener {
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
+    private readonly loggerFactory: AppLoggerFactory,
     private readonly messages: DiscordMessagesService,
     private readonly env: EnvService,
-  ) {}
+  ) {
+    this.logger = this.loggerFactory.create('discord-job-failed-listener')
+  }
 
   @OnEvent(JOB_FAILED_NOTIFICATION_EVENT)
   async handle(event: JobFailedNotificationEvent): Promise<void> {
@@ -33,7 +32,7 @@ export class JobFailedListener {
     )
 
     if (result.isErr()) {
-      logger.warn('Failed to send job failed notification', {
+      this.logger.warn('Failed to send job failed notification', {
         error: result.error.message,
       })
     }

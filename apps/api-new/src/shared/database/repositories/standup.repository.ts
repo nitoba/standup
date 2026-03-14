@@ -11,15 +11,10 @@ import {
   Result,
   transitionStandupStatus,
 } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import { and, desc, eq, gte, like, lte, or, type SQL, sql } from 'drizzle-orm'
+import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { standups } from '../schema'
-
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'standup-repository',
-})
 
 function parseCustomEntries(raw: string | null): CustomEntries | null {
   if (!raw) {
@@ -165,7 +160,14 @@ function buildListConditions(filters?: ListStandupFilters): SQL<unknown>[] {
 
 @Injectable()
 export class StandupRepository {
-  constructor(private readonly database: DatabaseService) {}
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
+
+  constructor(
+    private readonly loggerFactory: AppLoggerFactory,
+    private readonly database: DatabaseService,
+  ) {
+    this.logger = this.loggerFactory.create('standup-repository')
+  }
 
   async create(
     input: CreateStandupInput,
@@ -606,7 +608,7 @@ export class StandupRepository {
 
   private dbErr(operation: string, error: unknown): Result<never, DbError> {
     const message = error instanceof Error ? error.message : String(error)
-    logger.error('DB operation failed', { operation, error: message })
+    this.logger.error('DB operation failed', { operation, error: message })
     return Result.err(new DbError({ operation, message }))
   }
 }

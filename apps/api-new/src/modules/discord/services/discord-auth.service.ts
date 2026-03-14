@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common'
-import { createServiceLogger } from '@standup/logger'
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -12,11 +11,7 @@ import {
 } from 'discord.js'
 import { UserRepository } from '../../../shared/database/repositories/user.repository'
 import { EnvService } from '../../../shared/env/env.service'
-
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'discord-auth',
-})
+import { AppLoggerFactory } from '../../../shared/logger'
 
 type ReplyCapableInteraction =
   | ChatInputCommandInteraction
@@ -26,10 +21,14 @@ type ReplyCapableInteraction =
 
 @Injectable()
 export class DiscordAuthService {
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
+    private readonly loggerFactory: AppLoggerFactory,
     private readonly userRepository: UserRepository,
     private readonly env: EnvService,
-  ) {}
+  ) {
+    this.logger = this.loggerFactory.create('discord-auth')
+  }
 
   async resolveActiveSession(
     discordUserId: string,
@@ -37,7 +36,7 @@ export class DiscordAuthService {
     const result = await this.userRepository.hasActiveSession(discordUserId)
 
     if (result.isErr()) {
-      logger.error('Failed to resolve active session', {
+      this.logger.error('Failed to resolve active session', {
         discordUserId,
         error: result.error.message,
       })

@@ -1,12 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { Result } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
+import { AppLoggerFactory } from '../../../shared/logger'
 import { EventBusService } from '../../events/event-bus.service'
-
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'discord-available-repos',
-})
 
 const CACHE_TTL_MS = 5 * 60 * 1000
 
@@ -18,10 +13,16 @@ export interface DiscordRepoInfo {
 
 @Injectable()
 export class DiscordAvailableReposService {
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
   private cachedRepos: DiscordRepoInfo[] = []
   private cacheExpiresAt = 0
 
-  constructor(private readonly eventBus: EventBusService) {}
+  constructor(
+    private readonly loggerFactory: AppLoggerFactory,
+    private readonly eventBus: EventBusService,
+  ) {
+    this.logger = this.loggerFactory.create('discord-available-repos')
+  }
 
   getCachedRepos(): DiscordRepoInfo[] {
     if (Date.now() < this.cacheExpiresAt && this.cachedRepos.length > 0) {
@@ -43,7 +44,7 @@ export class DiscordAvailableReposService {
       >()
 
     if (!result || result.isErr()) {
-      logger.warn('Failed to fetch repos for Discord settings', {
+      this.logger.warn('Failed to fetch repos for Discord settings', {
         error: result?.error.message ?? 'no listener handled the repo request',
       })
       return []

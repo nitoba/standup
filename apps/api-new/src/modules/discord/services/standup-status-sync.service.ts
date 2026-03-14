@@ -5,16 +5,11 @@ import {
   type NotFoundError,
   Result,
 } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
 import { UserRepository } from '../../../shared/database/repositories/user.repository'
 import { EnvService } from '../../../shared/env/env.service'
+import { AppLoggerFactory } from '../../../shared/logger'
 import { DiscordMessagesService } from '../notifications/discord-messages.service'
-
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'discord-standup-status-sync',
-})
 
 export interface SyncStandupStatusInput {
   standupId: string
@@ -25,12 +20,16 @@ type SyncError = NotFoundError | DbError | ExternalServiceError
 
 @Injectable()
 export class StandupStatusSyncService {
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
+    private readonly loggerFactory: AppLoggerFactory,
     private readonly standupRepository: StandupRepository,
     private readonly userRepository: UserRepository,
     private readonly messages: DiscordMessagesService,
     private readonly env: EnvService,
-  ) {}
+  ) {
+    this.logger = this.loggerFactory.create('discord-standup-status-sync')
+  }
 
   async syncStatus(
     input: SyncStandupStatusInput,
@@ -69,7 +68,7 @@ export class StandupStatusSyncService {
       })
 
       if (dmResult.isErr()) {
-        logger.warn('Failed to sync DM message', {
+        this.logger.warn('Failed to sync DM message', {
           standupId: input.standupId,
           error: dmResult.error.message,
         })
@@ -83,7 +82,7 @@ export class StandupStatusSyncService {
       )
 
       if (publishResult.isErr()) {
-        logger.warn('Failed to publish standup during sync', {
+        this.logger.warn('Failed to publish standup during sync', {
           standupId: input.standupId,
           error: publishResult.error.message,
         })
@@ -96,10 +95,13 @@ export class StandupStatusSyncService {
       )
 
       if (publishedResult.isErr()) {
-        logger.warn('Failed to transition standup to published after sync', {
-          standupId: input.standupId,
-          error: publishedResult.error.message,
-        })
+        this.logger.warn(
+          'Failed to transition standup to published after sync',
+          {
+            standupId: input.standupId,
+            error: publishedResult.error.message,
+          },
+        )
       }
     }
 

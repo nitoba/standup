@@ -1,20 +1,21 @@
 import { Injectable } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { createServiceLogger } from '@standup/logger'
+import { AppLoggerFactory } from '../../../shared/logger'
 import {
   STANDUP_REMINDER_EVENT,
   type StandupReminderEvent,
 } from '../../events/standup-events'
 import { DiscordMessagesService } from '../notifications/discord-messages.service'
 
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'discord-standup-reminder-listener',
-})
-
 @Injectable()
 export class StandupReminderListener {
-  constructor(private readonly messages: DiscordMessagesService) {}
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
+  constructor(
+    private readonly loggerFactory: AppLoggerFactory,
+    private readonly messages: DiscordMessagesService,
+  ) {
+    this.logger = this.loggerFactory.create('discord-standup-reminder-listener')
+  }
 
   @OnEvent(STANDUP_REMINDER_EVENT)
   async handle(event: StandupReminderEvent): Promise<void> {
@@ -24,7 +25,7 @@ export class StandupReminderListener {
     )
 
     if (result.isErr()) {
-      logger.warn('Failed to send reminder DM', {
+      this.logger.warn('Failed to send reminder DM', {
         discordUserId: event.discordUserId,
         error: result.error.message,
       })

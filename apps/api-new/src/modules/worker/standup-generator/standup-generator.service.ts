@@ -1,5 +1,5 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import type {
   GatheredGitActivity,
   GeneratedStandup,
@@ -9,6 +9,7 @@ import type {
 import { ExternalServiceError, Result } from '@standup/domain'
 import { generateText, Output } from 'ai'
 import * as z from 'zod'
+import { AppLoggerFactory } from '../../../shared/logger'
 import { AzureDevopsEnrichmentService } from '../azure-devops/azure-devops-enrichment.service'
 import type { EnrichedGitActivity } from '../azure-devops/types'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
@@ -34,13 +35,16 @@ export interface AdjustStandupInput {
 
 @Injectable()
 export class StandupGeneratorService {
-  private readonly logger = new Logger(StandupGeneratorService.name)
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
 
   constructor(
+    private readonly loggerFactory: AppLoggerFactory,
     private readonly runtimeConfig: WorkerRuntimeConfigService,
     private readonly azureDevopsEnrichment: AzureDevopsEnrichmentService,
     private readonly standupPrompt: StandupPromptService,
-  ) {}
+  ) {
+    this.logger = this.loggerFactory.create('standup-generator')
+  }
 
   async generateStandup(
     input: GenerateStandupInput,

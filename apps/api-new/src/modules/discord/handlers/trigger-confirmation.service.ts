@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common'
-import { createServiceLogger } from '@standup/logger'
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -9,6 +8,7 @@ import {
   type InteractionReplyOptions,
   MessageFlags,
 } from 'discord.js'
+import { AppLoggerFactory } from '../../../shared/logger'
 import { DiscordAuthService } from '../services/discord-auth.service'
 import { DiscordTriggerService } from '../services/discord-trigger.service'
 import {
@@ -16,11 +16,6 @@ import {
   createPendingTriggerRequest,
   type TriggerRequestOptions,
 } from './trigger-request-store'
-
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'discord-trigger-confirmation',
-})
 
 type TriggerAction = 'confirm' | 'cancel'
 
@@ -30,10 +25,14 @@ function ephemeral(content: string): InteractionReplyOptions {
 
 @Injectable()
 export class TriggerConfirmationService {
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
+    private readonly loggerFactory: AppLoggerFactory,
     private readonly auth: DiscordAuthService,
     private readonly trigger: DiscordTriggerService,
-  ) {}
+  ) {
+    this.logger = this.loggerFactory.create('discord-trigger-confirmation')
+  }
 
   async handleSlashCommand(
     interaction: ChatInputCommandInteraction,
@@ -122,7 +121,7 @@ export class TriggerConfirmationService {
       pendingRequest.options as TriggerRequestOptions,
     )
     if (result.isErr()) {
-      logger.error('Failed to execute manual trigger', {
+      this.logger.error('Failed to execute manual trigger', {
         userId: interaction.user.id,
         error: result.error.message,
       })

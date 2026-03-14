@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import type { GatheredGitActivity, RepoActivity } from '@standup/domain'
 import { ExternalServiceError, Result } from '@standup/domain'
+import { AppLoggerFactory } from '../../../shared/logger'
 import { AzureDevopsMcpClientService } from './azure-devops-mcp-client.service'
 import type {
   EnrichedGitActivity,
@@ -11,11 +12,14 @@ import type {
 
 @Injectable()
 export class AzureDevopsEnrichmentService {
-  private readonly logger = new Logger(AzureDevopsEnrichmentService.name)
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
 
   constructor(
+    private readonly loggerFactory: AppLoggerFactory,
     private readonly azureDevopsMcpClient: AzureDevopsMcpClientService,
-  ) {}
+  ) {
+    this.logger = this.loggerFactory.create('azure-devops-enrichment')
+  }
 
   async enrichGitActivity(
     activity: GatheredGitActivity,

@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { Cron, CronExpression } from '@nestjs/schedule'
 import { JobRunRepository } from '../../../shared/database/repositories/job-run.repository'
 import { UserRepository } from '../../../shared/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
 import { userSettings } from '../../../shared/database/schema'
+import { AppLoggerFactory } from '../../../shared/logger'
 import { LocalDateService } from '../../../shared/time/local-date.service'
 import { WeeklyDigestDispatchService } from '../digests/weekly-digest-dispatch.service'
 import { ReminderActionsService } from '../reminders/reminder-actions.service'
@@ -19,9 +20,10 @@ type ActiveUserSettings = typeof userSettings.$inferSelect
 
 @Injectable()
 export class WorkerSchedulerService {
-  private readonly logger = new Logger(WorkerSchedulerService.name)
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
 
   constructor(
+    private readonly loggerFactory: AppLoggerFactory,
     private readonly runtimeConfig: WorkerRuntimeConfigService,
     private readonly userSettingsRepository: UserSettingsRepository,
     private readonly userRepository: UserRepository,
@@ -30,7 +32,9 @@ export class WorkerSchedulerService {
     private readonly weeklyDigestDispatch: WeeklyDigestDispatchService,
     private readonly reminderActions: ReminderActionsService,
     private readonly localDateService: LocalDateService,
-  ) {}
+  ) {
+    this.logger = this.loggerFactory.create('worker-scheduler')
+  }
 
   @Cron(CronExpression.EVERY_MINUTE, { name: 'standup-scheduler-poll' })
   async handleSchedulerTick(): Promise<void> {

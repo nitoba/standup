@@ -1,12 +1,8 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common'
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { ExternalServiceError, Result } from '@standup/domain'
+import { AppLoggerFactory } from '../../../shared/logger'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
 import type { PullRequestDetail, RepoInfo, WorkItemDetail } from './types'
 
@@ -14,10 +10,15 @@ import type { PullRequestDetail, RepoInfo, WorkItemDetail } from './types'
 export class AzureDevopsMcpClientService
   implements OnModuleInit, OnModuleDestroy
 {
-  private readonly logger = new Logger(AzureDevopsMcpClientService.name)
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
   private client: Client | null = null
 
-  constructor(private readonly runtimeConfig: WorkerRuntimeConfigService) {}
+  constructor(
+    private readonly loggerFactory: AppLoggerFactory,
+    private readonly runtimeConfig: WorkerRuntimeConfigService,
+  ) {
+    this.logger = this.loggerFactory.create('azure-devops-mcp-client')
+  }
 
   async onModuleInit(): Promise<void> {
     const config = this.runtimeConfig.config

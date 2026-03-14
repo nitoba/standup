@@ -1,13 +1,8 @@
 import { Injectable } from '@nestjs/common'
-import { createServiceLogger } from '@standup/logger'
 import type { Client } from 'discord.js'
 import { REST, Routes, SlashCommandBuilder } from 'discord.js'
 import { EnvService } from '../../../shared/env/env.service'
-
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'discord-command-registration',
-})
+import { AppLoggerFactory } from '../../../shared/logger'
 
 const STATUS_CHOICES = [
   { name: 'Draft', value: 'draft' },
@@ -108,17 +103,27 @@ function buildStandupCommand(): SlashCommandBuilder {
 
 @Injectable()
 export class CommandRegistrationService {
-  constructor(private readonly env: EnvService) {}
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
+  constructor(
+    private readonly loggerFactory: AppLoggerFactory,
+    private readonly env: EnvService,
+  ) {
+    this.logger = this.loggerFactory.create('discord-command-registration')
+  }
 
   async register(client: Client): Promise<void> {
     if (!this.env.discord.token) {
-      logger.warn('Discord token missing, slash commands were not registered')
+      this.logger.warn(
+        'Discord token missing, slash commands were not registered',
+      )
       return
     }
 
     const clientId = client.user?.id
     if (!clientId) {
-      logger.warn('Cannot register commands because client.user.id is missing')
+      this.logger.warn(
+        'Cannot register commands because client.user.id is missing',
+      )
       return
     }
 
@@ -144,7 +149,7 @@ export class CommandRegistrationService {
         })
       }
     } catch (error) {
-      logger.error('Failed to register application commands', {
+      this.logger.error('Failed to register application commands', {
         error: error instanceof Error ? error.message : String(error),
       })
     }

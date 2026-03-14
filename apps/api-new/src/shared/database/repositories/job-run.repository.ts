@@ -5,15 +5,10 @@ import {
   LockAlreadyHeldError,
   Result,
 } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import { and, eq, lt } from 'drizzle-orm'
+import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { jobRuns } from '../schema'
-
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'job-run-repository',
-})
 
 export interface AcquireLockInput {
   id: string
@@ -27,7 +22,14 @@ export type JobRunStatus = 'running' | 'success' | 'failed'
 
 @Injectable()
 export class JobRunRepository {
-  constructor(private readonly database: DatabaseService) {}
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
+
+  constructor(
+    private readonly loggerFactory: AppLoggerFactory,
+    private readonly database: DatabaseService,
+  ) {
+    this.logger = this.loggerFactory.create('job-run-repository')
+  }
 
   async acquireLock(
     input: AcquireLockInput,
@@ -181,7 +183,7 @@ export class JobRunRepository {
 
   private dbErr(operation: string, error: unknown): Result<never, DbError> {
     const message = error instanceof Error ? error.message : String(error)
-    logger.error('DB operation failed', { operation, error: message })
+    this.logger.error('DB operation failed', { operation, error: message })
     return Result.err(new DbError({ operation, message }))
   }
 }

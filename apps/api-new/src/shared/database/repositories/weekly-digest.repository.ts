@@ -1,15 +1,10 @@
 import { Injectable } from '@nestjs/common'
 import type { WeeklyDigestRecord, WeeklyDigestStatus } from '@standup/domain'
 import { DbError, Result } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import { and, eq, inArray } from 'drizzle-orm'
+import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { weeklyDigests } from '../schema'
-
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'weekly-digest-repository',
-})
 
 function parseStandupIds(raw: string): string[] {
   try {
@@ -41,12 +36,6 @@ function toRecord(row: typeof weeklyDigests.$inferSelect): WeeklyDigestRecord {
   }
 }
 
-function dbErr(error: unknown, operation: string): DbError {
-  const message = error instanceof Error ? error.message : 'Unknown DB error'
-  logger.error(`Failed to ${operation}`, { error: message })
-  return new DbError({ operation, message: `${operation}: ${message}` })
-}
-
 export interface CreateWeeklyDigestInput {
   id: string
   userId: string
@@ -59,7 +48,14 @@ export interface CreateWeeklyDigestInput {
 
 @Injectable()
 export class WeeklyDigestRepository {
-  constructor(private readonly database: DatabaseService) {}
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
+
+  constructor(
+    private readonly loggerFactory: AppLoggerFactory,
+    private readonly database: DatabaseService,
+  ) {
+    this.logger = this.loggerFactory.create('weekly-digest-repository')
+  }
 
   async findByUserAndWeek(
     userId: string,
@@ -80,7 +76,7 @@ export class WeeklyDigestRepository {
 
       return Result.ok(row ? toRecord(row) : null)
     } catch (error) {
-      return Result.err(dbErr(error, 'findByUserAndWeek'))
+      return Result.err(this.dbErr(error, 'findByUserAndWeek'))
     }
   }
 
@@ -109,7 +105,7 @@ export class WeeklyDigestRepository {
 
       return Result.ok(toRecord(row))
     } catch (error) {
-      return Result.err(dbErr(error, 'create'))
+      return Result.err(this.dbErr(error, 'create'))
     }
   }
 
@@ -133,7 +129,7 @@ export class WeeklyDigestRepository {
 
       return Result.ok(row ? toRecord(row) : null)
     } catch (error) {
-      return Result.err(dbErr(error, 'claimForSending'))
+      return Result.err(this.dbErr(error, 'claimForSending'))
     }
   }
 
@@ -165,7 +161,7 @@ export class WeeklyDigestRepository {
 
       return Result.ok(toRecord(row))
     } catch (error) {
-      return Result.err(dbErr(error, 'saveContent'))
+      return Result.err(this.dbErr(error, 'saveContent'))
     }
   }
 
@@ -189,7 +185,7 @@ export class WeeklyDigestRepository {
 
       return Result.ok(toRecord(row))
     } catch (error) {
-      return Result.err(dbErr(error, 'markSent'))
+      return Result.err(this.dbErr(error, 'markSent'))
     }
   }
 
@@ -216,7 +212,7 @@ export class WeeklyDigestRepository {
 
       return Result.ok(toRecord(row))
     } catch (error) {
-      return Result.err(dbErr(error, 'markFailed'))
+      return Result.err(this.dbErr(error, 'markFailed'))
     }
   }
 
@@ -240,7 +236,7 @@ export class WeeklyDigestRepository {
 
       return Result.ok(toRecord(row))
     } catch (error) {
-      return Result.err(dbErr(error, 'markSkipped'))
+      return Result.err(this.dbErr(error, 'markSkipped'))
     }
   }
 
@@ -271,7 +267,13 @@ export class WeeklyDigestRepository {
 
       return Result.ok(toRecord(row))
     } catch (error) {
-      return Result.err(dbErr(error, 'markUnknown'))
+      return Result.err(this.dbErr(error, 'markUnknown'))
     }
+  }
+
+  private dbErr(error: unknown, operation: string): DbError {
+    const message = error instanceof Error ? error.message : 'Unknown DB error'
+    this.logger.error(`Failed to ${operation}`, { error: message })
+    return new DbError({ operation, message: `${operation}: ${message}` })
   }
 }

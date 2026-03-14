@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import type {
   CommitInfo,
   GatheredGitActivity,
@@ -7,6 +7,7 @@ import type {
 } from '@standup/domain'
 import { ExternalServiceError, Result } from '@standup/domain'
 import { $ } from 'bun'
+import { AppLoggerFactory } from '../../../shared/logger'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
 
 interface CommitBlock {
@@ -17,9 +18,14 @@ interface CommitBlock {
 
 @Injectable()
 export class GitCollectorService {
-  private readonly logger = new Logger(GitCollectorService.name)
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
 
-  constructor(private readonly runtimeConfig: WorkerRuntimeConfigService) {}
+  constructor(
+    private readonly loggerFactory: AppLoggerFactory,
+    private readonly runtimeConfig: WorkerRuntimeConfigService,
+  ) {
+    this.logger = this.loggerFactory.create('git-collector')
+  }
 
   async collect(
     selectedRepos: string[],

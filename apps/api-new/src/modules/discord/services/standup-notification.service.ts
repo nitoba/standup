@@ -1,14 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { type DbError, type NotFoundError, Result } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
+import { AppLoggerFactory } from '../../../shared/logger'
 import { EventBusService } from '../../events/event-bus.service'
 import { DiscordMessagesService } from '../notifications/discord-messages.service'
-
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'discord-standup-notification',
-})
 
 export interface StandupReadyResult {
   standupId: string
@@ -18,11 +13,15 @@ export interface StandupReadyResult {
 
 @Injectable()
 export class StandupNotificationService {
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
+    private readonly loggerFactory: AppLoggerFactory,
     private readonly standupRepository: StandupRepository,
     private readonly messages: DiscordMessagesService,
     private readonly eventBus: EventBusService,
-  ) {}
+  ) {
+    this.logger = this.loggerFactory.create('discord-standup-notification')
+  }
 
   async notifyStandupReady(
     standupId: string,
@@ -37,7 +36,7 @@ export class StandupNotificationService {
     const dmResult = await this.messages.sendReviewDm(record, discordUserId)
 
     if (dmResult.isErr()) {
-      logger.warn('Failed to send review DM', {
+      this.logger.warn('Failed to send review DM', {
         standupId,
         error: dmResult.error.message,
       })
@@ -49,7 +48,7 @@ export class StandupNotificationService {
       dmResult.value.messageId,
     )
     if (saveMessageIdResult.isErr()) {
-      logger.warn('Failed to persist dmMessageId', {
+      this.logger.warn('Failed to persist dmMessageId', {
         standupId,
         error: saveMessageIdResult.error.message,
       })
@@ -60,7 +59,7 @@ export class StandupNotificationService {
       'pending_review',
     )
     if (transitionResult.isErr()) {
-      logger.warn('Failed to transition standup to pending_review', {
+      this.logger.warn('Failed to transition standup to pending_review', {
         standupId,
         error: transitionResult.error.message,
       })

@@ -1,18 +1,20 @@
 import { Injectable } from '@nestjs/common'
 import { Result } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import { and, eq, gt } from 'drizzle-orm'
+import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { account, session, user } from '../schema'
 
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'user-repository',
-})
-
 @Injectable()
 export class UserRepository {
-  constructor(private readonly database: DatabaseService) {}
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
+
+  constructor(
+    private readonly loggerFactory: AppLoggerFactory,
+    private readonly database: DatabaseService,
+  ) {
+    this.logger = this.loggerFactory.create('user-repository')
+  }
 
   async findUserIdByDiscordId(
     discordId: string,
@@ -36,7 +38,7 @@ export class UserRepository {
       const message =
         error instanceof Error ? error.message : 'Unknown DB error'
 
-      logger.error('Failed to find userId by Discord ID', {
+      this.logger.error('Failed to find userId by Discord ID', {
         discordId,
         error: message,
       })
@@ -63,7 +65,7 @@ export class UserRepository {
       const message =
         error instanceof Error ? error.message : 'Unknown DB error'
 
-      logger.error('Failed to find Discord ID by userId', {
+      this.logger.error('Failed to find Discord ID by userId', {
         userId,
         error: message,
       })
@@ -109,7 +111,7 @@ export class UserRepository {
       const message =
         error instanceof Error ? error.message : 'Unknown DB error'
 
-      logger.error('Failed to find user by Discord ID', {
+      this.logger.error('Failed to find user by Discord ID', {
         discordId,
         error: message,
       })
@@ -160,7 +162,7 @@ export class UserRepository {
       const message =
         error instanceof Error ? error.message : 'Unknown DB error'
 
-      logger.error('Failed to check active session', {
+      this.logger.error('Failed to check active session', {
         discordId,
         error: message,
       })
@@ -190,7 +192,7 @@ export class UserRepository {
       const message =
         error instanceof Error ? error.message : 'Unknown DB error'
 
-      logger.error('Failed to find user by ID', {
+      this.logger.error('Failed to find user by ID', {
         userId,
         error: message,
       })
@@ -224,7 +226,7 @@ export class UserRepository {
         .where(eq(session.userId, accountRow.userId))
         .run()
 
-      logger.info('Sessions deleted for user', {
+      this.logger.info('Sessions deleted for user', {
         discordId,
         userId: accountRow.userId,
       })
@@ -234,7 +236,7 @@ export class UserRepository {
       const message =
         error instanceof Error ? error.message : 'Unknown DB error'
 
-      logger.error('Failed to delete sessions by Discord ID', {
+      this.logger.error('Failed to delete sessions by Discord ID', {
         discordId,
         error: message,
       })

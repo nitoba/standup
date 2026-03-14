@@ -1,13 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { NotFoundError } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import { type ButtonInteraction, MessageFlags } from 'discord.js'
 import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
-
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'discord-copy-interaction',
-})
+import { AppLoggerFactory } from '../../../shared/logger'
 
 export type CopyAction = 'content'
 
@@ -35,7 +30,13 @@ function splitForDiscord(text: string, max = 2000): string[] {
 
 @Injectable()
 export class CopyInteractionService {
-  constructor(private readonly standupRepository: StandupRepository) {}
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
+  constructor(
+    private readonly loggerFactory: AppLoggerFactory,
+    private readonly standupRepository: StandupRepository,
+  ) {
+    this.logger = this.loggerFactory.create('discord-copy-interaction')
+  }
 
   async handle(
     interaction: ButtonInteraction,
@@ -55,7 +56,7 @@ export class CopyInteractionService {
         ? 'Standup não encontrado para cópia.'
         : `Erro ao buscar standup: ${found.error.message}`
 
-      logger.warn('Failed to load standup for copy', {
+      this.logger.warn('Failed to load standup for copy', {
         standupId,
         error: found.error.message,
       })

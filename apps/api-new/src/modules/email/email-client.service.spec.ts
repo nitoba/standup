@@ -30,11 +30,25 @@ describe('EmailClientService', () => {
     }
   }
 
+  function makeLoggerFactory() {
+    return {
+      create: vi.fn(() => ({
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        child: vi.fn(),
+      })),
+    }
+  }
+
   it('sends an email and includes unsubscribe headers when provided', async () => {
     createTransportMock.mockReturnValue({
       sendMail: sendMailMock.mockResolvedValue({ messageId: 'msg-1' }),
     })
-    const service = new EmailClientService(makeEnvService() as never)
+    const service = new EmailClientService(
+      makeLoggerFactory() as never,
+      makeEnvService() as never,
+    )
 
     const result = await service.sendEmail({
       to: 'dev@example.com',
@@ -59,7 +73,10 @@ describe('EmailClientService', () => {
     createTransportMock.mockReturnValue({
       sendMail: sendMailMock.mockRejectedValue(new Error('smtp failed')),
     })
-    const service = new EmailClientService(makeEnvService() as never)
+    const service = new EmailClientService(
+      makeLoggerFactory() as never,
+      makeEnvService() as never,
+    )
 
     const result = await service.sendEmail({
       to: 'dev@example.com',
@@ -76,16 +93,19 @@ describe('EmailClientService', () => {
   })
 
   it('reports missing SMTP configuration from env', async () => {
-    const service = new EmailClientService({
-      smtp: {
-        host: undefined,
-        port: 587,
-        secure: false,
-        user: undefined,
-        pass: undefined,
-        from: undefined,
-      },
-    } as never)
+    const service = new EmailClientService(
+      makeLoggerFactory() as never,
+      {
+        smtp: {
+          host: undefined,
+          port: 587,
+          secure: false,
+          user: undefined,
+          pass: undefined,
+          from: undefined,
+        },
+      } as never,
+    )
 
     expect(service.isConfigured()).toBe(false)
 

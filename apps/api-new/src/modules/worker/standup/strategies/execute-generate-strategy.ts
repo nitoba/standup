@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { Result } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import { withSpan } from '@standup/observability'
+import { AppLoggerFactory } from '../../../../shared/logger'
 import { GitCollectorService } from '../../git-collector/git-collector.service'
 import { StandupGeneratorService } from '../../standup-generator/standup-generator.service'
 import type {
@@ -11,18 +11,16 @@ import type {
 } from '../types'
 import { StandupStrategyBase } from './standup-strategy.base'
 
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'generate-strategy',
-})
-
 @Injectable()
 export class ExecuteGenerateStrategy extends StandupStrategyBase {
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
+    private readonly loggerFactory: AppLoggerFactory,
     private readonly gitCollector: GitCollectorService,
     private readonly standupGenerator: StandupGeneratorService,
   ) {
     super()
+    this.logger = this.loggerFactory.create('generate-strategy')
   }
 
   async execute(input: StrategyExecutionInput): Promise<StrategyResult> {
@@ -53,7 +51,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
     }
 
     if (gitActivity.value.repos.length === 0) {
-      logger.info('No commits found today', { userId: options.userId })
+      this.logger.info('No commits found today', { userId: options.userId })
       return Result.ok(null)
     }
 

@@ -8,11 +8,13 @@ import { StandupsModule } from './modules/standups/standups.module'
 import { WorkerModule } from './modules/worker/worker.module'
 import { DatabaseModule } from './shared/database/database.module'
 import { EnvModule } from './shared/env/env.module'
+import { LoggerModule } from './shared/logger/logger.module'
 import { TimeModule } from './shared/time/time.module'
 
 @Module({
   imports: [
     EnvModule,
+    LoggerModule,
     TimeModule,
     EventsModule,
     ScheduleModule.forRoot(),

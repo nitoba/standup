@@ -1,32 +1,32 @@
 import { Injectable } from '@nestjs/common'
 import { JobAlreadyCompletedError, LockAlreadyHeldError } from '@standup/domain'
-import { createServiceLogger, withContext } from '@standup/logger'
 import { JobRunRepository } from '../../../shared/database/repositories/job-run.repository'
+import { AppLoggerFactory } from '../../../shared/logger'
 import { LocalDateService } from '../../../shared/time/local-date.service'
 import { WorkerEventPublisherService } from '../worker-event-publisher.service'
 import { resolveRunMode } from './resolve-run-mode'
 import { StandupPipelineService } from './standup-pipeline.service'
 import type { StandupJobOptions } from './types'
 
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'standup-job',
-})
-
 @Injectable()
 export class RunStandupJobService {
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
+
   constructor(
+    private readonly loggerFactory: AppLoggerFactory,
     private readonly jobRunRepository: JobRunRepository,
     private readonly pipeline: StandupPipelineService,
     private readonly notifications: WorkerEventPublisherService,
     private readonly localDateService: LocalDateService,
-  ) {}
+  ) {
+    this.logger = this.loggerFactory.create('standup-job')
+  }
 
   async run(options: StandupJobOptions): Promise<void> {
     const runId = crypto.randomUUID()
     const today = this.localDateService.today(options.timezone)
     const runMode = resolveRunMode(options)
-    const jobLogger = withContext(logger, {
+    const jobLogger = this.logger.child({
       job: 'standup',
       run: runId,
       date: today,

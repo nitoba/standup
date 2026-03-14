@@ -3,8 +3,20 @@ import { describe, expect, it, vi } from 'vitest'
 import { StandupDispatchService } from './standup-dispatch.service'
 
 describe('StandupDispatchService', () => {
+  function makeLoggerFactory() {
+    return {
+      create: vi.fn(() => ({
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        child: vi.fn(),
+      })),
+    }
+  }
+
   it('returns validation error when settings are missing', async () => {
     const service = new StandupDispatchService(
+      makeLoggerFactory() as never,
       { findDiscordIdByUserId: vi.fn() } as never,
       { findByUserId: vi.fn().mockResolvedValue(Result.ok(null)) } as never,
       { run: vi.fn() } as never,
@@ -20,6 +32,7 @@ describe('StandupDispatchService', () => {
 
   it('returns validation error when discord identity is missing', async () => {
     const service = new StandupDispatchService(
+      makeLoggerFactory() as never,
       {
         findDiscordIdByUserId: vi.fn().mockResolvedValue(Result.ok(null)),
       } as never,
@@ -46,6 +59,7 @@ describe('StandupDispatchService', () => {
 
   it('returns validation error when selected repos are empty', async () => {
     const service = new StandupDispatchService(
+      makeLoggerFactory() as never,
       {
         findDiscordIdByUserId: vi
           .fn()
@@ -75,6 +89,7 @@ describe('StandupDispatchService', () => {
   it('dispatches the standup job with the resolved user settings', async () => {
     const run = vi.fn().mockResolvedValue(undefined)
     const service = new StandupDispatchService(
+      makeLoggerFactory() as never,
       {
         findDiscordIdByUserId: vi
           .fn()

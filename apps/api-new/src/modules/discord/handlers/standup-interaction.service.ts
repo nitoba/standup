@@ -7,17 +7,12 @@ import {
   Result,
   ValidationError,
 } from '@standup/domain'
-import { createServiceLogger } from '@standup/logger'
 import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
 import { UserRepository } from '../../../shared/database/repositories/user.repository'
 import { EnvService } from '../../../shared/env/env.service'
+import { AppLoggerFactory } from '../../../shared/logger'
 import { EventBusService } from '../../events/event-bus.service'
 import { DiscordMessagesService } from '../notifications/discord-messages.service'
-
-const logger = createServiceLogger({
-  service: 'api-new',
-  component: 'discord-standup-interaction',
-})
 
 export type StandupAction = 'approve' | 'reject' | 'regenerate'
 
@@ -37,13 +32,17 @@ type InteractionError =
 
 @Injectable()
 export class StandupInteractionService {
+  private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
+    private readonly loggerFactory: AppLoggerFactory,
     private readonly standupRepository: StandupRepository,
     private readonly userRepository: UserRepository,
     private readonly messages: DiscordMessagesService,
     private readonly env: EnvService,
     private readonly eventBus: EventBusService,
-  ) {}
+  ) {
+    this.logger = this.loggerFactory.create('discord-standup-interaction')
+  }
 
   async handle(
     action: StandupAction,
@@ -123,7 +122,7 @@ export class StandupInteractionService {
       this.env.discord.channelId,
     )
     if (publishResult.isErr()) {
-      logger.warn('Failed to publish standup after approval', {
+      this.logger.warn('Failed to publish standup after approval', {
         standupId: record.id,
         error: publishResult.error.message,
       })
@@ -144,7 +143,7 @@ export class StandupInteractionService {
       'published',
     )
     if (publishedResult.isErr()) {
-      logger.warn('Failed to mark standup as published', {
+      this.logger.warn('Failed to mark standup as published', {
         standupId: record.id,
         error: publishedResult.error.message,
       })

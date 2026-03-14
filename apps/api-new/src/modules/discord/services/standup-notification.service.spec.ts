@@ -3,6 +3,17 @@ import { describe, expect, it, vi } from 'vitest'
 import { StandupNotificationService } from './standup-notification.service'
 
 describe('StandupNotificationService', () => {
+  function makeLoggerFactory() {
+    return {
+      create: vi.fn(() => ({
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        child: vi.fn(),
+      })),
+    }
+  }
+
   it('sends the review DM, persists dmMessageId and emits pending_review', async () => {
     const standupRepository = {
       findById: vi.fn().mockResolvedValue(
@@ -63,6 +74,7 @@ describe('StandupNotificationService', () => {
     }
 
     const service = new StandupNotificationService(
+      makeLoggerFactory() as never,
       standupRepository as never,
       messages as never,
       eventBus as never,
@@ -132,6 +144,7 @@ describe('StandupNotificationService', () => {
     }
 
     const service = new StandupNotificationService(
+      makeLoggerFactory() as never,
       standupRepository as never,
       messages as never,
       eventBus as never,
