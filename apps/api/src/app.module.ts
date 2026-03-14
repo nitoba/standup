@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
 import { StandupAuthModule } from "./modules/auth/auth.module";
 import { DiscordModule } from "./modules/discord/discord.module";
-import { EventsModule } from "./modules/events/events.module";
+import { EventsModule } from "./shared/module/events/events.module";
 import { HttpModule } from "./shared/module/http/http.module";
 import { SettingsModule } from "./modules/settings/settings.module";
 import { StandupsModule } from "./modules/standups/standups.module";

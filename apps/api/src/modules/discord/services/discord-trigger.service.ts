@@ -1,24 +1,24 @@
-import { Injectable } from '@nestjs/common'
-import { ExternalServiceError, Result } from '../../../shared/domain'
-import { EventBusService } from '../../events/event-bus.service'
-import type { StandupTriggerRequestOutcome } from '../../events/standup-events'
+import { Injectable } from "@nestjs/common";
+import { ExternalServiceError, Result } from "../../../shared/domain";
+import { EventBusService } from "../../../shared/module/events/event-bus.service";
+import type { StandupTriggerRequestOutcome } from "../../../shared/module/events/standup-events";
 
 export interface DiscordTriggerOptions {
-  extraContext?: string
-  forceRegenerate?: boolean
-  rewriteFromStandupId?: string
-  rewriteInstruction?: string
-  replaceStandupId?: string
-  reuseExistingSource?: boolean
+  extraContext?: string;
+  forceRegenerate?: boolean;
+  rewriteFromStandupId?: string;
+  rewriteInstruction?: string;
+  replaceStandupId?: string;
+  reuseExistingSource?: boolean;
 }
 
 export type DiscordTriggerOutcome =
   | { accepted: true }
   | {
-      accepted: false
-      reason: 'pending_review_exists' | 'already_approved_today'
-      standupId?: string
-    }
+      accepted: false;
+      reason: "pending_review_exists" | "already_approved_today";
+      standupId?: string;
+    };
 
 @Injectable()
 export class DiscordTriggerService {
@@ -40,17 +40,17 @@ export class DiscordTriggerService {
       rewriteInstruction: options?.rewriteInstruction,
       replaceStandupId: options?.replaceStandupId,
       reuseExistingSource: options?.reuseExistingSource,
-    })
+    });
 
     if (!response) {
       return Result.err(
         new ExternalServiceError({
-          service: 'standups',
-          message: 'No listener handled the standup trigger request',
+          service: "standups",
+          message: "No listener handled the standup trigger request",
         }),
-      )
+      );
     }
 
-    return response
+    return response;
   }
 }

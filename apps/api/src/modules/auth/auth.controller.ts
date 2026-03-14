@@ -1,35 +1,35 @@
-import { Controller, Get, Header } from '@nestjs/common'
+import { Controller, Get, Header } from "@nestjs/common";
 import {
   ApiExcludeEndpoint,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
-} from '@nestjs/swagger'
-import { Session } from '@thallesp/nestjs-better-auth'
-import type { AuthSession } from '../../shared/auth/auth-session'
-import { UserRepository } from '../../shared/module/database/repositories/user.repository'
-import { EventBusService } from '../events/event-bus.service'
+} from "@nestjs/swagger";
+import { Session } from "@thallesp/nestjs-better-auth";
+import type { AuthSession } from "../../shared/auth/auth-session";
+import { UserRepository } from "../../shared/module/database/repositories/user.repository";
+import { EventBusService } from "../../shared/module/events/event-bus.service";
 
-@ApiTags('auth')
-@Controller('auth')
+@ApiTags("auth")
+@Controller("auth")
 export class AuthController {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly eventBus: EventBusService,
   ) {}
 
-  @Get('session')
-  @ApiOperation({ summary: 'Retorna a sessão autenticada atual' })
-  @ApiOkResponse({ description: 'Sessão atual do usuário.' })
+  @Get("session")
+  @ApiOperation({ summary: "Retorna a sessão autenticada atual" })
+  @ApiOkResponse({ description: "Sessão atual do usuário." })
   getSession(@Session() session: unknown) {
     return {
       authenticated: session !== null,
       session,
-    }
+    };
   }
 
-  @Get('login/discord')
-  @Header('content-type', 'text/html; charset=utf-8')
+  @Get("login/discord")
+  @Header("content-type", "text/html; charset=utf-8")
   @ApiExcludeEndpoint()
   getDiscordLoginPage(): string {
     return `<!doctype html>
@@ -90,22 +90,22 @@ export class AuthController {
       })()
     </script>
   </body>
-</html>`
+</html>`;
   }
 
-  @Get('callback')
-  @Header('content-type', 'text/html; charset=utf-8')
+  @Get("callback")
+  @Header("content-type", "text/html; charset=utf-8")
   @ApiExcludeEndpoint()
   async getAuthCallback(@Session() session: AuthSession): Promise<string> {
-    const userId = session.user.id
+    const userId = session.user.id;
 
     if (userId) {
       const discordResult =
-        await this.userRepository.findDiscordIdByUserId(userId)
+        await this.userRepository.findDiscordIdByUserId(userId);
       if (discordResult.isOk() && discordResult.value) {
         this.eventBus.requestDiscordLoginSuccess({
           discordUserId: discordResult.value,
-        })
+        });
       }
     }
 
@@ -153,6 +153,6 @@ export class AuthController {
       <button onclick="window.close()">Fechar janela</button>
     </main>
   </body>
-</html>`
+</html>`;
   }
 }

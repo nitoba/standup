@@ -2,27 +2,27 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-} from '@nestjs/common'
-import { OnEvent } from '@nestjs/event-emitter'
-import { StandupRepository } from '../../../shared/module/database/repositories/standup.repository'
-import { UserRepository } from '../../../shared/module/database/repositories/user.repository'
-import { UserSettingsRepository } from '../../../shared/module/database/repositories/user-settings.repository'
-import { ExternalServiceError, Result } from '../../../shared/domain'
-import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
-import { LocalDateService } from '../../../shared/time/local-date.service'
-import { EventBusService } from '../../events/event-bus.service'
+} from "@nestjs/common";
+import { OnEvent } from "@nestjs/event-emitter";
+import { StandupRepository } from "../../../shared/module/database/repositories/standup.repository";
+import { UserRepository } from "../../../shared/module/database/repositories/user.repository";
+import { UserSettingsRepository } from "../../../shared/module/database/repositories/user-settings.repository";
+import { ExternalServiceError, Result } from "../../../shared/domain";
+import { parseSelectedRepos } from "../../../shared/repos/parse-selected-repos";
+import { LocalDateService } from "../../../shared/time/local-date.service";
+import { EventBusService } from "../../../shared/module/events/event-bus.service";
 import {
   STANDUP_TRIGGER_REQUESTED_EVENT,
   type StandupTriggerRequestEvent,
   type StandupTriggerRequestOutcome,
-} from '../../events/standup-events'
-import type { TriggerStandupDto } from './trigger-standup.dto'
+} from "../../../shared/module/events/standup-events";
+import type { TriggerStandupDto } from "./trigger-standup.dto";
 
 type AuthSession = {
   user: {
-    id: string
-  }
-}
+    id: string;
+  };
+};
 
 @Injectable()
 export class TriggerStandupService {
@@ -39,99 +39,101 @@ export class TriggerStandupService {
     event: StandupTriggerRequestEvent,
   ): Promise<Result<StandupTriggerRequestOutcome, ExternalServiceError>> {
     try {
-      await this.trigger(event, null)
-      return Result.ok({ accepted: true })
+      await this.trigger(event, null);
+      return Result.ok({ accepted: true });
     } catch (error) {
-      const payload = this.toTriggerOutcome(error)
+      const payload = this.toTriggerOutcome(error);
 
       if (payload) {
-        return Result.ok(payload)
+        return Result.ok(payload);
       }
 
       return Result.err(
         new ExternalServiceError({
-          service: 'standups',
+          service: "standups",
           message: `Failed to trigger standup: ${error instanceof Error ? error.message : String(error)}`,
         }),
-      )
+      );
     }
   }
 
   async trigger(body: TriggerStandupDto, session: AuthSession | null) {
-    let userId = body.userId
-    let discordUserId = body.discordUserId
+    let userId = body.userId;
+    let discordUserId = body.discordUserId;
 
     if (session?.user.id) {
-      userId = session.user.id
+      userId = session.user.id;
       const discordResult =
-        await this.userRepository.findDiscordIdByUserId(userId)
+        await this.userRepository.findDiscordIdByUserId(userId);
       if (discordResult.isOk()) {
-        discordUserId = discordResult.value ?? undefined
+        discordUserId = discordResult.value ?? undefined;
       }
     }
 
     if (!userId || !discordUserId) {
-      throw new BadRequestException('Could not resolve userId or discordUserId')
+      throw new BadRequestException(
+        "Could not resolve userId or discordUserId",
+      );
     }
 
     const settingsResult =
-      await this.userSettingsRepository.findByUserId(userId)
+      await this.userSettingsRepository.findByUserId(userId);
     if (settingsResult.isErr() || !settingsResult.value) {
       throw new BadRequestException(
-        'User settings not found. Configure your standup settings first.',
-      )
+        "User settings not found. Configure your standup settings first.",
+      );
     }
 
-    const settings = settingsResult.value
-    const selectedRepos = parseSelectedRepos(settings.selectedRepos)
+    const settings = settingsResult.value;
+    const selectedRepos = parseSelectedRepos(settings.selectedRepos);
 
     if (selectedRepos.length === 0) {
       throw new BadRequestException(
-        'No repositories selected. Configure your repositories first.',
-      )
+        "No repositories selected. Configure your repositories first.",
+      );
     }
 
-    const today = this.localDateService.today(settings.timezone)
+    const today = this.localDateService.today(settings.timezone);
     const todayStandupResult =
-      await this.standupRepository.findLatestByUserAndDate(userId, today.iso)
+      await this.standupRepository.findLatestByUserAndDate(userId, today.iso);
 
     if (todayStandupResult.isErr()) {
       throw new BadRequestException(
-        'Could not evaluate the current standup status.',
-      )
+        "Could not evaluate the current standup status.",
+      );
     }
 
-    const todayStandup = todayStandupResult.value
+    const todayStandup = todayStandupResult.value;
     const isExplicitReplace =
       body.forceRegenerate === true &&
       body.replaceStandupId != null &&
-      body.replaceStandupId === todayStandup?.id
+      body.replaceStandupId === todayStandup?.id;
 
-    if (todayStandup?.status === 'pending_review' && !isExplicitReplace) {
+    if (todayStandup?.status === "pending_review" && !isExplicitReplace) {
       throw new ConflictException({
         ok: false,
         accepted: false,
-        message: 'Já existe um standup pendente de revisão para hoje.',
-        reason: 'pending_review_exists',
+        message: "Já existe um standup pendente de revisão para hoje.",
+        reason: "pending_review_exists",
         standupId: todayStandup.id,
-      })
+      });
     }
 
     if (
-      todayStandup?.status === 'approved' ||
-      todayStandup?.status === 'published'
+      todayStandup?.status === "approved" ||
+      todayStandup?.status === "published"
     ) {
       throw new ConflictException({
         ok: false,
         accepted: false,
-        message: 'O standup de hoje já foi aprovado ou publicado.',
-        reason: 'already_approved_today',
+        message: "O standup de hoje já foi aprovado ou publicado.",
+        reason: "already_approved_today",
         standupId: todayStandup.id,
-      })
+      });
     }
 
     const shouldReuseRejectedStandup =
-      !body.rewriteInstruction && todayStandup?.status === 'rejected'
+      !body.rewriteInstruction && todayStandup?.status === "rejected";
 
     await this.eventBus.requestStandupJobDispatch({
       userId,
@@ -149,9 +151,9 @@ export class TriggerStandupService {
         (shouldReuseRejectedStandup ? todayStandup?.id : undefined),
       reuseExistingSource:
         body.reuseExistingSource ?? shouldReuseRejectedStandup,
-    })
+    });
 
-    return { ok: true, accepted: true }
+    return { ok: true, accepted: true };
   }
 
   private toTriggerOutcome(
@@ -159,33 +161,33 @@ export class TriggerStandupService {
   ): Exclude<StandupTriggerRequestOutcome, { accepted: true }> | null {
     if (
       !error ||
-      typeof error !== 'object' ||
-      !('getResponse' in error) ||
-      typeof error.getResponse !== 'function'
+      typeof error !== "object" ||
+      !("getResponse" in error) ||
+      typeof error.getResponse !== "function"
     ) {
-      return null
+      return null;
     }
 
-    const response = error.getResponse()
+    const response = error.getResponse();
     const payload =
-      typeof response === 'object' && response !== null
+      typeof response === "object" && response !== null
         ? (response as {
-            reason?: 'pending_review_exists' | 'already_approved_today'
-            standupId?: string
+            reason?: "pending_review_exists" | "already_approved_today";
+            standupId?: string;
           })
-        : null
+        : null;
 
     if (
-      payload?.reason !== 'pending_review_exists' &&
-      payload?.reason !== 'already_approved_today'
+      payload?.reason !== "pending_review_exists" &&
+      payload?.reason !== "already_approved_today"
     ) {
-      return null
+      return null;
     }
 
     return {
       accepted: false,
       reason: payload.reason,
       standupId: payload.standupId,
-    }
+    };
   }
 }

@@ -1,28 +1,28 @@
-import { Injectable } from '@nestjs/common'
-import { StandupRepository } from '../../../shared/module/database/repositories/standup.repository'
-import { DbError, NotFoundError, Result } from '../../../shared/domain'
-import { AppLoggerFactory } from '../../../shared/module/logger'
+import { Injectable } from "@nestjs/common";
+import { StandupRepository } from "../../../shared/module/database/repositories/standup.repository";
+import { DbError, NotFoundError, Result } from "../../../shared/domain";
+import { AppLoggerFactory } from "../../../shared/module/logger";
 import type {
   StandupProgressStep,
   StandupRunMode,
-} from '../../events/standup-events'
-import { WorkerEventPublisherService } from '../worker-event-publisher.service'
-import { ExecuteAdjustStrategy } from './strategies/execute-adjust-strategy'
-import { ExecuteGenerateStrategy } from './strategies/execute-generate-strategy'
-import { ExecuteRegenerateStrategy } from './strategies/execute-regenerate-strategy'
-import type { StandupJobOptions, StrategyProgressUpdate } from './types'
+} from "../../../shared/module/events/standup-events";
+import { WorkerEventPublisherService } from "../worker-event-publisher.service";
+import { ExecuteAdjustStrategy } from "./strategies/execute-adjust-strategy";
+import { ExecuteGenerateStrategy } from "./strategies/execute-generate-strategy";
+import { ExecuteRegenerateStrategy } from "./strategies/execute-regenerate-strategy";
+import type { StandupJobOptions, StrategyProgressUpdate } from "./types";
 
 interface PipelineContext {
-  options: StandupJobOptions
-  runId: string
-  todayIso: string
-  todayDisplay: string
-  runMode: StandupRunMode
+  options: StandupJobOptions;
+  runId: string;
+  todayIso: string;
+  todayDisplay: string;
+  runMode: StandupRunMode;
 }
 
 @Injectable()
 export class StandupPipelineService {
-  private readonly logger: ReturnType<AppLoggerFactory['create']>
+  private readonly logger: ReturnType<AppLoggerFactory["create"]>;
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
     private readonly standupRepository: StandupRepository,
@@ -31,27 +31,27 @@ export class StandupPipelineService {
     private readonly regenerateStrategy: ExecuteRegenerateStrategy,
     private readonly adjustStrategy: ExecuteAdjustStrategy,
   ) {
-    this.logger = this.loggerFactory.create('standup-pipeline')
+    this.logger = this.loggerFactory.create("standup-pipeline");
   }
 
   async execute(ctx: PipelineContext): Promise<Result<string | null, Error>> {
-    const { options, runId, todayIso, todayDisplay, runMode } = ctx
+    const { options, runId, todayIso, todayDisplay, runMode } = ctx;
 
     await this.emitProgress({
       userId: options.userId,
       runId,
       date: todayDisplay,
       mode: runMode,
-      step: 'queued',
-      message: 'Geracao do standup iniciada',
-    })
+      step: "queued",
+      message: "Geracao do standup iniciada",
+    });
 
-    const strategyResult = await this.runStrategy(runMode, ctx)
+    const strategyResult = await this.runStrategy(runMode, ctx);
     if (strategyResult.isErr()) {
-      return strategyResult
+      return strategyResult;
     }
 
-    const generated = strategyResult.value
+    const generated = strategyResult.value;
 
     if (generated === null) {
       await this.emitProgress({
@@ -59,21 +59,21 @@ export class StandupPipelineService {
         runId,
         date: todayDisplay,
         mode: runMode,
-        step: 'no_activity',
-        message: 'Nenhuma atividade encontrada hoje',
-      })
+        step: "no_activity",
+        message: "Nenhuma atividade encontrada hoje",
+      });
 
       if (options.discordUserId.trim()) {
         this.notifications.notifyUserDm({
           discordUserId: options.discordUserId,
-          title: '🔍 Nenhuma atividade encontrada',
+          title: "🔍 Nenhuma atividade encontrada",
           message:
-            'Não encontrei commits hoje nos repositórios configurados. Verifique suas configurações.',
+            "Não encontrei commits hoje nos repositórios configurados. Verifique suas configurações.",
           color: 0xf39c12,
-        })
+        });
       }
 
-      return Result.ok(null)
+      return Result.ok(null);
     }
 
     await this.emitProgress({
@@ -81,9 +81,9 @@ export class StandupPipelineService {
       runId,
       date: todayDisplay,
       mode: runMode,
-      step: 'saving_draft',
-      message: 'Salvando rascunho do standup',
-    })
+      step: "saving_draft",
+      message: "Salvando rascunho do standup",
+    });
 
     const saveResult = await this.saveGeneratedStandup(options, {
       date: todayIso,
@@ -91,39 +91,39 @@ export class StandupPipelineService {
       content: generated.content,
       sourceData: generated.sourceData,
       replaceStandupId: generated.replaceStandupId,
-    })
+    });
 
     if (saveResult.isErr()) {
-      return saveResult
+      return saveResult;
     }
 
-    const standupId = saveResult.value.id
-    this.logger.info('Standup draft saved', { standupId })
+    const standupId = saveResult.value.id;
+    this.logger.info("Standup draft saved", { standupId });
 
     await this.emitProgress({
       userId: options.userId,
       runId,
       date: todayDisplay,
       mode: runMode,
-      step: 'notifying_review',
-      message: 'Enviando standup para revisao',
+      step: "notifying_review",
+      message: "Enviando standup para revisao",
       standupId,
-    })
+    });
 
     this.notifications.notifyStandupReady({
       standupId,
       discordUserId: options.discordUserId,
-    })
+    });
 
     await this.emitProgress({
       userId: options.userId,
       runId,
       date: todayDisplay,
       mode: runMode,
-      step: 'completed',
-      message: 'Standup pronto para revisao',
+      step: "completed",
+      message: "Standup pronto para revisao",
       standupId,
-    })
+    });
 
     this.notifications.emitStandupGenerated({
       userId: options.userId,
@@ -131,9 +131,9 @@ export class StandupPipelineService {
       standupId,
       date: todayDisplay,
       mode: runMode,
-    })
+    });
 
-    return Result.ok(standupId)
+    return Result.ok(standupId);
   }
 
   private async runStrategy(mode: StandupRunMode, ctx: PipelineContext) {
@@ -146,29 +146,30 @@ export class StandupPipelineService {
         ctx.todayDisplay,
         ctx.runMode,
       ),
-    }
+    };
 
     switch (mode) {
-      case 'adjust':
-        return this.adjustStrategy.execute(executionInput)
-      case 'regenerate':
-        return this.regenerateStrategy.execute(executionInput)
+      case "adjust":
+        return this.adjustStrategy.execute(executionInput);
+      case "regenerate":
+        return this.regenerateStrategy.execute(executionInput);
       default:
-        return this.generateStrategy.execute(executionInput)
+        return this.generateStrategy.execute(executionInput);
     }
   }
 
   private async saveGeneratedStandup(
     options: StandupJobOptions,
     input: {
-      date: string
-      meetingType: string
-      content: string
-      sourceData: string
-      replaceStandupId?: string
+      date: string;
+      meetingType: string;
+      content: string;
+      sourceData: string;
+      replaceStandupId?: string;
     },
   ): Promise<Result<{ id: string }, DbError | NotFoundError>> {
-    const replaceId = input.replaceStandupId ?? options.replaceStandupId?.trim()
+    const replaceId =
+      input.replaceStandupId ?? options.replaceStandupId?.trim();
 
     if (replaceId) {
       return this.standupRepository.replaceGeneratedForUser(
@@ -179,7 +180,7 @@ export class StandupPipelineService {
           content: input.content,
           sourceData: input.sourceData,
         },
-      )
+      );
     }
 
     return this.standupRepository.create({
@@ -189,17 +190,17 @@ export class StandupPipelineService {
       content: input.content,
       sourceData: input.sourceData,
       userId: options.userId,
-    })
+    });
   }
 
   private async emitProgress(event: {
-    userId: string
-    runId: string
-    date: string
-    mode: StandupRunMode
-    step: StandupProgressStep
-    message: string
-    standupId?: string
+    userId: string;
+    runId: string;
+    date: string;
+    mode: StandupRunMode;
+    step: StandupProgressStep;
+    message: string;
+    standupId?: string;
   }) {
     this.notifications.emitStandupProgress({
       userId: event.userId,
@@ -209,7 +210,7 @@ export class StandupPipelineService {
       step: event.step,
       message: event.message,
       ...(event.standupId ? { standupId: event.standupId } : {}),
-    })
+    });
   }
 
   private createStrategyProgressReporter(
@@ -226,6 +227,6 @@ export class StandupPipelineService {
         mode,
         step,
         message,
-      })
+      });
   }
 }
