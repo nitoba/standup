@@ -1,4 +1,8 @@
+import { access } from 'node:fs/promises'
 import { Injectable } from '@nestjs/common'
+import { sql } from 'drizzle-orm'
+import { DatabaseService } from '../../../shared/database/database.service'
+import { user } from '../../../shared/database/schema'
 import { EnvService } from '../../../shared/env/env.service'
 import { DiscordMessagesService } from '../notifications/discord-messages.service'
 
@@ -15,47 +19,110 @@ export interface DiscordServiceHealth {
 @Injectable()
 export class DiscordServiceHealthService {
   constructor(
+    private readonly database: DatabaseService,
     private readonly env: EnvService,
     private readonly messages: DiscordMessagesService,
   ) {}
 
-  listServices(filter: DiscordServiceName | 'all'): DiscordServiceHealth[] {
+  async listServices(
+    filter: DiscordServiceName | 'all',
+  ): Promise<DiscordServiceHealth[]> {
     const uptimeSeconds = Math.floor(process.uptime())
-    const services: DiscordServiceHealth[] = []
+    const services: Promise<DiscordServiceHealth>[] = []
 
     if (filter === 'all' || filter === 'api') {
-      services.push({
-        service: 'api',
-        ok: true,
-        latencyMs: 0,
-        uptimeSeconds,
-      })
+      services.push(
+        this.measure('api', uptimeSeconds, async () => {
+          const health = await this.database.db
+            .select({ count: sql<number>`count(*)` })
+            .from(user)
+            .get()
+
+          if (typeof health?.count !== 'number') {
+            throw new Error(
+              'Database health query returned an unexpected value',
+            )
+          }
+        }),
+      )
     }
 
     if (filter === 'all' || filter === 'worker') {
-      services.push({
-        service: 'worker',
-        ok: true,
-        latencyMs: 0,
-        uptimeSeconds,
-        error: this.env.worker.schedulerEnabled
-          ? undefined
-          : 'Scheduler disabled by env',
-      })
+      services.push(
+        this.measure('worker', uptimeSeconds, async () => {
+          if (!this.env.worker.schedulerEnabled) {
+            throw new Error('Scheduler disabled by env')
+          }
+
+          if (!this.env.worker.reposRootPath) {
+            throw new Error('REPOS_ROOT_PATH not configured')
+          }
+
+          await access(this.env.worker.reposRootPath)
+
+          const health = await this.database.db
+            .select({ count: sql<number>`count(*)` })
+            .from(user)
+            .get()
+
+          if (typeof health?.count !== 'number') {
+            throw new Error(
+              'Database health query returned an unexpected value',
+            )
+          }
+        }),
+      )
     }
 
     if (filter === 'all' || filter === 'bot') {
-      services.push({
-        service: 'bot',
-        ok: this.messages.isReady(),
-        latencyMs: 0,
-        uptimeSeconds,
-        error: this.messages.isReady()
-          ? undefined
-          : 'Discord gateway not ready',
-      })
+      services.push(
+        this.measure('bot', uptimeSeconds, async () => {
+          if (!this.env.discord.gatewayEnabled) {
+            throw new Error('Discord gateway disabled by env')
+          }
+
+          if (!this.env.discord.token) {
+            throw new Error('DISCORD_BOT_TOKEN not configured')
+          }
+
+          if (!this.env.discord.channelId) {
+            throw new Error('DISCORD_CHANNEL_ID not configured')
+          }
+
+          if (!this.messages.isReady()) {
+            throw new Error('Discord gateway not ready')
+          }
+        }),
+      )
     }
 
-    return services
+    return Promise.all(services)
+  }
+
+  private async measure(
+    service: DiscordServiceName,
+    uptimeSeconds: number,
+    check: () => Promise<void>,
+  ): Promise<DiscordServiceHealth> {
+    const startedAt = Date.now()
+
+    try {
+      await check()
+
+      return {
+        service,
+        ok: true,
+        latencyMs: Date.now() - startedAt,
+        uptimeSeconds,
+      }
+    } catch (error) {
+      return {
+        service,
+        ok: false,
+        latencyMs: Date.now() - startedAt,
+        uptimeSeconds,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
   }
 }

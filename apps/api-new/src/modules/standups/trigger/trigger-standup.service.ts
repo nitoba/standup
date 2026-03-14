@@ -6,9 +6,9 @@ import {
 import { StandupRepository } from '../../../shared/database/repositories/standup.repository'
 import { UserRepository } from '../../../shared/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../shared/database/repositories/user-settings.repository'
+import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
 import { LocalDateService } from '../../../shared/time/local-date.service'
 import { EventBusService } from '../../events/event-bus.service'
-import { parseSelectedRepos } from './parse-selected-repos'
 import type { TriggerStandupDto } from './trigger-standup.dto'
 
 type AuthSession = {

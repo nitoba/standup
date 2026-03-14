@@ -13,7 +13,6 @@ export const environmentVariablesSchema = z.object({
   CORS_ORIGIN: z.string().default('http://localhost:4200'),
   DATABASE_URL: z.string().default('file:./data/standup.db'),
   DATABASE_AUTH_TOKEN: z.string().optional(),
-  INTERNAL_SECRET: z.string().default('change-me-in-production'),
   REPOS_ROOT_PATH: z.string().default('/repos'),
   BETTER_AUTH_SECRET: z.string().default('change-me-in-production'),
   BETTER_AUTH_URL: z.string().default('http://localhost:3333'),

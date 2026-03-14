@@ -1,18 +1,8 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  HttpCode,
-  Post,
-} from '@nestjs/common'
+import { Controller, HttpCode, Post } from '@nestjs/common'
 import { Session } from '@thallesp/nestjs-better-auth'
+import type { AuthSession } from '../../../shared/auth/auth-session'
+import { requireSessionUserId } from '../../../shared/auth/require-session-user-id'
 import { WeeklyDigestDispatchService } from './weekly-digest-dispatch.service'
-
-type AuthSession = {
-  user: {
-    id: string
-  }
-}
 
 @Controller('digests')
 export class DigestsController {
@@ -22,15 +12,8 @@ export class DigestsController {
 
   @Post('trigger')
   @HttpCode(202)
-  trigger(
-    @Session() session: AuthSession | null,
-    @Body('userId') bodyUserId?: string,
-  ) {
-    const userId = bodyUserId ?? session?.user.id
-
-    if (!userId) {
-      throw new BadRequestException('Could not resolve userId')
-    }
+  trigger(@Session() session: AuthSession | null) {
+    const userId = requireSessionUserId(session)
 
     this.weeklyDigestDispatch.dispatchWeeklyDigestJob({ userId })
 

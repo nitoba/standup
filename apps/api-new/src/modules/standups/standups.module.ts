@@ -1,13 +1,36 @@
 import { Module } from '@nestjs/common'
 import { DatabaseModule } from '../../shared/database/database.module'
+import { ApproveStandupController } from './approval/approve-standup.controller'
+import { ApproveStandupService } from './approval/approve-standup.service'
+import { StandupEventsController } from './events/standup-events.controller'
+import { StandupSseListener } from './events/standup-sse.listener'
+import { StandupSseBusService } from './events/standup-sse-bus.service'
+import { StandupsQueryController } from './query/standups-query.controller'
+import { StandupsQueryService } from './query/standups-query.service'
+import { StandupStatusController } from './status/standup-status.controller'
+import { StandupStatusService } from './status/standup-status.service'
 import { StandupTriggerRequestedListener } from './trigger/standup-trigger-requested.listener'
 import { TriggerStandupController } from './trigger/trigger-standup.controller'
 import { TriggerStandupService } from './trigger/trigger-standup.service'
 
 @Module({
   imports: [DatabaseModule],
-  controllers: [TriggerStandupController],
-  providers: [TriggerStandupService, StandupTriggerRequestedListener],
+  controllers: [
+    TriggerStandupController,
+    StandupEventsController,
+    StandupsQueryController,
+    StandupStatusController,
+    ApproveStandupController,
+  ],
+  providers: [
+    TriggerStandupService,
+    StandupTriggerRequestedListener,
+    StandupSseBusService,
+    StandupSseListener,
+    StandupsQueryService,
+    StandupStatusService,
+    ApproveStandupService,
+  ],
   exports: [TriggerStandupService],
 })
 export class StandupsModule {}

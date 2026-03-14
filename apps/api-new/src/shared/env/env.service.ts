@@ -23,7 +23,6 @@ export class EnvService {
       baseUrl: this.get('BETTER_AUTH_URL'),
       discordClientId: this.get('DISCORD_CLIENT_ID'),
       discordClientSecret: this.get('DISCORD_CLIENT_SECRET'),
-      internalSecret: this.get('INTERNAL_SECRET'),
     }
   }
 

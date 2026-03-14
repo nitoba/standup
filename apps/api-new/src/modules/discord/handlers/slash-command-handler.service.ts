@@ -298,7 +298,7 @@ export class SlashCommandHandlerService {
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
-    const statuses = this.health.listServices(filter)
+    const statuses = await this.health.listServices(filter)
     const okCount = statuses.filter((status) => status.ok).length
 
     await interaction.editReply({

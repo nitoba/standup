@@ -4,7 +4,6 @@ import { EnvService } from '../../shared/env/env.service'
 export interface WorkerRuntimeConfig {
   DATABASE_URL: string
   DATABASE_AUTH_TOKEN?: string
-  INTERNAL_SECRET: string
   REPOS_ROOT_PATH: string
   SCHEDULER_ENABLED: boolean
   AI_PROVIDER_API_KEY: string
@@ -22,7 +21,6 @@ export class WorkerRuntimeConfigService {
     return {
       DATABASE_URL: this.env.database.url,
       DATABASE_AUTH_TOKEN: this.env.database.authToken,
-      INTERNAL_SECRET: this.env.auth.internalSecret,
       REPOS_ROOT_PATH: this.env.worker.reposRootPath,
       SCHEDULER_ENABLED: this.env.worker.schedulerEnabled,
       AI_PROVIDER_API_KEY: this.env.worker.aiProviderApiKey ?? '',

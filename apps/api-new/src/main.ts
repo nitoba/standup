@@ -1,5 +1,6 @@
 import 'reflect-metadata'
 import { HonoAdapter, type NestHonoApplication } from '@kiyasov/platform-hono'
+import { ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston'
 import { AppModule } from './app.module'
@@ -13,6 +14,15 @@ async function bootstrap() {
   )
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER))
   const env = app.get(EnvService)
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: false,
+      },
+    }),
+  )
 
   app.enableCors({
     origin: env.app.corsOrigin,

@@ -4,6 +4,7 @@ import { StandupAuthModule } from './modules/auth/auth.module'
 import { DiscordModule } from './modules/discord/discord.module'
 import { EventsModule } from './modules/events/events.module'
 import { HttpModule } from './modules/http/http.module'
+import { SettingsModule } from './modules/settings/settings.module'
 import { StandupsModule } from './modules/standups/standups.module'
 import { WorkerModule } from './modules/worker/worker.module'
 import { DatabaseModule } from './shared/database/database.module'
@@ -21,6 +22,7 @@ import { TimeModule } from './shared/time/time.module'
     DatabaseModule,
     StandupAuthModule,
     HttpModule,
+    SettingsModule,
     StandupsModule,
     WorkerModule,
     DiscordModule,

@@ -1,13 +1,9 @@
 import { Body, Controller, HttpCode, Post } from '@nestjs/common'
 import { Session } from '@thallesp/nestjs-better-auth'
+import type { AuthSession } from '../../../shared/auth/auth-session'
+import { requireSessionUserId } from '../../../shared/auth/require-session-user-id'
 import type { TriggerStandupDto } from './trigger-standup.dto'
 import { TriggerStandupService } from './trigger-standup.service'
-
-type AuthSession = {
-  user: {
-    id: string
-  }
-}
 
 @Controller('standups')
 export class TriggerStandupController {
@@ -19,6 +15,8 @@ export class TriggerStandupController {
     @Session() session: AuthSession | null,
     @Body() body: TriggerStandupDto,
   ) {
+    requireSessionUserId(session)
+
     return this.triggerStandup.trigger(body, session)
   }
 }
