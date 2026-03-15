@@ -43,10 +43,7 @@ export class DiscordTriggerService {
         null,
       )
 
-      return Result.ok({
-        accepted: response.accepted,
-        ...(response.accepted ? {} : response),
-      })
+      return Result.ok({ accepted: true })
     } catch (error) {
       const outcome = this.toTriggerOutcome(error)
 

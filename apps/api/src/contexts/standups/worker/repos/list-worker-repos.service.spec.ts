@@ -3,7 +3,7 @@ import { ExternalServiceError, Result } from '../../../../shared/domain'
 import { ListWorkerReposService } from './list-worker-repos.service'
 
 describe('ListWorkerReposService', () => {
-  it('handles repo requests from the event bus', async () => {
+  it('lists repositories directly', async () => {
     const service = new ListWorkerReposService(
       {
         config: {
@@ -19,7 +19,7 @@ describe('ListWorkerReposService', () => {
       } as never,
     )
 
-    await expect(service.handleRequestedRepos({})).resolves.toEqual(
+    await expect(service.listRepos()).resolves.toEqual(
       Result.ok([{ id: 'repo-1', name: 'repo-a', project: 'AGROTRACE' }]),
     )
   })

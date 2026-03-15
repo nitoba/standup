@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { EventBusService } from '../../../platform/events/event-bus.service'
+import { ListWorkerReposService } from '../../../contexts/standups/worker/repos/list-worker-repos.service'
 import { AppLoggerFactory } from '../../../platform/logger'
 import { Result } from '../../../shared/domain'
 
@@ -19,7 +19,7 @@ export class DiscordAvailableReposService {
 
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
-    private readonly eventBus: EventBusService,
+    private readonly listWorkerRepos: ListWorkerReposService,
   ) {
     this.logger = this.loggerFactory.create('discord-available-repos')
   }
@@ -38,10 +38,10 @@ export class DiscordAvailableReposService {
       return cached
     }
 
-    const result =
-      await this.eventBus.requestWorkerRepos<
-        Result<DiscordRepoInfo[], { message: string }>
-      >()
+    const result = (await this.listWorkerRepos.listRepos()) as Result<
+      DiscordRepoInfo[],
+      { message: string }
+    >
 
     if (!result || result.isErr()) {
       this.logger.warn('Failed to fetch repos for Discord settings', {

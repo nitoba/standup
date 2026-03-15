@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { type ButtonInteraction } from 'discord.js'
-import { EventBusService } from '../../../platform/events/event-bus.service'
+import { ReminderActionsService } from '../../../contexts/standups/worker/reminders/reminder-actions.service'
 import { Result, ValidationError } from '../../../shared/domain'
 import { DiscordAuthService } from '../services/discord-auth.service'
 import { DiscordTriggerService } from '../services/discord-trigger.service'
@@ -24,7 +24,7 @@ export class ReminderInteractionService {
   constructor(
     private readonly auth: DiscordAuthService,
     private readonly trigger: DiscordTriggerService,
-    private readonly eventBus: EventBusService,
+    private readonly reminderActions: ReminderActionsService,
   ) {}
 
   async handle(
@@ -63,15 +63,21 @@ export class ReminderInteractionService {
         return
       }
     } else {
-      const reminderResult = await this.eventBus.requestWorkerReminderAction<
-        Result<
-          { ok: true; snoozedUntil?: string; cancelledDate?: string },
-          ValidationError
-        >
-      >({
-        action,
-        userId: session.userId,
-      })
+      const reminderResult =
+        action === 'snooze'
+          ? Result.ok(await this.reminderActions.snoozeReminder(session.userId))
+          : action === 'cancel-today'
+            ? Result.ok(
+                await this.reminderActions.cancelReminderForToday(
+                  session.userId,
+                ),
+              )
+            : Result.err(
+                new ValidationError({
+                  field: 'action',
+                  message: `Unknown reminder action: ${action}`,
+                }),
+              )
 
       if (!reminderResult || reminderResult.isErr()) {
         await interaction.editReply({
