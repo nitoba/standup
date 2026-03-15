@@ -4,12 +4,6 @@ export const STANDUP_FAILED_EVENT = 'standup.failed'
 export const STANDUP_READY_EVENT = 'standup.ready'
 export const STANDUP_REMINDER_EVENT = 'standup.reminder'
 export const STANDUP_STATUS_CHANGED_EVENT = 'standup.status-changed'
-export const STANDUP_TRIGGER_REQUESTED_EVENT = 'standup.trigger.requested'
-export const STANDUP_JOB_DISPATCH_REQUESTED_EVENT =
-  'standup.job-dispatch.requested'
-export const WORKER_REPOS_REQUESTED_EVENT = 'worker.repos.requested'
-export const WORKER_REMINDER_ACTION_REQUESTED_EVENT =
-  'worker.reminder-action.requested'
 export const DISCORD_LOGIN_SUCCESS_REQUESTED_EVENT =
   'discord.login-success.requested'
 export const USER_DM_REQUESTED_EVENT = 'notification.user-dm.requested'
@@ -68,47 +62,6 @@ export type StandupStatusChangedEvent = {
   standupId: string
   newStatus: string
   source?: 'discord' | 'web' | 'worker' | 'system'
-}
-
-export type StandupTriggerRequestEvent = {
-  userId: string
-  discordUserId: string
-  extraContext?: string
-  forceRegenerate?: boolean
-  rewriteFromStandupId?: string
-  rewriteInstruction?: string
-  replaceStandupId?: string
-  reuseExistingSource?: boolean
-}
-
-export type StandupTriggerRequestOutcome =
-  | { accepted: true }
-  | {
-      accepted: false
-      reason: 'pending_review_exists' | 'already_approved_today'
-      standupId?: string
-    }
-
-export type StandupJobDispatchRequestedEvent = {
-  userId: string
-  discordUserId: string
-  selectedRepos: string[]
-  gitAuthor: string
-  timezone: string
-  gitSincePeriod?: string
-  extraContext?: string
-  forceRegenerate?: boolean
-  rewriteFromStandupId?: string
-  rewriteInstruction?: string
-  replaceStandupId?: string
-  reuseExistingSource?: boolean
-}
-
-export type WorkerReposRequestedEvent = Record<string, never>
-
-export type WorkerReminderActionRequestedEvent = {
-  action: 'snooze' | 'cancel-today'
-  userId: string
 }
 
 export type DiscordLoginSuccessRequestedEvent = {
