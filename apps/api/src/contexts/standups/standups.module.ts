@@ -30,6 +30,6 @@ import { WorkerModule } from './worker/worker.module'
     StandupStatusService,
     ApproveStandupService,
   ],
-  exports: [TriggerStandupService],
+  exports: [TriggerStandupService, WorkerModule],
 })
 export class StandupsModule {}
