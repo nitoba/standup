@@ -11,41 +11,20 @@ import { toast } from 'ngx-sonner'
 import { SidebarLayout } from '../../core/layout/sidebar'
 import { ZardButtonComponent } from '../../shared/components/button'
 import { ZardDialogService } from '../../shared/components/dialog'
+import { formatLocalDate, minusDays, startOfLocalDay } from '../../shared/utils'
 import { DashboardSkeleton } from './components/dashboard-skeleton/dashboard-skeleton'
 import { FilterBar } from './components/filter-bar/filter-bar'
 import { MetricCard } from './components/metric-card/metric-card'
 import { StandupTable } from './components/standup-table/standup-table'
 import { StandupService } from './services/standup-service'
 
-function formatDate(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-
-  return `${year}-${month}-${day}`
-}
-
-function startOfToday(now: Date) {
-  const today = new Date(now)
-  today.setHours(0, 0, 0, 0)
-
-  return today
-}
-
-function minusDays(date: Date, days: number) {
-  const nextDate = new Date(date)
-  nextDate.setDate(nextDate.getDate() - days)
-
-  return nextDate
-}
-
 function resolveDateFilter(value: string, now = new Date()) {
   if (value === 'all_time') return undefined
   if (value === 'this_week') return 'this_week'
 
-  const today = startOfToday(now)
-  if (value === 'today') return formatDate(today)
-  if (value === 'yesterday') return formatDate(minusDays(today, 1))
+  const today = startOfLocalDay(now)
+  if (value === 'today') return formatLocalDate(today)
+  if (value === 'yesterday') return formatLocalDate(minusDays(today, 1))
 
   return value
 }
@@ -240,11 +219,7 @@ export class DashboardPage {
         )
         await this.router.navigate(['/dashboard'])
       } else {
-        toast.error(
-          'error' in result
-            ? result.error
-            : 'Falha ao disparar geração do standup',
-        )
+        toast.error(result.error ?? 'Falha ao disparar geração do standup')
       }
     } catch {
       toast.error('Falha ao disparar geração do standup')

@@ -12,6 +12,7 @@ import type {
   StandupListResponseDto,
   StandupStatus,
 } from '../../shared/models/standup-models'
+import { normalizeDisplayDate } from '../../shared/utils'
 
 interface WeekStandup {
   id: string
@@ -27,10 +28,7 @@ function mapStatus(status: string): StandupStatus {
 }
 
 function formatDisplayDate(dateStr: string): string {
-  const parts = dateStr.split('-')
-  if (parts.length !== 3) return dateStr
-  const [year, month, day] = parts
-  return `${day}/${month}/${year}`
+  return normalizeDisplayDate(dateStr)
 }
 
 @Component({
@@ -100,7 +98,7 @@ function formatDisplayDate(dateStr: string): string {
                       {{ formatDisplayDate(standup.date) }}
                     </span>
                     <span class="text-muted-foreground/60 font-[var(--font-ibm)] text-[11px]">
-                      {{ standup.date }}
+                      {{ formatDisplayDate(standup.date) }}
                     </span>
                   </div>
                   <div class="flex items-center gap-[8px]">

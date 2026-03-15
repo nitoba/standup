@@ -105,7 +105,7 @@ describe('DashboardPage', () => {
     })
     const pendingTodayStandups = filterStandups(allStandups, {
       status: 'pending_review',
-      date: '2026-03-09',
+      date: '09/03/2026',
     })
 
     TestBed.tick()
@@ -159,13 +159,13 @@ describe('DashboardPage', () => {
 
     expect(setDashboardFiltersSpy).toHaveBeenLastCalledWith({
       status: 'pending_review',
-      date: '2026-03-09',
+      date: '09/03/2026',
       search: '',
     })
 
     TestBed.tick()
     const filteredRequest = httpMock.expectOne(
-      '/standups?page=1&pageSize=20&status=pending_review&date=2026-03-09',
+      '/standups?page=1&pageSize=20&status=pending_review&date=09/03/2026',
     )
     filteredRequest.flush(
       makeListResponse(buildMockStandupDtos(pendingTodayStandups), {
@@ -195,7 +195,7 @@ describe('DashboardPage', () => {
     TestBed.tick()
     httpMock
       .expectOne(
-        '/standups?page=1&pageSize=20&status=pending_review&date=2026-03-09&search=no-match',
+        '/standups?page=1&pageSize=20&status=pending_review&date=09/03/2026&search=no-match',
       )
       .flush(
         makeListResponse([], {
@@ -216,12 +216,12 @@ describe('DashboardPage', () => {
 
     expect(setDashboardFiltersSpy).toHaveBeenNthCalledWith(3, {
       status: 'pending_review',
-      date: '2026-03-09',
+      date: '09/03/2026',
       search: 'no-match',
     })
     expect(setDashboardFiltersSpy).toHaveBeenNthCalledWith(4, {
       status: undefined,
-      date: '2026-03-09',
+      date: '09/03/2026',
       search: 'no-match',
     })
     expect(setDashboardFiltersSpy).toHaveBeenNthCalledWith(5, {

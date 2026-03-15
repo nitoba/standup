@@ -2,34 +2,10 @@ name: standup
 
 services:
   # ---------------------------------------------------------------------------
-  # migrate — runs Drizzle migrations once before any app starts.
+  # api — NestJS monolith (HTTP, scheduler, Discord gateway, jobs, email)
   #
-  # Assigned to the "migrate" profile so it is excluded from `compose up`
-  # and never left as a stopped container cluttering `compose ps`.
-  #
-  # Deploy procedure:
-  #   1. podman compose run --rm migrate   ← runs migrations and auto-removes
-  #   2. podman compose up -d              ← starts api, discord-bot, worker
-  # ---------------------------------------------------------------------------
-  migrate:
-    container_name: standup-migrate
-    profiles:
-      - migrate
-    build:
-      context: .
-      dockerfile: packages/db/Dockerfile
-    volumes:
-      - standup-data:/app/data
-    env_file: .env.local
-    environment:
-      DATABASE_URL: ${DATABASE_URL:-file:/app/data/standup.db}
-      DATABASE_AUTH_TOKEN: ${DATABASE_AUTH_TOKEN:-}
-    networks:
-      - internal
-    restart: "no"
-
-  # ---------------------------------------------------------------------------
-  # api — Hono HTTP API (health, standup CRUD, manual trigger)
+  # The entrypoint runs Drizzle migrations before starting the compiled binary,
+  # so there is no dedicated "migrate" service anymore.
   # ---------------------------------------------------------------------------
   api:
     container_name: standup-api
@@ -40,49 +16,33 @@ services:
       - "${PORT:-3333}:3333"
     volumes:
       - standup-data:/app/data
+      - ${HOST_REPOS_ROOT_PATH:-/home/nitoba/Documents/repos/ibs/repos}:/repos:ro,z
+      - ${HOST_SSH_PATH:-~/.ssh}:/root/.ssh:ro
     env_file: .env.local
     environment:
+      NODE_ENV: production
       PORT: "3333"
       DATABASE_URL: ${DATABASE_URL:-file:/app/data/standup.db}
       DATABASE_AUTH_TOKEN: ${DATABASE_AUTH_TOKEN:-}
       REPOS_ROOT_PATH: /repos
-      WORKER_INTERNAL_URL: http://standup-worker:3335
-      BOT_INTERNAL_URL: http://standup-discord-bot:3334
+      APP_URL: http://localhost:${WEB_PORT:-4200}
+      CORS_ORIGIN: http://localhost:${WEB_PORT:-4200}
+      BETTER_AUTH_URL: http://localhost:${PORT:-3333}
+      DISCORD_GATEWAY_ENABLED: ${DISCORD_GATEWAY_ENABLED:-true}
+      SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
+      SMTP_USER: ""
+      SMTP_PASS: ""
+      SMTP_FROM: ${SMTP_FROM:-Standup Bot <standup@example.com>}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://standup-jaeger:4318
     networks:
       - internal
     restart: unless-stopped
     depends_on:
       - jaeger
-    # Note: healthcheck via CMD-SHELL is not possible in distroless (no shell).
-    # Liveness is monitored via restart: unless-stopped + the /health endpoint
-    # exposed on PORT (accessible from the host or a reverse proxy).
-
-  # ---------------------------------------------------------------------------
-  # discord-bot — Discord gateway + internal HTTP server for worker notifications
-  # ---------------------------------------------------------------------------
-  discord-bot:
-    container_name: standup-discord-bot
-    build:
-      context: .
-      dockerfile: apps/discord-bot/Dockerfile
-    volumes:
-      - standup-data:/app/data
-    env_file: .env.local
-    environment:
-      BOT_INTERNAL_PORT: "3334"
-      DATABASE_URL: ${DATABASE_URL:-file:/app/data/standup.db}
-      DATABASE_AUTH_TOKEN: ${DATABASE_AUTH_TOKEN:-}
-      REPOS_ROOT_PATH: /repos
-      API_BASE_URL: http://standup-api:3333
-      API_INTERNAL_URL: http://standup-api:3333
-      WORKER_INTERNAL_URL: http://standup-worker:3335
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://standup-jaeger:4318
-    networks:
-      - internal
-    restart: unless-stopped
-    depends_on:
-      - jaeger
+      - mailpit
 
   # ---------------------------------------------------------------------------
   # web — Angular SPA served via nginx + reverse proxy to API
@@ -114,47 +74,6 @@ services:
     networks:
       - internal
     restart: unless-stopped
-
-  # ---------------------------------------------------------------------------
-  # worker — cron scheduler + standup job pipeline + internal HTTP trigger
-  # ---------------------------------------------------------------------------
-  worker:
-    container_name: standup-worker
-    build:
-      context: .
-      dockerfile: apps/worker/Dockerfile
-    volumes:
-      - standup-data:/app/data
-      # Git repositories: bind-mounted read-only from host.
-      # HOST_REPOS_ROOT_PATH points to the host path; inside the container the runtime root is /repos.
-      - ${HOST_REPOS_ROOT_PATH:-/home/nitoba/Documents/repos/ibs/repos}:/repos:ro,z
-      # SSH keys for git fetch over SSH (read-only)
-      - ${HOST_SSH_PATH:-~/.ssh}:/root/.ssh:ro
-    env_file: .env.local
-    environment:
-      WORKER_INTERNAL_PORT: "3335"
-      DATABASE_URL: ${DATABASE_URL:-file:/app/data/standup.db}
-      DATABASE_AUTH_TOKEN: ${DATABASE_AUTH_TOKEN:-}
-      BOT_INTERNAL_URL: http://standup-discord-bot:3334
-      API_INTERNAL_URL: http://standup-api:3333
-      REPOS_ROOT_PATH: /repos
-      # Public URL of the web SPA — used in weekly digest email links.
-      # Points to the host-exposed port so links work in a browser.
-      APP_URL: http://localhost:4200
-      # SMTP — apontando para o mailpit local (catch-all, aceita qualquer credencial).
-      SMTP_HOST: mailpit
-      SMTP_PORT: "1025"
-      SMTP_SECURE: "false"
-      SMTP_USER: ""
-      SMTP_PASS: ""
-      SMTP_FROM: "Standup Bot <bruno.alves@biosistemico.com.br>"
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://standup-jaeger:4318
-    networks:
-      - internal
-    restart: unless-stopped
-    depends_on:
-      - jaeger
-      - mailpit
 
   # ---------------------------------------------------------------------------
   # mailpit — local SMTP catch-all + web UI for email previews
@@ -190,8 +109,7 @@ volumes:
 # ---------------------------------------------------------------------------
 networks:
   # Isolated bridge network — services are not reachable from the host except
-  # via the explicitly published port on `api`. The internal communication
-  # (api → worker, worker → discord-bot) stays off the public interface.
+  # via the explicitly published ports on `api`, `web`, `jaeger` and `mailpit`.
   internal:
     name: standup-internal
     driver: bridge

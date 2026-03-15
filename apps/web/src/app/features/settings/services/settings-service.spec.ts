@@ -86,7 +86,7 @@ describe('SettingsService', () => {
     const saved: SettingsRecord = {
       ...payload,
       snoozedUntil: 1741543200000,
-      cancelledDate: '2026-03-09',
+      cancelledDate: '09/03/2026',
       emailTheme: 'dark',
     }
 

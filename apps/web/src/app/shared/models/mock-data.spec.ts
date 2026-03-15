@@ -15,7 +15,7 @@ describe('mock-data', () => {
     const standups = buildMockStandups()
     const filtered = filterStandups(standups, {
       status: 'pending_review',
-      date: '2026-03-09',
+      date: '09/03/2026',
       search: 'retry logic',
     })
 

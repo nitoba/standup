@@ -1,8 +1,7 @@
 # Kamal deploy config — standup-api
 #
-# Hono HTTP API: health checks, standup CRUD, manual triggers.
-# This is the only service with a public-facing kamal-proxy (api.nitodev.com.br).
-# Internal services (bot, worker) are reached via Docker network aliases on the "kamal" network.
+# Monólito NestJS: HTTP, scheduler, gateway Discord, jobs e email.
+# Este é o único backend público via kamal-proxy (api.nitodev.com.br).
 #
 # Usage:
 #   kamal deploy -c config/deploy.api.yml
@@ -49,12 +48,10 @@ env:
     PORT: "3333"
     REPOS_ROOT_PATH: /repos
     BETTER_AUTH_URL: https://api.nitodev.com.br
-    # Internal communication via Docker network aliases on the "kamal" network.
-    WORKER_INTERNAL_URL: http://standup-worker:3335
-    BOT_INTERNAL_URL: http://standup-bot:3334
+    APP_URL: https://app.nitodev.com.br
     CORS_ORIGIN: https://app.nitodev.com.br
-    # OpenTelemetry — Jaeger runs on the host; containers reach it via host.docker.internal.
-    # Remove or leave empty to disable tracing (zero overhead when unset).
+    DISCORD_GATEWAY_ENABLED: "true"
+    SCHEDULER_ENABLED: "true"
     OTEL_EXPORTER_OTLP_ENDPOINT: http://host.docker.internal:4318
   secret:
     - DATABASE_URL
@@ -62,4 +59,16 @@ env:
     - DISCORD_CLIENT_ID
     - DISCORD_CLIENT_SECRET
     - BETTER_AUTH_SECRET
-    - INTERNAL_SECRET
+    - DISCORD_BOT_TOKEN
+    - DISCORD_CHANNEL_ID
+    - DISCORD_GUILD_ID
+    - AI_PROVIDER_API_KEY
+    - AZURE_DEVOPS_ORG
+    - AZURE_DEVOPS_PAT
+    - AZURE_DEVOPS_DEFAULT_PROJECT
+    - SMTP_HOST
+    - SMTP_PORT
+    - SMTP_SECURE
+    - SMTP_FROM
+    - SMTP_USER
+    - SMTP_PASS

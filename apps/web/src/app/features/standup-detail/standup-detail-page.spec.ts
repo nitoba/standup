@@ -129,9 +129,9 @@ async function createFixture(options?: {
 function createStandupDetail(overrides: Partial<Standup> = {}): Standup {
   return {
     id: STANDUP_ID,
-    date: '2026-03-09',
+    date: '09/03/2026',
     status: 'pending_review',
-    createdAt: '2026-03-09 17:32',
+    createdAt: '09/03/2026 17:32',
     content: '## o que foi feito\n- implemented retry logic',
     sourceData: '{\n  "repos": []\n}',
     contentPreview: 'implemented retry logic',

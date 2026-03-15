@@ -10,6 +10,11 @@ import {
   type ZardComboboxOption,
 } from '../../../../shared/components/combobox'
 import { ZardInputDirective } from '../../../../shared/components/input'
+import {
+  formatLocalDate,
+  minusDays,
+  startOfLocalDay,
+} from '../../../../shared/utils'
 
 type DateSelection = 'all_time' | 'this_week' | 'today' | 'yesterday'
 type StatusSelection = 'all' | 'pending_review' | 'approved' | 'rejected'
@@ -108,25 +113,15 @@ export class FilterBar {
   ]
 
   formatDate(date: Date) {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-
-    return `${year}-${month}-${day}`
+    return formatLocalDate(date)
   }
 
   startOfToday(now: Date) {
-    const today = new Date(now)
-    today.setHours(0, 0, 0, 0)
-
-    return today
+    return startOfLocalDay(now)
   }
 
   minusDays(date: Date, days: number) {
-    const nextDate = new Date(date)
-    nextDate.setDate(nextDate.getDate() - days)
-
-    return nextDate
+    return minusDays(date, days)
   }
 
   resolveDateValue(selection: DateSelection, now = new Date()) {

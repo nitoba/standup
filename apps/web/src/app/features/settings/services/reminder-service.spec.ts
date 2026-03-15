@@ -72,13 +72,13 @@ describe('ReminderService', () => {
     request.flush({
       data: {
         ok: true,
-        cancelledDate: '2026-03-09',
+        cancelledDate: '09/03/2026',
       },
     })
 
     await expect(cancelPromise).resolves.toEqual({
       ok: true,
-      cancelledDate: '2026-03-09',
+      cancelledDate: '09/03/2026',
     })
   })
 })
