@@ -2,14 +2,21 @@ import { Injectable } from '@nestjs/common'
 import { StandupRepository } from '../../../platform/database/repositories/standup.repository'
 import { UserSettingsRepository } from '../../../platform/database/repositories/user-settings.repository'
 import { EventBusService } from '../../../platform/events/event-bus.service'
+import type { StandupStatusChangedEvent } from '../../../platform/events/standup-events'
 import { LocalDateService } from '../../../platform/time/local-date.service'
 import {
+  type DbError,
   type CustomEntries,
+  type InvalidStateTransitionError,
+  type NotFoundError,
   hasCustomEntries,
   mergeCustomEntries,
+  Result,
 } from '../../../shared/domain'
 import { formatStandupRecord } from '../shared/format-standup-record'
 import { throwStandupHttpError } from '../shared/throw-standup-http-error'
+
+type ApproveStandupError = NotFoundError | DbError | InvalidStateTransitionError
 
 @Injectable()
 export class ApproveStandupService {
@@ -24,14 +31,39 @@ export class ApproveStandupService {
     userId: string,
     standupId: string,
     customEntries?: CustomEntries | null,
+    source: StandupStatusChangedEvent['source'] = 'web',
   ) {
+    const approvedResult = await this.approveResult(
+      userId,
+      standupId,
+      customEntries,
+      source,
+    )
+
+    if (approvedResult.isErr()) {
+      throwStandupHttpError(approvedResult.error)
+    }
+
+    return formatStandupRecord(
+      approvedResult.value,
+      this.localDateService,
+      await this.resolveTimezone(userId),
+    )
+  }
+
+  async approveResult(
+    userId: string,
+    standupId: string,
+    customEntries?: CustomEntries | null,
+    source: StandupStatusChangedEvent['source'] = 'web',
+  ): Promise<Result<Awaited<ReturnType<StandupRepository['updateStatusForUser']>> extends Result<infer TValue, infer _TError> ? TValue : never, ApproveStandupError>> {
     const found = await this.standupRepository.findByIdForUser(
       standupId,
       userId,
     )
 
     if (found.isErr()) {
-      throwStandupHttpError(found.error)
+      return found
     }
 
     if (customEntries && hasCustomEntries(customEntries)) {
@@ -43,7 +75,7 @@ export class ApproveStandupService {
         )
 
       if (saveEntriesResult.isErr()) {
-        throwStandupHttpError(saveEntriesResult.error)
+        return saveEntriesResult
       }
 
       const mergedContent = mergeCustomEntries(
@@ -60,7 +92,7 @@ export class ApproveStandupService {
         )
 
       if (saveContentResult.isErr()) {
-        throwStandupHttpError(saveContentResult.error)
+        return saveContentResult
       }
     }
 
@@ -71,21 +103,17 @@ export class ApproveStandupService {
     )
 
     if (approvedResult.isErr()) {
-      throwStandupHttpError(approvedResult.error)
+      return approvedResult
     }
 
     this.eventBus.emitStandupStatusChanged({
       userId,
       standupId: approvedResult.value.id,
       newStatus: 'approved',
-      source: 'web',
+      source,
     })
 
-    return formatStandupRecord(
-      approvedResult.value,
-      this.localDateService,
-      await this.resolveTimezone(userId),
-    )
+    return Result.ok(approvedResult.value)
   }
 
   private async resolveTimezone(userId: string): Promise<string> {

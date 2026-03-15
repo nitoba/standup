@@ -75,6 +75,56 @@ describe('ApproveStandupService', () => {
     })
   })
 
+  it('approves a standup through the internal result API with a discord source', async () => {
+    const standupRepository = {
+      findByIdForUser: vi.fn().mockResolvedValue(
+        Result.ok({
+          id: 'standup-1',
+          content: '**Standup**',
+          meetingType: '',
+        }),
+      ),
+      updateCustomEntriesForUser: vi.fn(),
+      updateContentForUser: vi.fn(),
+      updateStatusForUser: vi.fn().mockResolvedValue(
+        Result.ok({
+          id: 'standup-1',
+          userId: 'user-1',
+          date: '2026-03-13',
+          status: 'approved',
+        }),
+      ),
+    }
+    const eventBus = {
+      emitStandupStatusChanged: vi.fn(),
+    }
+    const service = new ApproveStandupService(
+      standupRepository as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(Result.ok(null)),
+      } as never,
+      {
+        formatIsoForTimezone: vi.fn().mockReturnValue('13/03/2026'),
+      } as never,
+      eventBus as never,
+    )
+
+    const result = await service.approveResult(
+      'user-1',
+      'standup-1',
+      null,
+      'discord',
+    )
+
+    expect(result.isOk()).toBe(true)
+    expect(eventBus.emitStandupStatusChanged).toHaveBeenCalledWith({
+      userId: 'user-1',
+      standupId: 'standup-1',
+      newStatus: 'approved',
+      source: 'discord',
+    })
+  })
+
   it('skips custom-entry persistence when there are no extra entries', async () => {
     const standupRepository = {
       findByIdForUser: vi.fn().mockResolvedValue(

@@ -5,6 +5,7 @@ import { ApproveStandupService } from './approval/approve-standup.service'
 import { StandupEventsController } from './events/standup-events.controller'
 import { StandupSseListener } from './events/standup-sse.listener'
 import { StandupSseBusService } from './events/standup-sse-bus.service'
+import { PublishStandupService } from './publication/publish-standup.service'
 import { StandupsQueryController } from './query/standups-query.controller'
 import { StandupsQueryService } from './query/standups-query.service'
 import { StandupStatusController } from './status/standup-status.controller'
@@ -32,9 +33,13 @@ import { WorkerModule } from './worker/worker.module'
     StandupsQueryService,
     StandupStatusService,
     ApproveStandupService,
+    PublishStandupService,
   ],
   exports: [
     TriggerStandupService,
+    ApproveStandupService,
+    PublishStandupService,
+    StandupStatusService,
     ReminderActionsService,
     ListWorkerReposService,
     StandupDispatchService,
