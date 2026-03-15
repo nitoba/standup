@@ -53,6 +53,13 @@
     },
     "db:studio": {
       "cache": false
+    },
+    "openapi:export": {
+      "cache": false
+    },
+    "generate-api": {
+      "dependsOn": ["@standup-api#openapi:export"],
+      "cache": false
     }
   }
 }

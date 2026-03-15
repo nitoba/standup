@@ -12,7 +12,10 @@ export class MeSettingsController {
   constructor(private readonly meSettingsService: MeSettingsService) {}
 
   @Get('me')
-  @ApiOperation({ summary: 'Consulta as configurações do usuário autenticado' })
+  @ApiOperation({
+    operationId: 'getMeSettings',
+    summary: 'Consulta as configurações do usuário autenticado',
+  })
   @ApiOkResponse({ description: 'Configurações atuais do usuário.' })
   async getMe(@Session() session: AuthSession | null) {
     const userId = requireSessionUserId(session)
@@ -21,7 +24,10 @@ export class MeSettingsController {
   }
 
   @Put('me')
-  @ApiOperation({ summary: 'Atualiza as configurações do usuário autenticado' })
+  @ApiOperation({
+    operationId: 'updateMeSettings',
+    summary: 'Atualiza as configurações do usuário autenticado',
+  })
   @ApiBody({ type: PutMeSettingsDto })
   @ApiOkResponse({ description: 'Configurações atualizadas.' })
   async putMe(

@@ -6,6 +6,10 @@ import {
   provideBrowserGlobalErrorListeners,
 } from '@angular/core'
 import { provideRouter, withComponentInputBinding } from '@angular/router'
+import {
+  provideTanStackQuery,
+  QueryClient,
+} from '@tanstack/angular-query-experimental'
 import { provideZard } from '@/shared/core/provider/providezard'
 
 import { routes } from './app.routes'
@@ -18,6 +22,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideHttpClient(withInterceptors([baseUrlInterceptor, authInterceptor])),
     provideZard(),
+    provideTanStackQuery(new QueryClient()),
     provideRouter(routes, withComponentInputBinding()),
     provideAppInitializer(() => {
       const sessionService = inject(SessionService)

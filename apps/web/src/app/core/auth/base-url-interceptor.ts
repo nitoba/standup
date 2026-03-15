@@ -12,6 +12,8 @@ const API_PREFIXES = [
   '/settings',
   '/repos',
   '/reminders',
+  '/digests',
+  '/auth',
   '/health',
   '/ready',
 ]

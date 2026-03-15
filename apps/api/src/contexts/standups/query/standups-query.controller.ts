@@ -35,7 +35,10 @@ export class StandupsQueryController {
   constructor(private readonly standupsQuery: StandupsQueryService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Lista standups do usuário autenticado' })
+  @ApiOperation({
+    operationId: 'listStandups',
+    summary: 'Lista standups do usuário autenticado',
+  })
   @ApiQuery({
     name: 'status',
     required: false,
@@ -86,7 +89,10 @@ export class StandupsQueryController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Busca um standup pelo identificador' })
+  @ApiOperation({
+    operationId: 'getStandupById',
+    summary: 'Busca um standup pelo identificador',
+  })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiOkResponse({ description: 'Standup encontrado.' })
   async getById(

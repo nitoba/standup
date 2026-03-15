@@ -18,7 +18,10 @@ export class TriggerStandupController {
 
   @Post('trigger')
   @HttpCode(202)
-  @ApiOperation({ summary: 'Dispara a geração manual de um standup' })
+  @ApiOperation({
+    operationId: 'triggerStandup',
+    summary: 'Dispara a geração manual de um standup',
+  })
   @ApiBody({ type: TriggerStandupDto })
   @ApiAcceptedResponse({ description: 'Standup aceito para processamento.' })
   trigger(

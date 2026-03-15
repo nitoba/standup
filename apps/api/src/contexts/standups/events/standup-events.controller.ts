@@ -53,7 +53,10 @@ export class StandupEventsController {
    * - Express-based test harness (supertest)
    */
   @Get('events')
-  @ApiOperation({ summary: 'Abre o stream SSE de eventos de standup' })
+  @ApiOperation({
+    operationId: 'streamStandupEvents',
+    summary: 'Abre o stream SSE de eventos de standup',
+  })
   @ApiProduces('text/event-stream')
   @ApiOkResponse({ description: 'Stream SSE aberto com sucesso.' })
   // biome-ignore lint/suspicious/noExplicitAny: adapter-agnostic

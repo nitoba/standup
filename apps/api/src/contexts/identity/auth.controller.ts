@@ -20,7 +20,10 @@ export class AuthController {
   ) {}
 
   @Get('session')
-  @ApiOperation({ summary: 'Retorna a sessão autenticada atual' })
+  @ApiOperation({
+    operationId: 'getAuthSession',
+    summary: 'Retorna a sessão autenticada atual',
+  })
   @ApiOkResponse({ description: 'Sessão atual do usuário.' })
   getSession(@Session() session: unknown) {
     return {

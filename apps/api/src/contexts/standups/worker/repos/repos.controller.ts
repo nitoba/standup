@@ -8,7 +8,10 @@ export class ReposController {
   constructor(private readonly listWorkerRepos: ListWorkerReposService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Lista os repositórios disponíveis para coleta' })
+  @ApiOperation({
+    operationId: 'listRepos',
+    summary: 'Lista os repositórios disponíveis para coleta',
+  })
   @ApiOkResponse({ description: 'Lista de repositórios configurados.' })
   async list() {
     const result = await this.listWorkerRepos.listRepos()

@@ -39,6 +39,9 @@ testem.log
 /typings
 __screenshots__/
 
+# Generated API client (Orval + TanStack Angular Query)
+/src/app/api/
+
 # System files
 .DS_Store
 Thumbs.db

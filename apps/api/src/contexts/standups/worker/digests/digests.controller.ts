@@ -14,7 +14,10 @@ export class DigestsController {
 
   @Post('trigger')
   @HttpCode(202)
-  @ApiOperation({ summary: 'Dispara a geração manual do digest semanal' })
+  @ApiOperation({
+    operationId: 'triggerDigest',
+    summary: 'Dispara a geração manual do digest semanal',
+  })
   @ApiAcceptedResponse({
     description: 'Digest enfileirado para processamento.',
   })

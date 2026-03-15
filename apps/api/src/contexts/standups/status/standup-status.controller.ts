@@ -26,7 +26,10 @@ export class StandupStatusController {
 
   @Patch(':id/status')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Atualiza o status de um standup' })
+  @ApiOperation({
+    operationId: 'updateStandupStatus',
+    summary: 'Atualiza o status de um standup',
+  })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiBody({ type: UpdateStandupStatusDto })
   @ApiOkResponse({ description: 'Status atualizado com sucesso.' })

@@ -19,7 +19,8 @@
     "test:coverage": "vitest run --coverage",
     "db:generate": "bunx --bun --env-file=../../.env.local drizzle-kit generate",
     "db:migrate": "bun --env-file=../../.env.local run ./src/platform/database/migrate.ts",
-    "db:studio": "bunx --bun --env-file=../../.env.local drizzle-kit studio"
+    "db:studio": "bunx --bun --env-file=../../.env.local drizzle-kit studio",
+    "openapi:export": "bun --env-file=../../.env.local run ./scripts/export-openapi.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",

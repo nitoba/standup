@@ -32,7 +32,8 @@
     "ci": "turbo run lint typecheck test",
     "db:generate": "turbo run db:generate --filter=@standup-api",
     "db:migrate": "turbo run db:migrate --filter=@standup-api",
-    "db:studio": "bun run --bun turbo run db:studio --filter=@standup-api"
+    "db:studio": "bun run --bun turbo run db:studio --filter=@standup-api",
+    "generate-api": "turbo run generate-api --filter=@standup/web"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.5",

@@ -26,7 +26,10 @@ export class ApproveStandupController {
 
   @Post(':id/approve')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Aprova um standup pendente' })
+  @ApiOperation({
+    operationId: 'approveStandup',
+    summary: 'Aprova um standup pendente',
+  })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiBody({ type: ApproveStandupDto })
   @ApiOkResponse({ description: 'Standup aprovado com sucesso.' })
