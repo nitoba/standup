@@ -1,6 +1,5 @@
 import { join } from 'node:path'
 import { Injectable } from '@nestjs/common'
-import { $ } from 'bun'
 import { AppLoggerFactory } from '../../../../platform/logger'
 import type {
   CommitInfo,
@@ -9,6 +8,7 @@ import type {
 } from '../../../../shared/domain'
 import { ExternalServiceError, Result } from '../../../../shared/domain'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
+import { runGitCommand } from './run-git-command'
 
 interface CommitBlock {
   hash: string
@@ -83,24 +83,37 @@ export class GitCollectorService {
       )
     }
 
-    const branchResult = await $`git -C ${repositoryPath} branch --show-current`
-      .quiet()
-      .nothrow()
+    const branchResult = await runGitCommand([
+      '-C',
+      repositoryPath,
+      'branch',
+      '--show-current',
+    ])
     const currentBranch = branchResult.stdout.toString().trim()
 
-    const logResult =
-      await $`git -C ${repositoryPath} log --all --no-merges --author=${author} --since=${sincePeriod} --pretty=format:%x1e%h%x1f%s%x1f%b`
-        .quiet()
-        .nothrow()
+    const logResult = await runGitCommand([
+      '-C',
+      repositoryPath,
+      'log',
+      '--all',
+      '--no-merges',
+      `--author=${author}`,
+      `--since=${sincePeriod}`,
+      '--pretty=format:%x1e%h%x1f%s%x1f%b',
+    ])
 
     const commits = await Promise.all(
       this.parseCommitBlocks(logResult.stdout.toString())
         .filter((block) => this.isRelevantCommitBlock(block))
         .map(async (block) => {
-          const showResult =
-            await $`git -C ${repositoryPath} show --stat --format="" ${block.hash}`
-              .quiet()
-              .nothrow()
+          const showResult = await runGitCommand([
+            '-C',
+            repositoryPath,
+            'show',
+            '--stat',
+            '--format=',
+            block.hash,
+          ])
           const stats = this.parseShowStat(showResult.stdout.toString())
 
           return {
@@ -127,8 +140,13 @@ export class GitCollectorService {
   }
 
   private async fetchRepository(repositoryPath: string) {
-    const remoteUrlResult =
-      await $`git -C ${repositoryPath} remote get-url origin`.quiet().nothrow()
+    const remoteUrlResult = await runGitCommand([
+      '-C',
+      repositoryPath,
+      'remote',
+      'get-url',
+      'origin',
+    ])
     const remoteUrl = remoteUrlResult.stdout.toString().trim()
 
     if (remoteUrlResult.exitCode !== 0) {
@@ -156,9 +174,29 @@ export class GitCollectorService {
     }
 
     const authHeader = this.buildAzureDevopsAuthHeader(azurePat)
-    return $`git -c credential.helper= -c core.askPass=echo -c http.extraheader=${authHeader} -c remote.origin.url=${httpRemoteUrl} -C ${repositoryPath} fetch origin --quiet`
-      .quiet()
-      .nothrow()
+    return runGitCommand(
+      [
+        '-c',
+        'credential.helper=',
+        '-c',
+        'core.askPass=echo',
+        '-c',
+        `http.extraheader=${authHeader}`,
+        '-c',
+        `remote.origin.url=${httpRemoteUrl}`,
+        '-C',
+        repositoryPath,
+        'fetch',
+        'origin',
+        '--quiet',
+      ],
+      {
+        env: {
+          ...process.env,
+          GIT_TERMINAL_PROMPT: '0',
+        },
+      },
+    )
   }
 
   private buildAzureDevopsAuthHeader(pat: string): string {
