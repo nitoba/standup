@@ -5,11 +5,12 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger'
-import { Session } from '@thallesp/nestjs-better-auth'
+import { AllowAnonymous, Session } from '@thallesp/nestjs-better-auth'
 import { UserRepository } from '../../platform/database/repositories/user.repository'
 import { EventBusService } from '../../platform/events/event-bus.service'
 import type { AuthSession } from '../../shared/auth/auth-session'
 
+@AllowAnonymous()
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {

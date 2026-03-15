@@ -14,6 +14,11 @@ import { BetterAuthFactory } from './better-auth.factory'
         return {
           auth: factory.create(),
           disableTrustedOriginsCors: true,
+          // Skip library's NestMiddleware.configure() — its httpAdapter.use()
+          // is incompatible with the Hono adapter (empty path never matches,
+          // and getNodeRequest returns HonoRequest instead of IncomingMessage).
+          // Better Auth routes are mounted directly on Hono in main.ts instead.
+          disableControllers: true,
         }
       },
     }),
