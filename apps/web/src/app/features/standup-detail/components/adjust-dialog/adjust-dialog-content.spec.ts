@@ -65,21 +65,21 @@ describe('AdjustDialogContent', () => {
     const { fixture } = await createFixture()
 
     expect(getTextarea(fixture)).toBeTruthy()
-    expect(getButtonByText(fixture, '$ cancel')).toBeTruthy()
-    expect(getButtonByText(fixture, '$ submit')).toBeTruthy()
+    expect(getButtonByText(fixture, '$ cancelar')).toBeTruthy()
+    expect(getButtonByText(fixture, '$ enviar')).toBeTruthy()
   })
 
   it('keeps submit disabled while textarea is empty', async () => {
     const { fixture } = await createFixture()
 
-    expect(getButtonByText(fixture, '$ submit').disabled).toBe(true)
+    expect(getButtonByText(fixture, '$ enviar').disabled).toBe(true)
   })
 
   it('submits trimmed instruction and closes dialog', async () => {
     const { fixture, close, onSubmit } = await createFixture()
 
     setTextareaValue(fixture, '  tighten the wording  ')
-    getButtonByText(fixture, '$ submit').click()
+    getButtonByText(fixture, '$ enviar').click()
     fixture.detectChanges()
 
     expect(onSubmit).toHaveBeenCalledWith('tighten the wording')
@@ -91,7 +91,7 @@ describe('AdjustDialogContent', () => {
     const { fixture, close, onSubmit } = await createFixture()
 
     setTextareaValue(fixture, 'second pass')
-    getButtonByText(fixture, '$ cancel').click()
+    getButtonByText(fixture, '$ cancelar').click()
     fixture.detectChanges()
 
     expect(close).toHaveBeenCalledOnce()

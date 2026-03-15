@@ -17,37 +17,37 @@ import { ZardButtonComponent } from '../../shared/components/button'
         class="hidden md:block absolute left-[4.17%] top-[8.89%] text-muted-foreground/70 font-[var(--font-ibm)] text-[12px]"
         aria-hidden="true"
       >
-        // authenticating user...
+        // autenticando usuário...
       </span>
       <span
         class="hidden md:block absolute left-[62.5%] top-[13.33%] text-muted-foreground/70 font-[var(--font-ibm)] text-[12px]"
         aria-hidden="true"
       >
-        $ git log --oneline --since=today
+        // lendo commits de hoje...
       </span>
       <span
         class="hidden md:block absolute left-[5.56%] top-[44.44%] text-muted-foreground/70 font-[var(--font-ibm)] text-[12px]"
         aria-hidden="true"
       >
-        // awaiting credentials...
+        // aguardando credenciais...
       </span>
       <span
         class="hidden md:block absolute left-[76.39%] top-[48.89%] text-muted-foreground/70 font-[var(--font-ibm)] text-[12px]"
         aria-hidden="true"
       >
-        $ cd ~/repos && git fetch --all
+        // atualizando repositórios locais...
       </span>
       <span
         class="hidden md:block absolute left-[8.33%] top-[80%] text-muted-foreground/70 font-[var(--font-ibm)] text-[12px]"
         aria-hidden="true"
       >
-        // loading standup pipeline...
+        // carregando pipeline de standup...
       </span>
       <span
         class="hidden md:block absolute left-[66.67%] top-[84.44%] text-muted-foreground/70 font-[var(--font-ibm)] text-[12px]"
         aria-hidden="true"
       >
-        $ standup --generate --publish
+        // gerando e publicando standup...
       </span>
 
       <!-- Blinking cursors (hidden on mobile) -->
@@ -79,7 +79,7 @@ import { ZardButtonComponent } from '../../shared/components/button'
           <div
             class="text-center text-muted-foreground font-[var(--font-ibm)] text-[13px] w-full"
           >
-            automate your daily standups from git commits
+            automatize seus standups diários a partir dos commits do git
           </div>
         </div>
 
@@ -91,13 +91,13 @@ import { ZardButtonComponent } from '../../shared/components/button'
           <div
             class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
           >
-            // how it works
+            // como funciona
           </div>
           <div
             class="text-center text-muted-foreground/80 font-(--font-ibm) text-[12px] leading-[1.6] w-full"
           >
-            collect commits → enrich with azure devops → generate standup via ai
-            → review and publish on discord
+            coleta commits → enriquece com azure devops → gera standup com ia
+            → revisa e publica no discord
           </div>
         </div>
 
@@ -113,12 +113,12 @@ import { ZardButtonComponent } from '../../shared/components/button'
             class="w-full"
           >
             <span>$</span>
-            <span>sign in with discord</span>
+            <span>entrar com Discord</span>
           </button>
           <div
             class="text-muted-foreground/80 font-[var(--font-ibm)] text-[11px]"
           >
-            // discord oauth2 — no password required
+            // discord oauth2 — sem senha
           </div>
         </div>
 
@@ -126,7 +126,7 @@ import { ZardButtonComponent } from '../../shared/components/button'
         <div
           class="text-muted-foreground/80 font-[var(--font-ibm)] text-[11px]"
         >
-          v1.0.0 — built with bun + hono + drizzle
+          v1.0.0 — feito com bun + hono + drizzle
         </div>
       </div>
 

@@ -37,15 +37,15 @@ describe('StandupTable', () => {
         'button',
       ) as NodeListOf<HTMLButtonElement>,
     ).find((element) =>
-      element.textContent?.includes('$ view >>'),
+      element.textContent?.includes('$ ver >>'),
     ) as HTMLButtonElement
     button.click()
 
     expect(fixture.nativeElement.textContent).toContain(
       'implemented retry logic',
     )
-    expect(fixture.nativeElement.textContent).toContain('page 1 of 1')
-    expect(fixture.nativeElement.textContent).toContain('1 total')
+    expect(fixture.nativeElement.textContent).toContain('página 1 de 1')
+    expect(fixture.nativeElement.textContent).toContain('1 no total')
     expect(emitSpy).toHaveBeenCalledWith('7f3a2b1c')
   })
 
@@ -77,8 +77,8 @@ describe('StandupTable', () => {
     expect(fixture.nativeElement.textContent).toContain('4')
     expect(fixture.nativeElement.textContent).toContain('8')
     expect(fixture.nativeElement.textContent).toContain('...')
-    expect(fixture.nativeElement.textContent).toContain('page 4 of 8')
-    expect(fixture.nativeElement.textContent).toContain('142 total')
+    expect(fixture.nativeElement.textContent).toContain('página 4 de 8')
+    expect(fixture.nativeElement.textContent).toContain('142 no total')
 
     pageFiveButton.click()
 

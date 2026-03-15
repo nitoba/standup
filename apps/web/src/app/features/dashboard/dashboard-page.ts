@@ -60,7 +60,7 @@ function resolveDateFilter(value: string, now = new Date()) {
             </button>
           </div>
           <div class="text-muted-foreground font-[var(--font-ibm)] text-[14px]">
-            // daily standup reports overview
+            // visão geral dos relatórios diários de standup
           </div>
         </div>
 
@@ -81,7 +81,7 @@ function resolveDateFilter(value: string, now = new Date()) {
         @if (standupService.standups.isLoading()) {
           <app-dashboard-skeleton />
         } @else if (standupService.standups.error()) {
-          <div class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[13px]">// failed to load standups</div>
+          <div class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[13px]">// falha ao carregar standups</div>
         } @else {
           <div class="grid grid-cols-2 md:grid-cols-4 gap-[16px] md:gap-[24px]">
             @for (card of metricCards(); track card.label) {
@@ -162,7 +162,7 @@ export class DashboardPage {
 
     return [
       {
-        label: 'total_standups',
+        label: 'total de standups',
         value: metrics.total.count,
         change: metrics.total.change,
         dotColor: 'bg-muted-foreground',
@@ -170,7 +170,7 @@ export class DashboardPage {
         changeColor: 'text-muted-foreground',
       },
       {
-        label: 'approved',
+        label: 'aprovados',
         value: metrics.approved.count,
         change: metrics.approved.change,
         dotColor: 'bg-primary',
@@ -178,7 +178,7 @@ export class DashboardPage {
         changeColor: 'text-primary',
       },
       {
-        label: 'pending_review',
+        label: 'pendentes',
         value: metrics.pending.count,
         change: metrics.pending.change,
         dotColor: 'bg-[var(--accent-yellow)]',
@@ -186,7 +186,7 @@ export class DashboardPage {
         changeColor: 'text-muted-foreground',
       },
       {
-        label: 'rejected',
+        label: 'rejeitados',
         value: metrics.rejected.count,
         change: metrics.rejected.change,
         dotColor: 'bg-[var(--accent-red)]',

@@ -47,7 +47,7 @@ function formatDisplayDate(dateStr: string): string {
           class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] flex items-center gap-[12px] transition-colors duration-150 hover:text-foreground"
         >
           <span><<</span>
-          <span>back to standups</span>
+          <span>voltar para standups</span>
         </a>
 
         <div class="flex flex-col gap-[8px]">
@@ -75,12 +75,12 @@ function formatDisplayDate(dateStr: string): string {
           </div>
         } @else if (standups.error()) {
           <div class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[13px]">
-            // failed to load standups for this week
+            // falha ao carregar standups da semana
           </div>
         } @else if (weekStandups().length === 0) {
           <div class="bg-card border border-border p-[24px] flex flex-col gap-[8px]">
             <div class="text-muted-foreground font-[var(--font-jetbrains)] text-[13px]">
-              // no approved standups found for this period
+              // nenhum standup aprovado encontrado neste período
             </div>
             @if (from() && to()) {
               <div class="text-muted-foreground/60 font-[var(--font-ibm)] text-[12px]">
@@ -206,7 +206,7 @@ export class WeeklyDigestPage {
   }
 
   formatStatus(status: StandupStatus): string {
-    if (status === 'pending_review') return '[pending_review]'
-    return status === 'approved' ? '[approved]' : '[rejected]'
+    if (status === 'pending_review') return '[pendente]'
+    return status === 'approved' ? '[aprovado]' : '[rejeitado]'
   }
 }

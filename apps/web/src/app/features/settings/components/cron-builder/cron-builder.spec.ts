@@ -21,7 +21,7 @@ describe('CronBuilderComponent', () => {
     const el = fixture.nativeElement as HTMLElement
 
     expect(el.textContent).toContain('>30 17 * * 1-5')
-    expect(el.textContent).toContain('// every weekday at 17:30')
+    expect(el.textContent).toContain('// todos os dias úteis às 17:30')
   })
 
   it('emits the updated cron expression when apply is clicked', async () => {
@@ -31,11 +31,11 @@ describe('CronBuilderComponent', () => {
 
     fixture.componentInstance.applied.subscribe(appliedSpy)
 
-    el.querySelector<HTMLButtonElement>('[aria-label="Increase hour"]')?.click()
+    el.querySelector<HTMLButtonElement>('[aria-label="Aumentar hora"]')?.click()
     fixture.detectChanges()
 
     Array.from(el.querySelectorAll('button'))
-      .find((button) => button.textContent?.includes('apply'))
+      .find((button) => button.textContent?.includes('aplicar'))
       ?.click()
     fixture.detectChanges()
 

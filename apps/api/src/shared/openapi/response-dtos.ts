@@ -155,7 +155,7 @@ export class MeSettingsRecordDto {
   gitAuthor!: string
 
   @ApiProperty()
-  gitSincePeriod!: string
+  gitSincePeriod?: string
 
   @ApiProperty({ type: [String] })
   selectedRepos!: string[]

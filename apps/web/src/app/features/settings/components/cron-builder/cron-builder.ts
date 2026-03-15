@@ -23,13 +23,13 @@ interface CronDayOption {
 }
 
 const CRON_DAY_OPTIONS: CronDayOption[] = [
-  { key: 'mon', label: 'mon', cronValue: 1 },
-  { key: 'tue', label: 'tue', cronValue: 2 },
-  { key: 'wed', label: 'wed', cronValue: 3 },
-  { key: 'thu', label: 'thu', cronValue: 4 },
-  { key: 'fri', label: 'fri', cronValue: 5 },
-  { key: 'sat', label: 'sat', cronValue: 6 },
-  { key: 'sun', label: 'sun', cronValue: 0 },
+  { key: 'mon', label: 'seg', cronValue: 1 },
+  { key: 'tue', label: 'ter', cronValue: 2 },
+  { key: 'wed', label: 'qua', cronValue: 3 },
+  { key: 'thu', label: 'qui', cronValue: 4 },
+  { key: 'fri', label: 'sex', cronValue: 5 },
+  { key: 'sat', label: 'sáb', cronValue: 6 },
+  { key: 'sun', label: 'dom', cronValue: 0 },
 ]
 
 const DEFAULT_DRAFT: CronBuilderDraft = {
@@ -62,24 +62,24 @@ const ALL_DAY_KEYS = CRON_DAY_OPTIONS.map((day) => day.key)
             <span
               class="font-[var(--font-jetbrains)] text-[14px] font-medium text-white"
             >
-              cron_builder
+              construtor_de_cron
             </span>
           </div>
           <p class="font-[var(--font-ibm)] text-[12px] text-[#6b7280]">
-            build your schedule visually
+            monte seu agendamento visualmente
           </p>
         </header>
 
         <div class="flex items-center gap-3">
           <div class="flex min-w-0 flex-1 flex-col gap-1.5">
             <span class="font-[var(--font-jetbrains)] text-[12px] text-[#6b7280]">
-              hour
+              hora
             </span>
             <div class="flex items-center gap-2">
               <button
                 type="button"
                 class="font-[var(--font-jetbrains)] text-[12px] text-[#6b7280] transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981]"
-                aria-label="Increase hour"
+                aria-label="Aumentar hora"
                 (click)="incrementHour()"
               >
                 ++
@@ -92,7 +92,7 @@ const ALL_DAY_KEYS = CRON_DAY_OPTIONS.map((day) => day.key)
               <button
                 type="button"
                 class="font-[var(--font-jetbrains)] text-[12px] text-[#6b7280] transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981]"
-                aria-label="Decrease hour"
+                aria-label="Diminuir hora"
                 (click)="decrementHour()"
               >
                 --
@@ -106,13 +106,13 @@ const ALL_DAY_KEYS = CRON_DAY_OPTIONS.map((day) => day.key)
 
           <div class="flex min-w-0 flex-1 flex-col gap-1.5">
             <span class="font-[var(--font-jetbrains)] text-[12px] text-[#6b7280]">
-              minute
+              minuto
             </span>
             <div class="flex items-center gap-2">
               <button
                 type="button"
                 class="font-[var(--font-jetbrains)] text-[12px] text-[#6b7280] transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981]"
-                aria-label="Increase minute"
+                aria-label="Aumentar minuto"
                 (click)="incrementMinute()"
               >
                 ++
@@ -125,7 +125,7 @@ const ALL_DAY_KEYS = CRON_DAY_OPTIONS.map((day) => day.key)
               <button
                 type="button"
                 class="font-[var(--font-jetbrains)] text-[12px] text-[#6b7280] transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10b981]"
-                aria-label="Decrease minute"
+                aria-label="Diminuir minuto"
                 (click)="decrementMinute()"
               >
                 --
@@ -136,7 +136,7 @@ const ALL_DAY_KEYS = CRON_DAY_OPTIONS.map((day) => day.key)
 
         <div class="flex flex-col gap-3">
           <span class="font-[var(--font-jetbrains)] text-[12px] text-[#6b7280]">
-            days
+            dias
           </span>
           <div class="grid grid-cols-7 gap-1">
             @for (day of dayOptions; track day.key) {
@@ -155,7 +155,7 @@ const ALL_DAY_KEYS = CRON_DAY_OPTIONS.map((day) => day.key)
 
         <div class="flex flex-col gap-2">
           <span class="font-[var(--font-jetbrains)] text-[12px] text-[#6b7280]">
-            output
+            saída
           </span>
           <div
             class="border border-[#2a2a2a] px-4 py-3 font-[var(--font-jetbrains)] text-[14px] text-white"
@@ -178,7 +178,7 @@ const ALL_DAY_KEYS = CRON_DAY_OPTIONS.map((day) => day.key)
           (click)="cancelSelection()"
         >
           <span>[x]</span>
-          <span>cancel</span>
+          <span>cancelar</span>
         </button>
         <button
           type="button"
@@ -187,7 +187,7 @@ const ALL_DAY_KEYS = CRON_DAY_OPTIONS.map((day) => day.key)
           (click)="applySelection()"
         >
           <span>></span>
-          <span>apply</span>
+          <span>aplicar</span>
         </button>
       </footer>
     </section>
@@ -214,12 +214,12 @@ export class CronBuilderComponent {
     formatCronExpression(this.draft()),
   )
   protected readonly cronPreview = computed(() =>
-    this.canApply() ? this.cronExpression() : 'select at least one day',
+    this.canApply() ? this.cronExpression() : 'selecione pelo menos um dia',
   )
   protected readonly scheduleDescription = computed(() =>
     this.canApply()
       ? describeDraft(this.draft())
-      : 'select at least one day to build the cron expression',
+      : 'selecione pelo menos um dia para montar a expressão cron',
   )
 
   constructor() {
@@ -447,23 +447,31 @@ function describeDraft(draft: CronBuilderDraft): string {
     .toString()
     .padStart(2, '0')}`
 
-  return `${describeDays(draft.days)} at ${timeLabel}`
+  return `${describeDays(draft.days)} às ${timeLabel}`
 }
 
 function describeDays(days: CronDayKey[]): string {
   if (matchesDaySet(days, ALL_DAY_KEYS)) {
-    return 'every day'
+    return 'todos os dias'
   }
 
   if (matchesDaySet(days, WEEKDAY_KEYS)) {
-    return 'every weekday'
+    return 'todos os dias úteis'
   }
 
   if (matchesDaySet(days, WEEKEND_KEYS)) {
-    return 'every weekend'
+    return 'todo fim de semana'
   }
 
-  return `every ${days.join(', ')}`
+  return `dias: ${formatDayLabels(days)}`
+}
+
+function formatDayLabels(days: CronDayKey[]): string {
+  return days
+    .map(
+      (day) => CRON_DAY_OPTIONS.find((option) => option.key === day)?.label ?? day,
+    )
+    .join(', ')
 }
 
 function matchesDaySet(current: CronDayKey[], expected: CronDayKey[]): boolean {

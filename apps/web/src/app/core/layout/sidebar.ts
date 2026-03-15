@@ -33,7 +33,7 @@ import { UserPopoverComponent } from './user-popover'
           zType="ghost"
           zSize="sm"
           class="px-2"
-          aria-label="Toggle navigation menu"
+          aria-label="Alternar menu de navegação"
           [attr.aria-expanded]="mobileMenuOpen()"
           (click)="mobileMenuOpen.set(!mobileMenuOpen())"
         >
@@ -53,7 +53,7 @@ import { UserPopoverComponent } from './user-popover'
             (click)="mobileMenuOpen.set(false)"
           >
             <span [class]="navPrefixClass(dashMobile.isActive)">$</span>
-            <span [class]="navLabelClass(dashMobile.isActive)">dashboard</span>
+            <span [class]="navLabelClass(dashMobile.isActive)">painel</span>
           </a>
           <a
             routerLink="/settings"
@@ -64,7 +64,7 @@ import { UserPopoverComponent } from './user-popover'
             (click)="mobileMenuOpen.set(false)"
           >
             <span [class]="navPrefixClass(settingsMobile.isActive)">$</span>
-            <span [class]="navLabelClass(settingsMobile.isActive)">settings</span>
+            <span [class]="navLabelClass(settingsMobile.isActive)">configurações</span>
           </a>
           <app-theme-toggle showLabel fullWidth class="mt-2" />
           <button
@@ -76,7 +76,7 @@ import { UserPopoverComponent } from './user-popover'
             (click)="handleSignOut()"
           >
             <span>$</span>
-            <span>logout</span>
+            <span>sair</span>
           </button>
         </nav>
       }
@@ -98,7 +98,7 @@ import { UserPopoverComponent } from './user-popover'
               [attr.aria-current]="dashActive.isActive ? 'page' : null"
             >
               <span [class]="navPrefixClass(dashActive.isActive)">$</span>
-              <span [class]="navLabelClass(dashActive.isActive)">dashboard</span>
+              <span [class]="navLabelClass(dashActive.isActive)">painel</span>
             </a>
 
             <a
@@ -109,7 +109,7 @@ import { UserPopoverComponent } from './user-popover'
               [attr.aria-current]="settingsActive.isActive ? 'page' : null"
             >
               <span [class]="navPrefixClass(settingsActive.isActive)">$</span>
-              <span [class]="navLabelClass(settingsActive.isActive)">settings</span>
+              <span [class]="navLabelClass(settingsActive.isActive)">configurações</span>
             </a>
 
             <button
@@ -122,7 +122,7 @@ import { UserPopoverComponent } from './user-popover'
               aria-disabled="true"
             >
               <span>$</span>
-              <span>reports</span>
+              <span>relatórios</span>
             </button>
 
             <app-theme-toggle showLabel fullWidth class="pt-2" />

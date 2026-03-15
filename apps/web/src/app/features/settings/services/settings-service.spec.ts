@@ -4,6 +4,10 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing'
 import { TestBed } from '@angular/core/testing'
+import {
+  provideTanStackQuery,
+  QueryClient,
+} from '@tanstack/angular-query-experimental'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
@@ -18,7 +22,11 @@ describe('SettingsService', () => {
   beforeEach(() => {
     TestBed.resetTestingModule()
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideTanStackQuery(new QueryClient()),
+      ],
     })
 
     httpMock = TestBed.inject(HttpTestingController)
@@ -36,6 +44,7 @@ describe('SettingsService', () => {
       recoveryCron: '0 18 * * 1-5',
       timezone: 'America/Sao_Paulo',
       gitAuthor: 'nitoba@example.com',
+      gitSincePeriod: '8 hours ago',
       selectedRepos: ['agrotrace-web', 'agrotrace-api'],
       active: true,
       snoozedUntil: null,
@@ -92,6 +101,9 @@ describe('SettingsService', () => {
 
     const savePromise = service.saveSettings(payload)
 
+    await Promise.resolve()
+    await Promise.resolve()
+    TestBed.tick()
     const request = httpMock.expectOne('/settings/me')
     expect(request.request.method).toBe('PUT')
     expect(request.request.body).toEqual(payload)

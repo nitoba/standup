@@ -75,7 +75,7 @@ describe('ApproveDialogContent', () => {
   it('prefills existing custom entries', async () => {
     const { fixture } = await createFixture({
       scheduledMeetings: ['Planning Backend', 'Refinamento mobile'],
-      directCalls: ['Call com Joao'],
+      directCalls: ['Chamada com João'],
     })
 
     const inputs = getInputs(fixture)
@@ -83,7 +83,7 @@ describe('ApproveDialogContent', () => {
     expect(inputs.map((input) => input.value)).toEqual([
       'Planning Backend',
       'Refinamento mobile',
-      'Call com Joao',
+      'Chamada com João',
     ])
   })
 
@@ -101,7 +101,7 @@ describe('ApproveDialogContent', () => {
     const { fixture } = await createFixture()
 
     const addButtons = fixture.nativeElement.querySelectorAll(
-      'button[aria-label="Add scheduled meeting"], button[aria-label="Add direct call"]',
+      'button[aria-label="Adicionar reunião agendada"], button[aria-label="Adicionar chamada direta"]',
     ) as NodeListOf<HTMLButtonElement>
 
     addButtons[0]?.click()
@@ -111,7 +111,7 @@ describe('ApproveDialogContent', () => {
     expect(getInputs(fixture)).toHaveLength(4)
 
     const removeButtons = fixture.nativeElement.querySelectorAll(
-      'button[aria-label^="Remove "]',
+      'button[aria-label^="Remover "]',
     ) as NodeListOf<HTMLButtonElement>
 
     removeButtons[0]?.click()
@@ -123,7 +123,7 @@ describe('ApproveDialogContent', () => {
   it('submits parsed custom entries when user fills optional fields', async () => {
     const { fixture, onSubmit } = await createFixture()
     const addButtons = fixture.nativeElement.querySelectorAll(
-      'button[aria-label="Add scheduled meeting"], button[aria-label="Add direct call"]',
+      'button[aria-label="Adicionar reunião agendada"], button[aria-label="Adicionar chamada direta"]',
     ) as NodeListOf<HTMLButtonElement>
 
     addButtons[0]?.click()
@@ -134,7 +134,7 @@ describe('ApproveDialogContent', () => {
 
     setInputValue(inputs[0]!, 'Planning Backend')
     setInputValue(inputs[1]!, 'Refinamento mobile')
-    setInputValue(inputs[2]!, 'Call com Joao')
+    setInputValue(inputs[2]!, 'Chamada com João')
     setInputValue(inputs[3]!, 'Sync com QA')
     fixture.detectChanges()
 
@@ -143,7 +143,7 @@ describe('ApproveDialogContent', () => {
     expect(onSubmit).toHaveBeenCalledWith({
       customEntries: {
         scheduledMeetings: ['Planning Backend', 'Refinamento mobile'],
-        directCalls: ['Call com Joao', 'Sync com QA'],
+        directCalls: ['Chamada com João', 'Sync com QA'],
       },
     })
   })

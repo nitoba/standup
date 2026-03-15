@@ -25,7 +25,7 @@ type StatusSelection = 'all' | 'pending_review' | 'approved' | 'rejected'
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex flex-col gap-[16px]">
-      <div class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]">// filters</div>
+      <div class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]">// filtros</div>
       <div class="flex flex-wrap items-center gap-[10px] md:gap-[12px]">
         <z-combobox
           zWidth="full"
@@ -33,9 +33,9 @@ type StatusSelection = 'all' | 'pending_review' | 'approved' | 'rejected'
           [options]="statusOptions"
           [value]="status()"
           [searchable]="false"
-          placeholder="select status"
-          ariaLabel="Standup status filter"
-          emptyText="No status available."
+          placeholder="selecionar status"
+          ariaLabel="Filtro de status do standup"
+          emptyText="Nenhum status disponível."
           (zValueChange)="onStatusSelected($event)"
         />
 
@@ -45,9 +45,9 @@ type StatusSelection = 'all' | 'pending_review' | 'approved' | 'rejected'
           [options]="dateOptions"
           [value]="date()"
           [searchable]="false"
-          placeholder="select date"
-          ariaLabel="Standup date filter"
-          emptyText="No date filter available."
+          placeholder="selecionar data"
+          ariaLabel="Filtro de data do standup"
+          emptyText="Nenhum filtro de data disponível."
           (zValueChange)="onDateSelected($event)"
         />
 
@@ -57,9 +57,9 @@ type StatusSelection = 'all' | 'pending_review' | 'approved' | 'rejected'
           [options]="pageSizeOptions"
           [value]="pageSizeValue()"
           [searchable]="false"
-          placeholder="page size"
-          ariaLabel="Standup page size"
-          emptyText="No page size available."
+          placeholder="itens por página"
+          ariaLabel="Itens por página do standup"
+          emptyText="Nenhuma opção de página disponível."
           (zValueChange)="onPageSizeSelected($event)"
         />
 
@@ -69,9 +69,9 @@ type StatusSelection = 'all' | 'pending_review' | 'approved' | 'rejected'
             type="text"
             z-input
             zBorderless
-            placeholder="search standups..."
+            placeholder="buscar standups..."
             class="flex-1 text-[12px] md:text-[13px]"
-            aria-label="Search standups"
+            aria-label="Buscar standups"
             [value]="search()"
             (input)="updateSearch(asInputValue($event))"
           />
@@ -92,24 +92,24 @@ export class FilterBar {
   readonly pageSizeChange = output<number>()
   readonly pageSizeValue = computed(() => `${this.pageSize()}`)
   readonly statusOptions: ZardComboboxOption[] = [
-    { value: 'all', label: 'status: all' },
-    { value: 'pending_review', label: 'status: pending_review' },
-    { value: 'approved', label: 'status: approved' },
-    { value: 'rejected', label: 'status: rejected' },
+    { value: 'all', label: 'status: todos' },
+    { value: 'pending_review', label: 'status: pendentes' },
+    { value: 'approved', label: 'status: aprovados' },
+    { value: 'rejected', label: 'status: rejeitados' },
   ]
   readonly dateOptions: ZardComboboxOption[] = [
-    { value: 'all_time', label: 'date: all_time' },
-    { value: 'this_week', label: 'date: this_week' },
-    { value: 'today', label: `date: ${this.resolveDateValue('today')}` },
+    { value: 'all_time', label: 'data: todo o período' },
+    { value: 'this_week', label: 'data: esta semana' },
+    { value: 'today', label: `data: ${this.resolveDateValue('today')}` },
     {
       value: 'yesterday',
-      label: `date: ${this.resolveDateValue('yesterday')}`,
+      label: `data: ${this.resolveDateValue('yesterday')}`,
     },
   ]
   readonly pageSizeOptions: ZardComboboxOption[] = [
-    { value: '10', label: 'page size: 10' },
-    { value: '20', label: 'page size: 20' },
-    { value: '50', label: 'page size: 50' },
+    { value: '10', label: 'itens por página: 10' },
+    { value: '20', label: 'itens por página: 20' },
+    { value: '50', label: 'itens por página: 50' },
   ]
 
   formatDate(date: Date) {

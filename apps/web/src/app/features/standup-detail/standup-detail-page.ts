@@ -39,18 +39,18 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
       <section class="bg-background text-foreground p-[20px] md:p-[40px] flex flex-col gap-[24px] md:gap-[32px]">
         <a routerLink="/dashboard" class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] flex items-center gap-[12px] transition-colors duration-150 hover:text-foreground">
           <span><<</span>
-          <span>back to standups</span>
+          <span>voltar para standups</span>
         </a>
 
         @if (standup.isLoading()) {
           <app-standup-detail-skeleton />
         } @else if (standup.error()) {
-          <div class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[13px]">// standup not found</div>
+          <div class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[13px]">// standup não encontrado</div>
         } @else if (standup.value(); as detail) {
           <div class="flex flex-col gap-[16px]">
             <div class="flex items-center gap-[12px]">
               <span class="text-primary font-[var(--font-jetbrains)] text-[24px] md:text-[32px] font-bold">>></span>
-              <span class="text-foreground font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold">standup_detail</span>
+              <span class="text-foreground font-[var(--font-jetbrains)] text-[20px] md:text-[28px] font-bold">detalhes_do_standup</span>
             </div>
             <div class="flex flex-wrap items-center gap-[12px] md:gap-[24px]">
               <span class="text-muted-foreground font-[var(--font-ibm)] text-[12px]">// {{ detail.date }}</span>
@@ -60,23 +60,23 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
                   {{ formatStatus(detail.status) }}
                 </span>
               </div>
-              <span class="hidden md:inline text-muted-foreground font-[var(--font-ibm)] text-[12px]">created: {{ detail.createdAt }}</span>
+              <span class="hidden md:inline text-muted-foreground font-[var(--font-ibm)] text-[12px]">criado em: {{ detail.createdAt }}</span>
               <span class="hidden md:inline text-muted-foreground/70 font-[var(--font-ibm)] text-[12px]">id: {{ detail.id }}</span>
             </div>
           </div>
 
           <div class="bg-card border border-border p-[16px] md:p-[24px] flex flex-col gap-[16px] md:gap-[20px]">
             <div class="flex flex-col gap-[8px] md:flex-row md:items-center md:justify-between">
-              <div class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-bold">generated_content</div>
+              <div class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-bold">conteúdo_gerado</div>
               <button
                 type="button"
                 z-button
                 zType="outline"
                 zSize="sm"
                 [zDisabled]="actionLoading()"
-                (click)="copyToClipboard(detail.content ?? '', 'generated content copied')"
+                (click)="copyToClipboard(detail.content ?? '', 'conteúdo gerado copiado')"
               >
-                $ copy generated
+                $ copiar conteúdo
               </button>
             </div>
             <pre class="m-0 whitespace-pre-wrap break-words font-[var(--font-ibm)] text-[13px] leading-[1.7] text-foreground max-w-4xl" [innerHTML]="detail.content | discordFormat"></pre>
@@ -84,16 +84,16 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
 
           <div class="border border-border p-[20px] flex flex-col gap-[20px]">
             <div class="flex flex-col gap-[8px] md:flex-row md:items-center md:justify-between">
-              <div class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-bold">datasource</div>
+              <div class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-bold">fonte_de_dados</div>
               <button
                 type="button"
                 z-button
                 zType="outline"
                 zSize="sm"
                 [zDisabled]="actionLoading()"
-                (click)="copyToClipboard(detail.sourceData ?? '', 'datasource copied')"
+                (click)="copyToClipboard(detail.sourceData ?? '', 'fonte de dados copiada')"
               >
-                $ copy datasource
+                $ copiar fonte
               </button>
             </div>
 
@@ -117,14 +117,14 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
               <div class="flex items-center justify-between gap-[12px]">
                 <div class="flex items-center gap-[12px]">
                   <span class="font-[var(--font-jetbrains)] text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
-                    {{ showFullDatasource() ? 'full json' : 'preview' }}
+                    {{ showFullDatasource() ? 'json completo' : 'prévia' }}
                   </span>
                   <span
                     class="font-[var(--font-ibm)] text-[12px] text-muted-foreground/70 transition-opacity duration-300"
                     [style.opacity]="showFullDatasource() ? '0' : '1'"
                     aria-hidden="true"
                   >
-                    {{ datasourceLineCount(detail.sourceData ?? '') }} lines
+                    {{ datasourceLineCount(detail.sourceData ?? '') }} linhas
                   </span>
                 </div>
                 <button
@@ -135,7 +135,7 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
                   [zDisabled]="actionLoading()"
                   (click)="toggleDatasource()"
                 >
-                  {{ showFullDatasource() ? '$ collapse' : '$ expand' }}
+                  {{ showFullDatasource() ? '$ recolher' : '$ expandir' }}
                 </button>
               </div>
 
@@ -147,7 +147,7 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
                 <div class="overflow-hidden">
                   <app-json-viewer
                     [value]="detail.sourceData"
-                    ariaLabel="datasource JSON completo"
+                    ariaLabel="JSON completo da fonte de dados"
                   />
                 </div>
               </div>
@@ -159,7 +159,7 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
                 <div class="overflow-hidden">
                   <app-json-viewer
                     [value]="previewDatasource(detail.sourceData ?? '')"
-                    ariaLabel="datasource JSON preview"
+                    ariaLabel="Prévia do JSON da fonte de dados"
                   />
                 </div>
               </div>
@@ -176,7 +176,7 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
                 [zDisabled]="actionLoading()"
                 (click)="openApproveModal(detail)"
               >
-                $ approve
+                $ aprovar
               </button>
               <button
                 type="button"
@@ -186,7 +186,7 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
                 [zDisabled]="actionLoading()"
                 (click)="reject(detail.id)"
               >
-                $ reject
+                $ rejeitar
               </button>
               <button
                 type="button"
@@ -196,7 +196,7 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
                 [zDisabled]="actionLoading()"
                 (click)="openAdjustModal()"
               >
-                $ adjust
+                $ ajustar
               </button>
             }
             @if (canRegenerate(detail.status)) {
@@ -208,12 +208,12 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
                 [zDisabled]="actionLoading()"
                 (click)="openRegenerateModal(detail.id)"
               >
-                $ regenerate
+                $ regenerar
               </button>
             }
           </div>
         } @else {
-          <div class="text-muted-foreground font-[var(--font-ibm)] text-[13px]">// standup not found</div>
+          <div class="text-muted-foreground font-[var(--font-ibm)] text-[13px]">// standup não encontrado</div>
         }
       </section>
     </app-sidebar-layout>
@@ -237,8 +237,8 @@ export class StandupDetailPage {
 
   openAdjustModal() {
     this.dialogService.create({
-      zTitle: '// adjust standup',
-      zDescription: '// rewrite instructions',
+      zTitle: '// ajustar standup',
+      zDescription: '// instruções de reescrita',
       zContent: AdjustDialogContent,
       zHideFooter: true,
       zWidth: '720px',
@@ -261,7 +261,8 @@ export class StandupDetailPage {
 
     this.dialogService.create({
       zTitle: '// aprovar standup',
-      zDescription: '// opcionalmente adicione reunioes extras e calls diretas',
+      zDescription:
+        '// opcionalmente adicione reuniões extras e chamadas diretas',
       zContent: ApproveDialogContent,
       zHideFooter: true,
       zWidth: '720px',
@@ -315,7 +316,7 @@ export class StandupDetailPage {
     this.dialogService.create({
       zTitle: '// regenerar standup',
       zDescription:
-        '// o conteudo atual sera descartado e um novo standup sera gerado a partir dos commits do dia',
+        '// o conteúdo atual será descartado e um novo standup será gerado a partir dos commits do dia',
       zContent: 'Tem certeza que deseja regenerar o standup?',
       zOkText: '$ confirmar',
       zCancelText: '$ cancelar',
@@ -346,7 +347,7 @@ export class StandupDetailPage {
   async copyToClipboard(content: string, feedback: string) {
     const clipboard = globalThis.navigator?.clipboard
     if (!clipboard || !content.trim()) {
-      toast.error('Clipboard indisponivel')
+      toast.error('Clipboard indisponível')
       return
     }
 
@@ -354,7 +355,7 @@ export class StandupDetailPage {
       await clipboard.writeText(content)
       toast.success(feedback)
     } catch {
-      toast.error('Clipboard indisponivel')
+      toast.error('Clipboard indisponível')
     }
   }
 
@@ -402,7 +403,7 @@ export class StandupDetailPage {
   }
 
   formatStatus(status: StandupStatus) {
-    if (status === 'pending_review') return '[pending_review]'
-    return status === 'approved' ? '[approved]' : '[rejected]'
+    if (status === 'pending_review') return '[pendente]'
+    return status === 'approved' ? '[aprovado]' : '[rejeitado]'
   }
 }

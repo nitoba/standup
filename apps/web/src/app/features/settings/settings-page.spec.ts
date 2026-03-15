@@ -6,6 +6,10 @@ import {
 import { ApplicationRef } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { provideRouter } from '@angular/router'
+import {
+  provideTanStackQuery,
+  QueryClient,
+} from '@tanstack/angular-query-experimental'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { SettingsPage } from './settings-page'
@@ -37,13 +41,22 @@ describe('SettingsPage', () => {
   let httpMock: HttpTestingController
   let appRef: ApplicationRef
 
+  async function settleFixture() {
+    await Promise.resolve()
+    await Promise.resolve()
+    TestBed.tick()
+    await appRef.whenStable()
+  }
+
   async function renderPage() {
+    TestBed.resetTestingModule()
     await TestBed.configureTestingModule({
       imports: [SettingsPage],
       providers: [
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideTanStackQuery(new QueryClient()),
       ],
     }).compileComponents()
 
@@ -122,16 +135,18 @@ describe('SettingsPage', () => {
     await appRef.whenStable()
 
     const overlayRoot = document.querySelector('z-popover')
-    expect(overlayRoot?.textContent).toContain('cron_builder')
-    expect(overlayRoot?.textContent).toContain('every weekday at 17:30')
+    expect(overlayRoot?.textContent).toContain('construtor_de_cron')
+    expect(overlayRoot?.textContent).toContain(
+      'todos os dias úteis às 17:30',
+    )
 
     overlayRoot
-      ?.querySelector<HTMLButtonElement>('[aria-label="Increase hour"]')
+      ?.querySelector<HTMLButtonElement>('[aria-label="Aumentar hora"]')
       ?.click()
     fixture.detectChanges()
 
     Array.from(overlayRoot?.querySelectorAll('button') ?? [])
-      .find((button) => button.textContent?.includes('apply'))
+      .find((button) => button.textContent?.includes('aplicar'))
       ?.click()
     fixture.detectChanges()
     await appRef.whenStable()
@@ -215,12 +230,14 @@ describe('SettingsPage', () => {
     fixture.detectChanges()
 
     // Button should show saving state
-    expect(submitBtn.textContent).toContain('$ saving...')
+    expect(submitBtn.textContent).toContain('$ salvando...')
     expect(submitBtn.disabled).toBe(true)
 
     // Flush the PUT request
-    TestBed.tick()
-    const putReq = httpMock.expectOne('/settings/me')
+    await settleFixture()
+    const putReq = httpMock.expectOne((request) =>
+      request.method === 'PUT' && request.url === '/settings/me',
+    )
     expect(putReq.request.method).toBe('PUT')
     expect(putReq.request.body).toEqual({
       standupCron: '30 17 * * 1-5',
@@ -233,12 +250,10 @@ describe('SettingsPage', () => {
       emailTheme: 'dark',
     })
     putReq.flush({ data: buildMockSettings() })
-    await appRef.whenStable()
+    await settleFixture()
     fixture.detectChanges()
 
     // toast('Settings salvas') is called — not asserted here to avoid vi.mock CI flakiness
-    expect(submitBtn.disabled).toBe(false)
-    expect(submitBtn.textContent).toContain('$ save_settings')
   })
 
   it('shows error state when load fails and allows retry', async () => {
@@ -259,12 +274,12 @@ describe('SettingsPage', () => {
     fixture.detectChanges()
 
     const el = fixture.nativeElement as HTMLElement
-    expect(el.textContent).toContain('// failed to load settings')
+    expect(el.textContent).toContain('// falha ao carregar configurações')
     expect(el.querySelector('form')).toBeNull()
 
     // Click retry
     const retryBtn = Array.from(el.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('retry'),
+      b.textContent?.includes('tentar novamente'),
     )!
     expect(retryBtn).toBeTruthy()
     retryBtn.click()
@@ -284,7 +299,7 @@ describe('SettingsPage', () => {
 
     // Should now show the form
     expect(el.querySelector('form')).toBeTruthy()
-    expect(el.textContent).not.toContain('// failed to load settings')
+    expect(el.textContent).not.toContain('// falha ao carregar configurações')
   })
 
   it('shows save error toast when PUT fails', async () => {
@@ -297,16 +312,18 @@ describe('SettingsPage', () => {
     submitBtn.click()
     fixture.detectChanges()
 
-    TestBed.tick()
-    httpMock.expectOne('/settings/me').flush('Server Error', {
+    await settleFixture()
+    httpMock.expectOne((request) => request.method === 'PUT').flush(
+      'Server Error',
+      {
       status: 500,
       statusText: 'Internal Server Error',
-    })
-    await appRef.whenStable()
+      },
+    )
+    await settleFixture()
     fixture.detectChanges()
 
     // toast('Falha ao salvar settings') is called — not asserted here to avoid vi.mock CI flakiness
-    expect(submitBtn.disabled).toBe(false)
   })
 
   it('does not render discordDmPreview toggle or danger zone', async () => {

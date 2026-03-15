@@ -20,7 +20,7 @@ import {
       [zVisible]="isOpen()"
       [attr.aria-expanded]="isOpen()"
       aria-haspopup="menu"
-      aria-label="Open user menu"
+      aria-label="Abrir menu do usuário"
       (zVisibleChange)="isOpen.set($event)"
     >
       <div class="flex min-w-0 items-center gap-[10px]">
@@ -42,7 +42,7 @@ import {
           <span class="flex items-center gap-[6px]">
             <span class="h-[6px] w-[6px] rounded-full bg-[#10B981]"></span>
             <span class="font-[var(--font-ibm)] text-[11px] text-muted-foreground">
-              online
+              ativo
             </span>
           </span>
         </div>
@@ -80,7 +80,7 @@ import {
               <span class="flex items-center gap-[6px]">
                 <span class="h-[6px] w-[6px] rounded-full bg-[#10B981]"></span>
                 <span class="font-[var(--font-jetbrains)] text-[12px] text-[#10B981]">
-                  online
+                  ativo
                 </span>
               </span>
             </div>
@@ -88,7 +88,7 @@ import {
 
           <div class="h-px w-full bg-[#2a2a2a]"></div>
 
-          <div class="flex flex-col px-[8px] py-[4px]" role="menu" aria-label="User actions">
+          <div class="flex flex-col px-[8px] py-[4px]" role="menu" aria-label="Ações do usuário">
             <button
               type="button"
               class="flex w-full items-center gap-[8px] px-[12px] py-[8px] text-left opacity-50"
@@ -96,7 +96,7 @@ import {
               aria-disabled="true"
             >
               <span class="font-[var(--font-jetbrains)] text-[12px] text-[#6B7280]">$</span>
-              <span class="font-[var(--font-jetbrains)] text-[13px] text-[#FAFAFA]">profile</span>
+              <span class="font-[var(--font-jetbrains)] text-[13px] text-[#FAFAFA]">perfil</span>
             </button>
 
             <a
@@ -106,7 +106,7 @@ import {
               (click)="close()"
             >
               <span class="font-[var(--font-jetbrains)] text-[12px] text-[#6B7280]">$</span>
-              <span class="font-[var(--font-jetbrains)] text-[13px] text-[#FAFAFA]">settings</span>
+              <span class="font-[var(--font-jetbrains)] text-[13px] text-[#FAFAFA]">configurações</span>
             </a>
           </div>
 
@@ -120,7 +120,7 @@ import {
               (click)="requestSignOut()"
             >
               <span class="font-[var(--font-jetbrains)] text-[12px] text-[#EF4444]">[x]</span>
-              <span class="font-[var(--font-jetbrains)] text-[13px] text-[#EF4444]">logout</span>
+              <span class="font-[var(--font-jetbrains)] text-[13px] text-[#EF4444]">sair</span>
             </button>
           </div>
         </div>
@@ -137,7 +137,7 @@ export class UserPopoverComponent {
   protected readonly isOpen = signal(false)
 
   protected readonly primaryLabel = computed(
-    () => this.userName()?.trim() || this.userEmail()?.trim() || 'user',
+    () => this.userName()?.trim() || this.userEmail()?.trim() || 'usuário',
   )
 
   protected readonly secondaryLabel = computed(() => {
@@ -146,7 +146,7 @@ export class UserPopoverComponent {
       return email
     }
 
-    return 'session active'
+    return 'sessão ativa'
   })
 
   protected readonly avatarImage = computed(() => {

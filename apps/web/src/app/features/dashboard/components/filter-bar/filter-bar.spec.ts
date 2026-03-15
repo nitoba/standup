@@ -56,8 +56,10 @@ describe('FilterBar', () => {
     expect(dateSpy).toHaveBeenNthCalledWith(4, 'all_time')
     expect(pageSizeSpy).toHaveBeenCalledWith(50)
     expect(searchSpy).toHaveBeenCalledWith('retry')
-    expect(fixture.nativeElement.textContent).toContain('status: approved')
-    expect(fixture.nativeElement.textContent).toContain('page size: 50')
+    expect(fixture.nativeElement.textContent).toContain('status: aprovados')
+    expect(fixture.nativeElement.textContent).toContain(
+      'itens por página: 50',
+    )
   })
 
   it('formats local date parts without converting through UTC', () => {

@@ -29,9 +29,9 @@ describe('ThemeToggleComponent', () => {
     const trigger = element.querySelector('button') as HTMLButtonElement | null
 
     expect(element.textContent).toContain('$')
-    expect(element.textContent).toContain('theme_mode')
+    expect(element.textContent).toContain('tema')
     expect(trigger).toBeTruthy()
-    expect(trigger?.textContent).toContain('dark')
+    expect(trigger?.textContent).toContain('escuro')
   })
 
   it('sets the selected theme mode', async () => {

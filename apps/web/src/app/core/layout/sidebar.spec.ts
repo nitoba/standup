@@ -32,7 +32,7 @@ describe('SidebarLayout', () => {
 
     const element = fixture.nativeElement as HTMLElement
     expect(element.textContent).toContain('standup_bot')
-    expect(element.textContent).toContain('dashboard')
+    expect(element.textContent).toContain('painel')
   })
 
   it('displays user name from session', async () => {
@@ -79,7 +79,7 @@ describe('SidebarLayout', () => {
     expect(element.textContent).toContain('nito@test.com')
   })
 
-  it('shows generic user/ when no session', async () => {
+  it('shows generic usuário when no session', async () => {
     const mockSession = createMockSessionService(null)
 
     await TestBed.configureTestingModule({
@@ -94,7 +94,7 @@ describe('SidebarLayout', () => {
     fixture.detectChanges()
 
     const element = fixture.nativeElement as HTMLElement
-    expect(element.textContent).toContain('user')
+    expect(element.textContent).toContain('usuário')
   })
 
   it('renders the desktop user popover trigger', async () => {
@@ -122,7 +122,7 @@ describe('SidebarLayout', () => {
 
     expect(trigger).not.toBeNull()
     expect(trigger?.textContent).toContain('nitoba')
-    expect(trigger?.textContent).toContain('online')
+    expect(trigger?.textContent).toContain('ativo')
   })
 
   it('calls signOut and navigates to /login on logout request', async () => {
@@ -166,7 +166,7 @@ describe('SidebarLayout', () => {
     fixture.detectChanges()
 
     const mobileNav = fixture.nativeElement.querySelector('nav') as HTMLElement
-    expect(mobileNav.textContent).toContain('logout')
+    expect(mobileNav.textContent).toContain('sair')
   })
 
   it('locks body scroll while mobile menu is open', async () => {

@@ -29,10 +29,10 @@ function findNewestPendingId(standups: Standup[]): string | null {
       <!-- Desktop table header -->
       <div class="hidden md:block bg-accent/40 border-b border-border px-[20px] py-[12px]">
         <div class="grid grid-cols-[120px_120px_1fr_100px]">
-          <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] font-medium">date</span>
+          <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] font-medium">data</span>
           <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] font-medium">status</span>
-          <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] font-medium">content_preview</span>
-          <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] font-medium">actions</span>
+          <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] font-medium">prévia_do_conteúdo</span>
+          <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] font-medium">ações</span>
         </div>
       </div>
 
@@ -61,7 +61,7 @@ function findNewestPendingId(standups: Standup[]): string | null {
             class="justify-start px-0 text-primary"
             (click)="viewStandup.emit(standup.id)"
           >
-            $ view >>
+            $ ver >>
           </button>
         </div>
 
@@ -91,7 +91,7 @@ function findNewestPendingId(standups: Standup[]): string | null {
             class="justify-start px-0 text-primary"
             (click)="viewStandup.emit(standup.id)"
           >
-            $ view >>
+            $ ver >>
           </button>
         </div>
       }
@@ -99,11 +99,11 @@ function findNewestPendingId(standups: Standup[]): string | null {
       <div class="px-[16px] md:px-[20px] py-[12px] md:py-[16px] flex flex-col gap-[12px] md:flex-row md:items-center md:justify-between">
         <div class="flex flex-col gap-[4px]">
           <span class="text-muted-foreground font-[var(--font-ibm)] text-[11px] md:text-[12px]">
-            // showing {{ rangeStart() }}-{{ rangeEnd() }}
+            // exibindo {{ rangeStart() }}-{{ rangeEnd() }}
           </span>
           <div class="flex items-center gap-[10px] text-[11px] md:text-[12px] font-[var(--font-jetbrains)]">
-            <span class="text-foreground">page {{ page() }} of {{ totalPages() || 1 }}</span>
-            <span class="text-muted-foreground">{{ total() }} total</span>
+            <span class="text-foreground">página {{ page() }} de {{ totalPages() || 1 }}</span>
+            <span class="text-muted-foreground">{{ total() }} no total</span>
           </div>
         </div>
 
@@ -228,8 +228,8 @@ export class StandupTable {
   }
 
   formatStatus(status: StandupStatus) {
-    if (status === 'pending_review') return '[pending]'
-    if (status === 'approved') return '[approved]'
-    return '[rejected]'
+    if (status === 'pending_review') return '[pendente]'
+    if (status === 'approved') return '[aprovado]'
+    return '[rejeitado]'
   }
 }

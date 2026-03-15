@@ -18,7 +18,7 @@ import { ZardComboboxComponent, type ZardComboboxOption } from '../combobox'
       @if (showLabel()) {
         <div class="flex items-center gap-2 text-muted-foreground font-[var(--font-jetbrains)] text-[12px]">
           <span>$</span>
-          <span>theme_mode</span>
+          <span>tema</span>
         </div>
       }
 
@@ -27,11 +27,11 @@ import { ZardComboboxComponent, type ZardComboboxOption } from '../combobox'
         [options]="themeOptions()"
         [value]="currentTheme()"
         [searchable]="false"
-        placeholder="select theme"
-        [ariaLabel]="'Theme mode selector'"
+        placeholder="selecionar tema"
+        [ariaLabel]="'Seletor de tema'"
         [buttonVariant]="'outline'"
-        searchPlaceholder="search theme..."
-        emptyText="No theme available."
+        searchPlaceholder="buscar tema..."
+        emptyText="Nenhum tema disponível."
         (zValueChange)="onThemeChange($event)"
       />
     </div>
@@ -47,17 +47,17 @@ export class ThemeToggleComponent {
   readonly themeOptions = computed<ZardComboboxOption[]>(() => [
     {
       value: EDarkModes.LIGHT,
-      label: 'light',
+      label: 'claro',
       icon: 'sun',
     },
     {
       value: EDarkModes.DARK,
-      label: 'dark',
+      label: 'escuro',
       icon: 'moon',
     },
     {
       value: EDarkModes.SYSTEM,
-      label: 'system',
+      label: 'sistema',
       icon: 'monitor',
     },
   ])

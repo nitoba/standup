@@ -46,7 +46,7 @@ describe('LoginPage', () => {
 
     const element = fixture.nativeElement as HTMLElement
     expect(element.textContent).toContain('standup_bot')
-    expect(element.textContent).toContain('sign in with discord')
+    expect(element.textContent).toContain('entrar com Discord')
   })
 
   it('calls signInWithDiscord with default returnUrl when button is clicked', () => {

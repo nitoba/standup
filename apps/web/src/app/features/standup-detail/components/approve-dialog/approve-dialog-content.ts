@@ -53,7 +53,7 @@ function cleanEntries(lines: string[]): string[] {
             for="scheduled-meetings-0"
             class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
           >
-          scheduled_meetings
+          reuniões_agendadas
           </label>
           <button
             type="button"
@@ -61,7 +61,7 @@ function cleanEntries(lines: string[]): string[] {
             zType="ghost"
             zSize="sm"
             class="h-[32px] w-[32px] px-0"
-            aria-label="Add scheduled meeting"
+            aria-label="Adicionar reunião agendada"
             (click)="addEntry('scheduledMeetings')"
           >
             <z-icon zType="plus" zSize="sm" />
@@ -74,8 +74,8 @@ function cleanEntries(lines: string[]): string[] {
                 [id]="'scheduled-meetings-' + $index"
                 z-input
                 class="flex-1"
-                placeholder="Planning Backend"
-                [attr.aria-label]="'Scheduled meeting ' + ($index + 1)"
+                placeholder="Planejamento de backend"
+                [attr.aria-label]="'Reunião agendada ' + ($index + 1)"
                 [value]="meeting"
                 (input)="updateEntry('scheduledMeetings', $index, asInputValue($event))"
               />
@@ -86,7 +86,7 @@ function cleanEntries(lines: string[]): string[] {
                   zType="ghost"
                   zSize="sm"
                   class="h-[40px] w-[40px] shrink-0 px-0"
-                  [attr.aria-label]="'Remove scheduled meeting ' + ($index + 1)"
+                  [attr.aria-label]="'Remover reunião agendada ' + ($index + 1)"
                   (click)="removeEntry('scheduledMeetings', $index)"
                 >
                   <z-icon zType="minus" zSize="sm" />
@@ -96,7 +96,7 @@ function cleanEntries(lines: string[]): string[] {
           }
         </div>
         <span class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]">
-          // cada item sera inserido como uma reuniao extra
+          // cada item será inserido como uma reunião extra
         </span>
       </div>
 
@@ -106,7 +106,7 @@ function cleanEntries(lines: string[]): string[] {
             for="direct-calls-0"
             class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
           >
-          direct_calls
+          chamadas_diretas
           </label>
           <button
             type="button"
@@ -114,7 +114,7 @@ function cleanEntries(lines: string[]): string[] {
             zType="ghost"
             zSize="sm"
             class="h-[32px] w-[32px] px-0"
-            aria-label="Add direct call"
+            aria-label="Adicionar chamada direta"
             (click)="addEntry('directCalls')"
           >
             <z-icon zType="plus" zSize="sm" />
@@ -127,8 +127,8 @@ function cleanEntries(lines: string[]): string[] {
                 [id]="'direct-calls-' + $index"
                 z-input
                 class="flex-1"
-                placeholder="Call com Joao sobre deploy"
-                [attr.aria-label]="'Direct call ' + ($index + 1)"
+                placeholder="Chamada com João sobre deploy"
+                [attr.aria-label]="'Chamada direta ' + ($index + 1)"
                 [value]="call"
                 (input)="updateEntry('directCalls', $index, asInputValue($event))"
               />
@@ -139,7 +139,7 @@ function cleanEntries(lines: string[]): string[] {
                   zType="ghost"
                   zSize="sm"
                   class="h-[40px] w-[40px] shrink-0 px-0"
-                  [attr.aria-label]="'Remove direct call ' + ($index + 1)"
+                  [attr.aria-label]="'Remover chamada direta ' + ($index + 1)"
                   (click)="removeEntry('directCalls', $index)"
                 >
                   <z-icon zType="minus" zSize="sm" />
@@ -149,7 +149,7 @@ function cleanEntries(lines: string[]): string[] {
           }
         </div>
         <span class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]">
-          // cada item sera adicionado no final do standup
+          // cada item será adicionado no final do standup
         </span>
       </div>
 

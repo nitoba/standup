@@ -30,15 +30,15 @@ export interface AdjustDialogData {
         #instructionField
         z-input
         class="min-h-[180px] w-full resize-y"
-        placeholder="tell the generator what should change..."
-        aria-label="Adjust standup instructions"
+        placeholder="diga ao gerador o que deve mudar..."
+        aria-label="Instruções para ajustar o standup"
         [value]="instruction()"
         (input)="instruction.set(asInstruction($event))"
       ></textarea>
 
       <div class="flex flex-col-reverse gap-[12px] md:flex-row md:justify-end">
         <button type="button" z-button zType="outline" (click)="onCancel()">
-          $ cancel
+          $ cancelar
         </button>
 
         <button
@@ -48,7 +48,7 @@ export interface AdjustDialogData {
           [zDisabled]="!canSubmit()"
           (click)="onSubmit()"
         >
-          $ submit
+          $ enviar
         </button>
       </div>
     </div>

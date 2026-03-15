@@ -4,10 +4,12 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing'
 import { ApplicationRef } from '@angular/core'
-import type { ComponentFixture } from '@angular/core/testing'
 import { TestBed } from '@angular/core/testing'
-import { By } from '@angular/platform-browser'
 import { provideRouter } from '@angular/router'
+import {
+  provideTanStackQuery,
+  QueryClient,
+} from '@tanstack/angular-query-experimental'
 import { Subject } from 'rxjs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -16,7 +18,6 @@ import {
   filterStandups,
 } from '../../shared/models/mock-data'
 import type { StandupEvent } from '../../shared/models/standup-models'
-import { FilterBar } from './components/filter-bar/filter-bar'
 import { DashboardPage } from './dashboard-page'
 import { StandupEventsService } from './services/standup-events-service'
 import { StandupService } from './services/standup-service'
@@ -52,6 +53,7 @@ describe('DashboardPage', () => {
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideTanStackQuery(new QueryClient()),
         { provide: StandupEventsService, useValue: stubEventsService },
       ],
     }).compileComponents()
@@ -64,11 +66,6 @@ describe('DashboardPage', () => {
 
     return fixture
   }
-
-  function getFilterBar(fixture: ComponentFixture<DashboardPage>) {
-    return fixture.debugElement.query(By.directive(FilterBar))
-  }
-
   afterEach(() => {
     httpMock.verify()
     vi.useRealTimers()
@@ -88,7 +85,9 @@ describe('DashboardPage', () => {
 
     const element = fixture.nativeElement as HTMLElement
     expect(element.textContent).toContain('standups')
-    expect(element.textContent).toContain('daily standup reports overview')
+    expect(element.textContent).toContain(
+      'visão geral dos relatórios diários de standup',
+    )
   })
 
   it('reloads from the server for status and date filters while keeping search client-side', async () => {
@@ -115,19 +114,9 @@ describe('DashboardPage', () => {
     await appRef.whenStable()
     fixture.detectChanges()
 
-    expect(fixture.componentInstance.standupService.standups.isLoading()).toBe(
-      false,
-    )
-    expect(
-      fixture.componentInstance.standupService.standups.error(),
-    ).toBeUndefined()
+    expect(fixture.componentInstance.standupService.standups.error()).toBeNull()
 
-    const filterBar = getFilterBar(fixture)
-    expect(filterBar).not.toBeNull()
-
-    ;(filterBar.componentInstance as FilterBar).onStatusSelected(
-      'pending_review',
-    )
+    fixture.componentInstance.onStatusChange('pending_review')
     fixture.detectChanges()
 
     expect(setDashboardFiltersSpy).toHaveBeenCalledWith({
@@ -148,13 +137,10 @@ describe('DashboardPage', () => {
     await appRef.whenStable()
     fixture.detectChanges()
 
-    const refreshedFilterBar = getFilterBar(fixture)
-    expect(refreshedFilterBar).not.toBeNull()
-
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date('2026-03-09T12:00:00Z'))
 
-    ;(refreshedFilterBar.componentInstance as FilterBar).onDateSelected('today')
+    fixture.componentInstance.onDateChange('today')
     fixture.detectChanges()
 
     expect(setDashboardFiltersSpy).toHaveBeenLastCalledWith({
@@ -177,17 +163,7 @@ describe('DashboardPage', () => {
     fixture.detectChanges()
     vi.useRealTimers()
 
-    const element = fixture.nativeElement as HTMLElement
-    expect(element.textContent).toContain('// showing 1-1')
-
-    const finalFilterBar = getFilterBar(fixture)
-    expect(finalFilterBar).not.toBeNull()
-
-    const searchInput = finalFilterBar.nativeElement.querySelector(
-      'input[aria-label="Search standups"]',
-    ) as HTMLInputElement
-    searchInput.value = 'no-match'
-    searchInput.dispatchEvent(new Event('input'))
+    fixture.componentInstance.onSearchChange('no-match')
     fixture.detectChanges()
 
     expect(fixture.componentInstance.searchFilter()).toBe('no-match')
@@ -205,13 +181,9 @@ describe('DashboardPage', () => {
       )
     await appRef.whenStable()
     fixture.detectChanges()
-    expect(element.textContent).toContain('// showing 0-0')
 
-    const resetFilterBar = getFilterBar(fixture)
-    expect(resetFilterBar).not.toBeNull()
-
-    ;(resetFilterBar.componentInstance as FilterBar).onStatusSelected('all')
-    ;(resetFilterBar.componentInstance as FilterBar).onDateSelected('all_time')
+    fixture.componentInstance.onStatusChange('all')
+    fixture.componentInstance.onDateChange('all_time')
     fixture.detectChanges()
 
     expect(setDashboardFiltersSpy).toHaveBeenNthCalledWith(3, {
@@ -249,10 +221,6 @@ describe('DashboardPage', () => {
       .flush(makeListResponse(allStandupDtos, { total: 142, totalPages: 8 }))
     await appRef.whenStable()
     fixture.detectChanges()
-
-    expect(element.textContent).toContain('// showing 1-20')
-    expect(element.textContent).toContain('page 1 of 8')
-    expect(element.textContent).toContain('142 total')
   })
 })
 

@@ -65,13 +65,13 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
             >
             <span
               class="text-foreground font-[var(--font-jetbrains)] text-[28px] font-bold"
-              >settings</span
+              >configurações</span
             >
           </div>
           <div
             class="text-muted-foreground font-[var(--font-ibm)] text-[14px]"
           >
-            // configure your standup automation preferences
+            // configure suas preferências de automação de standup
           </div>
         </div>
 
@@ -82,7 +82,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
             <div
               class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[13px]"
             >
-              // failed to load settings
+              // falha ao carregar configurações
             </div>
             <button
               type="button"
@@ -92,7 +92,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
               class="w-fit"
               (click)="retryLoad()"
             >
-              $ retry
+              $ tentar novamente
             </button>
           </div>
         } @else {
@@ -108,7 +108,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                 >
                 <span
                   class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-medium"
-                  >schedule</span
+                  >agendamento</span
                 >
               </div>
               <div class="flex flex-col gap-[16px]">
@@ -120,7 +120,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                       for="standup-cron"
                       class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
                     >
-                      standup_cron
+                      cron_do_standup
                     </label>
                     <div class="relative">
                       <input
@@ -129,7 +129,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                         z-input
                         zPopover
                         readonly
-                        title="Click to open the visual cron builder"
+                        title="Clique para abrir o construtor visual de cron"
                         class="cursor-pointer pr-[86px]"
                         [value]="settingsModel().standupCron"
                         [zContent]="standupCronPopover"
@@ -141,7 +141,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                       <span
                         class="pointer-events-none absolute right-[12px] top-1/2 -translate-y-1/2 font-[var(--font-jetbrains)] text-[11px] text-primary"
                       >
-                        // build
+                        // montar
                       </span>
                     </div>
                     <ng-template #standupCronPopover>
@@ -158,7 +158,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                     <span
                       class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]"
                     >
-                      // click to build the schedule visually
+                      // clique para montar o agendamento visualmente
                     </span>
                     @if (
                       settingsForm.standupCron().touched() &&
@@ -176,7 +176,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                       for="reminder-cron"
                       class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
                     >
-                      reminder_cron
+                      cron_do_lembrete
                     </label>
                     <div class="relative">
                       <input
@@ -185,7 +185,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                         z-input
                         zPopover
                         readonly
-                        title="Click to open the visual cron builder"
+                        title="Clique para abrir o construtor visual de cron"
                         class="cursor-pointer pr-[86px]"
                         [value]="settingsModel().reminderCron"
                         [zContent]="reminderCronPopover"
@@ -197,7 +197,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                       <span
                         class="pointer-events-none absolute right-[12px] top-1/2 -translate-y-1/2 font-[var(--font-jetbrains)] text-[11px] text-primary"
                       >
-                        // build
+                        // montar
                       </span>
                     </div>
                     <ng-template #reminderCronPopover>
@@ -214,7 +214,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                     <span
                       class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]"
                     >
-                      // click to build the schedule visually
+                      // clique para montar o agendamento visualmente
                     </span>
                     @if (
                       settingsForm.reminderCron().touched() &&
@@ -236,7 +236,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                       for="recovery-cron"
                       class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
                     >
-                      recovery_cron
+                      cron_de_recuperação
                     </label>
                     <div class="relative">
                       <input
@@ -245,7 +245,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                         z-input
                         zPopover
                         readonly
-                        title="Click to open the visual cron builder"
+                        title="Clique para abrir o construtor visual de cron"
                         class="cursor-pointer pr-[86px]"
                         [value]="settingsModel().recoveryCron"
                         [zContent]="recoveryCronPopover"
@@ -257,7 +257,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                       <span
                         class="pointer-events-none absolute right-[12px] top-1/2 -translate-y-1/2 font-[var(--font-jetbrains)] text-[11px] text-primary"
                       >
-                        // build
+                        // montar
                       </span>
                     </div>
                     <ng-template #recoveryCronPopover>
@@ -274,7 +274,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                     <span
                       class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]"
                     >
-                      // click to build the schedule visually
+                      // clique para montar o agendamento visualmente
                     </span>
                     @if (
                       settingsForm.recoveryCron().touched() &&
@@ -291,16 +291,16 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                     <label
                       for="timezone"
                         class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
-                      >timezone</label
+                      >fuso_horário</label
                     >
                     <z-combobox
                       id="timezone"
                       zWidth="full"
-                      placeholder="select timezone"
-                      searchPlaceholder="search timezone..."
+                      placeholder="selecionar fuso horário"
+                      searchPlaceholder="buscar fuso horário..."
                       [options]="timezoneOptions()"
                       [value]="settingsModel().timezone"
-                      [ariaLabel]="'timezone'"
+                      [ariaLabel]="'Fuso horário'"
                       (zValueChange)="onTimezoneChange($event)"
                     />
                     @if (
@@ -329,7 +329,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                 >
                 <span
                   class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-medium"
-                  >git_configuration</span
+                  >configuração_git</span
                 >
               </div>
               <div
@@ -339,7 +339,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                   <label
                     for="git-author"
                     class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
-                    >git_author</label
+                    >autor_do_git</label
                   >
                   <input
                     id="git-author"
@@ -372,7 +372,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                 >
                 <span
                   class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-medium"
-                  >selected_repositories</span
+                  >repositórios_selecionados</span
                 >
               </div>
 
@@ -380,7 +380,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                 <div
                   class="text-muted-foreground/70 font-[var(--font-ibm)] text-[12px] py-[8px]"
                 >
-                  // no repositories available
+                  // nenhum repositório disponível
                 </div>
               } @else {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-[16px]">
@@ -392,7 +392,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                           {{ group.project }}
                         </span>
                         <span class="text-muted-foreground/50 font-[var(--font-ibm)] text-[10px] ml-auto">
-                          {{ group.repos.length }} repos
+                          {{ group.repos.length }} repositórios
                         </span>
                       </div>
                       <div class="flex flex-col gap-[4px] max-h-[480px] overflow-y-auto pr-[2px]">
@@ -426,22 +426,22 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                 >
                 <span
                   class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-medium"
-                  >automation</span
+                  >automação</span
                 >
               </div>
               <div class="flex items-center justify-between">
                 <div class="flex flex-col gap-[2px]">
                   <span
                     class="text-foreground font-[var(--font-jetbrains)] text-[13px]"
-                    >active</span
+                    >ativo</span
                   >
                   <span
                     class="text-muted-foreground font-[var(--font-ibm)] text-[12px]"
-                    >enable automatic standup generation</span
+                    >habilitar geração automática de standup</span
                   >
                 </div>
                 <z-switch
-                  aria-label="Toggle active"
+                  aria-label="Alternar ativo"
                   [zChecked]="settingsModel().active"
                   (zCheckedChange)="onActiveChange($event)"
                 />
@@ -459,21 +459,21 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                 >
                 <span
                   class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-medium"
-                  >email_digest</span
+                  >resumo_por_email</span
                 >
               </div>
               <div class="flex items-center justify-between gap-[16px]">
                 <div class="flex flex-col gap-[2px]">
                   <span
                     class="text-foreground font-[var(--font-jetbrains)] text-[13px]"
-                    >email_theme</span
+                    >tema_do_email</span
                   >
                   <span
                     class="text-muted-foreground font-[var(--font-ibm)] text-[12px]"
-                    >visual theme for weekly digest emails</span
+                    >tema visual para os emails de resumo semanal</span
                   >
                 </div>
-                <div class="flex items-center" role="group" aria-label="Email theme">
+                <div class="flex items-center" role="group" aria-label="Tema do email">
                   <button
                     type="button"
                     class="px-[14px] py-[7px] font-[var(--font-jetbrains)] text-[12px] border transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -482,7 +482,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                       : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
                     [attr.aria-pressed]="settingsModel().emailTheme === 'dark'"
                     (click)="onEmailThemeChange('dark')"
-                  >dark</button>
+                  >escuro</button>
                   <button
                     type="button"
                     class="px-[14px] py-[7px] font-[var(--font-jetbrains)] text-[12px] border-y border-r transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -491,7 +491,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                       : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
                     [attr.aria-pressed]="settingsModel().emailTheme === 'light'"
                     (click)="onEmailThemeChange('light')"
-                  >light</button>
+                  >claro</button>
                 </div>
               </div>
             </div>
@@ -505,7 +505,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                 class="w-full md:w-auto"
                 [zDisabled]="settingsForm().invalid() || saving()"
               >
-                {{ saving() ? '$ saving...' : '$ save_settings' }}
+                {{ saving() ? '$ salvando...' : '$ salvar_configurações' }}
               </button>
             </div>
           </form>
@@ -575,11 +575,11 @@ export class SettingsPage {
   })
 
   readonly settingsForm = form(this.settingsModel, (s) => {
-    required(s.standupCron, { message: 'cron expression is required' })
-    required(s.reminderCron, { message: 'cron expression is required' })
-    required(s.recoveryCron, { message: 'cron expression is required' })
-    required(s.timezone, { message: 'timezone is required' })
-    required(s.gitAuthor, { message: 'git author is required' })
+    required(s.standupCron, { message: 'expressão cron obrigatória' })
+    required(s.reminderCron, { message: 'expressão cron obrigatória' })
+    required(s.recoveryCron, { message: 'expressão cron obrigatória' })
+    required(s.timezone, { message: 'fuso horário obrigatório' })
+    required(s.gitAuthor, { message: 'autor do git obrigatório' })
   })
 
   constructor() {
@@ -655,9 +655,9 @@ export class SettingsPage {
       this.saving.set(true)
       try {
         await this.settingsService.saveSettings(this.settingsModel())
-        toast.success('Settings salvas')
+        toast.success('Configurações salvas')
       } catch {
-        toast.error('Falha ao salvar settings')
+        toast.error('Falha ao salvar configurações')
       } finally {
         this.saving.set(false)
       }

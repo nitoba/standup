@@ -60,10 +60,10 @@ function getActionButtons(
   fixture: ReturnType<typeof TestBed.createComponent<StandupDetailPage>>,
 ) {
   return {
-    approve: getButtonByText(fixture, '$ approve'),
-    reject: getButtonByText(fixture, '$ reject'),
-    adjust: getButtonByText(fixture, '$ adjust'),
-    regenerate: getButtonByText(fixture, '$ regenerate'),
+    approve: getButtonByText(fixture, '$ aprovar'),
+    reject: getButtonByText(fixture, '$ rejeitar'),
+    adjust: getButtonByText(fixture, '$ ajustar'),
+    regenerate: getButtonByText(fixture, '$ regenerar'),
   }
 }
 
@@ -172,26 +172,26 @@ describe('StandupDetailPage', () => {
     const cards = Array.from(element.querySelectorAll('pre'))
 
     expect(standupResource.value()?.id).toBe(STANDUP_ID)
-    expect(element.textContent).toContain('standup_detail')
-    expect(element.textContent).toContain('generated_content')
-    expect(element.textContent).toContain('datasource')
+    expect(element.textContent).toContain('detalhes_do_standup')
+    expect(element.textContent).toContain('conteúdo_gerado')
+    expect(element.textContent).toContain('fonte_de_dados')
     expect(cards[0]?.textContent).toContain('## o que foi feito')
     expect(cards[1]?.textContent).toContain('"repos"')
-    expect(element.textContent).toContain('$ expand')
-    expect(element.textContent).toContain('preview')
-    expect(element.textContent?.indexOf('generated_content')).toBeLessThan(
-      element.textContent?.indexOf('datasource') ?? 0,
+    expect(element.textContent).toContain('$ expandir')
+    expect(element.textContent).toContain('prévia')
+    expect(element.textContent?.indexOf('conteúdo_gerado')).toBeLessThan(
+      element.textContent?.indexOf('fonte_de_dados') ?? 0,
     )
-    expect(getButtonByText(fixture, '$ copy generated').textContent).toContain(
-      '$ copy generated',
+    expect(getButtonByText(fixture, '$ copiar conteúdo').textContent).toContain(
+      '$ copiar conteúdo',
     )
-    expect(getButtonByText(fixture, '$ copy datasource').textContent).toContain(
-      '$ copy datasource',
+    expect(getButtonByText(fixture, '$ copiar fonte').textContent).toContain(
+      '$ copiar fonte',
     )
-    expect(approve.textContent).toContain('$ approve')
-    expect(reject.textContent).toContain('$ reject')
-    expect(adjust.textContent).toContain('$ adjust')
-    expect(regenerate.textContent).toContain('$ regenerate')
+    expect(approve.textContent).toContain('$ aprovar')
+    expect(reject.textContent).toContain('$ rejeitar')
+    expect(adjust.textContent).toContain('$ ajustar')
+    expect(regenerate.textContent).toContain('$ regenerar')
   })
 
   it('copies generated content and datasource to the clipboard', async () => {
@@ -202,7 +202,7 @@ describe('StandupDetailPage', () => {
 
     const { fixture } = await createFixture()
 
-    getButtonByText(fixture, '$ copy generated').click()
+    getButtonByText(fixture, '$ copiar conteúdo').click()
     await settleFixture(fixture)
 
     expect(writeText).toHaveBeenNthCalledWith(
@@ -211,14 +211,17 @@ describe('StandupDetailPage', () => {
     )
     expect(toastMock.success).toHaveBeenNthCalledWith(
       1,
-      'generated content copied',
+      'conteúdo gerado copiado',
     )
 
-    getButtonByText(fixture, '$ copy datasource').click()
+    getButtonByText(fixture, '$ copiar fonte').click()
     await settleFixture(fixture)
 
     expect(writeText).toHaveBeenNthCalledWith(2, '{\n  "repos": []\n}')
-    expect(toastMock.success).toHaveBeenNthCalledWith(2, 'datasource copied')
+    expect(toastMock.success).toHaveBeenNthCalledWith(
+      2,
+      'fonte de dados copiada',
+    )
   })
 
   it('expands and collapses the datasource card on demand', async () => {
@@ -243,16 +246,16 @@ describe('StandupDetailPage', () => {
 
     const element = fixture.nativeElement as HTMLElement
 
-    expect(element.textContent).toContain('$ expand')
-    expect(element.textContent).toContain('preview')
-    expect(element.textContent).toContain('12 lines')
+    expect(element.textContent).toContain('$ expandir')
+    expect(element.textContent).toContain('prévia')
+    expect(element.textContent).toContain('12 linhas')
     expect(element.textContent).toContain('...')
 
-    getButtonByText(fixture, '$ expand').click()
+    getButtonByText(fixture, '$ expandir').click()
     fixture.detectChanges()
 
-    expect(element.textContent).toContain('$ collapse')
-    expect(element.textContent).toContain('full json')
+    expect(element.textContent).toContain('$ recolher')
+    expect(element.textContent).toContain('json completo')
     expect(element.textContent).toContain('"hash": "ghi9012"')
   })
 
@@ -273,7 +276,7 @@ describe('StandupDetailPage', () => {
     expect(buttons.approve).toBeUndefined()
     expect(buttons.reject).toBeUndefined()
     expect(buttons.adjust).toBeUndefined()
-    expect(buttons.regenerate.textContent).toContain('$ regenerate')
+    expect(buttons.regenerate.textContent).toContain('$ regenerar')
   })
 
   it('opens the approve dialog when the approve button is clicked', async () => {
@@ -286,7 +289,7 @@ describe('StandupDetailPage', () => {
       expect.objectContaining({
         zTitle: '// aprovar standup',
         zDescription:
-          '// opcionalmente adicione reunioes extras e calls diretas',
+          '// opcionalmente adicione reuniões extras e chamadas diretas',
         zHideFooter: true,
       }),
     )
@@ -314,14 +317,14 @@ describe('StandupDetailPage', () => {
     config.zData.onSubmit({
       customEntries: {
         scheduledMeetings: ['Planning Backend'],
-        directCalls: ['Call com Joao'],
+        directCalls: ['Chamada com João'],
       },
     })
     await settleFixture(fixture)
 
     expect(standupService.approve).toHaveBeenCalledWith(standupId, {
       scheduledMeetings: ['Planning Backend'],
-      directCalls: ['Call com Joao'],
+      directCalls: ['Chamada com João'],
     })
     expect(standupResource.reload).toHaveBeenCalledOnce()
     expect(toastMock.success).toHaveBeenCalledWith('Standup aprovado')
@@ -359,8 +362,8 @@ describe('StandupDetailPage', () => {
     expect(dialogService.create).toHaveBeenCalledOnce()
     expect(dialogService.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        zTitle: '// adjust standup',
-        zDescription: '// rewrite instructions',
+        zTitle: '// ajustar standup',
+        zDescription: '// instruções de reescrita',
         zHideFooter: true,
       }),
     )
