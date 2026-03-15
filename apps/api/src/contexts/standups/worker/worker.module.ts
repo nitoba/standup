@@ -20,20 +20,20 @@ import { ExecuteGenerateStrategy } from './standup/strategies/execute-generate-s
 import { ExecuteRegenerateStrategy } from './standup/strategies/execute-regenerate-strategy'
 import { StandupGeneratorModule } from './standup-generator/standup-generator.module'
 import { WorkerEventPublisherService } from './worker-event-publisher.service'
-import { WorkerRuntimeConfigService } from './worker-runtime-config.service'
+import { WorkerRuntimeConfigModule } from './worker-runtime-config.module'
 
 @Module({
   imports: [
     EventsModule,
     DatabaseModule,
     EmailModule,
+    WorkerRuntimeConfigModule,
     AzureDevopsModule,
     GitCollectorModule,
     StandupGeneratorModule,
   ],
   controllers: [ReposController, RemindersController, DigestsController],
   providers: [
-    WorkerRuntimeConfigService,
     WorkerEventPublisherService,
     ReminderActionsService,
     ListWorkerReposService,
@@ -48,7 +48,7 @@ import { WorkerRuntimeConfigService } from './worker-runtime-config.service'
     WorkerSchedulerService,
   ],
   exports: [
-    WorkerRuntimeConfigService,
+    WorkerRuntimeConfigModule,
     WorkerEventPublisherService,
     ReminderActionsService,
     ListWorkerReposService,

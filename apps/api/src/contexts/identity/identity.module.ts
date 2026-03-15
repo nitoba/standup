@@ -1,19 +1,21 @@
 import { Module } from '@nestjs/common'
 import { AuthModule as BetterAuthModule } from '@thallesp/nestjs-better-auth'
-import { DatabaseModule } from '../../platform/database/database.module'
-import { EnvModule } from '../../platform/env/env.module'
+import { DatabaseService } from '../../platform/database/database.service'
+import { EnvService } from '../../platform/env/env.service'
 import { AuthController } from './auth.controller'
 import { BetterAuthFactory } from './better-auth.factory'
 
 @Module({
   imports: [
     BetterAuthModule.forRootAsync({
-      imports: [EnvModule, DatabaseModule],
-      inject: [BetterAuthFactory],
-      useFactory: (betterAuthFactory: BetterAuthFactory) => ({
-        auth: betterAuthFactory.create(),
-        disableTrustedOriginsCors: true,
-      }),
+      inject: [EnvService, DatabaseService],
+      useFactory: (env: EnvService, db: DatabaseService) => {
+        const factory = new BetterAuthFactory(env, db)
+        return {
+          auth: factory.create(),
+          disableTrustedOriginsCors: true,
+        }
+      },
     }),
   ],
   providers: [BetterAuthFactory],

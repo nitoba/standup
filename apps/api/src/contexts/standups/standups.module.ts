@@ -12,9 +12,6 @@ import { StandupStatusController } from './status/standup-status.controller'
 import { StandupStatusService } from './status/standup-status.service'
 import { TriggerStandupController } from './trigger/trigger-standup.controller'
 import { TriggerStandupService } from './trigger/trigger-standup.service'
-import { ReminderActionsService } from './worker/reminders/reminder-actions.service'
-import { ListWorkerReposService } from './worker/repos/list-worker-repos.service'
-import { StandupDispatchService } from './worker/standup/standup-dispatch.service'
 import { WorkerModule } from './worker/worker.module'
 
 @Module({
@@ -40,9 +37,6 @@ import { WorkerModule } from './worker/worker.module'
     ApproveStandupService,
     PublishStandupService,
     StandupStatusService,
-    ReminderActionsService,
-    ListWorkerReposService,
-    StandupDispatchService,
     WorkerModule,
   ],
 })
