@@ -12,9 +12,11 @@ describe('DiscordAvailableReposService', () => {
   }
 
   it('fetches available repos directly from the standups service', async () => {
-    const listRepos = vi.fn().mockResolvedValue(
-      Result.ok([{ id: 'repo-1', name: 'repo-a', project: 'AGROTRACE' }]),
-    )
+    const listRepos = vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok([{ id: 'repo-1', name: 'repo-a', project: 'AGROTRACE' }]),
+      )
     const service = new DiscordAvailableReposService(
       makeLoggerFactory() as never,
       { listRepos } as never,

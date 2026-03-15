@@ -5,12 +5,12 @@ import { EventBusService } from '../../../platform/events/event-bus.service'
 import type { StandupStatusChangedEvent } from '../../../platform/events/standup-events'
 import { LocalDateService } from '../../../platform/time/local-date.service'
 import {
-  type DbError,
   type CustomEntries,
-  type InvalidStateTransitionError,
-  type NotFoundError,
+  type DbError,
   hasCustomEntries,
+  type InvalidStateTransitionError,
   mergeCustomEntries,
+  type NotFoundError,
   Result,
 } from '../../../shared/domain'
 import { formatStandupRecord } from '../shared/format-standup-record'
@@ -56,7 +56,16 @@ export class ApproveStandupService {
     standupId: string,
     customEntries?: CustomEntries | null,
     source: StandupStatusChangedEvent['source'] = 'web',
-  ): Promise<Result<Awaited<ReturnType<StandupRepository['updateStatusForUser']>> extends Result<infer TValue, infer _TError> ? TValue : never, ApproveStandupError>> {
+  ): Promise<
+    Result<
+      Awaited<
+        ReturnType<StandupRepository['updateStatusForUser']>
+      > extends Result<infer TValue, infer _TError>
+        ? TValue
+        : never,
+      ApproveStandupError
+    >
+  > {
     const found = await this.standupRepository.findByIdForUser(
       standupId,
       userId,

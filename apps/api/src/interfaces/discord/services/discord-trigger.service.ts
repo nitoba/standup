@@ -1,6 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common'
-import { ExternalServiceError, Result } from '../../../shared/domain'
 import { TriggerStandupService } from '../../../contexts/standups/trigger/trigger-standup.service'
+import { ExternalServiceError, Result } from '../../../shared/domain'
 
 export interface DiscordTriggerOptions {
   extraContext?: string
@@ -29,7 +29,7 @@ export class DiscordTriggerService {
     options?: DiscordTriggerOptions,
   ): Promise<Result<DiscordTriggerOutcome, ExternalServiceError>> {
     try {
-      const response = await this.triggerStandup.trigger(
+      await this.triggerStandup.trigger(
         {
           userId,
           discordUserId,

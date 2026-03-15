@@ -36,7 +36,9 @@ describe('StandupStatusSyncService', () => {
         updateStatus: vi.fn(),
       } as never,
       {
-        findDiscordIdByUserId: vi.fn().mockResolvedValue(Result.ok('discord-1')),
+        findDiscordIdByUserId: vi
+          .fn()
+          .mockResolvedValue(Result.ok('discord-1')),
       } as never,
       {
         updateDmMessage: vi.fn().mockResolvedValue(Result.ok(undefined)),
