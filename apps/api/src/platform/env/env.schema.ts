@@ -16,7 +16,7 @@ export const environmentVariablesSchema = z.object({
   DISCORD_BOT_TOKEN: z.string().optional(),
   DISCORD_CHANNEL_ID: z.string().optional(),
   DISCORD_GUILD_ID: z.string().optional(),
-  DISCORD_GATEWAY_ENABLED: z.coerce.boolean().default(false),
+  DISCORD_GATEWAY_ENABLED: z.coerce.boolean().default(true),
   SCHEDULER_ENABLED: z.coerce.boolean().default(true),
   AI_PROVIDER_API_KEY: z.string().optional(),
   AZURE_DEVOPS_ORG: z.string().optional(),
