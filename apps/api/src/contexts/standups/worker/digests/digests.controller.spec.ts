@@ -1,28 +1,65 @@
-import { UnauthorizedException } from '@nestjs/common'
+import { Controller, Inject } from '@nestjs/common'
 import { describe, expect, it, vi } from 'vitest'
+import { createControllerHttpTestApp } from '../../../../test/http/create-controller-http-test-app'
 import { DigestsController } from './digests.controller'
+import { WeeklyDigestDispatchService } from './weekly-digest-dispatch.service'
+
+@Controller('digests')
+class TestDigestsController extends DigestsController {
+  constructor(
+    @Inject(WeeklyDigestDispatchService)
+    weeklyDigestDispatch: WeeklyDigestDispatchService,
+  ) {
+    super(weeklyDigestDispatch)
+  }
+}
 
 describe('DigestsController', () => {
-  it('uses the session userId', () => {
-    const weeklyDigestDispatch = {
-      dispatchWeeklyDigestJob: vi.fn(),
-    }
-    const controller = new DigestsController(weeklyDigestDispatch as never)
-
-    const result = controller.trigger({ user: { id: 'user-1' } })
-
-    expect(result).toEqual({ ok: true, accepted: true })
-    expect(weeklyDigestDispatch.dispatchWeeklyDigestJob).toHaveBeenCalledWith({
-      userId: 'user-1',
+  it('throws when there is no authenticated session', async () => {
+    const dispatchWeeklyDigestJob = vi.fn()
+    const testApp = await createControllerHttpTestApp({
+      controllers: [TestDigestsController],
+      providers: [
+        {
+          provide: WeeklyDigestDispatchService,
+          useValue: { dispatchWeeklyDigestJob },
+        },
+      ],
     })
+
+    try {
+      const response = await testApp.request.post('/digests/trigger')
+
+      expect(response.status).toBe(401)
+    } finally {
+      await testApp.close()
+    }
   })
 
-  it('throws when there is no authenticated session', () => {
-    const weeklyDigestDispatch = {
-      dispatchWeeklyDigestJob: vi.fn(),
-    }
-    const controller = new DigestsController(weeklyDigestDispatch as never)
+  it('uses the session userId', async () => {
+    const dispatchWeeklyDigestJob = vi.fn()
+    const testApp = await createControllerHttpTestApp({
+      controllers: [TestDigestsController],
+      providers: [
+        {
+          provide: WeeklyDigestDispatchService,
+          useValue: { dispatchWeeklyDigestJob },
+        },
+      ],
+    })
 
-    expect(() => controller.trigger(null)).toThrow(UnauthorizedException)
+    try {
+      const response = await testApp
+        .withSession({ user: { id: 'user-1' } })
+        .post('/digests/trigger')
+
+      expect(response.status).toBe(202)
+      expect(response.body).toEqual({ ok: true, accepted: true })
+      expect(dispatchWeeklyDigestJob).toHaveBeenCalledWith({
+        userId: 'user-1',
+      })
+    } finally {
+      await testApp.close()
+    }
   })
 })

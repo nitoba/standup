@@ -1,29 +1,68 @@
-import { UnauthorizedException } from '@nestjs/common'
+import { Controller, Inject } from '@nestjs/common'
 import { describe, expect, it, vi } from 'vitest'
+import { createControllerHttpTestApp } from '../../../test/http/create-controller-http-test-app'
 import { TriggerStandupController } from './trigger-standup.controller'
+import { TriggerStandupService } from './trigger-standup.service'
+
+@Controller('standups')
+class TestTriggerStandupController extends TriggerStandupController {
+  constructor(
+    @Inject(TriggerStandupService) triggerStandup: TriggerStandupService,
+  ) {
+    super(triggerStandup)
+  }
+}
 
 describe('TriggerStandupController', () => {
   it('returns 401 without session', async () => {
-    const controller = new TriggerStandupController({
-      trigger: vi.fn(),
-    } as never)
+    const trigger = vi.fn()
+    const testApp = await createControllerHttpTestApp({
+      controllers: [TestTriggerStandupController],
+      providers: [
+        {
+          provide: TriggerStandupService,
+          useValue: { trigger },
+        },
+      ],
+    })
 
-    expect(() => controller.trigger(null, {})).toThrow(UnauthorizedException)
+    try {
+      const response = await testApp.request.post('/standups/trigger').send({})
+
+      expect(response.status).toBe(401)
+    } finally {
+      await testApp.close()
+    }
   })
 
   it('delegates trigger requests to the trigger service', async () => {
     const trigger = vi.fn().mockResolvedValue({ ok: true, accepted: true })
-    const controller = new TriggerStandupController({
-      trigger,
-    } as never)
-
     const body = { extraContext: 'contexto' }
     const session = { user: { id: 'user-1' } }
-
-    await expect(controller.trigger(session, body)).resolves.toEqual({
-      ok: true,
-      accepted: true,
+    const testApp = await createControllerHttpTestApp({
+      controllers: [TestTriggerStandupController],
+      providers: [
+        {
+          provide: TriggerStandupService,
+          useValue: { trigger },
+        },
+      ],
     })
-    expect(trigger).toHaveBeenCalledWith(body, session)
+
+    try {
+      const response = await testApp
+        .withSession(session)
+        .post('/standups/trigger')
+        .send(body)
+
+      expect(response.status).toBe(202)
+      expect(response.body).toEqual({
+        ok: true,
+        accepted: true,
+      })
+      expect(trigger).toHaveBeenCalledWith(body, session)
+    } finally {
+      await testApp.close()
+    }
   })
 })
