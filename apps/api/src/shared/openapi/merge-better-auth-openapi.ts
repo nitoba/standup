@@ -69,28 +69,28 @@ export function mergeBetterAuthOpenApi(
         ({} as Record<string, unknown>)
       const parameters = mergePathParameters(
         openApiPath,
-        openapiMetadata['parameters'],
+        openapiMetadata.parameters,
       )
 
       existingPathItem[normalizedMethod] = {
         ...existingOperation,
         ...openapiMetadata,
         operationId:
-          (openapiMetadata['operationId'] as string | undefined) ??
+          (openapiMetadata.operationId as string | undefined) ??
           buildOperationId(normalizedMethod, openApiPath),
         summary:
-          (openapiMetadata['summary'] as string | undefined) ??
-          (openapiMetadata['description'] as string | undefined) ??
+          (openapiMetadata.summary as string | undefined) ??
+          (openapiMetadata.description as string | undefined) ??
           buildSummary(normalizedMethod, openApiPath),
         responses:
-          (openapiMetadata['responses'] as never) ??
+          (openapiMetadata.responses as never) ??
           ({
             200: {
               description: 'Success',
             },
           } as never),
         parameters,
-        tags: mergeOperationTags(openapiMetadata['tags']),
+        tags: mergeOperationTags(openapiMetadata.tags),
       }
 
       document.paths[openApiPath] = existingPathItem

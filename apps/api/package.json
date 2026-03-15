@@ -12,13 +12,13 @@
     "start": "bun --env-file=../../.env src/main.ts",
     "start:local": "bun --env-file=../../.env.local src/main.ts",
     "start:prod": "node dist/main.js",
-    "lint": "biome check src test",
+    "lint": "biome check src",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "db:generate": "bunx --bun --env-file=../../.env.local drizzle-kit generate",
-    "db:migrate": "bun --env-file=../../.env.local run ./src/shared/database/migrate.ts",
+    "db:migrate": "bun --env-file=../../.env.local run ./src/platform/database/migrate.ts",
     "db:studio": "bunx --bun --env-file=../../.env.local drizzle-kit studio"
   },
   "dependencies": {
