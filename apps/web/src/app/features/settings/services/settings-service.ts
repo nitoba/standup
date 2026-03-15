@@ -1,29 +1,31 @@
 import { HttpClient } from '@angular/common/http'
-import { Injectable, inject, signal } from '@angular/core'
-import { firstValueFrom } from 'rxjs'
+import { computed, Injectable, inject } from '@angular/core'
+import type { CreateQueryResult } from '@tanstack/angular-query-experimental'
+import {
+  injectMutation,
+  injectQuery,
+  QueryClient,
+} from '@tanstack/angular-query-experimental'
+import {
+  getListReposQueryKey,
+  listRepos,
+} from '../../../api/endpoints/repos/repos'
+import {
+  getGetMeSettingsQueryKey,
+  getMeSettings,
+  updateMeSettings,
+} from '../../../api/endpoints/settings/settings'
+import type {
+  MeSettingsRecordDto,
+  MeSettingsResponseDto,
+  PutMeSettingsDto,
+  RepoInfoDto,
+  RepoListResponseDto,
+} from '../../../api/model'
 
-interface ApiEnvelope<T> {
-  data: T
-}
+export type RepoOption = RepoInfoDto
 
-export interface RepoOption {
-  id: string
-  name: string
-  project: string
-}
-
-export interface SettingsRecord {
-  standupCron: string
-  reminderCron: string
-  recoveryCron: string
-  timezone: string
-  gitAuthor: string
-  selectedRepos: string[]
-  active: boolean
-  emailTheme: 'light' | 'dark'
-  snoozedUntil: number | null
-  cancelledDate: string | null
-}
+export type SettingsRecord = MeSettingsRecordDto
 
 export interface SaveSettingsInput {
   standupCron: string
@@ -39,36 +41,70 @@ export interface SaveSettingsInput {
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
   private readonly http = inject(HttpClient)
-  private readonly settingsState = signal<SettingsRecord | null>(null)
-  private readonly reposState = signal<RepoOption[]>([])
+  private readonly queryClient = inject(QueryClient)
 
-  readonly settings = this.settingsState.asReadonly()
-  readonly repos = this.reposState.asReadonly()
+  // --- TanStack Query: settings (uses Orval-generated getMeSettings) ---
+  private readonly settingsQuery: CreateQueryResult<
+    MeSettingsRecordDto | null,
+    unknown
+  > = injectQuery(() => ({
+    queryKey: getGetMeSettingsQueryKey(),
+    queryFn: async ({ signal }) => {
+      const response: MeSettingsResponseDto = await getMeSettings(this.http, {
+        signal,
+      })
+      return response.data
+    },
+    enabled: false,
+  }))
 
-  async loadSettings() {
-    const response = await firstValueFrom(
-      this.http.get<ApiEnvelope<SettingsRecord>>('/settings/me'),
-    )
+  // --- TanStack Query: repos (uses Orval-generated listRepos) ---
+  private readonly reposQuery: CreateQueryResult<RepoInfoDto[], unknown> =
+    injectQuery(() => ({
+      queryKey: getListReposQueryKey(),
+      queryFn: async ({ signal }) => {
+        const response: RepoListResponseDto = await listRepos(this.http, {
+          signal,
+        })
+        return response.data
+      },
+      enabled: false,
+    }))
 
-    this.settingsState.set(response.data)
+  // --- TanStack Mutation: save settings (uses Orval-generated updateMeSettings) ---
+  private readonly saveSettingsMutation = injectMutation(() => ({
+    mutationKey: ['updateMeSettings'],
+    mutationFn: async (vars: {
+      data: PutMeSettingsDto
+    }): Promise<MeSettingsRecordDto> => {
+      const response: MeSettingsResponseDto = await updateMeSettings(
+        this.http,
+        vars.data,
+      )
+      return response.data
+    },
+    onSuccess: (data: unknown) => {
+      this.queryClient.setQueryData(getGetMeSettingsQueryKey(), data)
+    },
+  }))
+
+  readonly settings = computed(() => this.settingsQuery.data() ?? null)
+  readonly repos = computed<RepoInfoDto[]>(() => this.reposQuery.data() ?? [])
+
+  async loadSettings(): Promise<MeSettingsRecordDto> {
+    const response: MeSettingsResponseDto = await getMeSettings(this.http)
+    this.queryClient.setQueryData(getGetMeSettingsQueryKey(), response.data)
     return response.data
   }
 
-  async loadRepos() {
-    const response = await firstValueFrom(
-      this.http.get<ApiEnvelope<RepoOption[]>>('/repos'),
-    )
-
-    this.reposState.set(response.data)
+  async loadRepos(): Promise<RepoInfoDto[]> {
+    const response: RepoListResponseDto = await listRepos(this.http)
+    this.queryClient.setQueryData(getListReposQueryKey(), response.data)
     return response.data
   }
 
-  async saveSettings(input: SaveSettingsInput) {
-    const response = await firstValueFrom(
-      this.http.put<ApiEnvelope<SettingsRecord>>('/settings/me', input),
-    )
-
-    this.settingsState.set(response.data)
-    return response.data
+  async saveSettings(input: SaveSettingsInput): Promise<MeSettingsRecordDto> {
+    const result = await this.saveSettingsMutation.mutateAsync({ data: input })
+    return result as MeSettingsRecordDto
   }
 }

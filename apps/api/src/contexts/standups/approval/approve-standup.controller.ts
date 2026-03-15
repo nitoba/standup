@@ -16,6 +16,7 @@ import {
 import { Session } from '@thallesp/nestjs-better-auth'
 import type { AuthSession } from '../../../shared/auth/auth-session'
 import { requireSessionUserId } from '../../../shared/auth/require-session-user-id'
+import { ApproveStandupResponseDto as ApproveResponseDtoType } from '../../../shared/openapi/response-dtos'
 import { ApproveStandupDto } from './approve-standup.dto'
 import { ApproveStandupService } from './approve-standup.service'
 
@@ -32,7 +33,10 @@ export class ApproveStandupController {
   })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiBody({ type: ApproveStandupDto })
-  @ApiOkResponse({ description: 'Standup aprovado com sucesso.' })
+  @ApiOkResponse({
+    description: 'Standup aprovado com sucesso.',
+    type: ApproveResponseDtoType,
+  })
   async approve(
     @Session() session: AuthSession | null,
     @Param('id', ParseUUIDPipe) id: string,

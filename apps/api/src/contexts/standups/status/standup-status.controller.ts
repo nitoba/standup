@@ -16,6 +16,7 @@ import {
 import { Session } from '@thallesp/nestjs-better-auth'
 import type { AuthSession } from '../../../shared/auth/auth-session'
 import { requireSessionUserId } from '../../../shared/auth/require-session-user-id'
+import { StandupDetailResponseDto } from '../../../shared/openapi/response-dtos'
 import { StandupStatusService } from './standup-status.service'
 import { UpdateStandupStatusDto } from './update-standup-status.dto'
 
@@ -32,7 +33,10 @@ export class StandupStatusController {
   })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiBody({ type: UpdateStandupStatusDto })
-  @ApiOkResponse({ description: 'Status atualizado com sucesso.' })
+  @ApiOkResponse({
+    description: 'Status atualizado com sucesso.',
+    type: StandupDetailResponseDto,
+  })
   async update(
     @Session() session: AuthSession | null,
     @Param('id', new ParseUUIDPipe()) id: string,

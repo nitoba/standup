@@ -1,55 +1,44 @@
 import { HttpClient } from '@angular/common/http'
 import { Injectable, inject } from '@angular/core'
-import { firstValueFrom } from 'rxjs'
-
-interface ApiEnvelope<T> {
-  data: T
-}
-
-export interface ReminderAcceptedResponse {
-  ok: boolean
-  accepted: boolean
-}
-
-export interface SnoozeReminderResponse {
-  ok: boolean
-  snoozedUntil: string
-}
-
-export interface CancelTodayReminderResponse {
-  ok: boolean
-  cancelledDate: string
-}
+import { injectMutation } from '@tanstack/angular-query-experimental'
+import {
+  cancelTodayReminder,
+  runReminderNow,
+  snoozeReminder,
+} from '../../../api/endpoints/reminders/reminders'
 
 @Injectable({ providedIn: 'root' })
 export class ReminderService {
   private readonly http = inject(HttpClient)
 
+  /** TanStack Mutation: POST /reminders/run-now (uses Orval-generated function) */
+  readonly runNowMutation = injectMutation(() => ({
+    mutationKey: ['runReminderNow'],
+    mutationFn: () => runReminderNow(this.http),
+  }))
+
+  /** TanStack Mutation: POST /reminders/snooze (uses Orval-generated function) */
+  readonly snoozeMutation = injectMutation(() => ({
+    mutationKey: ['snoozeReminder'],
+    mutationFn: () => snoozeReminder(this.http),
+  }))
+
+  /** TanStack Mutation: POST /reminders/cancel-today (uses Orval-generated function) */
+  readonly cancelTodayMutation = injectMutation(() => ({
+    mutationKey: ['cancelTodayReminder'],
+    mutationFn: () => cancelTodayReminder(this.http),
+  }))
+
+  /** Convenience async wrappers (backward-compatible API) */
   async runNow() {
-    return firstValueFrom(
-      this.http.post<ReminderAcceptedResponse>('/reminders/run-now', {}),
-    )
+    return this.runNowMutation.mutateAsync(undefined as void)
   }
 
   async snooze() {
-    const response = await firstValueFrom(
-      this.http.post<ApiEnvelope<SnoozeReminderResponse>>(
-        '/reminders/snooze',
-        {},
-      ),
-    )
-
-    return response.data
+    return this.snoozeMutation.mutateAsync(undefined as void)
   }
 
   async cancelToday() {
-    const response = await firstValueFrom(
-      this.http.post<ApiEnvelope<CancelTodayReminderResponse>>(
-        '/reminders/cancel-today',
-        {},
-      ),
-    )
-
-    return response.data
+    return this.cancelTodayMutation.mutateAsync(undefined as void)
   }
 }

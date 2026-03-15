@@ -19,6 +19,10 @@ import { Session } from '@thallesp/nestjs-better-auth'
 import type { AuthSession } from '../../../shared/auth/auth-session'
 import { requireSessionUserId } from '../../../shared/auth/require-session-user-id'
 import type { StandupStatus } from '../../../shared/domain'
+import {
+  StandupDetailResponseDto,
+  StandupListResponseDto,
+} from '../../../shared/openapi/response-dtos'
 import { StandupsQueryService } from './standups-query.service'
 
 const STANDUP_STATUS_QUERY = {
@@ -50,7 +54,10 @@ export class StandupsQueryController {
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'pageSize', required: false, type: Number, example: 20 })
-  @ApiOkResponse({ description: 'Lista paginada de standups.' })
+  @ApiOkResponse({
+    description: 'Lista paginada de standups.',
+    type: StandupListResponseDto,
+  })
   async list(
     @Session() session: AuthSession | null,
     @Query(
@@ -94,7 +101,10 @@ export class StandupsQueryController {
     summary: 'Busca um standup pelo identificador',
   })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
-  @ApiOkResponse({ description: 'Standup encontrado.' })
+  @ApiOkResponse({
+    description: 'Standup encontrado.',
+    type: StandupDetailResponseDto,
+  })
   async getById(
     @Session() session: AuthSession | null,
     @Param('id', new ParseUUIDPipe()) id: string,

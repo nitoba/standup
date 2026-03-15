@@ -12,6 +12,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger'
 import { Session } from '@thallesp/nestjs-better-auth'
+import {
+  CancelTodayReminderResponseDto,
+  SnoozeReminderResponseDto,
+  TriggerAcceptedDto,
+} from '../../../../shared/openapi/response-dtos'
 import { StandupDispatchService } from '../standup/standup-dispatch.service'
 import { ReminderActionsService } from './reminder-actions.service'
 
@@ -35,7 +40,10 @@ export class RemindersController {
     operationId: 'snoozeReminder',
     summary: 'Adia o lembrete do standup do dia',
   })
-  @ApiOkResponse({ description: 'Lembrete adiado com sucesso.' })
+  @ApiOkResponse({
+    description: 'Lembrete adiado com sucesso.',
+    type: SnoozeReminderResponseDto,
+  })
   async snooze(@Session() session: AuthSession | null) {
     const userId = session?.user.id
 
@@ -52,7 +60,10 @@ export class RemindersController {
     operationId: 'cancelTodayReminder',
     summary: 'Cancela o lembrete do dia atual',
   })
-  @ApiOkResponse({ description: 'Lembrete cancelado para o dia atual.' })
+  @ApiOkResponse({
+    description: 'Lembrete cancelado para o dia atual.',
+    type: CancelTodayReminderResponseDto,
+  })
   async cancelToday(@Session() session: AuthSession | null) {
     const userId = session?.user.id
 
@@ -69,7 +80,10 @@ export class RemindersController {
     operationId: 'runReminderNow',
     summary: 'Dispara imediatamente o job de standup',
   })
-  @ApiAcceptedResponse({ description: 'Job aceito para processamento.' })
+  @ApiAcceptedResponse({
+    description: 'Job aceito para processamento.',
+    type: TriggerAcceptedDto,
+  })
   async runNow(@Session() session: AuthSession | null) {
     const userId = session?.user.id
 

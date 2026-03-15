@@ -1,22 +1,39 @@
-import {
-  HttpClient,
-  HttpErrorResponse,
-  httpResource,
-} from '@angular/common/http'
+import { HttpClient, HttpErrorResponse } from '@angular/common/http'
 import { computed, Injectable, inject, signal } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
+import type { CreateQueryResult } from '@tanstack/angular-query-experimental'
+import {
+  injectMutation,
+  injectQuery,
+  QueryClient,
+} from '@tanstack/angular-query-experimental'
 import { toast } from 'ngx-sonner'
-import { catchError, firstValueFrom, map, of } from 'rxjs'
-import { METRIC_CHANGES } from '../../../shared/models/mock-data'
+import {
+  approveStandup,
+  getGetStandupByIdQueryKey,
+  getListStandupsQueryKey,
+  getStandupById,
+  listStandups,
+  triggerStandup,
+  updateStandupStatus,
+} from '../../../api/endpoints/standups/standups'
 import type {
   ApproveStandupResponseDto,
+  ListStandupsParams,
+  StandupDetailResponseDto,
+  StandupListResponseDto,
+  StandupRecordDto,
+  TriggerAcceptedDto,
+  TriggerStandupDto,
+} from '../../../api/model'
+import { METRIC_CHANGES } from '../../../shared/models/mock-data'
+import type {
   DashboardMetrics,
   Standup,
   StandupCustomEntriesDto,
   StandupEvent,
   StandupFailedEvent,
   StandupGeneratedEvent,
-  StandupListResponseDto,
   StandupPage,
   StandupProgressEvent,
   StandupSection,
@@ -27,30 +44,7 @@ import type {
 import { formatTimestampPtBr } from '../../../shared/utils'
 import { StandupEventsService } from './standup-events-service'
 
-type ApiEnvelope<T> = { data: T }
-type ApiErrorResponse = {
-  error?: string
-  message?: string
-}
 type TriggerAck = { ok: boolean; accepted: boolean; error?: string }
-type DashboardFilters = {
-  status?: string | null
-  date?: string | null
-  search?: string | null
-}
-
-type StandupDto = {
-  id: string
-  date: string
-  meetingType: string
-  content: string
-  sourceData: string
-  customEntries: unknown
-  status: string
-  userId: string | null
-  createdAt: number
-  updatedAt: number
-}
 
 type SourceDataDto = {
   repos?: Array<{
@@ -63,6 +57,7 @@ type SourceDataDto = {
 export class StandupService {
   private readonly http = inject(HttpClient)
   private readonly eventsService = inject(StandupEventsService)
+  private readonly queryClient = inject(QueryClient)
 
   private readonly DEFAULT_PAGE_SIZE = 20
 
@@ -73,61 +68,153 @@ export class StandupService {
   private readonly pageSize = signal(this.DEFAULT_PAGE_SIZE)
   readonly activeProgress = signal<StandupProgressEvent | undefined>(undefined)
 
-  readonly standups = httpResource<StandupPage>(
-    () => {
-      const params: {
-        status?: string
-        date?: string
-        search?: string
-        page: string
-        pageSize: string
-      } = {
-        page: String(this.page()),
-        pageSize: String(this.pageSize()),
+  // --- TanStack Query: list standups (uses Orval-generated listStandups) ---
+  private readonly standupsQuery: CreateQueryResult<StandupPage, unknown> =
+    injectQuery(() => {
+      const params: ListStandupsParams = {
+        page: this.page(),
+        pageSize: this.pageSize(),
       }
       const status = this.statusFilter()
       const date = this.dateFilter()
       const search = this.searchFilter()
-      if (status && status !== 'all') params.status = status
+      if (status && status !== 'all')
+        params.status = status as ListStandupsParams['status']
       if (date && date !== 'all') params.date = date
       if (search) params.search = search
-      return { url: '/standups', params }
-    },
-    {
-      defaultValue: {
-        items: [],
-        pagination: {
-          page: 1,
-          pageSize: this.DEFAULT_PAGE_SIZE,
-          total: 0,
-          totalPages: 0,
-        },
-        summary: { total: 0, approved: 0, pending: 0, rejected: 0 },
-      },
-      parse: (response) =>
-        this.mapStandupPage(response as StandupListResponseDto),
-    },
-  )
 
-  // Selected standup ID — set by detail page via selectStandup()
+      return {
+        queryKey: getListStandupsQueryKey(params),
+        queryFn: async ({ signal: abortSignal }) => {
+          const response = await listStandups(this.http, params, {
+            signal: abortSignal,
+          })
+          return this.mapStandupPage(response)
+        },
+      }
+    })
+
+  readonly standups = {
+    isLoading: computed(() => this.standupsQuery.isPending()),
+    error: computed(() => this.standupsQuery.error()),
+    value: computed<StandupPage>(
+      () =>
+        this.standupsQuery.data() ?? {
+          items: [],
+          pagination: {
+            page: 1,
+            pageSize: this.DEFAULT_PAGE_SIZE,
+            total: 0,
+            totalPages: 0,
+          },
+          summary: { total: 0, approved: 0, pending: 0, rejected: 0 },
+        },
+    ),
+    reload: () => {
+      void this.queryClient.invalidateQueries({
+        queryKey: getListStandupsQueryKey(),
+      })
+    },
+  }
+
+  // --- TanStack Query: single standup (uses Orval-generated getStandupById) ---
   private readonly selectedStandupId = signal<string | undefined>(undefined)
 
-  // Reactive GET for single standup — refetches when selectedStandupId changes
-  readonly selectedStandup = httpResource<Standup | undefined>(
-    () => {
-      const id = this.selectedStandupId()
-      return id ? `/standups/${id}` : undefined
-    },
-    {
-      parse: (response) =>
-        this.mapStandup((response as ApiEnvelope<StandupDto>).data),
-    },
-  )
+  private readonly standupDetailQuery: CreateQueryResult<
+    Standup | undefined,
+    unknown
+  > = injectQuery(() => {
+    const id = this.selectedStandupId()
+    return {
+      queryKey: getGetStandupByIdQueryKey(id ?? ''),
+      enabled: !!id,
+      queryFn: async ({ signal: abortSignal }) => {
+        const response: StandupDetailResponseDto = await getStandupById(
+          this.http,
+          id!,
+          { signal: abortSignal },
+        )
+        return this.mapStandup(response.data)
+      },
+    }
+  })
 
-  // Metrics derived from the loaded standups list
+  readonly selectedStandup = {
+    isLoading: computed(() => this.standupDetailQuery.isPending()),
+    error: computed(() => this.standupDetailQuery.error()),
+    value: computed<Standup | undefined>(() => this.standupDetailQuery.data()),
+    reload: () => {
+      const id = this.selectedStandupId()
+      if (id) {
+        void this.queryClient.invalidateQueries({
+          queryKey: getGetStandupByIdQueryKey(id),
+        })
+      }
+    },
+  }
+
+  // --- TanStack Mutations (all using Orval-generated functions) ---
+
+  private readonly approveMutation = injectMutation(() => ({
+    mutationKey: ['approveStandup'],
+    mutationFn: async (vars: {
+      id: string
+      customEntries?: StandupCustomEntriesDto | null
+    }): Promise<{ standup: Standup; warning?: string | null }> => {
+      const response: ApproveStandupResponseDto = await approveStandup(
+        this.http,
+        vars.id,
+        { customEntries: vars.customEntries ?? null },
+      )
+      return {
+        standup: this.mapStandup(response.data),
+        warning: response.warning,
+      }
+    },
+    onSuccess: (
+      _data: unknown,
+      vars: { id: string; customEntries?: StandupCustomEntriesDto | null },
+    ) => {
+      void this.queryClient.invalidateQueries({
+        queryKey: getListStandupsQueryKey(),
+      })
+      void this.queryClient.invalidateQueries({
+        queryKey: getGetStandupByIdQueryKey(vars.id),
+      })
+    },
+  }))
+
+  private readonly rejectMutation = injectMutation(() => ({
+    mutationKey: ['updateStandupStatus'],
+    mutationFn: async (vars: { id: string }): Promise<Standup> => {
+      const response = await updateStandupStatus(this.http, vars.id, {
+        status: 'rejected',
+      })
+      return this.mapStandup(response.data)
+    },
+    onSuccess: (_data: unknown, vars: { id: string }) => {
+      void this.queryClient.invalidateQueries({
+        queryKey: getListStandupsQueryKey(),
+      })
+      void this.queryClient.invalidateQueries({
+        queryKey: getGetStandupByIdQueryKey(vars.id),
+      })
+    },
+  }))
+
+  private readonly triggerMutation = injectMutation(() => ({
+    mutationKey: ['triggerStandup'],
+    mutationFn: (vars: { data: TriggerStandupDto }) =>
+      triggerStandup(this.http, vars.data),
+    onSuccess: () => {
+      void this.queryClient.invalidateQueries({
+        queryKey: getListStandupsQueryKey(),
+      })
+    },
+  }))
+
   readonly metrics = computed<DashboardMetrics>(() => {
     const counts = this.standups.value().summary
-
     return {
       total: { count: counts.total, change: METRIC_CHANGES.total },
       approved: { count: counts.approved, change: METRIC_CHANGES.approved },
@@ -147,23 +234,19 @@ export class StandupService {
       this.handleProgressEvent(event)
       return
     }
-
     if (event.type === 'standup_generated') {
       this.handleGeneratedEvent(event)
       return
     }
-
     if (event.type === 'standup_status_changed') {
       this.handleStatusChangedEvent(event)
       return
     }
-
     this.handleFailedEvent(event)
   }
 
   private handleProgressEvent(event: StandupProgressEvent) {
     this.activeProgress.set(event)
-
     if (event.step === 'no_activity') {
       this.activeProgress.set(undefined)
       toast.info('Nenhuma atividade encontrada para gerar o standup de hoje.')
@@ -174,17 +257,13 @@ export class StandupService {
   private handleGeneratedEvent(_event: StandupGeneratedEvent) {
     this.activeProgress.set(undefined)
     this.standups.reload()
-    if (this.selectedStandupId()) {
-      this.selectedStandup.reload()
-    }
+    if (this.selectedStandupId()) this.selectedStandup.reload()
     toast.success('Standup gerado e pronto para revisão!')
   }
 
   private handleStatusChangedEvent(_event: StandupStatusChangedEvent) {
     this.standups.reload()
-    if (this.selectedStandupId()) {
-      this.selectedStandup.reload()
-    }
+    if (this.selectedStandupId()) this.selectedStandup.reload()
   }
 
   private handleFailedEvent(event: StandupFailedEvent) {
@@ -192,8 +271,11 @@ export class StandupService {
     toast.error(`Falha ao gerar standup: ${event.message}`)
   }
 
-  // Dashboard filter update — signals change triggers httpResource refetch
-  setDashboardFilters(filters: DashboardFilters) {
+  setDashboardFilters(filters: {
+    status?: string | null
+    date?: string | null
+    search?: string | null
+  }) {
     this.statusFilter.set(filters.status ?? undefined)
     this.dateFilter.set(filters.date ?? undefined)
     this.searchFilter.set(filters.search?.trim() || undefined)
@@ -211,92 +293,69 @@ export class StandupService {
 
   readonly pagination = computed(() => this.standups.value().pagination)
 
-  // Detail page calls this to select which standup to load
   selectStandup(id: string | undefined) {
     this.selectedStandupId.set(id)
   }
 
-  // Mutations — one-shot operations, firstValueFrom is appropriate
+  // --- Public mutation API ---
+
   async approve(id: string, customEntries?: StandupCustomEntriesDto | null) {
-    const standup = await firstValueFrom(
-      this.http
-        .post<ApproveStandupResponseDto>(`/standups/${id}/approve`, {
-          customEntries: customEntries ?? null,
-        })
-        .pipe(
-          map((response) => ({
-            standup: this.mapStandup(response.data),
-            warning: response.warning,
-          })),
-        ),
-    )
-    this.standups.reload()
-    return standup
+    const result = await this.approveMutation.mutateAsync({ id, customEntries })
+    return result as { standup: Standup; warning?: string | null }
   }
 
   async reject(id: string) {
-    const standup = await firstValueFrom(
-      this.http
-        .patch<ApiEnvelope<StandupDto>>(`/standups/${id}/status`, {
-          status: 'rejected',
-        })
-        .pipe(map((response) => this.mapStandup(response.data))),
-    )
-    this.standups.reload()
-    return standup
+    const result = await this.rejectMutation.mutateAsync({ id })
+    return result as Standup
   }
 
   async adjust(id: string, instruction: string) {
-    return firstValueFrom(
-      this.http.post<TriggerAck>('/standups/trigger', {
+    return this.triggerMutation.mutateAsync({
+      data: {
         forceRegenerate: true,
         rewriteFromStandupId: id,
         rewriteInstruction: instruction,
         replaceStandupId: id,
-      }),
-    )
+      },
+    })
   }
 
   async regenerate(id: string) {
-    return firstValueFrom(
-      this.http.post<TriggerAck>('/standups/trigger', {
+    return this.triggerMutation.mutateAsync({
+      data: {
         forceRegenerate: true,
         replaceStandupId: id,
         reuseExistingSource: true,
-      }),
-    )
+      },
+    })
   }
 
-  async trigger(extraContext?: string) {
-    const body: { extraContext?: string } = {}
-    if (extraContext?.trim()) {
-      body.extraContext = extraContext.trim()
+  async trigger(extraContext?: string): Promise<TriggerAck> {
+    const dto: TriggerStandupDto = { forceRegenerate: true }
+    if (extraContext?.trim()) dto.extraContext = extraContext.trim()
+
+    try {
+      const result = (await this.triggerMutation.mutateAsync({
+        data: dto,
+      })) as TriggerAcceptedDto
+      return { ok: result.ok, accepted: result.accepted }
+    } catch (error) {
+      const httpError = error as HttpErrorResponse
+      const body = httpError.error as
+        | { message?: string; error?: string }
+        | undefined
+      return {
+        ok: false,
+        accepted: false,
+        error:
+          body?.message ??
+          body?.error ??
+          'Falha ao disparar geração do standup',
+      }
     }
-    return firstValueFrom(
-      this.http
-        .post<TriggerAck>('/standups/trigger', {
-          ...body,
-          forceRegenerate: true,
-        })
-        .pipe(
-          catchError((error) => {
-            const response = (error as HttpErrorResponse).error as
-              | ApiErrorResponse
-              | undefined
-            return of({
-              ok: false,
-              accepted: false,
-              error:
-                response?.message ??
-                response?.error ??
-                'Falha ao disparar geração do standup',
-            })
-          }),
-        ),
-    )
-    // NOTE: no standups.reload() here — the SSE event will trigger the reload
-    // when the standup is actually ready
   }
+
+  // --- Private mapping helpers ---
 
   private mapStandupPage(response: StandupListResponseDto): StandupPage {
     return {
@@ -306,49 +365,40 @@ export class StandupService {
     }
   }
 
-  // All the private mapping methods stay exactly the same
-  private mapStandup(standup: StandupDto): Standup {
+  private mapStandup(dto: StandupRecordDto): Standup {
     return {
-      id: standup.id,
-      date: standup.date,
-      status: this.mapStatus(standup.status),
-      createdAt: this.formatTimestamp(standup.createdAt),
-      content: standup.content,
-      sourceData: this.formatSourceData(standup.sourceData),
-      contentPreview: this.buildContentPreview(standup.content),
-      customEntries: this.parseCustomEntries(standup.customEntries),
-      sections: this.parseSections(standup.content),
-      sources: this.parseSources(standup.sourceData),
+      id: dto.id,
+      date: dto.date,
+      status: this.mapStatus(dto.status),
+      createdAt: this.formatTimestamp(dto.createdAt),
+      content: dto.content,
+      sourceData: this.formatSourceData(dto.sourceData),
+      contentPreview: this.buildContentPreview(dto.content),
+      customEntries: this.parseCustomEntries(dto.customEntries),
+      sections: this.parseSections(dto.content),
+      sources: this.parseSources(dto.sourceData),
     }
   }
 
   private parseCustomEntries(
     customEntries: unknown,
   ): StandupCustomEntriesDto | null {
-    if (!customEntries || typeof customEntries !== 'object') {
-      return null
-    }
-
+    if (!customEntries || typeof customEntries !== 'object') return null
     const maybeEntries = customEntries as {
       scheduledMeetings?: unknown
       directCalls?: unknown
     }
-
     const scheduledMeetings = Array.isArray(maybeEntries.scheduledMeetings)
       ? maybeEntries.scheduledMeetings.filter(
-          (value): value is string => typeof value === 'string',
+          (v): v is string => typeof v === 'string',
         )
       : []
     const directCalls = Array.isArray(maybeEntries.directCalls)
       ? maybeEntries.directCalls.filter(
-          (value): value is string => typeof value === 'string',
+          (v): v is string => typeof v === 'string',
         )
       : []
-
-    if (scheduledMeetings.length === 0 && directCalls.length === 0) {
-      return null
-    }
-
+    if (scheduledMeetings.length === 0 && directCalls.length === 0) return null
     return { scheduledMeetings, directCalls }
   }
 
@@ -361,41 +411,37 @@ export class StandupService {
   private buildContentPreview(content: string) {
     const preview = content
       .split('\n')
-      .map((line) => line.trim())
-      .find((line) => line.startsWith('- '))
+      .map((l) => l.trim())
+      .find((l) => l.startsWith('- '))
     return preview ? preview.slice(2) : content.trim()
   }
 
   private parseSections(content: string): StandupSection[] {
-    const lines = content.split('\n').map((line) => line.trim())
+    const lines = content.split('\n').map((l) => l.trim())
     const sections: StandupSection[] = []
-    let currentSection: StandupSection | null = null
+    let cur: StandupSection | null = null
     for (const line of lines) {
       if (!line) continue
       if (line.startsWith('## ')) {
-        currentSection = {
-          title: line,
-          tone: this.resolveSectionTone(line),
-          items: [],
-        }
-        sections.push(currentSection)
+        cur = { title: line, tone: this.resolveSectionTone(line), items: [] }
+        sections.push(cur)
         continue
       }
       if (line.startsWith('- ')) {
-        if (!currentSection) {
-          currentSection = { title: '## resumo', tone: 'default', items: [] }
-          sections.push(currentSection)
+        if (!cur) {
+          cur = { title: '## resumo', tone: 'default', items: [] }
+          sections.push(cur)
         }
-        currentSection.items.push(line)
+        cur.items.push(line)
       }
     }
     return sections
   }
 
   private resolveSectionTone(title: string): StandupSection['tone'] {
-    const normalizedTitle = title.toLowerCase()
-    if (normalizedTitle.includes('andamento')) return 'cyan'
-    if (normalizedTitle.includes('bloqueio')) return 'muted'
+    const t = title.toLowerCase()
+    if (t.includes('andamento')) return 'cyan'
+    if (t.includes('bloqueio')) return 'muted'
     return 'default'
   }
 
@@ -404,9 +450,9 @@ export class StandupService {
       const parsed = JSON.parse(sourceData) as SourceDataDto
       return (parsed.repos ?? []).map((repo) => ({
         name: this.formatRepoName(repo.repoName),
-        commits: (repo.commits ?? []).map((commit) => ({
-          hash: commit.hash ?? '',
-          message: commit.subject ?? commit.message ?? '',
+        commits: (repo.commits ?? []).map((c) => ({
+          hash: c.hash ?? '',
+          message: c.subject ?? c.message ?? '',
         })),
       }))
     } catch {
@@ -422,13 +468,13 @@ export class StandupService {
     }
   }
 
-  private formatRepoName(repoName?: string) {
-    const trimmedName = repoName?.trim() ?? ''
-    if (!trimmedName) return 'unknown/'
-    return trimmedName.endsWith('/') ? trimmedName : `${trimmedName}/`
+  private formatRepoName(name?: string) {
+    const n = name?.trim() ?? ''
+    if (!n) return 'unknown/'
+    return n.endsWith('/') ? n : `${n}/`
   }
 
-  private formatTimestamp(timestamp: number) {
-    return formatTimestampPtBr(timestamp)
+  private formatTimestamp(ts: number) {
+    return formatTimestampPtBr(ts)
   }
 }

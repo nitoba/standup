@@ -1,11 +1,15 @@
-import { httpResource } from '@angular/common/http'
+import { HttpClient } from '@angular/common/http'
 import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
+import { injectQuery } from '@tanstack/angular-query-experimental'
+import { firstValueFrom } from 'rxjs'
+import { getListStandupsQueryKey } from '../../api/endpoints/standups/standups'
 import { SidebarLayout } from '../../core/layout/sidebar'
 import type {
   StandupDto,
@@ -58,7 +62,7 @@ function formatDisplayDate(dateStr: string): string {
           }
         </div>
 
-        @if (standups.isLoading()) {
+        @if (standups.isPending()) {
           <div class="flex flex-col gap-[16px]">
             @for (i of skeletonItems; track i) {
               <div class="bg-card border border-border p-[16px] md:p-[24px] flex flex-col gap-[12px] animate-pulse">
@@ -134,28 +138,30 @@ function formatDisplayDate(dateStr: string): string {
   `,
 })
 export class WeeklyDigestPage {
+  private readonly http = inject(HttpClient)
+
   readonly from = input<string>()
   readonly to = input<string>()
 
   readonly skeletonItems = [1, 2, 3]
 
-  readonly standups = httpResource<WeekStandup[]>(
-    () => {
-      const fromDate = this.from()
-      const toDate = this.to()
-      const params: Record<string, string> = {
-        status: 'approved',
-        pageSize: '100',
-      }
-      if (fromDate) params['from'] = fromDate
-      if (toDate) params['to'] = toDate
-      return { url: '/standups', params }
-    },
-    {
-      defaultValue: [],
-      parse: (response) => {
-        const r = response as StandupListResponseDto
-        return r.data.map(
+  readonly standups = injectQuery(() => {
+    const fromDate = this.from()
+    const toDate = this.to()
+    const params: Record<string, string> = {
+      status: 'approved',
+      pageSize: '100',
+    }
+    if (fromDate) params['from'] = fromDate
+    if (toDate) params['to'] = toDate
+
+    return {
+      queryKey: [...getListStandupsQueryKey(), 'weekly-digest', params],
+      queryFn: async () => {
+        const response = await firstValueFrom(
+          this.http.get<StandupListResponseDto>('/standups', { params }),
+        )
+        return response.data.map(
           (dto: StandupDto): WeekStandup => ({
             id: dto.id,
             date: dto.date,
@@ -164,10 +170,12 @@ export class WeeklyDigestPage {
           }),
         )
       },
-    },
-  )
+    }
+  })
 
-  readonly weekStandups = computed(() => this.standups.value())
+  readonly weekStandups = computed<WeekStandup[]>(
+    () => this.standups.data() ?? [],
+  )
 
   readonly periodLabel = computed(() => {
     const from = this.from()
