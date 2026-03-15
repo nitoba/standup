@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common'
+import { ApproveStandupService } from '../../../contexts/standups/approval/approve-standup.service'
+import { PublishStandupService } from '../../../contexts/standups/publication/publish-standup.service'
+import { StandupStatusService } from '../../../contexts/standups/status/standup-status.service'
 import { StandupRepository } from '../../../platform/database/repositories/standup.repository'
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import { EnvService } from '../../../platform/env/env.service'
-import { EventBusService } from '../../../platform/events/event-bus.service'
 import { AppLoggerFactory } from '../../../platform/logger'
-import type { StandupRecord } from '../../../shared/domain'
 import {
+  type CustomEntries,
   type DbError,
   type InvalidStateTransitionError,
   NotFoundError,
@@ -39,7 +41,9 @@ export class StandupInteractionService {
     private readonly userRepository: UserRepository,
     private readonly messages: DiscordMessagesService,
     private readonly env: EnvService,
-    private readonly eventBus: EventBusService,
+    private readonly approveStandup: ApproveStandupService,
+    private readonly publishStandup: PublishStandupService,
+    private readonly standupStatus: StandupStatusService,
   ) {
     this.logger = this.loggerFactory.create('discord-standup-interaction')
   }
@@ -48,6 +52,7 @@ export class StandupInteractionService {
     action: StandupAction,
     standupId: string,
     actorDiscordId: string,
+    customEntries?: CustomEntries | null,
   ): Promise<Result<InteractionOutcome, InteractionError>> {
     if (
       action !== 'approve' &&
@@ -75,6 +80,42 @@ export class StandupInteractionService {
     }
 
     const actorUserId = actorResult.value.userId
+
+    switch (action) {
+      case 'approve':
+        return this.handleApprove(standupId, actorUserId, customEntries)
+      case 'reject':
+        return this.handleReject(standupId, actorUserId)
+      case 'regenerate':
+        return this.handleRegenerate(standupId, actorUserId)
+    }
+  }
+
+  private async handleApprove(
+    standupId: string,
+    actorUserId: string,
+    customEntries?: CustomEntries | null,
+  ): Promise<Result<InteractionOutcome, InteractionError>> {
+    const approveResult = await this.approveStandup.approveResult(
+      actorUserId,
+      standupId,
+      customEntries,
+      'discord',
+    )
+    if (approveResult.isErr()) {
+      return approveResult
+    }
+
+    if (!this.env.discord.channelId) {
+      return Result.ok({
+        action: 'approve',
+        standupId,
+        userId: actorUserId,
+        newStatus: 'approved',
+        message: 'Standup aprovado!',
+      })
+    }
+
     const found = await this.standupRepository.findByIdForUser(
       standupId,
       actorUserId,
@@ -83,53 +124,18 @@ export class StandupInteractionService {
       return found
     }
 
-    switch (action) {
-      case 'approve':
-        return this.handleApprove(found.value, actorUserId)
-      case 'reject':
-        return this.handleReject(found.value, actorUserId)
-      case 'regenerate':
-        return this.handleRegenerate(found.value, actorUserId)
-    }
-  }
-
-  private async handleApprove(
-    record: StandupRecord,
-    actorUserId: string,
-  ): Promise<Result<InteractionOutcome, InteractionError>> {
-    const approveResult = await this.standupRepository.updateStatusForUser(
-      record.id,
-      actorUserId,
-      'approved',
-    )
-    if (approveResult.isErr()) {
-      return approveResult
-    }
-
-    if (!this.env.discord.channelId) {
-      this.emitStatusChanged(actorUserId, record.id, 'approved')
-      return Result.ok({
-        action: 'approve',
-        standupId: record.id,
-        userId: actorUserId,
-        newStatus: 'approved',
-        message: 'Standup aprovado!',
-      })
-    }
-
     const publishResult = await this.messages.publishStandup(
-      approveResult.value,
+      found.value,
       this.env.discord.channelId,
     )
     if (publishResult.isErr()) {
       this.logger.warn('Failed to publish standup after approval', {
-        standupId: record.id,
+        standupId,
         error: publishResult.error.message,
       })
-      this.emitStatusChanged(actorUserId, record.id, 'approved')
       return Result.ok({
         action: 'approve',
-        standupId: record.id,
+        standupId,
         userId: actorUserId,
         newStatus: 'approved',
         message:
@@ -137,30 +143,28 @@ export class StandupInteractionService {
       })
     }
 
-    const publishedResult = await this.standupRepository.updateStatusForUser(
-      record.id,
+    const publishedResult = await this.publishStandup.publish(
       actorUserId,
-      'published',
+      standupId,
+      'discord',
     )
     if (publishedResult.isErr()) {
       this.logger.warn('Failed to mark standup as published', {
-        standupId: record.id,
+        standupId,
         error: publishedResult.error.message,
       })
-      this.emitStatusChanged(actorUserId, record.id, 'approved')
       return Result.ok({
         action: 'approve',
-        standupId: record.id,
+        standupId,
         userId: actorUserId,
         newStatus: 'approved',
         message: 'Standup aprovado e publicado no canal!',
       })
     }
 
-    this.emitStatusChanged(actorUserId, record.id, 'published')
     return Result.ok({
       action: 'approve',
-      standupId: record.id,
+      standupId,
       userId: actorUserId,
       newStatus: 'published',
       message: 'Standup aprovado e publicado no canal!',
@@ -168,22 +172,22 @@ export class StandupInteractionService {
   }
 
   private async handleReject(
-    record: StandupRecord,
+    standupId: string,
     actorUserId: string,
   ): Promise<Result<InteractionOutcome, InteractionError>> {
-    const result = await this.standupRepository.updateStatusForUser(
-      record.id,
+    const result = await this.standupStatus.transition(
       actorUserId,
+      standupId,
       'rejected',
+      'discord',
     )
     if (result.isErr()) {
       return result
     }
 
-    this.emitStatusChanged(actorUserId, record.id, 'rejected')
     return Result.ok({
       action: 'reject',
-      standupId: record.id,
+      standupId,
       userId: actorUserId,
       newStatus: 'rejected',
       message:
@@ -192,38 +196,25 @@ export class StandupInteractionService {
   }
 
   private async handleRegenerate(
-    record: StandupRecord,
+    standupId: string,
     actorUserId: string,
   ): Promise<Result<InteractionOutcome, InteractionError>> {
-    const result = await this.standupRepository.updateStatusForUser(
-      record.id,
+    const result = await this.standupStatus.transition(
       actorUserId,
+      standupId,
       'rejected',
+      'discord',
     )
     if (result.isErr()) {
       return result
     }
 
-    this.emitStatusChanged(actorUserId, record.id, 'rejected')
     return Result.ok({
       action: 'regenerate',
-      standupId: record.id,
+      standupId,
       userId: actorUserId,
       newStatus: 'rejected',
       message: 'Standup rejeitado para regeneração.',
-    })
-  }
-
-  private emitStatusChanged(
-    userId: string,
-    standupId: string,
-    newStatus: 'approved' | 'rejected' | 'published',
-  ): void {
-    this.eventBus.emitStandupStatusChanged({
-      userId,
-      standupId,
-      newStatus,
-      source: 'discord',
     })
   }
 }
