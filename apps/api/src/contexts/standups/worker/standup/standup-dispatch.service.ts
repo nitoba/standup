@@ -1,11 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { OnEvent } from '@nestjs/event-emitter'
 import { UserRepository } from '../../../../platform/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../../platform/database/repositories/user-settings.repository'
-import {
-  STANDUP_JOB_DISPATCH_REQUESTED_EVENT,
-  type StandupJobDispatchRequestedEvent,
-} from '../../../../platform/events/standup-events'
 import { AppLoggerFactory } from '../../../../platform/logger'
 import { Result, ValidationError } from '../../../../shared/domain'
 import { parseSelectedRepos } from '../../../../shared/repos/parse-selected-repos'
@@ -22,14 +17,6 @@ export class StandupDispatchService {
     private readonly standupJob: RunStandupJobService,
   ) {
     this.logger = this.loggerFactory.create('standup-dispatch')
-  }
-
-  @OnEvent(STANDUP_JOB_DISPATCH_REQUESTED_EVENT)
-  handleRequestedDispatch(event: StandupJobDispatchRequestedEvent): {
-    ok: true
-  } {
-    this.dispatchStandupJob(event)
-    return { ok: true }
   }
 
   dispatchStandupJob(options: StandupJobOptions): void {

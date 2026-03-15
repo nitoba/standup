@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { type Client, type ModalSubmitInteraction } from 'discord.js'
-import { StandupRepository } from '../../../platform/database/repositories/standup.repository'
 import type { CustomEntries } from '../../../shared/domain'
-import { hasCustomEntries, mergeCustomEntries } from '../../../shared/domain'
+import { hasCustomEntries } from '../../../shared/domain'
 import { DiscordAuthService } from '../services/discord-auth.service'
 import { DiscordTriggerService } from '../services/discord-trigger.service'
 import { SettingsInteractionService } from './settings-interaction.service'
@@ -23,7 +22,6 @@ export class ModalInteractionService {
     private readonly trigger: DiscordTriggerService,
     private readonly settings: SettingsInteractionService,
     private readonly standupInteraction: StandupInteractionService,
-    private readonly standupRepository: StandupRepository,
   ) {}
 
   async handle(
@@ -80,45 +78,11 @@ export class ModalInteractionService {
       ),
     }
 
-    if (hasCustomEntries(entries)) {
-      const saveResult =
-        await this.standupRepository.updateCustomEntriesForUser(
-          standupId,
-          session.userId,
-          entries,
-        )
-      if (saveResult.isErr()) {
-        await updateReviewMessage(interaction, {
-          content: `❌ Erro ao salvar entradas customizadas: ${saveResult.error.message}`,
-          components: [],
-        })
-        return
-      }
-
-      const mergedContent = mergeCustomEntries(
-        saveResult.value.content,
-        saveResult.value.meetingType,
-        entries,
-      )
-
-      const contentResult = await this.standupRepository.updateContentForUser(
-        standupId,
-        session.userId,
-        mergedContent,
-      )
-      if (contentResult.isErr()) {
-        await updateReviewMessage(interaction, {
-          content: `❌ Erro ao atualizar conteúdo: ${contentResult.error.message}`,
-          components: [],
-        })
-        return
-      }
-    }
-
     const result = await this.standupInteraction.handle(
       'approve',
       standupId,
       interaction.user.id,
+      entries,
     )
     if (result.isErr()) {
       await updateReviewMessage(interaction, {

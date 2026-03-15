@@ -121,7 +121,7 @@ describe('StandupDispatchService', () => {
     })
   })
 
-  it('handles standup dispatch requests from the event bus', () => {
+  it('dispatches standup jobs directly', () => {
     const run = vi.fn().mockResolvedValue(undefined)
     const service = new StandupDispatchService(
       makeLoggerFactory() as never,
@@ -130,15 +130,13 @@ describe('StandupDispatchService', () => {
       { run } as never,
     )
 
-    expect(
-      service.handleRequestedDispatch({
-        userId: 'user-1',
-        discordUserId: 'discord-1',
-        selectedRepos: ['repo-a'],
-        gitAuthor: 'nitoba',
-        timezone: 'America/Sao_Paulo',
-      }),
-    ).toEqual({ ok: true })
+    service.dispatchStandupJob({
+      userId: 'user-1',
+      discordUserId: 'discord-1',
+      selectedRepos: ['repo-a'],
+      gitAuthor: 'nitoba',
+      timezone: 'America/Sao_Paulo',
+    })
 
     expect(run).toHaveBeenCalledWith({
       userId: 'user-1',

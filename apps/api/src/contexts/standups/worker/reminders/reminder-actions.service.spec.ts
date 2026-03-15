@@ -24,33 +24,19 @@ describe('ReminderActionsService', () => {
     )
   }
 
-  it('handles snooze and cancel reminder actions from the event bus', async () => {
+  it('snoozes and cancels reminders directly', async () => {
     const service = createService()
 
-    const snooze = await service.handleRequestedAction({
-      action: 'snooze',
-      userId: 'user-1',
+    const snooze = await service.snoozeReminder('user-1')
+    const cancel = await service.cancelReminderForToday('user-1')
+
+    expect(snooze).toEqual({
+      ok: true,
+      snoozedUntil: expect.any(String),
     })
-    const cancel = await service.handleRequestedAction({
-      action: 'cancel-today',
-      userId: 'user-1',
+    expect(cancel).toEqual({
+      ok: true,
+      cancelledDate: '13/03/2026',
     })
-
-    expect(snooze.isOk()).toBe(true)
-    expect(cancel.isOk()).toBe(true)
-  })
-
-  it('returns validation error for unknown actions', async () => {
-    const service = createService()
-
-    const result = await service.handleRequestedAction({
-      action: 'unknown' as 'snooze',
-      userId: 'user-1',
-    })
-
-    expect(result.isErr()).toBe(true)
-    if (result.isErr()) {
-      expect(result.error.message).toContain('Unknown reminder action')
-    }
   })
 })

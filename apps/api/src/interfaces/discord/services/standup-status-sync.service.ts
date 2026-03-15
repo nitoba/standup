@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
+import { PublishStandupService } from '../../../contexts/standups/publication/publish-standup.service'
 import { StandupRepository } from '../../../platform/database/repositories/standup.repository'
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import { EnvService } from '../../../platform/env/env.service'
@@ -19,6 +20,7 @@ import { DiscordMessagesService } from '../notifications/discord-messages.servic
 export interface SyncStandupStatusInput {
   standupId: string
   newStatus: 'approved' | 'rejected' | 'published'
+  source?: StandupStatusChangedEvent['source']
 }
 
 type SyncError = NotFoundError | DbError | ExternalServiceError
@@ -32,6 +34,7 @@ export class StandupStatusSyncService {
     private readonly userRepository: UserRepository,
     private readonly messages: DiscordMessagesService,
     private readonly env: EnvService,
+    private readonly publishStandup: PublishStandupService,
   ) {
     this.logger = this.loggerFactory.create('discord-standup-status-sync')
   }
@@ -53,6 +56,7 @@ export class StandupStatusSyncService {
     const result = await this.syncStatus({
       standupId: event.standupId,
       newStatus: event.newStatus,
+      source: event.source,
     })
 
     if (result.isErr()) {
@@ -85,11 +89,56 @@ export class StandupStatusSyncService {
       }
     }
 
+    if (input.newStatus === 'approved' && this.env.discord.channelId) {
+      const publishResult = await this.messages.publishStandup(
+        record,
+        this.env.discord.channelId,
+      )
+
+      if (publishResult.isErr()) {
+        this.logger.warn('Failed to publish standup during sync', {
+          standupId: input.standupId,
+          error: publishResult.error.message,
+        })
+        return Result.ok(undefined)
+      }
+
+      if (!record.userId) {
+        return Result.ok(undefined)
+      }
+
+      const publishedResult = await this.publishStandup.publish(
+        record.userId,
+        input.standupId,
+        input.source ?? 'system',
+      )
+
+      if (publishedResult.isErr()) {
+        this.logger.warn(
+          'Failed to transition standup to published after sync',
+          {
+            standupId: input.standupId,
+            error: publishedResult.error.message,
+          },
+        )
+      }
+
+      return Result.ok(undefined)
+    }
+
     if (record.dmMessageId && discordUserId) {
       const label =
         input.newStatus === 'rejected'
-          ? '❌ Rejeitado via web'
-          : '✅ Aprovado e publicado via web'
+          ? input.source === 'web'
+            ? '❌ Rejeitado via web'
+            : '❌ Rejeitado'
+          : input.newStatus === 'published'
+            ? input.source === 'web'
+              ? '✅ Aprovado e publicado via web'
+              : '✅ Standup publicado'
+            : input.source === 'web'
+              ? '✅ Aprovado via web'
+              : '✅ Standup aprovado'
 
       const dmResult = await this.messages.updateDmMessage({
         discordUserId,
@@ -105,36 +154,6 @@ export class StandupStatusSyncService {
           standupId: input.standupId,
           error: dmResult.error.message,
         })
-      }
-    }
-
-    if (input.newStatus === 'approved' && this.env.discord.channelId) {
-      const publishResult = await this.messages.publishStandup(
-        record,
-        this.env.discord.channelId,
-      )
-
-      if (publishResult.isErr()) {
-        this.logger.warn('Failed to publish standup during sync', {
-          standupId: input.standupId,
-          error: publishResult.error.message,
-        })
-        return Result.ok(undefined)
-      }
-
-      const publishedResult = await this.standupRepository.updateStatus(
-        input.standupId,
-        'published',
-      )
-
-      if (publishedResult.isErr()) {
-        this.logger.warn(
-          'Failed to transition standup to published after sync',
-          {
-            standupId: input.standupId,
-            error: publishedResult.error.message,
-          },
-        )
       }
     }
 

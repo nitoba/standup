@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { StandupsModule } from '../../contexts/standups/standups.module'
 import { DatabaseModule } from '../../platform/database/database.module'
 import { CommandRegistrationService } from './commands/command-registration.service'
 import { DiscordClientService } from './discord-client.service'
@@ -20,7 +21,7 @@ import { StandupNotificationService } from './services/standup-notification.serv
 import { StandupStatusSyncService } from './services/standup-status-sync.service'
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, StandupsModule],
   providers: [
     DiscordClientService,
     DiscordMessagesService,

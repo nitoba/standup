@@ -3,19 +3,12 @@ import {
   ConflictException,
   Injectable,
 } from '@nestjs/common'
-import { OnEvent } from '@nestjs/event-emitter'
 import { StandupRepository } from '../../../platform/database/repositories/standup.repository'
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../platform/database/repositories/user-settings.repository'
-import { EventBusService } from '../../../platform/events/event-bus.service'
-import {
-  STANDUP_TRIGGER_REQUESTED_EVENT,
-  type StandupTriggerRequestEvent,
-  type StandupTriggerRequestOutcome,
-} from '../../../platform/events/standup-events'
 import { LocalDateService } from '../../../platform/time/local-date.service'
-import { ExternalServiceError, Result } from '../../../shared/domain'
 import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
+import { StandupDispatchService } from '../worker/standup/standup-dispatch.service'
 import type { TriggerStandupDto } from './trigger-standup.dto'
 
 type AuthSession = {
@@ -30,32 +23,9 @@ export class TriggerStandupService {
     private readonly userRepository: UserRepository,
     private readonly userSettingsRepository: UserSettingsRepository,
     private readonly standupRepository: StandupRepository,
-    private readonly eventBus: EventBusService,
+    private readonly standupDispatch: StandupDispatchService,
     private readonly localDateService: LocalDateService,
   ) {}
-
-  @OnEvent(STANDUP_TRIGGER_REQUESTED_EVENT)
-  async handleRequestedTrigger(
-    event: StandupTriggerRequestEvent,
-  ): Promise<Result<StandupTriggerRequestOutcome, ExternalServiceError>> {
-    try {
-      await this.trigger(event, null)
-      return Result.ok({ accepted: true })
-    } catch (error) {
-      const payload = this.toTriggerOutcome(error)
-
-      if (payload) {
-        return Result.ok(payload)
-      }
-
-      return Result.err(
-        new ExternalServiceError({
-          service: 'standups',
-          message: `Failed to trigger standup: ${error instanceof Error ? error.message : String(error)}`,
-        }),
-      )
-    }
-  }
 
   async trigger(body: TriggerStandupDto, session: AuthSession | null) {
     let userId = body.userId
@@ -133,7 +103,7 @@ export class TriggerStandupService {
     const shouldReuseRejectedStandup =
       !body.rewriteInstruction && todayStandup?.status === 'rejected'
 
-    await this.eventBus.requestStandupJobDispatch({
+    this.standupDispatch.dispatchStandupJob({
       userId,
       discordUserId,
       selectedRepos,
@@ -152,40 +122,5 @@ export class TriggerStandupService {
     })
 
     return { ok: true, accepted: true }
-  }
-
-  private toTriggerOutcome(
-    error: unknown,
-  ): Exclude<StandupTriggerRequestOutcome, { accepted: true }> | null {
-    if (
-      !error ||
-      typeof error !== 'object' ||
-      !('getResponse' in error) ||
-      typeof error.getResponse !== 'function'
-    ) {
-      return null
-    }
-
-    const response = error.getResponse()
-    const payload =
-      typeof response === 'object' && response !== null
-        ? (response as {
-            reason?: 'pending_review_exists' | 'already_approved_today'
-            standupId?: string
-          })
-        : null
-
-    if (
-      payload?.reason !== 'pending_review_exists' &&
-      payload?.reason !== 'already_approved_today'
-    ) {
-      return null
-    }
-
-    return {
-      accepted: false,
-      reason: payload.reason,
-      standupId: payload.standupId,
-    }
   }
 }
