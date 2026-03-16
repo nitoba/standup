@@ -67,6 +67,8 @@ function getInternals(service: GitCollectorService) {
     fetchRepository(repositoryPath: string): Promise<GitCommandResult>
     buildAzureDevopsHttpRemoteUrl(remoteUrl: string): string | null
     buildAzureDevopsAuthHeader(pat: string): string
+    extractBranchCardNumber(branch: string): string | null
+    extractCardNumbers(text: string): string[]
   }
 }
 
@@ -295,6 +297,94 @@ describe('GitCollectorService', () => {
       'Unsupported git remote for PAT fetch: git@github.com:example/repo.git',
     )
     expect(mocks.runGitCommand).toHaveBeenCalledTimes(1)
+  })
+
+  describe('extractBranchCardNumber', () => {
+    it.each([
+      // prefix/NNNNN-description (standard convention)
+      ['feat/11748-dashboard-gestao', '11748'],
+      ['fix/11496-alter-date-format', '11496'],
+      ['feature/11268-habilitar-pacote', '11268'],
+      ['hotfix/12345', '12345'],
+      ['task/999-small-fix', '999'],
+      ['refactor/1234567', '1234567'],
+      ['chore/4567-cleanup', '4567'],
+
+      // bugfix prefix (must work explicitly, not by accident)
+      ['bugfix/11238-fix-evento-timezone', '11238'],
+
+      // bare NNNNN/description (CHECKMILK repos convention)
+      ['10461/Rota_historico_animal', '10461'],
+      ['10780/Adicionar_deslocamento_atendimento_tables', '10780'],
+      ['11075/Adicionar_notificacao_parto_app', '11075'],
+      ['11413/Dashboard_gestor_watch_app', '11413'],
+      ['11414/Login_watch', '11414'],
+    ])('extracts card number from "%s" → %s', (branch, expected) => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(internals.extractBranchCardNumber(branch)).toBe(expected)
+    })
+
+    it.each([
+      // excluded branches
+      ['master'],
+      ['main'],
+      ['dev'],
+      ['develop'],
+      ['sprint/93'],
+      ['sprint/94'],
+
+      // no card number
+      ['feat/desktop-app'],
+      ['chore/migrate-to-turbo-monorepo'],
+
+      // empty/null
+      [''],
+    ])('returns null for "%s"', (branch) => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(internals.extractBranchCardNumber(branch)).toBeNull()
+    })
+  })
+
+  describe('extractCardNumbers', () => {
+    it('extracts #NNNNN references from commit text', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(
+        internals.extractCardNumbers('feat: dashboard #11748 and #11496'),
+      ).toEqual(['11748', '11496'])
+    })
+
+    it('deduplicates repeated card numbers', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(internals.extractCardNumbers('#11748 fix #11748 again')).toEqual([
+        '11748',
+      ])
+    })
+
+    it('returns empty array when no card numbers found', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(
+        internals.extractCardNumbers('chore: update dependencies'),
+      ).toEqual([])
+    })
+
+    it('matches AB#NNNNN (Azure DevOps format)', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(
+        internals.extractCardNumbers('AB#11075 - Adicionar notificacao'),
+      ).toEqual(['11075'])
+    })
   })
 
   describe('collect - repo clone fallback', () => {

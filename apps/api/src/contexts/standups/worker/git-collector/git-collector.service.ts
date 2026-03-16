@@ -518,11 +518,15 @@ export class GitCollectorService {
     return [...new Set(matches.map((match) => match.replace('#', '')))]
   }
 
-  private extractBranchCardNumber(branch: string): string | null {
-    const match = branch.match(
-      /(?:fix|feat|feature|bug|hotfix|refactor|task|chore|improvement)\/(\d{3,7})/,
-    )
+  private static readonly EXCLUDED_BRANCHES =
+    /^(?:master|main|dev|develop|sprint\/)/
 
+  private extractBranchCardNumber(branch: string): string | null {
+    if (!branch || GitCollectorService.EXCLUDED_BRANCHES.test(branch)) {
+      return null
+    }
+
+    const match = branch.match(/(?:^|\/)(\d{3,7})(?:[-/]|$)/)
     return match ? (match[1] ?? null) : null
   }
 }
