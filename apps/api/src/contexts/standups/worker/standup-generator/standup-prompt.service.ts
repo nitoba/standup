@@ -110,13 +110,17 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
 
     for (const repo of enrichedActivity.repos) {
       sections.push(`## Repositório: ${repo.repoName}`)
-      sections.push(`Branch atual: ${repo.currentBranch}`)
       sections.push('')
 
       if (repo.commits.length > 0) {
         sections.push(`### Commits (${repo.commits.length}):`)
         for (const commit of repo.commits) {
-          sections.push(`- [${commit.hash.slice(0, 8)}] ${commit.subject}`)
+          const branchLabel = commit.sourceBranch
+            ? ` (branch: ${commit.sourceBranch})`
+            : ''
+          sections.push(
+            `- [${commit.hash.slice(0, 8)}] ${commit.subject}${branchLabel}`,
+          )
           if (commit.body.trim()) {
             sections.push(`  Body: ${commit.body.trim()}`)
           }

@@ -68,7 +68,14 @@ function getInternals(service: GitCollectorService) {
     buildAzureDevopsHttpRemoteUrl(remoteUrl: string): string | null
     buildAzureDevopsAuthHeader(pat: string): string
     extractBranchCardNumber(branch: string): string | null
-    extractCardNumbers(text: string): string[]
+    extractCardNumbersFromBranches(branches: string[]): string[]
+    normalizeSourceRef(sourceRef: string): string
+    parseCommitBlocks(raw: string): Array<{
+      hash: string
+      subject: string
+      body: string
+      sourceRef: string
+    }>
   }
 }
 
@@ -349,41 +356,116 @@ describe('GitCollectorService', () => {
     })
   })
 
-  describe('extractCardNumbers', () => {
-    it('extracts #NNNNN references from commit text', () => {
+  describe('normalizeSourceRef', () => {
+    it.each([
+      ['refs/heads/feat/11748-dashboard', 'feat/11748-dashboard'],
+      ['refs/remotes/origin/feat/11748-dashboard', 'feat/11748-dashboard'],
+      ['refs/remotes/upstream/fix/123-bug', 'fix/123-bug'],
+      ['feat/11748-dashboard', 'feat/11748-dashboard'],
+      ['', ''],
+    ])('normalizes "%s" → "%s"', (input, expected) => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(internals.normalizeSourceRef(input)).toBe(expected)
+    })
+  })
+
+  describe('extractCardNumbersFromBranches', () => {
+    it('extracts unique card numbers from multiple branches', () => {
       const { service } = createService()
       const internals = getInternals(service)
 
       expect(
-        internals.extractCardNumbers('feat: dashboard #11748 and #11496'),
+        internals.extractCardNumbersFromBranches([
+          'feat/11748-dashboard',
+          'fix/11496-alter-date-format',
+          'feat/11748-dashboard', // duplicate
+        ]),
       ).toEqual(['11748', '11496'])
     })
 
-    it('deduplicates repeated card numbers', () => {
-      const { service } = createService()
-      const internals = getInternals(service)
-
-      expect(internals.extractCardNumbers('#11748 fix #11748 again')).toEqual([
-        '11748',
-      ])
-    })
-
-    it('returns empty array when no card numbers found', () => {
+    it('handles branches without card numbers', () => {
       const { service } = createService()
       const internals = getInternals(service)
 
       expect(
-        internals.extractCardNumbers('chore: update dependencies'),
+        internals.extractCardNumbersFromBranches([
+          'feat/desktop-app',
+          'main',
+          'chore/migrate-to-turbo',
+        ]),
       ).toEqual([])
     })
 
-    it('matches AB#NNNNN (Azure DevOps format)', () => {
+    it('handles bare NNNNN/description branches', () => {
       const { service } = createService()
       const internals = getInternals(service)
 
       expect(
-        internals.extractCardNumbers('AB#11075 - Adicionar notificacao'),
-      ).toEqual(['11075'])
+        internals.extractCardNumbersFromBranches([
+          '10461/Rota_historico_animal',
+          '11413/Dashboard_gestor_watch_app',
+        ]),
+      ).toEqual(['10461', '11413'])
+    })
+
+    it('returns empty for empty input', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(internals.extractCardNumbersFromBranches([])).toEqual([])
+    })
+  })
+
+  describe('parseCommitBlocks', () => {
+    it('parses records with \x1e/\x1f separators including sourceRef', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      const raw = [
+        '\x1eabc1234\x1ffeat: add feature\x1fbody text\x1frefs/heads/feat/11748-desc',
+        '\x1edef5678\x1ffix: bug\x1f\x1frefs/remotes/origin/fix/999-bug',
+      ].join('')
+
+      const blocks = internals.parseCommitBlocks(raw)
+
+      expect(blocks).toEqual([
+        {
+          hash: 'abc1234',
+          subject: 'feat: add feature',
+          body: 'body text',
+          sourceRef: 'refs/heads/feat/11748-desc',
+        },
+        {
+          hash: 'def5678',
+          subject: 'fix: bug',
+          body: '',
+          sourceRef: 'refs/remotes/origin/fix/999-bug',
+        },
+      ])
+    })
+
+    it('handles multi-line body with sourceRef', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      const raw =
+        '\x1eabc1234\x1ffeat: add\x1fline1\nline2\nline3\x1frefs/heads/feat/123-test'
+
+      const blocks = internals.parseCommitBlocks(raw)
+
+      expect(blocks).toHaveLength(1)
+      expect(blocks[0]?.body).toBe('line1\nline2\nline3')
+      expect(blocks[0]?.sourceRef).toBe('refs/heads/feat/123-test')
+    })
+
+    it('returns empty array for blank input', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(internals.parseCommitBlocks('')).toEqual([])
+      expect(internals.parseCommitBlocks('  ')).toEqual([])
     })
   })
 

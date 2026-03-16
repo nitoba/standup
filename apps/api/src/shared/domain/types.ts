@@ -33,6 +33,7 @@ export interface CommitInfo {
   hash: string
   subject: string
   body: string
+  sourceBranch: string
   filesChanged: number
   insertions: number
   deletions: number
@@ -42,10 +43,8 @@ export interface CommitInfo {
 export interface RepoActivity {
   repoName: string
   repoPath: string
-  currentBranch: string
   commits: CommitInfo[]
   cardNumbers: string[]
-  branchCardNumber: string | null
 }
 
 export interface GatheredGitActivity {

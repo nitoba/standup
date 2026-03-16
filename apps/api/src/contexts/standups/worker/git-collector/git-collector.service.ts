@@ -18,6 +18,7 @@ interface CommitBlock {
   hash: string
   subject: string
   body: string
+  sourceRef: string
 }
 
 type GitCommandResult = Awaited<ReturnType<typeof runGitCommand>>
@@ -127,10 +128,8 @@ export class GitCollectorService {
       return {
         repoName: repositoryName,
         repoPath: repositoryPath,
-        currentBranch: '',
         commits: [],
         cardNumbers: [],
-        branchCardNumber: null,
       }
     }
 
@@ -148,23 +147,16 @@ export class GitCollectorService {
       })
     }
 
-    const branchResult = await runGitCommand([
-      '-C',
-      repositoryPath,
-      'branch',
-      '--show-current',
-    ])
-    const currentBranch = branchResult.stdout.toString().trim()
-
     const logResult = await runGitCommand([
       '-C',
       repositoryPath,
       'log',
       '--all',
       '--no-merges',
+      '--source',
       `--author=${author}`,
       `--since=${sincePeriod}`,
-      '--pretty=format:%x1e%h%x1f%s%x1f%b',
+      '--pretty=format:%x1e%h%x1f%s%x1f%b%x1f%S',
     ])
 
     const commits = await Promise.all(
@@ -185,22 +177,22 @@ export class GitCollectorService {
             hash: block.hash,
             subject: block.subject,
             body: block.body,
+            sourceBranch: this.normalizeSourceRef(block.sourceRef),
             ...stats,
           } satisfies CommitInfo
         }),
     )
 
-    const text = commits
-      .map((commit) => `${commit.subject} ${commit.body}`)
-      .join(' ')
+    const sourceBranches = [
+      ...new Set(commits.map((c) => c.sourceBranch).filter(Boolean)),
+    ]
+    const cardNumbers = this.extractCardNumbersFromBranches(sourceBranches)
 
     return {
       repoName: repositoryName,
       repoPath: repositoryPath,
-      currentBranch,
       commits,
-      cardNumbers: this.extractCardNumbers(text),
-      branchCardNumber: this.extractBranchCardNumber(currentBranch),
+      cardNumbers,
     }
   }
 
@@ -453,14 +445,17 @@ export class GitCollectorService {
         .map((record) => record.trim())
         .filter(Boolean)
         .map((record) => {
-          const [hash = '', subject = '', ...bodyParts] =
-            record.split(fieldSeparator)
+          const parts = record.split(fieldSeparator)
+          const hash = (parts[0] ?? '').trim()
+          const subject = (parts[1] ?? '').trim()
+          // Last field is sourceRef (%S); everything between subject and sourceRef is body
+          const sourceRef = parts.length > 3 ? (parts.at(-1) ?? '').trim() : ''
+          const body =
+            parts.length > 3
+              ? parts.slice(2, -1).join(fieldSeparator).trim()
+              : (parts[2] ?? '').trim()
 
-          return {
-            hash: hash.trim(),
-            subject: subject.trim(),
-            body: bodyParts.join(fieldSeparator).trim(),
-          }
+          return { hash, subject, body, sourceRef }
         })
     }
 
@@ -476,6 +471,7 @@ export class GitCollectorService {
           hash: lines[0] ?? '',
           subject: lines[1] ?? '',
           body: lines.slice(2).join('\n').trim(),
+          sourceRef: '',
         }
       })
   }
@@ -508,18 +504,37 @@ export class GitCollectorService {
     return { filesChanged, insertions, deletions, files }
   }
 
-  private extractCardNumbers(text: string): string[] {
-    const matches = text.match(/#(\d{3,7})/g)
-
-    if (!matches) {
-      return []
-    }
-
-    return [...new Set(matches.map((match) => match.replace('#', '')))]
-  }
-
   private static readonly EXCLUDED_BRANCHES =
     /^(?:master|main|dev|develop|sprint\/)/
+
+  /**
+   * Strips git ref prefixes like `refs/heads/` or `refs/remotes/origin/`
+   * to produce a clean branch name (e.g. `feat/11748-dashboard`).
+   */
+  private normalizeSourceRef(sourceRef: string): string {
+    return sourceRef
+      .replace(/^refs\/remotes\/origin\//, '')
+      .replace(/^refs\/heads\//, '')
+      .replace(/^refs\/remotes\/[^/]+\//, '')
+  }
+
+  /**
+   * Extracts unique card numbers from a list of branch names.
+   * Looks for 3-7 digit numbers in the branch path segments.
+   * Excludes non-feature branches (master, main, dev, develop, sprint/*).
+   */
+  private extractCardNumbersFromBranches(branches: string[]): string[] {
+    const numbers = new Set<string>()
+
+    for (const branch of branches) {
+      const cardNumber = this.extractBranchCardNumber(branch)
+      if (cardNumber) {
+        numbers.add(cardNumber)
+      }
+    }
+
+    return [...numbers]
+  }
 
   private extractBranchCardNumber(branch: string): string | null {
     if (!branch || GitCollectorService.EXCLUDED_BRANCHES.test(branch)) {

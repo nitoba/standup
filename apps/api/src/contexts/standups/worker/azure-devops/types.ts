@@ -24,10 +24,8 @@ export interface EnrichedWorkItem {
 export interface EnrichedRepo {
   repoName: string
   repoPath: string
-  currentBranch: string
   commits: CommitInfo[]
   cardNumbers: string[]
-  branchCardNumber: string | null
   enrichedItems: EnrichedWorkItem[]
 }
 
