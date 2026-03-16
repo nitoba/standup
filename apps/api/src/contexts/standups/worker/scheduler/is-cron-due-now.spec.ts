@@ -34,19 +34,11 @@ describe('isCronDueNow', () => {
 
   it('works for a UTC daily cron and rejects the minute after', () => {
     expect(
-      isCronDueNow(
-        '0 7 * * *',
-        'UTC',
-        new Date('2026-03-13T07:00:30.000Z'),
-      ),
+      isCronDueNow('0 7 * * *', 'UTC', new Date('2026-03-13T07:00:30.000Z')),
     ).toBe(true)
 
     expect(
-      isCronDueNow(
-        '0 7 * * *',
-        'UTC',
-        new Date('2026-03-13T07:01:00.000Z'),
-      ),
+      isCronDueNow('0 7 * * *', 'UTC', new Date('2026-03-13T07:01:00.000Z')),
     ).toBe(false)
   })
 
