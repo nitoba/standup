@@ -56,7 +56,21 @@ jobs:
           EOF
           chmod 600 ~/.ssh/deploy_key
 
-          ssh-keyscan -H -t ed25519 "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          touch ~/.ssh/known_hosts
+
+          # Retry ssh-keyscan with backoff — Tailscale routes may need time to propagate
+          for i in 1 2 3 4; do
+            if ssh-keyscan -H -t ed25519 "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>&1; then
+              echo "ssh-keyscan succeeded on attempt $i"
+              break
+            fi
+            if [ "$i" -lt 4 ]; then
+              echo "ssh-keyscan attempt $i failed, retrying in $((i * 2))s..."
+              sleep $((i * 2))
+            else
+              echo "ssh-keyscan failed after $i attempts — continuing with StrictHostKeyChecking accept-new"
+            fi
+          done
 
       - name: Create SSH config for deploy
         run: |
