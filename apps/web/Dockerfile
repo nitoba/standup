@@ -33,6 +33,7 @@ RUN cd apps/web && bun run build:prod
 # Stage 2: minimal nginx runtime — only the static assets + config.
 # Using nginx:alpine for the smallest possible image (~40 MB).
 FROM nginx:1-alpine AS runtime
+LABEL service="standup-web"
 
 # Remove default nginx site
 RUN rm -rf /usr/share/nginx/html/*
