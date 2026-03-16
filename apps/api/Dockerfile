@@ -50,6 +50,7 @@ RUN set -eux; \
 
 # Stage 2: runtime image with Bun CLI, git/ssh tooling and the compiled binary
 FROM debian:bookworm-slim AS runtime
+LABEL service="standup-api"
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
