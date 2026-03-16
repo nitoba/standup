@@ -79,7 +79,7 @@ describe('RepoCloneService', () => {
 
       expect(result.isOk()).toBe(true)
       expect(mocks.runGitCommand).toHaveBeenCalledTimes(1)
-      expect(mocks.runGitCommand.mock.calls[0]![0]).toContain('rev-parse')
+      expect(mocks.runGitCommand.mock.calls[0]?.[0]).toContain('rev-parse')
     })
 
     it('removes and re-clones when directory exists but is not a valid git repo', async () => {
@@ -103,7 +103,7 @@ describe('RepoCloneService', () => {
 
       expect(result.isOk()).toBe(true)
       expect(mocks.mkdir).toHaveBeenCalledWith('/repos', { recursive: true })
-      const cloneArgs = mocks.runGitCommand.mock.calls[0]![0] as string[]
+      const cloneArgs = mocks.runGitCommand.mock.calls[0]?.[0] as string[]
       expect(cloneArgs).toContain('clone')
       expect(cloneArgs).toContain(
         'https://dev.azure.com/test-org/AGROTRACE/_git/my-repo',
@@ -114,7 +114,7 @@ describe('RepoCloneService', () => {
     it('passes correct auth header in clone command', async () => {
       await createService({ pat: 'my-pat' }).service.ensureCloned(repo)
 
-      const cloneArgs = mocks.runGitCommand.mock.calls[0]![0] as string[]
+      const cloneArgs = mocks.runGitCommand.mock.calls[0]?.[0] as string[]
       const headerArg = cloneArgs.find((a: string) =>
         a.includes('http.extraheader='),
       )
@@ -157,6 +157,7 @@ describe('RepoCloneService', () => {
       const promise1 = service.ensureCloned(repo)
       const promise2 = service.ensureCloned(repo)
 
+      // biome-ignore lint/style/noNonNullAssertion: assigned in mock callback
       resolveClone!()
       const [result1, result2] = await Promise.all([promise1, promise2])
 
@@ -192,7 +193,7 @@ describe('RepoCloneService', () => {
       const result = await service.ensureAllCloned(repos)
 
       expect(result.alreadyExisted).toHaveLength(1)
-      expect(result.alreadyExisted[0]!.name).toBe('repo-a')
+      expect(result.alreadyExisted[0]?.name).toBe('repo-a')
       expect(result.cloned).toHaveLength(2)
       expect(result.failed).toHaveLength(0)
     })
@@ -208,7 +209,7 @@ describe('RepoCloneService', () => {
 
       expect(result.cloned).toHaveLength(2)
       expect(result.failed).toHaveLength(1)
-      expect(result.failed[0]!.repo.name).toBe('repo-b')
+      expect(result.failed[0]?.repo.name).toBe('repo-b')
     })
   })
 })

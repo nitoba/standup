@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { SettingsReposChangedEvent } from '../../../../platform/events/standup-events'
 import { RepoCloneListener } from './repo-clone.listener'
 

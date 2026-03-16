@@ -21,7 +21,7 @@ function buildMockSettings() {
     recoveryCron: '0 18 * * 1-5',
     timezone: 'america/sao_paulo',
     gitAuthor: 'nitoba',
-    selectedRepos: ['agrotrace-web', 'agrotrace-api'],
+    selectedRepos: ['AGROTRACE/agrotrace-web', 'AGROTRACE/agrotrace-api'],
     active: true,
     snoozedUntil: null,
     cancelledDate: null,
@@ -136,9 +136,7 @@ describe('SettingsPage', () => {
 
     const overlayRoot = document.querySelector('z-popover')
     expect(overlayRoot?.textContent).toContain('construtor_de_cron')
-    expect(overlayRoot?.textContent).toContain(
-      'todos os dias úteis às 17:30',
-    )
+    expect(overlayRoot?.textContent).toContain('todos os dias úteis às 17:30')
 
     overlayRoot
       ?.querySelector<HTMLButtonElement>('[aria-label="Aumentar hora"]')
@@ -187,7 +185,7 @@ describe('SettingsPage', () => {
     fixture.detectChanges()
 
     expect(fixture.componentInstance.settingsModel().selectedRepos).toContain(
-      'agrotrace-mobile',
+      'AGROTRACE/agrotrace-mobile',
     )
     expect(
       fixture.componentInstance.settingsModel().selectedRepos,
@@ -199,7 +197,7 @@ describe('SettingsPage', () => {
 
     expect(
       fixture.componentInstance.settingsModel().selectedRepos,
-    ).not.toContain('agrotrace-web')
+    ).not.toContain('AGROTRACE/agrotrace-web')
     expect(
       fixture.componentInstance.settingsModel().selectedRepos,
     ).toHaveLength(2)
@@ -235,8 +233,8 @@ describe('SettingsPage', () => {
 
     // Flush the PUT request
     await settleFixture()
-    const putReq = httpMock.expectOne((request) =>
-      request.method === 'PUT' && request.url === '/settings/me',
+    const putReq = httpMock.expectOne(
+      (request) => request.method === 'PUT' && request.url === '/settings/me',
     )
     expect(putReq.request.method).toBe('PUT')
     expect(putReq.request.body).toEqual({
@@ -245,7 +243,7 @@ describe('SettingsPage', () => {
       recoveryCron: '0 18 * * 1-5',
       timezone: 'america/sao_paulo',
       gitAuthor: 'nitoba',
-      selectedRepos: ['agrotrace-web', 'agrotrace-api'],
+      selectedRepos: ['AGROTRACE/agrotrace-web', 'AGROTRACE/agrotrace-api'],
       active: true,
       emailTheme: 'dark',
     })
@@ -313,13 +311,12 @@ describe('SettingsPage', () => {
     fixture.detectChanges()
 
     await settleFixture()
-    httpMock.expectOne((request) => request.method === 'PUT').flush(
-      'Server Error',
-      {
-      status: 500,
-      statusText: 'Internal Server Error',
-      },
-    )
+    httpMock
+      .expectOne((request) => request.method === 'PUT')
+      .flush('Server Error', {
+        status: 500,
+        statusText: 'Internal Server Error',
+      })
     await settleFixture()
     fixture.detectChanges()
 
