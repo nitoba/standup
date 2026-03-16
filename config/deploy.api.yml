@@ -18,7 +18,7 @@ servers:
       network-alias:
         - standup-api
     volumes:
-      - /Users/nitoba/repos:/repos:ro
+      - /Users/nitoba/repos:/repos
 
 registry:
   server: ghcr.io
