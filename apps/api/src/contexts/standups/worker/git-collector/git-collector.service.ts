@@ -9,6 +9,7 @@ import type {
 } from '../../../../shared/domain'
 import { ExternalServiceError, Result } from '../../../../shared/domain'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
+import { buildAuthHeader } from './azure-devops-git-auth'
 import { runGitCommand } from './run-git-command'
 
 interface CommitBlock {
@@ -286,8 +287,7 @@ export class GitCollectorService {
   }
 
   private buildAzureDevopsAuthHeader(pat: string): string {
-    const basicAuth = Buffer.from(`:${pat}`).toString('base64')
-    return `AUTHORIZATION: Basic ${basicAuth}`
+    return buildAuthHeader(pat)
   }
 
   private buildAzureDevopsHttpRemoteUrl(remoteUrl: string): string | null {
