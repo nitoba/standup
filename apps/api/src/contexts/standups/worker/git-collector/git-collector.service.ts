@@ -8,8 +8,10 @@ import type {
   RepoActivity,
 } from '../../../../shared/domain'
 import { ExternalServiceError, Result } from '../../../../shared/domain'
+import { parseRepoIdentifier } from '../../../../shared/repos/parse-selected-repos'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
 import { buildAuthHeader } from './azure-devops-git-auth'
+import { RepoCloneService } from './repo-clone.service'
 import { runGitCommand } from './run-git-command'
 
 interface CommitBlock {
@@ -45,6 +47,7 @@ export class GitCollectorService {
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
     private readonly runtimeConfig: WorkerRuntimeConfigService,
+    private readonly repoCloneService: RepoCloneService,
   ) {
     this.logger = this.loggerFactory.create('git-collector')
   }
@@ -65,9 +68,29 @@ export class GitCollectorService {
         )
       }
 
-      const repositoryPaths = selectedRepos.map((name) =>
-        join(reposRootPath, name),
+      const defaultProject =
+        this.runtimeConfig.config.AZURE_DEVOPS_DEFAULT_PROJECT
+      const parsed = selectedRepos.map((id) =>
+        parseRepoIdentifier(id, defaultProject),
       )
+
+      // Fallback: ensure all repos are cloned before collecting
+      const cloneResult = await this.repoCloneService.ensureAllCloned(parsed)
+
+      for (const { repo, error } of cloneResult.failed) {
+        this.logger.warn('Repo clone failed, skipping', {
+          repo: repo.name,
+          error: error.message,
+        })
+      }
+
+      const failedKeys = new Set(
+        cloneResult.failed.map((f) => `${f.repo.project}/${f.repo.name}`),
+      )
+      const repositoryPaths = parsed
+        .filter((r) => !failedKeys.has(`${r.project}/${r.name}`))
+        .map((r) => join(reposRootPath, r.name))
+
       const repositories = await Promise.all(
         repositoryPaths.map((path) =>
           this.processRepository(path, author, sincePeriod),

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   runGitCommand: vi.fn(),
+  ensureAllCloned: vi.fn(),
 }))
 
 vi.mock('./run-git-command', () => ({
@@ -40,7 +41,15 @@ function createService(pat = 'pat-token') {
     config: {
       REPOS_ROOT_PATH: '/repos',
       AZURE_DEVOPS_PAT: pat,
+      AZURE_DEVOPS_DEFAULT_PROJECT: 'AGROTRACE',
     },
+  }
+  const repoCloneService = {
+    ensureAllCloned: mocks.ensureAllCloned.mockResolvedValue({
+      cloned: [],
+      alreadyExisted: [],
+      failed: [],
+    }),
   }
 
   return {
@@ -48,6 +57,7 @@ function createService(pat = 'pat-token') {
     service: new GitCollectorService(
       loggerFactory as never,
       runtimeConfig as never,
+      repoCloneService as never,
     ),
   }
 }
@@ -285,5 +295,55 @@ describe('GitCollectorService', () => {
       'Unsupported git remote for PAT fetch: git@github.com:example/repo.git',
     )
     expect(mocks.runGitCommand).toHaveBeenCalledTimes(1)
+  })
+
+  describe('collect - repo clone fallback', () => {
+    it('calls ensureAllCloned before collecting commits', async () => {
+      mocks.ensureAllCloned.mockResolvedValue({
+        cloned: [],
+        alreadyExisted: [{ project: 'AGROTRACE', name: 'my-repo' }],
+        failed: [],
+      })
+      mocks.runGitCommand.mockResolvedValue(
+        createGitCommandResult({ stdout: 'main' }),
+      )
+
+      const { service } = createService()
+      await service.collect(
+        ['AGROTRACE/my-repo'],
+        'author@test.com',
+        '8 hours ago',
+      )
+
+      expect(mocks.ensureAllCloned).toHaveBeenCalledWith([
+        { project: 'AGROTRACE', name: 'my-repo' },
+      ])
+    })
+
+    it('skips failed repos from collect', async () => {
+      mocks.ensureAllCloned.mockResolvedValue({
+        cloned: [],
+        alreadyExisted: [],
+        failed: [
+          {
+            repo: { project: 'AGROTRACE', name: 'bad-repo' },
+            error: { repo: 'bad-repo', message: 'clone failed' },
+          },
+        ],
+      })
+
+      const { service, logger } = createService()
+      const result = await service.collect(
+        ['AGROTRACE/bad-repo'],
+        'author@test.com',
+        '8 hours ago',
+      )
+
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value.repos).toHaveLength(0)
+      }
+      expect(logger.warn).toHaveBeenCalled()
+    })
   })
 })
