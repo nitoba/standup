@@ -74,7 +74,15 @@ RUN set -eux; \
   LIBSQL_TARGET="$([ "${TARGETARCH:-}" = "amd64" ] && echo "linux-x64-gnu" || echo "linux-${TARGETARCH:-arm64}-gnu")"; \
   mkdir -p /app/node_modules/@libsql; \
   cp -RL "/app/node_modules/.bun/node_modules/@libsql/${LIBSQL_TARGET}" "/app/node_modules/@libsql/${LIBSQL_TARGET}"; \
-  chmod +x /usr/local/bin/start-api /app/bin/api
+  chmod +x /usr/local/bin/start-api /app/bin/api; \
+  # Create empty stubs for --external NestJS optional deps resolved at runtime
+  for pkg in @nestjs/graphql @nestjs/apollo @nestjs/microservices @nestjs/websockets @apollo/subgraph ts-morph; do \
+    mkdir -p "/app/node_modules/${pkg}"; \
+    echo '{"name":"'"${pkg}"'","version":"0.0.0","main":"index.js"}' > "/app/node_modules/${pkg}/package.json"; \
+    echo 'module.exports = {};' > "/app/node_modules/${pkg}/index.js"; \
+  done; \
+  mkdir -p /app/node_modules/class-transformer; \
+  echo 'module.exports = {};' > /app/node_modules/class-transformer/storage.js
 
 EXPOSE 3333
 
