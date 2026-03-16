@@ -7,11 +7,8 @@ export function isCronDueNow(
 ): boolean {
   const ref = now ?? new Date()
   const cron = new Cron(expression, { timezone })
-  const [prev] = cron.previousRuns(1, ref)
+  const minuteRef = new Date(ref)
+  minuteRef.setSeconds(0, 0)
 
-  if (!prev) {
-    return false
-  }
-
-  return ref.getTime() - prev.getTime() < 60_000
+  return cron.match(minuteRef)
 }
