@@ -67,6 +67,15 @@ function getInternals(service: GitCollectorService) {
     fetchRepository(repositoryPath: string): Promise<GitCommandResult>
     buildAzureDevopsHttpRemoteUrl(remoteUrl: string): string | null
     buildAzureDevopsAuthHeader(pat: string): string
+    extractBranchCardNumber(branch: string): string | null
+    extractCardNumbersFromBranches(branches: string[]): string[]
+    normalizeSourceRef(sourceRef: string): string
+    parseCommitBlocks(raw: string): Array<{
+      hash: string
+      subject: string
+      body: string
+      sourceRef: string
+    }>
   }
 }
 
@@ -295,6 +304,169 @@ describe('GitCollectorService', () => {
       'Unsupported git remote for PAT fetch: git@github.com:example/repo.git',
     )
     expect(mocks.runGitCommand).toHaveBeenCalledTimes(1)
+  })
+
+  describe('extractBranchCardNumber', () => {
+    it.each([
+      // prefix/NNNNN-description (standard convention)
+      ['feat/11748-dashboard-gestao', '11748'],
+      ['fix/11496-alter-date-format', '11496'],
+      ['feature/11268-habilitar-pacote', '11268'],
+      ['hotfix/12345', '12345'],
+      ['task/999-small-fix', '999'],
+      ['refactor/1234567', '1234567'],
+      ['chore/4567-cleanup', '4567'],
+
+      // bugfix prefix (must work explicitly, not by accident)
+      ['bugfix/11238-fix-evento-timezone', '11238'],
+
+      // bare NNNNN/description (CHECKMILK repos convention)
+      ['10461/Rota_historico_animal', '10461'],
+      ['10780/Adicionar_deslocamento_atendimento_tables', '10780'],
+      ['11075/Adicionar_notificacao_parto_app', '11075'],
+      ['11413/Dashboard_gestor_watch_app', '11413'],
+      ['11414/Login_watch', '11414'],
+    ])('extracts card number from "%s" → %s', (branch, expected) => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(internals.extractBranchCardNumber(branch)).toBe(expected)
+    })
+
+    it.each([
+      // excluded branches
+      ['master'],
+      ['main'],
+      ['dev'],
+      ['develop'],
+      ['sprint/93'],
+      ['sprint/94'],
+
+      // no card number
+      ['feat/desktop-app'],
+      ['chore/migrate-to-turbo-monorepo'],
+
+      // empty/null
+      [''],
+    ])('returns null for "%s"', (branch) => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(internals.extractBranchCardNumber(branch)).toBeNull()
+    })
+  })
+
+  describe('normalizeSourceRef', () => {
+    it.each([
+      ['refs/heads/feat/11748-dashboard', 'feat/11748-dashboard'],
+      ['refs/remotes/origin/feat/11748-dashboard', 'feat/11748-dashboard'],
+      ['refs/remotes/upstream/fix/123-bug', 'fix/123-bug'],
+      ['feat/11748-dashboard', 'feat/11748-dashboard'],
+      ['', ''],
+    ])('normalizes "%s" → "%s"', (input, expected) => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(internals.normalizeSourceRef(input)).toBe(expected)
+    })
+  })
+
+  describe('extractCardNumbersFromBranches', () => {
+    it('extracts unique card numbers from multiple branches', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(
+        internals.extractCardNumbersFromBranches([
+          'feat/11748-dashboard',
+          'fix/11496-alter-date-format',
+          'feat/11748-dashboard', // duplicate
+        ]),
+      ).toEqual(['11748', '11496'])
+    })
+
+    it('handles branches without card numbers', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(
+        internals.extractCardNumbersFromBranches([
+          'feat/desktop-app',
+          'main',
+          'chore/migrate-to-turbo',
+        ]),
+      ).toEqual([])
+    })
+
+    it('handles bare NNNNN/description branches', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(
+        internals.extractCardNumbersFromBranches([
+          '10461/Rota_historico_animal',
+          '11413/Dashboard_gestor_watch_app',
+        ]),
+      ).toEqual(['10461', '11413'])
+    })
+
+    it('returns empty for empty input', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(internals.extractCardNumbersFromBranches([])).toEqual([])
+    })
+  })
+
+  describe('parseCommitBlocks', () => {
+    it('parses records with \x1e/\x1f separators including sourceRef', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      const raw = [
+        '\x1eabc1234\x1ffeat: add feature\x1fbody text\x1frefs/heads/feat/11748-desc',
+        '\x1edef5678\x1ffix: bug\x1f\x1frefs/remotes/origin/fix/999-bug',
+      ].join('')
+
+      const blocks = internals.parseCommitBlocks(raw)
+
+      expect(blocks).toEqual([
+        {
+          hash: 'abc1234',
+          subject: 'feat: add feature',
+          body: 'body text',
+          sourceRef: 'refs/heads/feat/11748-desc',
+        },
+        {
+          hash: 'def5678',
+          subject: 'fix: bug',
+          body: '',
+          sourceRef: 'refs/remotes/origin/fix/999-bug',
+        },
+      ])
+    })
+
+    it('handles multi-line body with sourceRef', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      const raw =
+        '\x1eabc1234\x1ffeat: add\x1fline1\nline2\nline3\x1frefs/heads/feat/123-test'
+
+      const blocks = internals.parseCommitBlocks(raw)
+
+      expect(blocks).toHaveLength(1)
+      expect(blocks[0]?.body).toBe('line1\nline2\nline3')
+      expect(blocks[0]?.sourceRef).toBe('refs/heads/feat/123-test')
+    })
+
+    it('returns empty array for blank input', () => {
+      const { service } = createService()
+      const internals = getInternals(service)
+
+      expect(internals.parseCommitBlocks('')).toEqual([])
+      expect(internals.parseCommitBlocks('  ')).toEqual([])
+    })
   })
 
   describe('collect - repo clone fallback', () => {

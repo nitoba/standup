@@ -49,12 +49,7 @@ export class AzureDevopsEnrichmentService {
     const enrichedRepos: EnrichedRepo[] = []
 
     for (const repo of activeRepos) {
-      const cardNumbers = Array.from(
-        new Set([
-          ...repo.cardNumbers,
-          ...(repo.branchCardNumber ? [repo.branchCardNumber] : []),
-        ]),
-      )
+      const cardNumbers = [...repo.cardNumbers]
 
       const enrichedItems: EnrichedWorkItem[] = []
 
@@ -88,10 +83,8 @@ export class AzureDevopsEnrichmentService {
       enrichedRepos.push({
         repoName: repo.repoName,
         repoPath: repo.repoPath,
-        currentBranch: repo.currentBranch,
         commits: repo.commits,
         cardNumbers: repo.cardNumbers,
-        branchCardNumber: repo.branchCardNumber,
         enrichedItems,
       })
     }

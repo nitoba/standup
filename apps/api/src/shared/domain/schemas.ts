@@ -60,12 +60,12 @@ export const GenerateStandupInputSchema = z.object({
       z.object({
         repoName: z.string().min(1),
         repoPath: z.string().min(1),
-        currentBranch: z.string(),
         commits: z.array(
           z.object({
             hash: z.string().min(1),
             subject: z.string().min(1),
             body: z.string(),
+            sourceBranch: z.string(),
             filesChanged: z.number().int(),
             insertions: z.number().int(),
             deletions: z.number().int(),
@@ -73,7 +73,6 @@ export const GenerateStandupInputSchema = z.object({
           }),
         ),
         cardNumbers: z.array(z.string()),
-        branchCardNumber: z.string().nullable(),
       }),
     ),
   }),
