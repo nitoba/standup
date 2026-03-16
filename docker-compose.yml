@@ -16,7 +16,7 @@ services:
       - "${PORT:-3333}:3333"
     volumes:
       - standup-data:/app/data
-      - ${HOST_REPOS_ROOT_PATH:-/home/nitoba/Documents/repos/ibs/repos}:/repos:z
+      - ${HOST_REPOS_ROOT_PATH:-/home/nitoba/Documents/repos/ibs/repos}:/repos:ro,z
       - ${HOST_SSH_PATH:-~/.ssh}:/root/.ssh:ro
     env_file: .env.local
     environment:
