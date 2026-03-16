@@ -1,7 +1,27 @@
 import { InternalServerErrorException } from '@nestjs/common'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DbError, Result } from '../../../shared/domain'
 import { MeSettingsService } from './me-settings.service'
+
+const emitSettingsReposChanged = vi.fn()
+const eventBus = { emitSettingsReposChanged }
+
+function makeSettingsRow(overrides: Record<string, unknown> = {}) {
+  return {
+    standupCron: '30 17 * * 1-5',
+    reminderCron: '20 17 * * 1-5',
+    recoveryCron: '0 18 * * 1-5',
+    timezone: 'America/Sao_Paulo',
+    gitAuthor: 'author@test.com',
+    gitSincePeriod: '8 hours ago',
+    selectedRepos: '[]',
+    active: true,
+    emailTheme: 'dark',
+    snoozedUntil: null,
+    cancelledDate: null,
+    ...overrides,
+  }
+}
 
 describe('MeSettingsService', () => {
   function createService() {
@@ -26,6 +46,7 @@ describe('MeSettingsService', () => {
             value === '2026-03-13' ? '13/03/2026' : value,
           ),
         } as never,
+        eventBus as never,
       ),
     }
   }
@@ -95,6 +116,7 @@ describe('MeSettingsService', () => {
 
   it('persists settings and returns the normalized payload', async () => {
     const { service, userSettingsRepository } = createService()
+    userSettingsRepository.findByUserId.mockResolvedValue(Result.ok(null))
     userSettingsRepository.upsert.mockResolvedValue(
       Result.ok({
         standupCron: '1',
@@ -142,6 +164,77 @@ describe('MeSettingsService', () => {
       gitAuthor: 'user@example.com',
       gitSincePeriod: '8 hours ago',
       selectedRepos: '["repo-1"]',
+    })
+  })
+
+  describe('put — event emission', () => {
+    const putBody = {
+      standupCron: '30 17 * * 1-5',
+      reminderCron: '20 17 * * 1-5',
+      recoveryCron: '0 18 * * 1-5',
+      timezone: 'America/Sao_Paulo',
+      gitAuthor: 'author@test.com',
+      selectedRepos: ['AGROTRACE/old-repo', 'AGROTRACE/new-repo'],
+    }
+
+    beforeEach(() => {
+      emitSettingsReposChanged.mockClear()
+    })
+
+    it('emits SETTINGS_REPOS_CHANGED_EVENT when new repos are added', async () => {
+      const { userSettingsRepository, service } = createService()
+      userSettingsRepository.findByUserId.mockResolvedValue(
+        Result.ok(makeSettingsRow({ selectedRepos: '["AGROTRACE/old-repo"]' })),
+      )
+      userSettingsRepository.upsert.mockResolvedValue(
+        Result.ok(
+          makeSettingsRow({
+            selectedRepos: '["AGROTRACE/old-repo","AGROTRACE/new-repo"]',
+          }),
+        ),
+      )
+
+      await service.put('user-1', putBody as never)
+
+      expect(emitSettingsReposChanged).toHaveBeenCalledWith({
+        userId: 'user-1',
+        selectedRepos: ['AGROTRACE/new-repo'],
+      })
+    })
+
+    it('does NOT emit event when repos have not changed', async () => {
+      const { userSettingsRepository, service } = createService()
+      userSettingsRepository.findByUserId.mockResolvedValue(
+        Result.ok(makeSettingsRow({ selectedRepos: '["AGROTRACE/repo-a"]' })),
+      )
+      userSettingsRepository.upsert.mockResolvedValue(
+        Result.ok(makeSettingsRow({ selectedRepos: '["AGROTRACE/repo-a"]' })),
+      )
+
+      await service.put('user-1', {
+        ...putBody,
+        selectedRepos: ['AGROTRACE/repo-a'],
+      } as never)
+
+      expect(emitSettingsReposChanged).not.toHaveBeenCalled()
+    })
+
+    it('emits all repos as new when user has no previous settings', async () => {
+      const { userSettingsRepository, service } = createService()
+      userSettingsRepository.findByUserId.mockResolvedValue(Result.ok(null))
+      userSettingsRepository.upsert.mockResolvedValue(
+        Result.ok(makeSettingsRow({ selectedRepos: '["AGROTRACE/repo-a"]' })),
+      )
+
+      await service.put('user-1', {
+        ...putBody,
+        selectedRepos: ['AGROTRACE/repo-a'],
+      } as never)
+
+      expect(emitSettingsReposChanged).toHaveBeenCalledWith({
+        userId: 'user-1',
+        selectedRepos: ['AGROTRACE/repo-a'],
+      })
     })
   })
 })
