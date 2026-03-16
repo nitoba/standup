@@ -31,4 +31,48 @@ describe('isCronDueNow', () => {
       ),
     ).toBe(false)
   })
+
+  it('works for a UTC daily cron and rejects the minute after', () => {
+    expect(
+      isCronDueNow(
+        '0 7 * * *',
+        'UTC',
+        new Date('2026-03-13T07:00:30.000Z'),
+      ),
+    ).toBe(true)
+
+    expect(
+      isCronDueNow(
+        '0 7 * * *',
+        'UTC',
+        new Date('2026-03-13T07:01:00.000Z'),
+      ),
+    ).toBe(false)
+  })
+
+  it('respects day-of-week and timezone offsets', () => {
+    expect(
+      isCronDueNow(
+        '15 9 * * 1',
+        'America/Sao_Paulo',
+        new Date('2026-03-16T12:15:00.000Z'),
+      ),
+    ).toBe(true)
+
+    expect(
+      isCronDueNow(
+        '15 9 * * 1',
+        'America/Sao_Paulo',
+        new Date('2026-03-16T12:16:00.000Z'),
+      ),
+    ).toBe(false)
+
+    expect(
+      isCronDueNow(
+        '15 9 * * 1',
+        'America/Sao_Paulo',
+        new Date('2026-03-17T12:15:00.000Z'),
+      ),
+    ).toBe(false)
+  })
 })
