@@ -91,7 +91,7 @@ SSH e portas internas so acessiveis via Tailscale. Apenas a API fica publica via
 | Container runtime  | Colima (Docker engine em VM Linux)                          |
 | Arquitetura        | `aarch64` (arm64)                                           |
 | Diretorio de dados | `/opt/standup/data` (dentro da VM Colima, SQLite WAL)       |
-| Diretorio de repos | `/Users/nitoba/repos` (virtiofs mount, read-only no container da API) |
+| Diretorio de repos | `/Users/nitoba/repos` (virtiofs mount, read-write no container da API) |
 
 Observacao: o MacBook hospeda o Colima, mas a API e o Web executam dentro da VM Linux do Colima.
 O diretorio `/opt/standup/data` existe apenas dentro da VM — nao confundir com um path no macOS host.
@@ -154,7 +154,7 @@ Obs: o nginx do `standup-web` usa `resolver 127.0.0.11` + `set $upstream` para d
 | Volume      | Host path             | Container path | Quem usa |
 | ----------- | --------------------- | -------------- | -------- |
 | SQLite data | `/opt/standup/data`   | `/app/data`    | API      |
-| Git repos   | `/Users/nitoba/repos` | `/repos` (ro)  | API      |
+| Git repos   | `/Users/nitoba/repos` | `/repos`       | API      |
 
 `REPOS_ROOT_PATH` deve ser `/repos` em todos os containers. Fora de containers
 (ex.: `bun run dev` local), ele deve apontar para um path absoluto do host.
