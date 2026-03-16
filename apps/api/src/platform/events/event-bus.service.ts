@@ -3,6 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter'
 import type {
   DiscordLoginSuccessRequestedEvent,
   JobFailedNotificationEvent,
+  SettingsReposChangedEvent,
   StandupFailedEvent,
   StandupGeneratedEvent,
   StandupProgressEvent,
@@ -14,6 +15,7 @@ import type {
 import {
   DISCORD_LOGIN_SUCCESS_REQUESTED_EVENT,
   JOB_FAILED_NOTIFICATION_EVENT,
+  SETTINGS_REPOS_CHANGED_EVENT,
   STANDUP_FAILED_EVENT,
   STANDUP_GENERATED_EVENT,
   STANDUP_PROGRESS_EVENT,
@@ -61,5 +63,9 @@ export class EventBusService {
 
   emitJobFailedNotification(payload: JobFailedNotificationEvent): void {
     this.eventEmitter.emit(JOB_FAILED_NOTIFICATION_EVENT, payload)
+  }
+
+  emitSettingsReposChanged(payload: SettingsReposChangedEvent): void {
+    this.eventEmitter.emit(SETTINGS_REPOS_CHANGED_EVENT, payload)
   }
 }
