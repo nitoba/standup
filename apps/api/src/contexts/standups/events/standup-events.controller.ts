@@ -22,6 +22,21 @@ type AuthSession = {
   }
 }
 
+type ExpressLikeRequest = {
+  res?: unknown
+}
+
+function isServerResponse(value: unknown): value is ServerResponse {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'write' in value &&
+    typeof value.write === 'function' &&
+    'writeHead' in value &&
+    typeof value.writeHead === 'function'
+  )
+}
+
 /**
  * Formats a MessageEvent as an SSE text frame.
  * @see https://html.spec.whatwg.org/multipage/server-sent-events.html
@@ -59,11 +74,10 @@ export class StandupEventsController {
   })
   @ApiProduces('text/event-stream')
   @ApiOkResponse({ description: 'Stream SSE aberto com sucesso.' })
-  // biome-ignore lint/suspicious/noExplicitAny: adapter-agnostic
   stream(
     @Session() session: AuthSession | null,
-    @Req() req: any,
-    @Res() res: any,
+    @Req() req: ExpressLikeRequest,
+    @Res() res: unknown,
   ): void {
     const userId = session?.user.id
     if (!userId) {
@@ -71,8 +85,11 @@ export class StandupEventsController {
     }
 
     // Express path (used in tests): req.res or res itself is the ServerResponse
-    const nodeRes: ServerResponse =
-      typeof res?.writeHead === 'function' ? res : req?.res
+    const nodeRes = isServerResponse(res)
+      ? res
+      : isServerResponse(req.res)
+        ? req.res
+        : null
 
     if (!nodeRes?.write) {
       throw new Error(

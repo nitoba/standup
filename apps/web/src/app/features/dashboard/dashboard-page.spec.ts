@@ -13,11 +13,7 @@ import {
 import { Subject } from 'rxjs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  buildMockStandups,
-  filterStandups,
-} from '../../shared/models/mock-data'
-import type { StandupEvent } from '../../shared/models/standup-models'
+import type { Standup, StandupEvent } from '../../shared/models/standup-models'
 import { DashboardPage } from './dashboard-page'
 import { StandupEventsService } from './services/standup-events-service'
 import { StandupService } from './services/standup-service'
@@ -75,7 +71,7 @@ describe('DashboardPage', () => {
     const fixture = await renderDashboard()
     TestBed.tick()
     httpMock.expectOne('/standups?page=1&pageSize=20').flush(
-      makeListResponse(buildMockStandupDtos(buildMockStandups()), {
+      makeListResponse(buildMockStandupDtos(buildDashboardStandups()), {
         total: 142,
         totalPages: 8,
       }),
@@ -97,12 +93,12 @@ describe('DashboardPage', () => {
       standupService,
       'setDashboardFilters',
     )
-    const allStandups = buildMockStandups()
+    const allStandups = buildDashboardStandups()
     const allStandupDtos = buildMockStandupDtos(allStandups)
-    const pendingStandups = filterStandups(allStandups, {
+    const pendingStandups = filterDashboardStandups(allStandups, {
       status: 'pending_review',
     })
-    const pendingTodayStandups = filterStandups(allStandups, {
+    const pendingTodayStandups = filterDashboardStandups(allStandups, {
       status: 'pending_review',
       date: '09/03/2026',
     })
@@ -224,7 +220,87 @@ describe('DashboardPage', () => {
   })
 })
 
-function buildMockStandupDtos(standups: ReturnType<typeof buildMockStandups>) {
+function buildDashboardStandups(): Standup[] {
+  return [
+    {
+      id: '7f3a2b1c',
+      date: '09/03/2026',
+      status: 'pending_review',
+      createdAt: '17:32',
+      contentPreview:
+        'implementada lógica de retry com backoff exponencial no pipeline de geração de standup...',
+      sections: [],
+      sources: [],
+    },
+    {
+      id: 'standup-2026-03-08',
+      date: '08/03/2026',
+      status: 'pending_review',
+      createdAt: '17:31',
+      contentPreview:
+        'adicionados comandos slash no Discord para disparar, listar e aprovar standups...',
+      sections: [],
+      sources: [],
+    },
+    {
+      id: 'standup-2026-03-07',
+      date: '07/03/2026',
+      status: 'approved',
+      createdAt: '17:30',
+      contentPreview:
+        'refatorados os handlers de rotas HTTP em arquivos modulares separados para melhor manutenção...',
+      sections: [],
+      sources: [],
+    },
+    {
+      id: 'standup-2026-03-06',
+      date: '06/03/2026',
+      status: 'rejected',
+      createdAt: '17:29',
+      contentPreview:
+        'adicionado endpoint de disparo manual com validação de autenticação interna...',
+      sections: [],
+      sources: [],
+    },
+    {
+      id: 'standup-2026-03-05',
+      date: '05/03/2026',
+      status: 'approved',
+      createdAt: '17:28',
+      contentPreview:
+        'ajustada a lógica de recuperação do scheduler para evitar execuções duplicadas...',
+      sections: [],
+      sources: [],
+    },
+  ]
+}
+
+function filterDashboardStandups(
+  standups: readonly Standup[],
+  filters: {
+    status?: string
+    date?: string
+    search?: string
+  },
+) {
+  return standups.filter((standup) => {
+    const matchesStatus = filters.status
+      ? standup.status === filters.status
+      : true
+    const matchesDate = filters.date ? standup.date === filters.date : true
+    const normalizedSearch = filters.search?.trim().toLowerCase()
+    const matchesSearch = normalizedSearch
+      ? [standup.id, standup.date, standup.contentPreview]
+          .join(' ')
+          .toLowerCase()
+          .includes(normalizedSearch)
+      : true
+
+    return matchesStatus && matchesDate && matchesSearch
+  })
+}
+
+function buildMockStandupDtos(standups: Standup[]) {
   return standups.map((standup, index) => toStandupDto(standup, index))
 }
 
@@ -258,7 +334,7 @@ function makeListResponse(
 }
 
 function toStandupDto(
-  standup: ReturnType<typeof buildMockStandups>[number],
+  standup: Standup,
   index: number,
 ): StandupDto {
   return {

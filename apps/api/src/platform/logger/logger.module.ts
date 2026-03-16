@@ -16,7 +16,6 @@ import { createWinstonOptions } from './create-winston-options'
         createWinstonOptions({
           service: 'standup-api',
           nodeEnv: envService.app.nodeEnv,
-
         }),
     }),
   ],

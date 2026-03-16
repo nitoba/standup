@@ -26,7 +26,6 @@ import type {
   TriggerAcceptedDto,
   TriggerStandupDto,
 } from '../../../api/model'
-import { METRIC_CHANGES } from '../../../shared/models/mock-data'
 import type {
   DashboardMetrics,
   Standup,
@@ -42,6 +41,7 @@ import type {
   StandupStatusChangedEvent,
 } from '../../../shared/models/standup-models'
 import { formatTimestampPtBr } from '../../../shared/utils'
+import { DASHBOARD_METRIC_CHANGES } from './dashboard-metric-changes'
 import { StandupEventsService } from './standup-events-service'
 
 type TriggerAck = { ok: boolean; accepted: boolean; error?: string }
@@ -216,10 +216,19 @@ export class StandupService {
   readonly metrics = computed<DashboardMetrics>(() => {
     const counts = this.standups.value().summary
     return {
-      total: { count: counts.total, change: METRIC_CHANGES.total },
-      approved: { count: counts.approved, change: METRIC_CHANGES.approved },
-      pending: { count: counts.pending, change: METRIC_CHANGES.pending },
-      rejected: { count: counts.rejected, change: METRIC_CHANGES.rejected },
+      total: { count: counts.total, change: DASHBOARD_METRIC_CHANGES.total },
+      approved: {
+        count: counts.approved,
+        change: DASHBOARD_METRIC_CHANGES.approved,
+      },
+      pending: {
+        count: counts.pending,
+        change: DASHBOARD_METRIC_CHANGES.pending,
+      },
+      rejected: {
+        count: counts.rejected,
+        change: DASHBOARD_METRIC_CHANGES.rejected,
+      },
     }
   })
 

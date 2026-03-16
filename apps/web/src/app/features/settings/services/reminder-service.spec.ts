@@ -4,6 +4,10 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing'
 import { TestBed } from '@angular/core/testing'
+import {
+  provideTanStackQuery,
+  QueryClient,
+} from '@tanstack/angular-query-experimental'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { ReminderService } from './reminder-service'
@@ -11,10 +15,20 @@ import { ReminderService } from './reminder-service'
 describe('ReminderService', () => {
   let httpMock: HttpTestingController
 
+  async function advanceUntilRequestStarts() {
+    await Promise.resolve()
+    await Promise.resolve()
+    TestBed.tick()
+  }
+
   beforeEach(() => {
     TestBed.resetTestingModule()
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideTanStackQuery(new QueryClient()),
+      ],
     })
 
     httpMock = TestBed.inject(HttpTestingController)
@@ -29,9 +43,10 @@ describe('ReminderService', () => {
 
     const runNowPromise = service.runNow()
 
+    await advanceUntilRequestStarts()
     const request = httpMock.expectOne('/reminders/run-now')
     expect(request.request.method).toBe('POST')
-    expect(request.request.body).toEqual({})
+    expect(request.request.body).toBeNull()
     request.flush(
       { ok: true, accepted: true },
       { status: 202, statusText: 'Accepted' },
@@ -45,9 +60,10 @@ describe('ReminderService', () => {
 
     const snoozePromise = service.snooze()
 
+    await advanceUntilRequestStarts()
     const request = httpMock.expectOne('/reminders/snooze')
     expect(request.request.method).toBe('POST')
-    expect(request.request.body).toEqual({})
+    expect(request.request.body).toBeNull()
     request.flush({
       data: {
         ok: true,
@@ -56,8 +72,10 @@ describe('ReminderService', () => {
     })
 
     await expect(snoozePromise).resolves.toEqual({
-      ok: true,
-      snoozedUntil: '2026-03-09T18:00:00.000Z',
+      data: {
+        ok: true,
+        snoozedUntil: '2026-03-09T18:00:00.000Z',
+      },
     })
   })
 
@@ -66,9 +84,10 @@ describe('ReminderService', () => {
 
     const cancelPromise = service.cancelToday()
 
+    await advanceUntilRequestStarts()
     const request = httpMock.expectOne('/reminders/cancel-today')
     expect(request.request.method).toBe('POST')
-    expect(request.request.body).toEqual({})
+    expect(request.request.body).toBeNull()
     request.flush({
       data: {
         ok: true,
@@ -77,8 +96,10 @@ describe('ReminderService', () => {
     })
 
     await expect(cancelPromise).resolves.toEqual({
-      ok: true,
-      cancelledDate: '09/03/2026',
+      data: {
+        ok: true,
+        cancelledDate: '09/03/2026',
+      },
     })
   })
 })

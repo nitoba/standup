@@ -5,6 +5,10 @@ import {
 } from '@angular/common/http/testing'
 import { ApplicationRef } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
+import {
+  provideTanStackQuery,
+  QueryClient,
+} from '@tanstack/angular-query-experimental'
 import { Subject } from 'rxjs'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { StandupEvent } from '../../../shared/models/standup-models'
@@ -72,12 +76,26 @@ describe('StandupService', () => {
   let httpMock: HttpTestingController
   let appRef: ApplicationRef
 
+  async function settleAsyncWork() {
+    await Promise.resolve()
+    await Promise.resolve()
+    TestBed.tick()
+    await appRef.whenStable()
+  }
+
+  async function advanceUntilRequestStarts() {
+    await Promise.resolve()
+    await Promise.resolve()
+    TestBed.tick()
+  }
+
   beforeEach(async () => {
     TestBed.resetTestingModule()
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideTanStackQuery(new QueryClient()),
         { provide: StandupEventsService, useValue: stubEventsService },
       ],
     })
@@ -91,7 +109,7 @@ describe('StandupService', () => {
     httpMock
       .expectOne('/standups?page=1&pageSize=20')
       .flush(makeListResponse([]))
-    await appRef.whenStable()
+    await settleAsyncWork()
   })
 
   afterEach(() => {
@@ -129,7 +147,7 @@ describe('StandupService', () => {
       ]),
     )
 
-    await appRef.whenStable()
+    await settleAsyncWork()
 
     expect(service.standups.value().items).toEqual([
       expect.objectContaining({
@@ -183,7 +201,7 @@ describe('StandupService', () => {
       ]),
     )
 
-    await appRef.whenStable()
+    await settleAsyncWork()
 
     expect(service.standups.value().items).toEqual([
       expect.objectContaining({ id: 'standup-2', status: 'approved' }),
@@ -206,7 +224,7 @@ describe('StandupService', () => {
       ),
     )
 
-    await appRef.whenStable()
+    await settleAsyncWork()
 
     expect(service.pagination()).toEqual({
       page: 1,
@@ -215,10 +233,10 @@ describe('StandupService', () => {
       totalPages: 3,
     })
     expect(service.metrics()).toEqual({
-      total: { count: 42, change: '++ 12 this_week' },
-      approved: { count: 20, change: '++ 8 this_week' },
-      pending: { count: 18, change: '++ 3 today' },
-      rejected: { count: 4, change: '++ 1 today' },
+      total: { count: 42, change: '++ 12 esta_semana' },
+      approved: { count: 20, change: '++ 8 esta_semana' },
+      pending: { count: 18, change: '++ 3 hoje' },
+      rejected: { count: 4, change: '++ 1 hoje' },
     })
   })
 
@@ -232,7 +250,7 @@ describe('StandupService', () => {
       makeListResponse([], { pageSize: 50, total: 0, totalPages: 0 }),
     )
 
-    await appRef.whenStable()
+    await settleAsyncWork()
 
     expect(service.pagination()).toEqual({
       page: 1,
@@ -251,7 +269,7 @@ describe('StandupService', () => {
     )
     request.flush(makeListResponse([]))
 
-    await appRef.whenStable()
+    await settleAsyncWork()
   })
 
   it('loads standup detail when selectStandup is called', async () => {
@@ -262,7 +280,7 @@ describe('StandupService', () => {
     expect(request.request.method).toBe('GET')
     request.flush({ data: makeStandupDto({ id: '7f3a2b1c' }) })
 
-    await appRef.whenStable()
+    await settleAsyncWork()
 
     expect(service.selectedStandup.value()).toEqual(
       expect.objectContaining({ id: '7f3a2b1c' }),
@@ -275,6 +293,7 @@ describe('StandupService', () => {
       directCalls: ['Call com Joao'],
     })
 
+    await advanceUntilRequestStarts()
     const approveRequest = httpMock.expectOne('/standups/7f3a2b1c/approve')
     expect(approveRequest.request.method).toBe('POST')
     expect(approveRequest.request.body).toEqual({
@@ -305,12 +324,13 @@ describe('StandupService', () => {
           makeStandupDto({ id: '7f3a2b1c', status: 'published' }),
         ]),
       )
-    await appRef.whenStable()
+    await settleAsyncWork()
   })
 
   it('rejects through the status endpoint and reloads dashboard data', async () => {
     const rejectPromise = service.reject('7f3a2b1c')
 
+    await advanceUntilRequestStarts()
     const rejectRequest = httpMock.expectOne('/standups/7f3a2b1c/status')
     expect(rejectRequest.request.method).toBe('PATCH')
     expect(rejectRequest.request.body).toEqual({ status: 'rejected' })
@@ -331,7 +351,7 @@ describe('StandupService', () => {
           makeStandupDto({ id: '7f3a2b1c', status: 'rejected' }),
         ]),
       )
-    await appRef.whenStable()
+    await settleAsyncWork()
   })
 
   it('returns the accepted acknowledgement when requesting an adjustment', async () => {
@@ -340,6 +360,7 @@ describe('StandupService', () => {
       'Remove the blocker section and add the deployment fix',
     )
 
+    await advanceUntilRequestStarts()
     const request = httpMock.expectOne('/standups/trigger')
     expect(request.request.method).toBe('POST')
     expect(request.request.body).toEqual({
@@ -355,11 +376,15 @@ describe('StandupService', () => {
     )
 
     await expect(adjustPromise).resolves.toEqual({ ok: true, accepted: true })
+    TestBed.tick()
+    httpMock.expectOne('/standups?page=1&pageSize=20').flush(makeListResponse([]))
+    await settleAsyncWork()
   })
 
   it('returns the accepted acknowledgement when forcing regeneration', async () => {
     const regeneratePromise = service.regenerate('7f3a2b1c')
 
+    await advanceUntilRequestStarts()
     const request = httpMock.expectOne('/standups/trigger')
     expect(request.request.method).toBe('POST')
     expect(request.request.body).toEqual({
@@ -376,6 +401,9 @@ describe('StandupService', () => {
       ok: true,
       accepted: true,
     })
+    TestBed.tick()
+    httpMock.expectOne('/standups?page=1&pageSize=20').flush(makeListResponse([]))
+    await settleAsyncWork()
   })
 
   it('tracks coarse-grained progress events and reloads when generation completes', async () => {
@@ -407,7 +435,7 @@ describe('StandupService', () => {
     httpMock
       .expectOne('/standups?page=1&pageSize=20')
       .flush(makeListResponse([makeStandupDto({ id: '7f3a2b1c' })]))
-    await appRef.whenStable()
+    await settleAsyncWork()
 
     expect(service.activeProgress()).toBeUndefined()
   })
