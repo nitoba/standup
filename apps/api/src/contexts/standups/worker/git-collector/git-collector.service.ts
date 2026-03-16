@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { Injectable } from '@nestjs/common'
 import { AppLoggerFactory } from '../../../../platform/logger'
@@ -74,6 +75,20 @@ export class GitCollectorService {
     sincePeriod: string,
   ): Promise<RepoActivity> {
     const repositoryName = repositoryPath.split('/').pop() ?? repositoryPath
+
+    if (!existsSync(repositoryPath)) {
+      this.logger.warn(
+        `Repository directory not found: ${repositoryPath} — skipping ${repositoryName}`,
+      )
+      return {
+        repoName: repositoryName,
+        repoPath: repositoryPath,
+        currentBranch: '',
+        commits: [],
+        cardNumbers: [],
+        branchCardNumber: null,
+      }
+    }
 
     const fetchResult = await this.fetchRepository(repositoryPath)
 
