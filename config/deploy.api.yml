@@ -20,6 +20,9 @@ servers:
     volumes:
       - /Users/nitoba/repos:/repos
 
+volumes:
+  - /Users/nitoba/repos:/repos
+
 registry:
   server: ghcr.io
   username: nitoba
