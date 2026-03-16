@@ -16,6 +16,8 @@ import {
   TextInputStyle,
 } from 'discord.js'
 import { UserSettingsRepository } from '../../../platform/database/repositories/user-settings.repository'
+import { EventBusService } from '../../../platform/events/event-bus.service'
+import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
 import { DiscordAuthService } from '../services/discord-auth.service'
 import { DiscordAvailableReposService } from '../services/discord-available-repos.service'
 
@@ -37,6 +39,7 @@ export class SettingsInteractionService {
     private readonly auth: DiscordAuthService,
     private readonly settingsRepository: UserSettingsRepository,
     private readonly availableRepos: DiscordAvailableReposService,
+    private readonly eventBus: EventBusService,
   ) {}
 
   async handleCommand(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -215,6 +218,16 @@ export class SettingsInteractionService {
     }
 
     const [standupCron, reminderCron, recoveryCron] = cronLines
+
+    // Read current settings for repo diff
+    const currentSettingsResult = await this.settingsRepository.findByUserId(
+      session.userId,
+    )
+    const previousRepos =
+      currentSettingsResult.isOk() && currentSettingsResult.value
+        ? parseSelectedRepos(currentSettingsResult.value.selectedRepos)
+        : []
+
     const upsertResult = await this.settingsRepository.upsert({
       userId: session.userId,
       standupCron,
@@ -228,6 +241,16 @@ export class SettingsInteractionService {
     if (upsertResult.isErr()) {
       await interaction.editReply('❌ Erro ao salvar configurações.')
       return
+    }
+
+    // Emit event if there are new repos
+    const previousSet = new Set(previousRepos)
+    const newRepos = [...selectedReposRaw].filter((r) => !previousSet.has(r))
+    if (newRepos.length > 0) {
+      this.eventBus.emitSettingsReposChanged({
+        userId: session.userId,
+        selectedRepos: newRepos,
+      })
     }
 
     await interaction.editReply({
@@ -292,15 +315,14 @@ export class SettingsInteractionService {
       .setRequired(true)
       .setMaxLength(100)
 
-    const repoOptions = availableRepos
-      .slice(0, 25)
-      .map((repo) =>
-        new StringSelectMenuOptionBuilder()
-          .setLabel(`${repo.project}/${repo.name}`.slice(0, 100))
-          .setValue(repo.name.slice(0, 100))
-          .setDescription(`Projeto: ${repo.project}`.slice(0, 100))
-          .setDefault(currentSelected.includes(repo.name)),
-      )
+    const repoOptions = availableRepos.slice(0, 25).map((repo) => {
+      const repoIdentifier = `${repo.project}/${repo.name}`
+      return new StringSelectMenuOptionBuilder()
+        .setLabel(repoIdentifier.slice(0, 100))
+        .setValue(repoIdentifier.slice(0, 100))
+        .setDescription(`Projeto: ${repo.project}`.slice(0, 100))
+        .setDefault(currentSelected.includes(repoIdentifier))
+    })
 
     const reposSelect = new StringSelectMenuBuilder()
       .setCustomId('selected-repos')
