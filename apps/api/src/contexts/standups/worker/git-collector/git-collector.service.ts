@@ -17,6 +17,26 @@ interface CommitBlock {
   body: string
 }
 
+type GitCommandResult = Awaited<ReturnType<typeof runGitCommand>>
+type RemoteTransport = 'https' | 'ssh' | 'unsupported'
+type FetchFailureStage =
+  | 'remote_discovery'
+  | 'remote_unsupported'
+  | 'credentials'
+  | 'refspec_resolution'
+  | 'authenticated_fetch'
+
+interface FetchRepositoryResult extends GitCommandResult {
+  failureStage?: FetchFailureStage
+  fetchMode: 'azure-pat-https'
+  httpRemoteUrlSanitized: string | null
+  remoteTransport: RemoteTransport
+  remoteUrlSanitized: string
+}
+
+const DEFAULT_FETCH_REFSPEC = '+refs/heads/*:refs/remotes/origin/*'
+const FETCH_MODE = 'azure-pat-https'
+
 @Injectable()
 export class GitCollectorService {
   private readonly logger: ReturnType<AppLoggerFactory['create']>
@@ -93,9 +113,15 @@ export class GitCollectorService {
     const fetchResult = await this.fetchRepository(repositoryPath)
 
     if (fetchResult.exitCode !== 0) {
-      this.logger.warn(
-        `git fetch failed for ${repositoryName}: ${fetchResult.stderr.toString().trim()}`,
-      )
+      this.logger.warn('Git fetch failed for repository', {
+        error: fetchResult.stderr.toString().trim(),
+        failureStage: fetchResult.failureStage ?? 'authenticated_fetch',
+        fetchMode: fetchResult.fetchMode,
+        httpRemoteUrlSanitized: fetchResult.httpRemoteUrlSanitized,
+        remoteTransport: fetchResult.remoteTransport,
+        remoteUrlSanitized: fetchResult.remoteUrlSanitized,
+        repositoryName,
+      })
     }
 
     const branchResult = await runGitCommand([
@@ -154,7 +180,10 @@ export class GitCollectorService {
     }
   }
 
-  private async fetchRepository(repositoryPath: string) {
+  private async fetchRepository(
+    repositoryPath: string,
+  ): Promise<FetchRepositoryResult> {
+    const repositoryName = repositoryPath.split('/').pop() ?? repositoryPath
     const remoteUrlResult = await runGitCommand([
       '-C',
       repositoryPath,
@@ -163,9 +192,18 @@ export class GitCollectorService {
       'origin',
     ])
     const remoteUrl = remoteUrlResult.stdout.toString().trim()
+    const remoteUrlSanitized = this.sanitizeGitRemoteUrl(remoteUrl)
+    const remoteTransport = this.detectRemoteTransport(remoteUrl)
 
     if (remoteUrlResult.exitCode !== 0) {
-      return remoteUrlResult
+      return {
+        ...remoteUrlResult,
+        failureStage: 'remote_discovery',
+        fetchMode: FETCH_MODE,
+        httpRemoteUrlSanitized: null,
+        remoteTransport,
+        remoteUrlSanitized: remoteUrlSanitized || '<unresolved>',
+      }
     }
 
     const httpRemoteUrl = this.buildAzureDevopsHttpRemoteUrl(remoteUrl)
@@ -173,6 +211,11 @@ export class GitCollectorService {
       return {
         ...remoteUrlResult,
         exitCode: 1,
+        failureStage: 'remote_unsupported',
+        fetchMode: FETCH_MODE,
+        httpRemoteUrlSanitized: null,
+        remoteTransport,
+        remoteUrlSanitized,
         stderr: Buffer.from(
           `Unsupported git remote for PAT fetch: ${remoteUrl || '<empty>'}`,
         ),
@@ -184,11 +227,23 @@ export class GitCollectorService {
       return {
         ...remoteUrlResult,
         exitCode: 1,
+        failureStage: 'credentials',
+        fetchMode: FETCH_MODE,
+        httpRemoteUrlSanitized: httpRemoteUrl,
+        remoteTransport,
+        remoteUrlSanitized,
         stderr: Buffer.from('AZURE_DEVOPS_PAT not configured'),
       }
     }
 
     const authHeader = this.buildAzureDevopsAuthHeader(azurePat)
+    const fetchRefspecs = await this.resolveFetchRefspecs({
+      httpRemoteUrlSanitized: httpRemoteUrl,
+      remoteTransport,
+      remoteUrlSanitized,
+      repositoryPath,
+      repositoryName,
+    })
     const args = [
       '-c',
       'credential.helper=',
@@ -196,26 +251,38 @@ export class GitCollectorService {
       'core.askPass=echo',
       '-c',
       `http.extraheader=${authHeader}`,
-      '-c',
-      `remote.origin.url=${httpRemoteUrl}`,
       '-C',
       repositoryPath,
       'fetch',
-      'origin',
       '--quiet',
+      httpRemoteUrl,
+      ...fetchRefspecs,
     ]
 
-    this.logger.debug(`REPO LINK: ${args.join(' ')}`)
+    this.logger.debug('Fetching repository through Azure DevOps HTTPS PAT', {
+      fetchMode: FETCH_MODE,
+      httpRemoteUrlSanitized: httpRemoteUrl,
+      remoteTransport,
+      remoteUrlSanitized,
+      repositoryName,
+    })
 
-    return runGitCommand(
-      args,
-      {
-        env: {
-          ...process.env,
-          GIT_TERMINAL_PROMPT: '0',
-        },
+    const fetchResult = await runGitCommand(args, {
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
       },
-    )
+    })
+
+    return {
+      ...fetchResult,
+      failureStage:
+        fetchResult.exitCode === 0 ? undefined : 'authenticated_fetch',
+      fetchMode: FETCH_MODE,
+      httpRemoteUrlSanitized: httpRemoteUrl,
+      remoteTransport,
+      remoteUrlSanitized,
+    }
   }
 
   private buildAzureDevopsAuthHeader(pat: string): string {
@@ -256,6 +323,82 @@ export class GitCollectorService {
     }
 
     return null
+  }
+
+  private async resolveFetchRefspecs(options: {
+    httpRemoteUrlSanitized: string
+    remoteTransport: RemoteTransport
+    remoteUrlSanitized: string
+    repositoryName: string
+    repositoryPath: string
+  }): Promise<string[]> {
+    const {
+      httpRemoteUrlSanitized,
+      remoteTransport,
+      remoteUrlSanitized,
+      repositoryName,
+      repositoryPath,
+    } = options
+    const refspecResult = await runGitCommand([
+      '-C',
+      repositoryPath,
+      'config',
+      '--get-all',
+      'remote.origin.fetch',
+    ])
+    const refspecs = refspecResult.stdout
+      .toString()
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+
+    if (refspecResult.exitCode === 0 && refspecs.length > 0) {
+      return refspecs
+    }
+
+    this.logger.warn('Using default git fetch refspec for repository', {
+      error:
+        refspecResult.stderr.toString().trim() ||
+        'remote.origin.fetch not configured',
+      failureStage: 'refspec_resolution',
+      fetchMode: FETCH_MODE,
+      httpRemoteUrlSanitized,
+      remoteTransport,
+      remoteUrlSanitized,
+      repositoryName,
+    })
+
+    return [DEFAULT_FETCH_REFSPEC]
+  }
+
+  private detectRemoteTransport(remoteUrl: string): RemoteTransport {
+    if (remoteUrl.startsWith('https://')) {
+      return 'https'
+    }
+
+    if (
+      remoteUrl.startsWith('git@ssh.dev.azure.com:') ||
+      remoteUrl.startsWith('ssh://git@ssh.dev.azure.com/')
+    ) {
+      return 'ssh'
+    }
+
+    return 'unsupported'
+  }
+
+  private sanitizeGitRemoteUrl(remoteUrl: string): string {
+    if (!remoteUrl.startsWith('https://')) {
+      return remoteUrl
+    }
+
+    try {
+      const parsedUrl = new URL(remoteUrl)
+      parsedUrl.username = ''
+      parsedUrl.password = ''
+      return parsedUrl.toString()
+    } catch {
+      return remoteUrl
+    }
   }
 
   private isRelevantCommitBlock(block: CommitBlock): boolean {
