@@ -189,22 +189,26 @@ export class GitCollectorService {
     }
 
     const authHeader = this.buildAzureDevopsAuthHeader(azurePat)
+    const args = [
+      '-c',
+      'credential.helper=',
+      '-c',
+      'core.askPass=echo',
+      '-c',
+      `http.extraheader=${authHeader}`,
+      '-c',
+      `remote.origin.url=${httpRemoteUrl}`,
+      '-C',
+      repositoryPath,
+      'fetch',
+      'origin',
+      '--quiet',
+    ]
+
+    this.logger.debug(`REPO LINK: ${args.join(' ')}`)
+
     return runGitCommand(
-      [
-        '-c',
-        'credential.helper=',
-        '-c',
-        'core.askPass=echo',
-        '-c',
-        `http.extraheader=${authHeader}`,
-        '-c',
-        `remote.origin.url=${httpRemoteUrl}`,
-        '-C',
-        repositoryPath,
-        'fetch',
-        'origin',
-        '--quiet',
-      ],
+      args,
       {
         env: {
           ...process.env,
