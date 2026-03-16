@@ -1,5 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common'
 import { UserSettingsRepository } from '../../../platform/database/repositories/user-settings.repository'
+import { EventBusService } from '../../../platform/events/event-bus.service'
 import { AppLoggerFactory } from '../../../platform/logger'
 import { LocalDateService } from '../../../platform/time/local-date.service'
 import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
@@ -35,6 +36,7 @@ export class MeSettingsService {
     private readonly loggerFactory: AppLoggerFactory,
     private readonly userSettingsRepository: UserSettingsRepository,
     private readonly localDateService: LocalDateService,
+    private readonly eventBus: EventBusService,
   ) {
     this.logger = this.loggerFactory.create('me-settings-service')
   }
@@ -75,6 +77,13 @@ export class MeSettingsService {
   }
 
   async put(userId: string, body: PutMeSettingsDto): Promise<MeSettingsRecord> {
+    // Read current settings for repo diff
+    const currentResult = await this.userSettingsRepository.findByUserId(userId)
+    const previousRepos =
+      currentResult.isOk() && currentResult.value
+        ? parseSelectedRepos(currentResult.value.selectedRepos)
+        : []
+
     const result = await this.userSettingsRepository.upsert({
       userId,
       standupCron: body.standupCron,
@@ -94,6 +103,16 @@ export class MeSettingsService {
         error: result.error.message,
       })
       throw new InternalServerErrorException('Internal server error')
+    }
+
+    // Emit event if there are new repos
+    const previousSet = new Set(previousRepos)
+    const newRepos = body.selectedRepos.filter((r) => !previousSet.has(r))
+    if (newRepos.length > 0) {
+      this.eventBus.emitSettingsReposChanged({
+        userId,
+        selectedRepos: newRepos,
+      })
     }
 
     return {

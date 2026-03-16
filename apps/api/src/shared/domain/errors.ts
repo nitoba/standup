@@ -80,3 +80,8 @@ export class JobAlreadyCompletedError extends TaggedError(
     })
   }
 }
+
+export class RepoCloneError extends TaggedError('RepoCloneError')<{
+  repo: string
+  message: string
+}>() {}

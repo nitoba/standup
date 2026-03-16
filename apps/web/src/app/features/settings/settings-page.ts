@@ -399,8 +399,8 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                         @for (repo of group.repos; track repo.id) {
                           <z-checkbox
                             zSize="lg"
-                            [zChecked]="isRepoSelected(repo.name)"
-                            (zCheckedChange)="onRepoCheckedChange(repo.name, $event)"
+                            [zChecked]="isRepoSelected(repo.project + '/' + repo.name)"
+                            (zCheckedChange)="onRepoCheckedChange(repo.project + '/' + repo.name, $event)"
                             class="border border-border px-[12px] py-[10px] transition-colors duration-150 hover:bg-accent/30"
                           >
                             <span class="font-[var(--font-jetbrains)] text-[13px] text-foreground flex-1 truncate">

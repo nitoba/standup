@@ -80,3 +80,10 @@ export type JobFailedNotificationEvent = {
   context?: string
   discordUserId?: string
 }
+
+export const SETTINGS_REPOS_CHANGED_EVENT = 'settings.repos-changed'
+
+export type SettingsReposChangedEvent = {
+  userId: string
+  selectedRepos: string[]
+}

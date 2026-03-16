@@ -13,3 +13,29 @@ export function parseSelectedRepos(raw: string): string[] {
     return []
   }
 }
+
+export interface ParsedRepo {
+  project: string
+  name: string
+}
+
+export function parseRepoIdentifier(
+  identifier: string,
+  defaultProject: string,
+): ParsedRepo {
+  const slashCount = (identifier.match(/\//g) ?? []).length
+
+  if (slashCount === 0) {
+    return { project: defaultProject, name: identifier }
+  }
+
+  if (slashCount > 1) {
+    return { project: defaultProject, name: identifier }
+  }
+
+  const slashIndex = identifier.indexOf('/')
+  return {
+    project: identifier.slice(0, slashIndex),
+    name: identifier.slice(slashIndex + 1),
+  }
+}
