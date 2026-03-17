@@ -5,16 +5,17 @@
  * API do serviço de geração, revisão e publicação de standups.
  * OpenAPI spec version: 0.0.1
  */
-import type { PutMeSettingsDtoEmailTheme } from './putMeSettingsDtoEmailTheme';
+import type { PutMeSettingsDtoEmailTheme } from './putMeSettingsDtoEmailTheme'
 
 export interface PutMeSettingsDto {
-  standupCron: string;
-  reminderCron: string;
-  recoveryCron: string;
-  timezone: string;
-  gitAuthor: string;
-  gitSincePeriod?: string;
-  selectedRepos: string[];
-  active?: boolean;
-  emailTheme?: PutMeSettingsDtoEmailTheme;
+  standupCron: string
+  reminderCron: string
+  recoveryCron: string
+  timezone: string
+  gitAuthor?: string
+  gitSincePeriod?: string
+  selectedRepos?: string[]
+  active?: boolean
+  emailTheme?: PutMeSettingsDtoEmailTheme
+  azureDevopsUser?: string
 }
