@@ -1,4 +1,7 @@
-import { InternalServerErrorException } from '@nestjs/common'
+import {
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DbError, Result } from '../../../shared/domain'
 import { MeSettingsService } from './me-settings.service'
@@ -19,6 +22,7 @@ function makeSettingsRow(overrides: Record<string, unknown> = {}) {
     emailTheme: 'dark',
     snoozedUntil: null,
     cancelledDate: null,
+    azureDevopsUser: null,
     ...overrides,
   }
 }
@@ -67,6 +71,7 @@ describe('MeSettingsService', () => {
       emailTheme: 'dark',
       snoozedUntil: null,
       cancelledDate: null,
+      azureDevopsUser: null,
     })
   })
 
@@ -85,6 +90,7 @@ describe('MeSettingsService', () => {
         emailTheme: 'light',
         snoozedUntil: 10,
         cancelledDate: '2026-03-13',
+        azureDevopsUser: 'devops-user',
       }),
     )
 
@@ -100,6 +106,7 @@ describe('MeSettingsService', () => {
       emailTheme: 'light',
       snoozedUntil: 10,
       cancelledDate: '13/03/2026',
+      azureDevopsUser: 'devops-user',
     })
   })
 
@@ -130,6 +137,7 @@ describe('MeSettingsService', () => {
         emailTheme: 'dark',
         snoozedUntil: null,
         cancelledDate: null,
+        azureDevopsUser: null,
       }),
     )
 
@@ -154,6 +162,7 @@ describe('MeSettingsService', () => {
       emailTheme: 'dark',
       snoozedUntil: null,
       cancelledDate: null,
+      azureDevopsUser: null,
     })
     expect(userSettingsRepository.upsert).toHaveBeenCalledWith({
       userId: 'user-1',
@@ -164,7 +173,58 @@ describe('MeSettingsService', () => {
       gitAuthor: 'user@example.com',
       gitSincePeriod: '8 hours ago',
       selectedRepos: '["repo-1"]',
+      azureDevopsUser: null,
     })
+  })
+
+  it('throws BadRequest when neither git source nor board source is configured', async () => {
+    const { service } = createService()
+
+    await expect(
+      service.put('user-1', {
+        standupCron: '1',
+        reminderCron: '2',
+        recoveryCron: '3',
+        timezone: 'America/Fortaleza',
+      }),
+    ).rejects.toThrow(BadRequestException)
+  })
+
+  it('allows board-only configuration without git repos', async () => {
+    const { service, userSettingsRepository } = createService()
+    userSettingsRepository.findByUserId.mockResolvedValue(Result.ok(null))
+    userSettingsRepository.upsert.mockResolvedValue(
+      Result.ok({
+        standupCron: '1',
+        reminderCron: '2',
+        recoveryCron: '3',
+        timezone: 'America/Fortaleza',
+        gitAuthor: '',
+        gitSincePeriod: '8 hours ago',
+        selectedRepos: '[]',
+        active: true,
+        emailTheme: 'dark',
+        snoozedUntil: null,
+        cancelledDate: null,
+        azureDevopsUser: 'devops-user',
+      }),
+    )
+
+    await expect(
+      service.put('user-1', {
+        standupCron: '1',
+        reminderCron: '2',
+        recoveryCron: '3',
+        timezone: 'America/Fortaleza',
+        azureDevopsUser: 'devops-user',
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        azureDevopsUser: 'devops-user',
+        gitAuthor: '',
+        selectedRepos: [],
+      }),
+    )
   })
 
   describe('put — event emission', () => {
