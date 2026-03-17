@@ -68,11 +68,13 @@ export class StandupDispatchService {
     }
 
     const selectedRepos = parseSelectedRepos(settingsResult.value.selectedRepos)
-    if (selectedRepos.length === 0) {
+    const azureDevopsUser = settingsResult.value.azureDevopsUser?.trim() || ''
+    if (selectedRepos.length === 0 && !azureDevopsUser) {
       return Result.err(
         new ValidationError({
-          field: 'selectedRepos',
-          message: 'No repositories selected',
+          field: 'sources',
+          message:
+            'At least one data source must be configured (git repos or Azure DevOps user)',
         }),
       )
     }
@@ -82,6 +84,7 @@ export class StandupDispatchService {
       discordUserId: discordResult.value,
       selectedRepos,
       gitAuthor: settingsResult.value.gitAuthor,
+      azureDevopsUser: azureDevopsUser || undefined,
       timezone: settingsResult.value.timezone,
       gitSincePeriod: settingsResult.value.gitSincePeriod,
     })

@@ -5,6 +5,7 @@ export interface StandupJobOptions {
   discordUserId: string
   selectedRepos: string[]
   gitAuthor: string
+  azureDevopsUser?: string
   timezone: string
   gitSincePeriod?: string
   extraContext?: string
@@ -17,6 +18,7 @@ export interface StandupJobOptions {
 
 export type StrategyProgressStep =
   | 'collecting_git'
+  | 'collecting_board'
   | 'enriching_data'
   | 'generating_standup'
 
