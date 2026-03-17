@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { StandupRepository } from '../../../../../platform/database/repositories/standup.repository'
 import {
-  GenerateStandupInputSchema,
+  parseSourceData,
   Result,
   ValidationError,
 } from '../../../../../shared/domain'
@@ -12,32 +12,6 @@ import type {
   StrategyResult,
 } from '../types'
 import { StandupStrategyBase } from './standup-strategy.base'
-
-function parseStoredGitActivity(sourceData: string) {
-  try {
-    const parsed = JSON.parse(sourceData) as unknown
-    const validated =
-      GenerateStandupInputSchema.shape.gitActivity.safeParse(parsed)
-
-    if (!validated.success) {
-      return Result.err(
-        new ValidationError({
-          field: 'sourceData',
-          message: 'Stored sourceData is invalid and cannot be reused',
-        }),
-      )
-    }
-
-    return Result.ok(validated.data)
-  } catch {
-    return Result.err(
-      new ValidationError({
-        field: 'sourceData',
-        message: 'Stored sourceData is not valid JSON',
-      }),
-    )
-  }
-}
 
 @Injectable()
 export class ExecuteRegenerateStrategy extends StandupStrategyBase {
@@ -69,18 +43,17 @@ export class ExecuteRegenerateStrategy extends StandupStrategyBase {
       return existingResult
     }
 
-    const gitActivityResult = parseStoredGitActivity(
-      existingResult.value.sourceData,
-    )
-    if (gitActivityResult.isErr()) {
-      return gitActivityResult
+    const sourceData = parseSourceData(existingResult.value.sourceData)
+    if (sourceData.isErr()) {
+      return sourceData
     }
 
     const regenerated = await this.standupGenerator.generateStandup(
       {
         date: today,
         meetingType: existingResult.value.meetingType,
-        gitActivity: gitActivityResult.value,
+        gitActivity: sourceData.value.git ?? undefined,
+        boardActivity: sourceData.value.board ?? undefined,
         extraContext: options.extraContext?.trim() || undefined,
       },
       async (stage) => {
