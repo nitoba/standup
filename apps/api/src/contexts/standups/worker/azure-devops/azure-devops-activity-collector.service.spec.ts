@@ -151,13 +151,24 @@ describe('AzureDevopsActivityCollectorService', () => {
     const result = await service.collect('John Doe', '8 hours ago')
 
     expect(result).not.toBeNull()
-    expect(result!.workItems).toHaveLength(1)
-    expect(result!.workItems[0]!.id).toBe(101)
-    expect(result!.workItems[0]!.title).toBe('Fix login bug')
-    expect(result!.workItems[0]!.actions).toHaveLength(1)
-    expect(result!.workItems[0]!.actions[0]!.type).toBe('state_change')
-    expect(result!.workItems[0]!.actions[0]!.details).toContain('New')
-    expect(result!.workItems[0]!.actions[0]!.details).toContain('Active')
+    if (result === null) throw new Error('Expected non-null result')
+    expect(result.workItems).toHaveLength(1)
+    const item =
+      result.workItems[0] ??
+      (() => {
+        throw new Error('Expected item')
+      })()
+    expect(item.id).toBe(101)
+    expect(item.title).toBe('Fix login bug')
+    expect(item.actions).toHaveLength(1)
+    const action =
+      item.actions[0] ??
+      (() => {
+        throw new Error('Expected action')
+      })()
+    expect(action.type).toBe('state_change')
+    expect(action.details).toContain('New')
+    expect(action.details).toContain('Active')
   })
 
   it('filters updates to only those by the configured user', async () => {
@@ -199,10 +210,21 @@ describe('AzureDevopsActivityCollectorService', () => {
     const result = await service.collect('John Doe', '8 hours ago')
 
     expect(result).not.toBeNull()
-    expect(result!.workItems).toHaveLength(1)
+    if (result === null) throw new Error('Expected non-null result')
+    expect(result.workItems).toHaveLength(1)
     // Only John Doe's update should be included
-    expect(result!.workItems[0]!.actions).toHaveLength(1)
-    expect(result!.workItems[0]!.actions[0]!.type).toBe('state_change')
+    const item =
+      result.workItems[0] ??
+      (() => {
+        throw new Error('Expected item')
+      })()
+    expect(item.actions).toHaveLength(1)
+    const action =
+      item.actions[0] ??
+      (() => {
+        throw new Error('Expected action')
+      })()
+    expect(action.type).toBe('state_change')
   })
 
   it('continues to next project when one project query fails', async () => {
@@ -255,8 +277,14 @@ describe('AzureDevopsActivityCollectorService', () => {
     const result = await service.collect('John Doe', '8 hours ago')
 
     expect(result).not.toBeNull()
-    expect(result!.workItems).toHaveLength(1)
-    expect(result!.workItems[0]!.id).toBe(201)
+    if (result === null) throw new Error('Expected non-null result')
+    expect(result.workItems).toHaveLength(1)
+    const item =
+      result.workItems[0] ??
+      (() => {
+        throw new Error('Expected item')
+      })()
+    expect(item.id).toBe(201)
     expect(logger.warn).toHaveBeenCalled()
   })
 
