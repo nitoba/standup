@@ -14,19 +14,46 @@ Add a second collector that queries the Azure DevOps REST API for board activity
 
 ## Architecture
 
-### New module: `azure-devops-activity`
+### Unified `azure-devops` module
 
-Location: `apps/api/src/contexts/standups/worker/azure-devops-activity/`
+Location: `apps/api/src/contexts/standups/worker/azure-devops/`
 
-Files:
-- `azure-devops-rest-client.service.ts` — HTTP client for Azure DevOps REST API
-- `azure-devops-activity-collector.service.ts` — orchestrates WIQL + updates into `GatheredBoardActivity`
-- `types.ts` — board activity types
-- `azure-devops-activity.module.ts` — NestJS module
+The existing `AzureDevopsModule` already contains the MCP client and enrichment service. The REST client and activity collector are added to this same module. Azure DevOps is a single integration with two transport mechanisms (MCP for git enrichment, REST for board activity). One module, one source of truth.
 
-This module is separate from the existing `azure-devops/` module (which handles MCP-based enrichment for git commits). Each has a distinct responsibility:
-- `azure-devops/` — enriches git commits with work item details (via MCP)
-- `azure-devops-activity/` — collects board activity as a standalone data source (via REST API)
+Current files:
+- `azure-devops-mcp-client.service.ts` — MCP client (git enrichment, work item details, PR lists)
+- `azure-devops-enrichment.service.ts` — enrichment orchestration for git commits
+- `azure-devops.module.ts` — NestJS module
+- `types.ts` — shared types
+
+New files added to the same directory:
+- `azure-devops-rest-client.service.ts` — HTTP client for Azure DevOps REST API (WIQL, batch work items, updates)
+- `azure-devops-activity-collector.service.ts` — orchestrates REST client to produce `GatheredBoardActivity`
+
+Updated module registration:
+```ts
+@Module({
+  imports: [WorkerRuntimeConfigModule],
+  providers: [
+    AzureDevopsMcpClientService,
+    AzureDevopsEnrichmentService,
+    AzureDevopsRestClientService,       // new
+    AzureDevopsActivityCollectorService, // new
+  ],
+  exports: [
+    AzureDevopsMcpClientService,
+    AzureDevopsEnrichmentService,
+    AzureDevopsRestClientService,       // new
+    AzureDevopsActivityCollectorService, // new
+  ],
+})
+export class AzureDevopsModule {}
+```
+
+Consumers inject what they need:
+- `StandupGeneratorService` injects `AzureDevopsEnrichmentService` (existing — for git enrichment)
+- `ExecuteGenerateStrategy` injects `AzureDevopsActivityCollectorService` (new — for board activity)
+- Both clients share the same PAT and org config via `WorkerRuntimeConfigService`
 
 ### REST API Client
 
@@ -456,7 +483,7 @@ Follows the existing `enrichWithFallback` pattern — graceful degradation:
 | Board returns no activity | `null` (not an error) |
 | One project fails in board collector | Log warning, continue to next project |
 
-No new TaggedErrors. `ExternalServiceError` with `service: 'azure-devops-rest'` covers REST API failures. Transient errors (timeout, 429) are retryable via existing `withRetry`.
+No new TaggedErrors. `ExternalServiceError` with `service: 'azure-devops'` covers REST API failures (same service identifier as MCP errors — they're the same integration). Transient errors (timeout, 429) are retryable via existing `withRetry`.
 
 ## Settings UI
 
@@ -486,11 +513,11 @@ The Angular settings page gains an input field for `azureDevopsUser` alongside t
 
 ### Integration considerations
 
-The REST API calls are isolated behind `AzureDevopsRestClientService`, making the collector fully testable without network access. The existing MCP-based enrichment remains unchanged.
+The REST API calls are isolated behind `AzureDevopsRestClientService`, making the collector fully testable without network access. Both clients (MCP and REST) live in the same module but have no runtime dependency on each other — mocking one does not affect the other.
 
 ## Non-goals
 
-- Replacing the MCP client for git enrichment — the existing flow works and is not touched
+- Replacing the MCP client for git enrichment — both transports coexist in the same module, each serving its purpose
 - Supporting data sources beyond Azure DevOps (Jira, Linear, etc.) — out of scope
 - Role-specific standup templates (different format for QA vs PM) — the LLM adapts naturally based on the type of activity data it receives
 - Webhooks or real-time event ingestion — polling via WIQL is sufficient for daily standup generation
