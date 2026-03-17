@@ -162,6 +162,7 @@ export type StandupGenerationMode = 'generate' | 'regenerate' | 'adjust'
 export type StandupProgressStep =
   | 'queued'
   | 'collecting_git'
+  | 'collecting_board'
   | 'enriching_data'
   | 'generating_standup'
   | 'saving_draft'

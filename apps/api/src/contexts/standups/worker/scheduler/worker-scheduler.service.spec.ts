@@ -31,6 +31,7 @@ function makeSettings(
     snoozedUntil: null,
     cancelledDate: null,
     emailTheme: 'dark',
+    azureDevopsUser: null,
     createdAt: 0,
     updatedAt: 0,
     ...overrides,

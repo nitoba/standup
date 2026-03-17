@@ -7,6 +7,7 @@ export type StandupSseEvent =
       step:
         | 'queued'
         | 'collecting_git'
+        | 'collecting_board'
         | 'enriching_data'
         | 'generating_standup'
         | 'saving_draft'
