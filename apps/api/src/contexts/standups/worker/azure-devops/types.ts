@@ -1,5 +1,12 @@
 import type { CommitInfo } from '../../../../shared/domain'
 
+export type {
+  BoardAction,
+  BoardActionType,
+  BoardWorkItemActivity,
+  GatheredBoardActivity,
+} from '../../../../shared/domain'
+
 export interface WorkItemDetail {
   id: string
   title: string
@@ -39,34 +46,6 @@ export interface RepoInfo {
   name: string
   id: string
   project: string
-}
-
-export type BoardActionType =
-  | 'created'
-  | 'state_change'
-  | 'assigned'
-  | 'commented'
-  | 'field_changed'
-
-export interface BoardAction {
-  type: BoardActionType
-  timestamp: string
-  details: string
-}
-
-export interface BoardWorkItemActivity {
-  id: number
-  title: string
-  type: string
-  state: string
-  assignedTo: string
-  project: string
-  actions: BoardAction[]
-}
-
-export interface GatheredBoardActivity {
-  timestamp: string
-  workItems: BoardWorkItemActivity[]
 }
 
 export interface WorkItemResponse {

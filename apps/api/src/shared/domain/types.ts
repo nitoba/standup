@@ -52,10 +52,44 @@ export interface GatheredGitActivity {
   repos: RepoActivity[]
 }
 
+export type BoardActionType =
+  | 'created'
+  | 'state_change'
+  | 'assigned'
+  | 'commented'
+  | 'field_changed'
+
+export interface BoardAction {
+  type: BoardActionType
+  timestamp: string
+  details: string
+}
+
+export interface BoardWorkItemActivity {
+  id: number
+  title: string
+  type: string
+  state: string
+  assignedTo: string
+  project: string
+  actions: BoardAction[]
+}
+
+export interface GatheredBoardActivity {
+  timestamp: string
+  workItems: BoardWorkItemActivity[]
+}
+
+export interface StandupSourceData {
+  git: GatheredGitActivity | null
+  board: GatheredBoardActivity | null
+}
+
 export interface GenerateStandupInput {
   date: string
   meetingType: string
-  gitActivity: GatheredGitActivity
+  gitActivity?: GatheredGitActivity
+  boardActivity?: GatheredBoardActivity
   extraContext?: string
 }
 
