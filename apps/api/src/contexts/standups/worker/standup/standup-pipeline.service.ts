@@ -64,11 +64,26 @@ export class StandupPipelineService {
       })
 
       if (options.discordUserId.trim()) {
+        const hasGit =
+          options.selectedRepos.length > 0 &&
+          options.gitAuthor.trim().length > 0
+        const hasBoard = !!options.azureDevopsUser?.trim()
+        let noActivityMessage: string
+        if (hasGit && hasBoard) {
+          noActivityMessage =
+            'Não encontrei commits nem atividade no board hoje. Verifique suas configurações.'
+        } else if (hasBoard) {
+          noActivityMessage =
+            'Não encontrei atividade no board do Azure DevOps hoje. Verifique suas configurações.'
+        } else {
+          noActivityMessage =
+            'Não encontrei commits hoje nos repositórios configurados. Verifique suas configurações.'
+        }
+
         this.notifications.notifyUserDm({
           discordUserId: options.discordUserId,
           title: '🔍 Nenhuma atividade encontrada',
-          message:
-            'Não encontrei commits hoje nos repositórios configurados. Verifique suas configurações.',
+          message: noActivityMessage,
           color: 0xf39c12,
         })
       }
