@@ -54,14 +54,18 @@ export class StandupGeneratorService {
 
     return Result.gen(
       async function* (this: StandupGeneratorService) {
-        await onStageChange?.('enriching_data')
-        const enrichedActivity = await this.enrichWithFallback(
-          input.gitActivity,
-        )
+        let enrichedActivity: EnrichedGitActivity | undefined
+        if (input.gitActivity) {
+          await onStageChange?.('enriching_data')
+          enrichedActivity = await this.enrichWithFallback(input.gitActivity)
+        }
 
         await onStageChange?.('generating_standup')
         const provider = createGoogleGenerativeAI({ apiKey })
-        const systemPrompt = this.standupPrompt.buildSystemPrompt()
+        const systemPrompt = this.standupPrompt.buildSystemPrompt({
+          hasGit: !!input.gitActivity,
+          hasBoard: !!input.boardActivity,
+        })
 
         let generated = yield* Result.await(
           this.withRetry(
@@ -152,7 +156,10 @@ export class StandupGeneratorService {
 
         await onStageChange?.('generating_standup')
         const provider = createGoogleGenerativeAI({ apiKey })
-        const systemPrompt = this.standupPrompt.buildSystemPrompt()
+        const systemPrompt = this.standupPrompt.buildSystemPrompt({
+          hasGit: true,
+          hasBoard: false,
+        })
 
         let adjusted = yield* Result.await(
           this.withRetry(
