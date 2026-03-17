@@ -26,6 +26,7 @@ function buildMockSettings() {
     snoozedUntil: null,
     cancelledDate: null,
     emailTheme: 'dark' as const,
+    azureDevopsUser: null,
   }
 }
 
@@ -246,6 +247,7 @@ describe('SettingsPage', () => {
       selectedRepos: ['AGROTRACE/agrotrace-web', 'AGROTRACE/agrotrace-api'],
       active: true,
       emailTheme: 'dark',
+      azureDevopsUser: '',
     })
     putReq.flush({ data: buildMockSettings() })
     await settleFixture()

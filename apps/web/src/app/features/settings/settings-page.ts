@@ -361,6 +361,46 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
               </div>
             </div>
 
+            <!-- Azure DevOps section -->
+            <div
+              class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]"
+            >
+              <div class="flex items-center gap-[8px]">
+                <span
+                  class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[14px]"
+                  >//</span
+                >
+                <span
+                  class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-medium"
+                  >azure_devops</span
+                >
+              </div>
+              <div
+                class="grid grid-cols-1 md:grid-cols-2 gap-[16px] md:gap-[24px]"
+              >
+                <div class="flex flex-col gap-[6px]">
+                  <label
+                    for="azure-devops-user"
+                    class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
+                    >nome_azure_devops</label
+                  >
+                  <input
+                    id="azure-devops-user"
+                    type="text"
+                    z-input
+                    [formField]="settingsForm.azureDevopsUser"
+                  />
+                  <span
+                    class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]"
+                  >
+                    // informe seu nome de exibição exatamente como aparece no
+                    Azure DevOps. Este nome é usado para buscar sua atividade no
+                    board.
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <!-- Selected repositories section -->
             <div
               class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]"
@@ -537,6 +577,7 @@ export class SettingsPage {
     selectedRepos: [],
     active: false,
     emailTheme: 'dark',
+    azureDevopsUser: '',
   })
 
   readonly availableRepos = computed<RepoOption[]>(() =>
@@ -579,7 +620,6 @@ export class SettingsPage {
     required(s.reminderCron, { message: 'expressão cron obrigatória' })
     required(s.recoveryCron, { message: 'expressão cron obrigatória' })
     required(s.timezone, { message: 'fuso horário obrigatório' })
-    required(s.gitAuthor, { message: 'autor do git obrigatório' })
   })
 
   constructor() {
@@ -679,6 +719,7 @@ export class SettingsPage {
         selectedRepos: settings.selectedRepos,
         active: settings.active,
         emailTheme: settings.emailTheme,
+        azureDevopsUser: settings.azureDevopsUser ?? '',
       })
       this.loading.set(false)
     } catch {

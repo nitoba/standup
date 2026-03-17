@@ -65,6 +65,7 @@ export interface SettingsDto {
   active: boolean
   snoozedUntil: number | null
   cancelledDate: string | null
+  azureDevopsUser?: string | null
 }
 
 export type GetSettingsResponseDto = ApiDataResponseDto<SettingsDto>
