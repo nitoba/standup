@@ -85,6 +85,7 @@ export class StandupDispatchService {
       selectedRepos,
       gitAuthor: settingsResult.value.gitAuthor,
       azureDevopsUser: azureDevopsUser || undefined,
+      azureDevopsUuid: settingsResult.value.azureDevopsUuid || undefined,
       timezone: settingsResult.value.timezone,
       gitSincePeriod: settingsResult.value.gitSincePeriod,
     })

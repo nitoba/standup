@@ -94,12 +94,15 @@ export class WorkerSchedulerService {
 
     if (isCronDueNow(settings.standupCron, timezone, now)) {
       const selectedRepos = parseSelectedRepos(settings.selectedRepos)
-      if (selectedRepos.length > 0) {
+      const azureDevopsUser = settings.azureDevopsUser || undefined
+      if (selectedRepos.length > 0 || azureDevopsUser) {
         this.standupDispatch.dispatchStandupJob({
           userId: settings.userId,
           discordUserId: discordResult.value,
           selectedRepos,
           gitAuthor: settings.gitAuthor,
+          azureDevopsUser,
+          azureDevopsUuid: settings.azureDevopsUuid || undefined,
           timezone,
           gitSincePeriod: settings.gitSincePeriod,
         })
@@ -129,12 +132,15 @@ export class WorkerSchedulerService {
       }
 
       const recoveryRepos = parseSelectedRepos(settings.selectedRepos)
-      if (recoveryRepos.length > 0) {
+      const recoveryAzureUser = settings.azureDevopsUser || undefined
+      if (recoveryRepos.length > 0 || recoveryAzureUser) {
         this.standupDispatch.dispatchStandupJob({
           userId: settings.userId,
           discordUserId: discordResult.value,
           selectedRepos: recoveryRepos,
           gitAuthor: settings.gitAuthor,
+          azureDevopsUser: recoveryAzureUser,
+          azureDevopsUuid: settings.azureDevopsUuid || undefined,
           timezone,
           gitSincePeriod: settings.gitSincePeriod,
         })

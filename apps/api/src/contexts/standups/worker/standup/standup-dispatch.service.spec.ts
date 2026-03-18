@@ -163,6 +163,40 @@ describe('StandupDispatchService', () => {
     })
   })
 
+  it('should include azureDevopsUuid in job options when available in settings', async () => {
+    const run = vi.fn().mockResolvedValue(undefined)
+    const service = new StandupDispatchService(
+      makeLoggerFactory() as never,
+      {
+        findDiscordIdByUserId: vi
+          .fn()
+          .mockResolvedValue(Result.ok('discord-1')),
+      } as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(
+          Result.ok({
+            selectedRepos: '["repo-a"]',
+            gitAuthor: 'nitoba',
+            azureDevopsUser: 'john@company.com',
+            azureDevopsUuid: 'resolved-uuid-123',
+            timezone: 'America/Sao_Paulo',
+            gitSincePeriod: '8 hours ago',
+          }),
+        ),
+      } as never,
+      { run } as never,
+    )
+
+    const result = await service.dispatchStandupJobForUser('user-1')
+
+    expect(result.isOk()).toBe(true)
+    expect(run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        azureDevopsUuid: 'resolved-uuid-123',
+      }),
+    )
+  })
+
   it('dispatches standup jobs directly', () => {
     const run = vi.fn().mockResolvedValue(undefined)
     const service = new StandupDispatchService(
