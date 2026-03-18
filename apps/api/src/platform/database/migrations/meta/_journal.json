@@ -15,6 +15,13 @@
       "when": 1773709716999,
       "tag": "0001_kind_lenny_balinger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1773841926829,
+      "tag": "0002_yellow_dreadnoughts",
+      "breakpoints": true
     }
   ]
 }

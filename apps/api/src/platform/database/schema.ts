@@ -114,6 +114,7 @@ export const userSettings = sqliteTable('user_settings', {
   selectedRepos: text('selected_repos').notNull().default('[]'),
   gitAuthor: text('git_author').notNull(),
   azureDevopsUser: text('azure_devops_user'),
+  azureDevopsUuid: text('azure_devops_uuid'),
   gitSincePeriod: text('git_since_period').notNull().default('8 hours ago'),
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
   snoozedUntil: integer('snoozed_until'),

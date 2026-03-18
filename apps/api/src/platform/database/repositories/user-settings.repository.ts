@@ -17,6 +17,7 @@ export interface UpsertUserSettingsInput {
   active?: boolean
   emailTheme?: 'light' | 'dark'
   azureDevopsUser?: string | null
+  azureDevopsUuid?: string | null
 }
 
 @Injectable()
@@ -83,6 +84,7 @@ export class UserSettingsRepository {
           active: input.active ?? true,
           emailTheme: input.emailTheme ?? 'dark',
           azureDevopsUser: input.azureDevopsUser ?? null,
+          azureDevopsUuid: input.azureDevopsUuid ?? null,
           createdAt: now,
           updatedAt: now,
         })
@@ -116,6 +118,9 @@ export class UserSettingsRepository {
             }),
             ...(input.azureDevopsUser !== undefined && {
               azureDevopsUser: input.azureDevopsUser,
+            }),
+            ...(input.azureDevopsUuid !== undefined && {
+              azureDevopsUuid: input.azureDevopsUuid,
             }),
             updatedAt: now,
           },
