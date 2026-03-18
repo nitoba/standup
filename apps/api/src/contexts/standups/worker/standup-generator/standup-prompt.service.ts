@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { LocalDateService } from '../../../../platform/time/local-date.service'
 import type {
+  GatheredBoardActivity,
   GenerateStandupInput,
   StandupRecord,
 } from '../../../../shared/domain'
@@ -24,7 +25,17 @@ export class StandupPromptService {
     return ''
   }
 
-  buildSystemPrompt(): string {
+  buildSystemPrompt(sources: { hasGit: boolean; hasBoard: boolean }): string {
+    if (sources.hasGit && sources.hasBoard) {
+      return this.buildHybridSystemPrompt()
+    }
+    if (sources.hasBoard) {
+      return this.buildBoardOnlySystemPrompt()
+    }
+    return this.buildGitOnlySystemPrompt()
+  }
+
+  private buildGitOnlySystemPrompt(): string {
     return `Você é um assistente especializado em gerar relatórios de standup diário para desenvolvedores.
 
 Você receberá dados estruturados de commits git e informações enriquecidas do Azure DevOps.
@@ -91,9 +102,110 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
 - Ex: "Corrigi bugs no cadastro de propriedades e implementei filtro avançado na listagem de lotes"`
   }
 
+  private buildBoardOnlySystemPrompt(): string {
+    return `Você é um assistente especializado em gerar relatórios de standup diário para desenvolvedores.
+
+Você receberá dados de atividade no board do Azure DevOps (work items com ações realizadas pelo usuário).
+Sua tarefa é gerar um relatório de standup em português, formatado conforme as regras abaixo.
+
+## Regras de Formatação
+
+**Header:**
+- Formato: \`**Standup (DD/MM/YYYY)**\`
+- Se houver tipo de reunião (meetingType), adicionar na linha seguinte
+- Se meetingType estiver vazio, não incluir a linha
+
+**Body — por projeto:**
+\`\`\`
+**📌 <nome-do-projeto>**
+
+**✅ Done:**
+➜ #<id-work-item> - <título-do-work-item>
+\t➜ <descrição das ações realizadas>
+
+**🚧 (In Progress):**
+➜ #<id-work-item> - <título-do-work-item>
+\t➜ <descrição das ações realizadas>
+
+---
+\`\`\`
+
+**Classificação de status:**
+- **Done**: Work items com estado "Done" ou "Closed" ou "Resolved"
+- **In Progress**: Todos os outros estados (New, Active, In Progress, etc.)
+
+**Regras importantes:**
+- Use \`➜\` para bullets aninhados (não use \`-\` ou \`*\`)
+- Agrupe work items por projeto
+- Descreva as ações realizadas (mudança de estado, comentários, atribuição, etc.)
+- Se não houver itens Done, omitir a seção Done; idem para In Progress
+- Inclua apenas o trabalho do usuário atual
+- O relatório deve ser conciso mas informativo
+- O campo \`content\` final deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres (incluindo espaços, quebras de linha e markdown)
+
+**summary:**
+- Uma frase curta em português resumindo o que foi feito no dia
+- Ex: "Atualizei status de cards no board e comentei em itens de bug"`
+  }
+
+  private buildHybridSystemPrompt(): string {
+    return `Você é um assistente especializado em gerar relatórios de standup diário para desenvolvedores.
+
+Você receberá dados de duas fontes: commits git com informações enriquecidas E atividade no board do Azure DevOps.
+Sua tarefa é consolidar ambas as fontes e gerar um relatório de standup em português, formatado conforme as regras abaixo.
+
+## Regras de Formatação
+
+**Header:**
+- Formato: \`**Standup (DD/MM/YYYY)**\`
+- Se houver tipo de reunião (meetingType), adicionar na linha seguinte
+- Se meetingType estiver vazio, não incluir a linha
+
+**Body — por projeto/repositório:**
+\`\`\`
+**📌 <nome-do-repositório-ou-projeto>**
+
+**✅ Done:**
+➜ #<número-card> - <título-do-card>
+\t➜ **Correções:**
+\t\t➜ <descrição da correção>
+\t➜ **Melhorias Técnicas:**
+\t\t➜ <descrição da melhoria>
+
+**🚧 (In Progress):**
+➜ #<número-card> - <título-do-card>
+\t➜ <descrição>
+
+---
+\`\`\`
+
+**Consolidação de duas fontes:**
+- Se um work item aparece tanto nos commits git quanto na atividade do board, consolide as informações num único item
+- Evite dados duplicados: prefira o título do Azure DevOps sobre títulos inferidos de commits
+- Commits sem card associado devem aparecer normalmente sem prefixo \`#\`
+- Work items do board que não têm commits correspondentes aparecem apenas com a descrição das ações
+
+**Categorias de conteúdo:**
+- **Correções**: Bugs, problemas resolvidos, fixes
+- **Melhorias Técnicas**: Refatoração, otimizações, novas utilidades, novos componentes
+
+**Regras importantes:**
+- Use \`➜\` para bullets aninhados (não use \`-\` ou \`*\`)
+- Inclua caminhos de arquivo quando relevante
+- Apenas inclua seções **Correções** ou **Melhorias Técnicas** que tenham conteúdo
+- Se não houver itens Done, omitir a seção Done; idem para In Progress
+- Inclua apenas o trabalho do usuário atual
+- O relatório deve ser conciso mas informativo
+- O campo \`content\` final deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres (incluindo espaços, quebras de linha e markdown)
+
+**summary:**
+- Uma frase curta em português resumindo o que foi feito no dia
+- Ex: "Corrigi bugs no cadastro de propriedades e atualizei status de cards no board"`
+  }
+
   buildUserMessage(
     input: GenerateStandupInput,
-    enrichedActivity: EnrichedGitActivity,
+    enrichedActivity?: EnrichedGitActivity,
   ): string {
     const formattedDate = this.localDateService.formatIsoForTimezone(
       input.date,
@@ -108,6 +220,45 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
       '',
     ]
 
+    if (enrichedActivity) {
+      this.appendGitSections(sections, enrichedActivity)
+    }
+
+    if (input.boardActivity) {
+      this.appendBoardSections(sections, input.boardActivity)
+    }
+
+    if (enrichedActivity && input.boardActivity) {
+      sections.push(
+        '## Nota: os dados acima podem conter informações duplicadas entre commits git e atividade do board. Consolide e evite dados duplicados no relatório final.',
+      )
+      sections.push('')
+    }
+
+    if (input.extraContext) {
+      sections.push('## Contexto adicional fornecido pelo usuário:')
+      sections.push(input.extraContext)
+      sections.push('')
+    }
+
+    sections.push('---')
+    sections.push(
+      'Gere o relatório de standup seguindo EXATAMENTE o formato especificado no system prompt.',
+    )
+    sections.push(
+      `Limite obrigatório: "content" deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres.`,
+    )
+    sections.push(
+      'Retorne um objeto JSON com "content" (relatório completo em markdown) e "summary" (frase resumo).',
+    )
+
+    return sections.join('\n')
+  }
+
+  private appendGitSections(
+    sections: string[],
+    enrichedActivity: EnrichedGitActivity,
+  ): void {
     for (const repo of enrichedActivity.repos) {
       sections.push(`## Repositório: ${repo.repoName}`)
       sections.push('')
@@ -164,25 +315,26 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
         sections.push('')
       }
     }
+  }
 
-    if (input.extraContext) {
-      sections.push('## Contexto adicional fornecido pelo usuário:')
-      sections.push(input.extraContext)
+  private appendBoardSections(
+    sections: string[],
+    boardActivity: GatheredBoardActivity,
+  ): void {
+    sections.push('## Atividade no Board do Azure DevOps')
+    sections.push('')
+
+    for (const item of boardActivity.workItems) {
+      const actionSummary = item.actions
+        .map((a) => `${a.type}: ${a.details}`)
+        .join('; ')
+      sections.push(
+        `- **#${item.id}** — ${item.title} [${item.state}] (${item.project})`,
+      )
+      sections.push(`  Tipo: ${item.type}`)
+      sections.push(`  Ações: ${actionSummary}`)
       sections.push('')
     }
-
-    sections.push('---')
-    sections.push(
-      'Gere o relatório de standup seguindo EXATAMENTE o formato especificado no system prompt.',
-    )
-    sections.push(
-      `Limite obrigatório: "content" deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres.`,
-    )
-    sections.push(
-      'Retorne um objeto JSON com "content" (relatório completo em markdown) e "summary" (frase resumo).',
-    )
-
-    return sections.join('\n')
   }
 
   buildRewriteUserMessage(content: string, summary: string): string {

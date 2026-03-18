@@ -54,14 +54,21 @@ export class StandupGeneratorService {
 
     return Result.gen(
       async function* (this: StandupGeneratorService) {
-        await onStageChange?.('enriching_data')
-        const enrichedActivity = await this.enrichWithFallback(
-          input.gitActivity,
-        )
+        let enrichedActivity: EnrichedGitActivity | undefined
+        if (input.gitActivity) {
+          await onStageChange?.('enriching_data')
+          enrichedActivity = await this.enrichWithFallback(
+            input.gitActivity,
+            input.azureDevopsUuid,
+          )
+        }
 
         await onStageChange?.('generating_standup')
         const provider = createGoogleGenerativeAI({ apiKey })
-        const systemPrompt = this.standupPrompt.buildSystemPrompt()
+        const systemPrompt = this.standupPrompt.buildSystemPrompt({
+          hasGit: !!input.gitActivity,
+          hasBoard: !!input.boardActivity,
+        })
 
         let generated = yield* Result.await(
           this.withRetry(
@@ -152,7 +159,10 @@ export class StandupGeneratorService {
 
         await onStageChange?.('generating_standup')
         const provider = createGoogleGenerativeAI({ apiKey })
-        const systemPrompt = this.standupPrompt.buildSystemPrompt()
+        const systemPrompt = this.standupPrompt.buildSystemPrompt({
+          hasGit: true,
+          hasBoard: false,
+        })
 
         let adjusted = yield* Result.await(
           this.withRetry(
@@ -257,9 +267,14 @@ export class StandupGeneratorService {
 
   private async enrichWithFallback(
     gitActivity: GatheredGitActivity,
+    azureDevopsUuid?: string,
   ): Promise<EnrichedGitActivity> {
     const enrichmentResult = await this.withRetry(
-      () => this.azureDevopsEnrichment.enrichGitActivity(gitActivity),
+      () =>
+        this.azureDevopsEnrichment.enrichGitActivity(
+          gitActivity,
+          azureDevopsUuid,
+        ),
       'Azure DevOps enrichment',
       2,
       3_000,
@@ -271,7 +286,7 @@ export class StandupGeneratorService {
 
     return {
       timestamp: gitActivity.timestamp,
-      userUuid: 'unknown',
+      userUuid: azureDevopsUuid ?? 'unknown',
       repos: gitActivity.repos.map((repo) => ({
         ...repo,
         enrichedItems: [],

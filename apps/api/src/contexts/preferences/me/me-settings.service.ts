@@ -1,9 +1,14 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common'
 import { UserSettingsRepository } from '../../../platform/database/repositories/user-settings.repository'
 import { EventBusService } from '../../../platform/events/event-bus.service'
 import { AppLoggerFactory } from '../../../platform/logger'
 import { LocalDateService } from '../../../platform/time/local-date.service'
 import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
+import { AzureDevopsRestClientService } from '../../standups/worker/azure-devops/azure-devops-rest-client.service'
 import type { MeSettingsRecord } from './me-settings.dto'
 import { PutMeSettingsDto } from './me-settings.dto'
 
@@ -19,6 +24,8 @@ const DEFAULT_SETTINGS: MeSettingsRecord = {
   emailTheme: 'dark',
   snoozedUntil: null,
   cancelledDate: null,
+  azureDevopsUser: null,
+  azureDevopsUuid: null,
 }
 
 function createDefaultSettings(): MeSettingsRecord {
@@ -37,6 +44,7 @@ export class MeSettingsService {
     private readonly userSettingsRepository: UserSettingsRepository,
     private readonly localDateService: LocalDateService,
     private readonly eventBus: EventBusService,
+    private readonly azureDevopsRestClient: AzureDevopsRestClientService,
   ) {
     this.logger = this.loggerFactory.create('me-settings-service')
   }
@@ -73,16 +81,56 @@ export class MeSettingsService {
             result.value.timezone,
           )
         : null,
+      azureDevopsUser: result.value.azureDevopsUser ?? null,
+      azureDevopsUuid: result.value.azureDevopsUuid ?? null,
     }
   }
 
   async put(userId: string, body: PutMeSettingsDto): Promise<MeSettingsRecord> {
-    // Read current settings for repo diff
+    const hasGitSource =
+      (body.gitAuthor?.trim() ?? '').length > 0 &&
+      (body.selectedRepos ?? []).length > 0
+    const hasBoardSource = (body.azureDevopsUser?.trim() ?? '').length > 0
+    if (!hasGitSource && !hasBoardSource) {
+      throw new BadRequestException(
+        'At least one data source must be configured: git repos with git author, or Azure DevOps user',
+      )
+    }
+
+    // Read current settings for repo diff and UUID preservation
     const currentResult = await this.userSettingsRepository.findByUserId(userId)
     const previousRepos =
       currentResult.isOk() && currentResult.value
         ? parseSelectedRepos(currentResult.value.selectedRepos)
         : []
+
+    // Resolve Azure DevOps UUID when user changed or newly set
+    const trimmedAzureUser = body.azureDevopsUser?.trim() || null
+    let azureDevopsUuid: string | null = null
+
+    if (trimmedAzureUser) {
+      const currentAzureUser =
+        currentResult.isOk() && currentResult.value
+          ? currentResult.value.azureDevopsUser
+          : null
+
+      if (trimmedAzureUser !== currentAzureUser) {
+        const resolveResult =
+          await this.azureDevopsRestClient.resolveIdentity(trimmedAzureUser)
+
+        if (resolveResult.isErr()) {
+          throw new BadRequestException(resolveResult.error.message)
+        }
+
+        azureDevopsUuid = resolveResult.value.id
+      } else {
+        // Preserve existing UUID when user has not changed
+        azureDevopsUuid =
+          currentResult.isOk() && currentResult.value
+            ? (currentResult.value.azureDevopsUuid ?? null)
+            : null
+      }
+    }
 
     const result = await this.userSettingsRepository.upsert({
       userId,
@@ -90,9 +138,11 @@ export class MeSettingsService {
       reminderCron: body.reminderCron,
       recoveryCron: body.recoveryCron,
       timezone: body.timezone,
-      gitAuthor: body.gitAuthor,
+      gitAuthor: body.gitAuthor ?? '',
       gitSincePeriod: body.gitSincePeriod ?? DEFAULT_SETTINGS.gitSincePeriod,
-      selectedRepos: JSON.stringify(body.selectedRepos),
+      selectedRepos: JSON.stringify(body.selectedRepos ?? []),
+      azureDevopsUser: trimmedAzureUser,
+      azureDevopsUuid,
       ...(body.active !== undefined && { active: body.active }),
       ...(body.emailTheme !== undefined && { emailTheme: body.emailTheme }),
     })
@@ -106,8 +156,9 @@ export class MeSettingsService {
     }
 
     // Emit event if there are new repos
+    const selectedRepos = body.selectedRepos ?? []
     const previousSet = new Set(previousRepos)
-    const newRepos = body.selectedRepos.filter((r) => !previousSet.has(r))
+    const newRepos = selectedRepos.filter((r) => !previousSet.has(r))
     if (newRepos.length > 0) {
       this.eventBus.emitSettingsReposChanged({
         userId,
@@ -132,6 +183,8 @@ export class MeSettingsService {
             result.value.timezone,
           )
         : null,
+      azureDevopsUser: result.value.azureDevopsUser ?? null,
+      azureDevopsUuid: result.value.azureDevopsUuid ?? null,
     }
   }
 }

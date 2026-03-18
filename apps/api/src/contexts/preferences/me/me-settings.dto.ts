@@ -1,6 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
-  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsIn,
@@ -34,10 +33,10 @@ export class PutMeSettingsDto {
   @MinLength(1, { message: requiredField('timezone') })
   timezone!: string
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  @MinLength(1, { message: requiredField('gitAuthor') })
-  gitAuthor!: string
+  gitAuthor?: string
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -45,15 +44,11 @@ export class PutMeSettingsDto {
   @MinLength(1, { message: requiredField('gitSincePeriod') })
   gitSincePeriod?: string
 
-  @ApiProperty({ type: [String] })
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
   @IsArray()
-  @ArrayMinSize(1, { message: 'selectedRepos must include at least one repo' })
   @IsString({ each: true, message: 'selectedRepos entries must be non-empty' })
-  @MinLength(1, {
-    each: true,
-    message: 'selectedRepos entries must be non-empty',
-  })
-  selectedRepos!: string[]
+  selectedRepos?: string[]
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -64,6 +59,11 @@ export class PutMeSettingsDto {
   @IsOptional()
   @IsIn(['light', 'dark'])
   emailTheme?: 'light' | 'dark'
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  azureDevopsUser?: string
 }
 
 export type MeSettingsRecord = {
@@ -78,4 +78,6 @@ export type MeSettingsRecord = {
   emailTheme: 'light' | 'dark'
   snoozedUntil: number | null
   cancelledDate: string | null
+  azureDevopsUser: string | null
+  azureDevopsUuid: string | null
 }

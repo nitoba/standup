@@ -1,5 +1,12 @@
 import type { CommitInfo } from '../../../../shared/domain'
 
+export type {
+  BoardAction,
+  BoardActionType,
+  BoardWorkItemActivity,
+  GatheredBoardActivity,
+} from '../../../../shared/domain'
+
 export interface WorkItemDetail {
   id: string
   title: string
@@ -39,4 +46,22 @@ export interface RepoInfo {
   name: string
   id: string
   project: string
+}
+
+export interface WorkItemResponse {
+  id: number
+  fields: Record<string, unknown>
+}
+
+export interface WorkItemUpdateFieldChange {
+  oldValue?: unknown
+  newValue?: unknown
+}
+
+export interface WorkItemUpdate {
+  id: number
+  rev: number
+  revisedDate: string
+  revisedBy: { displayName: string }
+  fields?: Record<string, WorkItemUpdateFieldChange>
 }

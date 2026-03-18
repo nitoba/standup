@@ -1,7 +1,7 @@
 # Kamal deploy config — standup-web (Angular SPA)
 #
 # Angular frontend served via nginx with reverse proxy to the API.
-# Public-facing via kamal-proxy at app.nitodev.com.br.
+# Public-facing via kamal-proxy at standup.nitodev.com.br.
 # API routes are proxied internally to standup-api via Docker network alias.
 #
 # Usage:
@@ -27,7 +27,7 @@ builder:
   arch: arm64
 
 proxy:
-  host: app.nitodev.com.br
+  host: standup.nitodev.com.br
   app_port: 80
   forward_headers: true
   healthcheck:

@@ -59,18 +59,12 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
       >
         <div class="flex flex-col gap-[8px]">
           <div class="flex items-center gap-[12px]">
-            <span
-              class="text-primary font-[var(--font-jetbrains)] text-[28px] font-bold"
-              >></span
-            >
-            <span
-              class="text-foreground font-[var(--font-jetbrains)] text-[28px] font-bold"
+            <span class="text-primary font-[var(--font-jetbrains)] text-[28px] font-bold">></span>
+            <span class="text-foreground font-[var(--font-jetbrains)] text-[28px] font-bold"
               >configurações</span
             >
           </div>
-          <div
-            class="text-muted-foreground font-[var(--font-ibm)] text-[14px]"
-          >
+          <div class="text-muted-foreground font-[var(--font-ibm)] text-[14px]">
             // configure suas preferências de automação de standup
           </div>
         </div>
@@ -79,9 +73,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
           <app-settings-skeleton />
         } @else if (loadError()) {
           <div class="flex flex-col gap-[12px]">
-            <div
-              class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[13px]"
-            >
+            <div class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[13px]">
               // falha ao carregar configurações
             </div>
             <button
@@ -98,12 +90,9 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
         } @else {
           <form (submit)="onSubmit($event)" class="flex flex-col gap-[32px]">
             <!-- Schedule section -->
-            <div
-              class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]"
-            >
+            <div class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]">
               <div class="flex items-center gap-[8px]">
-                <span
-                  class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[14px]"
+                <span class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[14px]"
                   >//</span
                 >
                 <span
@@ -112,9 +101,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                 >
               </div>
               <div class="flex flex-col gap-[16px]">
-                <div
-                  class="grid grid-cols-1 md:grid-cols-2 gap-[16px] md:gap-[24px]"
-                >
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-[16px] md:gap-[24px]">
                   <div class="flex flex-col gap-[6px]">
                     <label
                       for="standup-cron"
@@ -155,18 +142,13 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                         />
                       </z-popover>
                     </ng-template>
-                    <span
-                      class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]"
-                    >
+                    <span class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]">
                       // clique para montar o agendamento visualmente
                     </span>
                     @if (
-                      settingsForm.standupCron().touched() &&
-                      settingsForm.standupCron().invalid()
+                      settingsForm.standupCron().touched() && settingsForm.standupCron().invalid()
                     ) {
-                      <span
-                        class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[11px]"
-                      >
+                      <span class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[11px]">
                         {{ settingsForm.standupCron().errors()[0]?.message }}
                       </span>
                     }
@@ -211,26 +193,19 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                         />
                       </z-popover>
                     </ng-template>
-                    <span
-                      class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]"
-                    >
+                    <span class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]">
                       // clique para montar o agendamento visualmente
                     </span>
                     @if (
-                      settingsForm.reminderCron().touched() &&
-                      settingsForm.reminderCron().invalid()
+                      settingsForm.reminderCron().touched() && settingsForm.reminderCron().invalid()
                     ) {
-                      <span
-                        class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[11px]"
-                      >
+                      <span class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[11px]">
                         {{ settingsForm.reminderCron().errors()[0]?.message }}
                       </span>
                     }
                   </div>
                 </div>
-                <div
-                  class="grid grid-cols-1 md:grid-cols-2 gap-[16px] md:gap-[24px]"
-                >
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-[16px] md:gap-[24px]">
                   <div class="flex flex-col gap-[6px]">
                     <label
                       for="recovery-cron"
@@ -271,18 +246,13 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                         />
                       </z-popover>
                     </ng-template>
-                    <span
-                      class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]"
-                    >
+                    <span class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]">
                       // clique para montar o agendamento visualmente
                     </span>
                     @if (
-                      settingsForm.recoveryCron().touched() &&
-                      settingsForm.recoveryCron().invalid()
+                      settingsForm.recoveryCron().touched() && settingsForm.recoveryCron().invalid()
                     ) {
-                      <span
-                        class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[11px]"
-                      >
+                      <span class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[11px]">
                         {{ settingsForm.recoveryCron().errors()[0]?.message }}
                       </span>
                     }
@@ -290,7 +260,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                   <div class="flex flex-col gap-[6px]">
                     <label
                       for="timezone"
-                        class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
+                      class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
                       >fuso_horário</label
                     >
                     <z-combobox
@@ -303,13 +273,8 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                       [ariaLabel]="'Fuso horário'"
                       (zValueChange)="onTimezoneChange($event)"
                     />
-                    @if (
-                      settingsForm.timezone().touched() &&
-                      settingsForm.timezone().invalid()
-                    ) {
-                      <span
-                        class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[11px]"
-                      >
+                    @if (settingsForm.timezone().touched() && settingsForm.timezone().invalid()) {
+                      <span class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[11px]">
                         {{ settingsForm.timezone().errors()[0]?.message }}
                       </span>
                     }
@@ -318,23 +283,20 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
               </div>
             </div>
 
-            <!-- Git configuration section -->
-            <div
-              class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]"
-            >
-              <div class="flex items-center gap-[8px]">
-                <span
-                  class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[14px]"
-                  >//</span
-                >
-                <span
-                  class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-medium"
-                  >configuração_git</span
-                >
-              </div>
+            <div class="flex items-stretch gap-4">
+              <!-- Git configuration section -->
               <div
-                class="grid grid-cols-1 md:grid-cols-2 gap-[16px] md:gap-[24px]"
+                class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px] flex-1"
               >
+                <div class="flex items-center gap-[8px]">
+                  <span class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[14px]"
+                    >//</span
+                  >
+                  <span
+                    class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-medium"
+                    >configuração_git</span
+                  >
+                </div>
                 <div class="flex flex-col gap-[6px]">
                   <label
                     for="git-author"
@@ -347,27 +309,59 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                     z-input
                     [formField]="settingsForm.gitAuthor"
                   />
-                  @if (
-                    settingsForm.gitAuthor().touched() &&
-                    settingsForm.gitAuthor().invalid()
-                  ) {
-                    <span
-                      class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[11px]"
-                    >
+                  <span class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]">
+                    // informe o autor exatamente como configurado nos commits git. Este nome é usado
+                    para filtrar sua atividade nos repositórios.
+                  </span>
+                  @if (settingsForm.gitAuthor().touched() && settingsForm.gitAuthor().invalid()) {
+                    <span class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[11px]">
                       {{ settingsForm.gitAuthor().errors()[0]?.message }}
                     </span>
                   }
+                </div>
+              </div>
+
+              <!-- Azure DevOps section -->
+              <div
+                class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px] flex-1"
+              >
+                <div class="flex items-center gap-[8px]">
+                  <span class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[14px]"
+                    >//</span
+                  >
+                  <span
+                    class="text-card-foreground font-[var(--font-jetbrains)] text-[14px] font-medium"
+                    >azure_devops</span
+                  >
+                </div>
+                <div class="flex flex-col gap-[16px] md:gap-[24px]">
+                  <div class="flex flex-col gap-[6px]">
+                    <label
+                      for="azure-devops-user"
+                      class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
+                      >nome_azure_devops</label
+                    >
+                    <input
+                      id="azure-devops-user"
+                      type="text"
+                      z-input
+                      [formField]="settingsForm.azureDevopsUser"
+                    />
+                    <span class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]">
+                      // informe seu nome de exibição exatamente como aparece no Azure DevOps. Este
+                      nome é usado para buscar sua atividade no board.
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
             <!-- Selected repositories section -->
             <div
-              class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]"
+              class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px] w-full"
             >
               <div class="flex items-center gap-[8px]">
-                <span
-                  class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[14px]"
+                <span class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[14px]"
                   >//</span
                 >
                 <span
@@ -377,9 +371,7 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
               </div>
 
               @if (availableRepos().length === 0) {
-                <div
-                  class="text-muted-foreground/70 font-[var(--font-ibm)] text-[12px] py-[8px]"
-                >
+                <div class="text-muted-foreground/70 font-[var(--font-ibm)] text-[12px] py-[8px]">
                   // nenhum repositório disponível
                 </div>
               } @else {
@@ -387,11 +379,17 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                   @for (group of reposByProject(); track group.project) {
                     <div class="flex flex-col gap-[8px]">
                       <div class="flex items-center gap-[6px] pb-[4px] border-b border-border">
-                        <span class="text-primary font-[var(--font-jetbrains)] text-[11px]">~/</span>
-                        <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[11px] uppercase tracking-wider">
+                        <span class="text-primary font-[var(--font-jetbrains)] text-[11px]"
+                          >~/</span
+                        >
+                        <span
+                          class="text-muted-foreground font-[var(--font-jetbrains)] text-[11px] uppercase tracking-wider"
+                        >
                           {{ group.project }}
                         </span>
-                        <span class="text-muted-foreground/50 font-[var(--font-ibm)] text-[10px] ml-auto">
+                        <span
+                          class="text-muted-foreground/50 font-[var(--font-ibm)] text-[10px] ml-auto"
+                        >
                           {{ group.repos.length }} repositórios
                         </span>
                       </div>
@@ -400,10 +398,14 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                           <z-checkbox
                             zSize="lg"
                             [zChecked]="isRepoSelected(repo.project + '/' + repo.name)"
-                            (zCheckedChange)="onRepoCheckedChange(repo.project + '/' + repo.name, $event)"
+                            (zCheckedChange)="
+                              onRepoCheckedChange(repo.project + '/' + repo.name, $event)
+                            "
                             class="border border-border px-[12px] py-[10px] transition-colors duration-150 hover:bg-accent/30"
                           >
-                            <span class="font-[var(--font-jetbrains)] text-[13px] text-foreground flex-1 truncate">
+                            <span
+                              class="font-[var(--font-jetbrains)] text-[13px] text-foreground flex-1 truncate"
+                            >
                               {{ repo.name }}
                             </span>
                           </z-checkbox>
@@ -416,12 +418,9 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
             </div>
 
             <!-- Automation section -->
-            <div
-              class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]"
-            >
+            <div class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]">
               <div class="flex items-center gap-[8px]">
-                <span
-                  class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[14px]"
+                <span class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[14px]"
                   >//</span
                 >
                 <span
@@ -431,12 +430,10 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
               </div>
               <div class="flex items-center justify-between">
                 <div class="flex flex-col gap-[2px]">
-                  <span
-                    class="text-foreground font-[var(--font-jetbrains)] text-[13px]"
+                  <span class="text-foreground font-[var(--font-jetbrains)] text-[13px]"
                     >ativo</span
                   >
-                  <span
-                    class="text-muted-foreground font-[var(--font-ibm)] text-[12px]"
+                  <span class="text-muted-foreground font-[var(--font-ibm)] text-[12px]"
                     >habilitar geração automática de standup</span
                   >
                 </div>
@@ -449,12 +446,9 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
             </div>
 
             <!-- Email digest section -->
-            <div
-              class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]"
-            >
+            <div class="border border-border bg-card p-[16px] md:p-[24px] flex flex-col gap-[16px]">
               <div class="flex items-center gap-[8px]">
-                <span
-                  class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[14px]"
+                <span class="text-muted-foreground/70 font-[var(--font-jetbrains)] text-[14px]"
                   >//</span
                 >
                 <span
@@ -464,12 +458,10 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
               </div>
               <div class="flex items-center justify-between gap-[16px]">
                 <div class="flex flex-col gap-[2px]">
-                  <span
-                    class="text-foreground font-[var(--font-jetbrains)] text-[13px]"
+                  <span class="text-foreground font-[var(--font-jetbrains)] text-[13px]"
                     >tema_do_email</span
                   >
-                  <span
-                    class="text-muted-foreground font-[var(--font-ibm)] text-[12px]"
+                  <span class="text-muted-foreground font-[var(--font-ibm)] text-[12px]"
                     >tema visual para os emails de resumo semanal</span
                   >
                 </div>
@@ -477,21 +469,29 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                   <button
                     type="button"
                     class="px-[14px] py-[7px] font-[var(--font-jetbrains)] text-[12px] border transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    [class]="settingsModel().emailTheme === 'dark'
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
+                    [class]="
+                      settingsModel().emailTheme === 'dark'
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                    "
                     [attr.aria-pressed]="settingsModel().emailTheme === 'dark'"
                     (click)="onEmailThemeChange('dark')"
-                  >escuro</button>
+                  >
+                    escuro
+                  </button>
                   <button
                     type="button"
                     class="px-[14px] py-[7px] font-[var(--font-jetbrains)] text-[12px] border-y border-r transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    [class]="settingsModel().emailTheme === 'light'
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'"
+                    [class]="
+                      settingsModel().emailTheme === 'light'
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                    "
                     [attr.aria-pressed]="settingsModel().emailTheme === 'light'"
                     (click)="onEmailThemeChange('light')"
-                  >claro</button>
+                  >
+                    claro
+                  </button>
                 </div>
               </div>
             </div>
@@ -537,6 +537,7 @@ export class SettingsPage {
     selectedRepos: [],
     active: false,
     emailTheme: 'dark',
+    azureDevopsUser: '',
   })
 
   readonly availableRepos = computed<RepoOption[]>(() =>
@@ -579,7 +580,6 @@ export class SettingsPage {
     required(s.reminderCron, { message: 'expressão cron obrigatória' })
     required(s.recoveryCron, { message: 'expressão cron obrigatória' })
     required(s.timezone, { message: 'fuso horário obrigatório' })
-    required(s.gitAuthor, { message: 'autor do git obrigatório' })
   })
 
   constructor() {
@@ -679,6 +679,7 @@ export class SettingsPage {
         selectedRepos: settings.selectedRepos,
         active: settings.active,
         emailTheme: settings.emailTheme,
+        azureDevopsUser: settings.azureDevopsUser ?? '',
       })
       this.loading.set(false)
     } catch {

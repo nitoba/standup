@@ -16,6 +16,8 @@ export interface UpsertUserSettingsInput {
   gitSincePeriod?: string
   active?: boolean
   emailTheme?: 'light' | 'dark'
+  azureDevopsUser?: string | null
+  azureDevopsUuid?: string | null
 }
 
 @Injectable()
@@ -81,6 +83,8 @@ export class UserSettingsRepository {
           gitSincePeriod: input.gitSincePeriod ?? '8 hours ago',
           active: input.active ?? true,
           emailTheme: input.emailTheme ?? 'dark',
+          azureDevopsUser: input.azureDevopsUser ?? null,
+          azureDevopsUuid: input.azureDevopsUuid ?? null,
           createdAt: now,
           updatedAt: now,
         })
@@ -111,6 +115,12 @@ export class UserSettingsRepository {
             }),
             ...(input.emailTheme !== undefined && {
               emailTheme: input.emailTheme,
+            }),
+            ...(input.azureDevopsUser !== undefined && {
+              azureDevopsUser: input.azureDevopsUser,
+            }),
+            ...(input.azureDevopsUuid !== undefined && {
+              azureDevopsUuid: input.azureDevopsUuid,
             }),
             updatedAt: now,
           },

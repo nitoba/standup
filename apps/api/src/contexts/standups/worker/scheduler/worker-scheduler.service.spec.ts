@@ -31,6 +31,8 @@ function makeSettings(
     snoozedUntil: null,
     cancelledDate: null,
     emailTheme: 'dark',
+    azureDevopsUser: null,
+    azureDevopsUuid: null,
     createdAt: 0,
     updatedAt: 0,
     ...overrides,
@@ -145,6 +147,116 @@ describe('WorkerSchedulerService', () => {
       timezone: 'America/Sao_Paulo',
       gitSincePeriod: '8 hours ago',
     })
+  })
+
+  it('dispatches standup job with azureDevopsUser and azureDevopsUuid when standup cron is due', async () => {
+    isCronDueNowMock.mockImplementation(
+      (expression: string) => expression === 'standup-cron',
+    )
+
+    const standupDispatch = {
+      dispatchStandupJob: vi.fn(),
+    }
+    const service = new WorkerSchedulerService(
+      makeLoggerFactory() as never,
+      {
+        config: { REPOS_ROOT_PATH: '/repos', SCHEDULER_ENABLED: true },
+      } as never,
+      {
+        clearExpiredSnoozes: vi.fn().mockResolvedValue(Result.ok(0)),
+        findAllActive: vi.fn().mockResolvedValue(
+          Result.ok([
+            makeSettings({
+              azureDevopsUser: 'john@company.com',
+              azureDevopsUuid: 'uuid-123',
+            }),
+          ]),
+        ),
+      } as never,
+      {
+        findDiscordIdByUserId: vi
+          .fn()
+          .mockResolvedValue(Result.ok('discord-1')),
+      } as never,
+      {
+        findStaleRuns: vi.fn().mockResolvedValue(Result.ok([])),
+        findByJobAndDate: vi.fn().mockResolvedValue(Result.ok(null)),
+        releaseLock: vi.fn(),
+      } as never,
+      standupDispatch as never,
+      { dispatchWeeklyDigestJob: vi.fn() } as never,
+      { notifyReminder: vi.fn() } as never,
+      {
+        fromDate: vi.fn().mockReturnValue({
+          iso: '2026-03-13',
+          display: '13/03/2026',
+        }),
+      } as never,
+    )
+
+    await service.handleSchedulerTick()
+
+    expect(standupDispatch.dispatchStandupJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        azureDevopsUser: 'john@company.com',
+        azureDevopsUuid: 'uuid-123',
+      }),
+    )
+  })
+
+  it('dispatches recovery job with azureDevopsUser and azureDevopsUuid when recovery cron is due', async () => {
+    isCronDueNowMock.mockImplementation(
+      (expression: string) => expression === 'recovery-cron',
+    )
+
+    const standupDispatch = {
+      dispatchStandupJob: vi.fn(),
+    }
+    const service = new WorkerSchedulerService(
+      makeLoggerFactory() as never,
+      {
+        config: { REPOS_ROOT_PATH: '/repos', SCHEDULER_ENABLED: true },
+      } as never,
+      {
+        clearExpiredSnoozes: vi.fn().mockResolvedValue(Result.ok(0)),
+        findAllActive: vi.fn().mockResolvedValue(
+          Result.ok([
+            makeSettings({
+              azureDevopsUser: 'john@company.com',
+              azureDevopsUuid: 'uuid-123',
+            }),
+          ]),
+        ),
+      } as never,
+      {
+        findDiscordIdByUserId: vi
+          .fn()
+          .mockResolvedValue(Result.ok('discord-1')),
+      } as never,
+      {
+        findStaleRuns: vi.fn().mockResolvedValue(Result.ok([])),
+        findByJobAndDate: vi.fn().mockResolvedValue(Result.ok(null)),
+        releaseLock: vi.fn(),
+      } as never,
+      standupDispatch as never,
+      { dispatchWeeklyDigestJob: vi.fn() } as never,
+      { notifyReminder: vi.fn() } as never,
+      {
+        fromDate: vi.fn().mockReturnValue({
+          iso: '2026-03-13',
+          display: '13/03/2026',
+        }),
+      } as never,
+    )
+
+    await service.handleSchedulerTick()
+
+    expect(standupDispatch.dispatchStandupJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        azureDevopsUser: 'john@company.com',
+        azureDevopsUuid: 'uuid-123',
+      }),
+    )
   })
 
   it('releases stale runs and re-dispatches standup during recovery', async () => {

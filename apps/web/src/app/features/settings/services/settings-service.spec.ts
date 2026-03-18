@@ -50,6 +50,7 @@ describe('SettingsService', () => {
       snoozedUntil: null,
       cancelledDate: null,
       emailTheme: 'dark',
+      azureDevopsUser: null,
     }
 
     const loadPromise = service.loadSettings()
@@ -91,12 +92,14 @@ describe('SettingsService', () => {
       selectedRepos: ['repo-a', 'repo-b'],
       active: false,
       emailTheme: 'dark' as const,
+      azureDevopsUser: 'Dev User',
     }
     const saved: SettingsRecord = {
       ...payload,
       snoozedUntil: 1741543200000,
       cancelledDate: '09/03/2026',
       emailTheme: 'dark',
+      azureDevopsUser: 'Dev User',
     }
 
     const savePromise = service.saveSettings(payload)

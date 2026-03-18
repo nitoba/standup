@@ -36,6 +36,7 @@ export interface SaveSettingsInput {
   selectedRepos: string[]
   active: boolean
   emailTheme: 'light' | 'dark'
+  azureDevopsUser: string
 }
 
 @Injectable({ providedIn: 'root' })

@@ -57,7 +57,7 @@ describe('StandupDispatchService', () => {
     }
   })
 
-  it('returns validation error when selected repos are empty', async () => {
+  it('returns validation error when no data sources are configured', async () => {
     const service = new StandupDispatchService(
       makeLoggerFactory() as never,
       {
@@ -70,6 +70,7 @@ describe('StandupDispatchService', () => {
           Result.ok({
             selectedRepos: '[]',
             gitAuthor: 'nitoba',
+            azureDevopsUser: null,
             timezone: 'America/Sao_Paulo',
             gitSincePeriod: '8 hours ago',
           }),
@@ -82,8 +83,47 @@ describe('StandupDispatchService', () => {
 
     expect(result.isErr()).toBe(true)
     if (result.isErr()) {
-      expect(result.error.message).toBe('No repositories selected')
+      expect(result.error.message).toBe(
+        'At least one data source must be configured (git repos or Azure DevOps user)',
+      )
     }
+  })
+
+  it('dispatches successfully for board-only user (no repos)', async () => {
+    const run = vi.fn().mockResolvedValue(undefined)
+    const service = new StandupDispatchService(
+      makeLoggerFactory() as never,
+      {
+        findDiscordIdByUserId: vi
+          .fn()
+          .mockResolvedValue(Result.ok('discord-1')),
+      } as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(
+          Result.ok({
+            selectedRepos: '[]',
+            gitAuthor: '',
+            azureDevopsUser: 'devops-user',
+            timezone: 'America/Sao_Paulo',
+            gitSincePeriod: '8 hours ago',
+          }),
+        ),
+      } as never,
+      { run } as never,
+    )
+
+    const result = await service.dispatchStandupJobForUser('user-1')
+
+    expect(result.isOk()).toBe(true)
+    expect(run).toHaveBeenCalledWith({
+      userId: 'user-1',
+      discordUserId: 'discord-1',
+      selectedRepos: [],
+      gitAuthor: '',
+      azureDevopsUser: 'devops-user',
+      timezone: 'America/Sao_Paulo',
+      gitSincePeriod: '8 hours ago',
+    })
   })
 
   it('dispatches the standup job with the resolved user settings', async () => {
@@ -100,6 +140,7 @@ describe('StandupDispatchService', () => {
           Result.ok({
             selectedRepos: '["repo-a","repo-b"]',
             gitAuthor: 'nitoba',
+            azureDevopsUser: 'devops-user',
             timezone: 'America/Sao_Paulo',
             gitSincePeriod: '8 hours ago',
           }),
@@ -116,9 +157,44 @@ describe('StandupDispatchService', () => {
       discordUserId: 'discord-1',
       selectedRepos: ['repo-a', 'repo-b'],
       gitAuthor: 'nitoba',
+      azureDevopsUser: 'devops-user',
       timezone: 'America/Sao_Paulo',
       gitSincePeriod: '8 hours ago',
     })
+  })
+
+  it('should include azureDevopsUuid in job options when available in settings', async () => {
+    const run = vi.fn().mockResolvedValue(undefined)
+    const service = new StandupDispatchService(
+      makeLoggerFactory() as never,
+      {
+        findDiscordIdByUserId: vi
+          .fn()
+          .mockResolvedValue(Result.ok('discord-1')),
+      } as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(
+          Result.ok({
+            selectedRepos: '["repo-a"]',
+            gitAuthor: 'nitoba',
+            azureDevopsUser: 'john@company.com',
+            azureDevopsUuid: 'resolved-uuid-123',
+            timezone: 'America/Sao_Paulo',
+            gitSincePeriod: '8 hours ago',
+          }),
+        ),
+      } as never,
+      { run } as never,
+    )
+
+    const result = await service.dispatchStandupJobForUser('user-1')
+
+    expect(result.isOk()).toBe(true)
+    expect(run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        azureDevopsUuid: 'resolved-uuid-123',
+      }),
+    )
   })
 
   it('dispatches standup jobs directly', () => {

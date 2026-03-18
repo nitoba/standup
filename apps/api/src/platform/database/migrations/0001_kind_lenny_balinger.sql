@@ -1,0 +1,1 @@
+ALTER TABLE `user_settings` ADD `azure_devops_user` text;
