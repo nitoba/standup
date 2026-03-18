@@ -36,7 +36,7 @@ describe('TriggerStandupService', () => {
     ).rejects.toThrow(BadRequestException)
   })
 
-  it('throws when selected repos are empty', async () => {
+  it('throws when selected repos are empty and no azureDevopsUser is configured', async () => {
     const service = new TriggerStandupService(
       { findDiscordIdByUserId: vi.fn() } as never,
       {
@@ -46,6 +46,8 @@ describe('TriggerStandupService', () => {
             gitAuthor: 'nitoba',
             timezone: 'America/Sao_Paulo',
             gitSincePeriod: '8 hours ago',
+            azureDevopsUser: null,
+            azureDevopsUuid: null,
           }),
         ),
       } as never,
@@ -57,6 +59,86 @@ describe('TriggerStandupService', () => {
     await expect(
       service.trigger({ userId: 'user-1', discordUserId: 'discord-1' }, null),
     ).rejects.toThrow(BadRequestException)
+  })
+
+  it('does not throw when repos are empty but azureDevopsUser is configured', async () => {
+    const dispatch = createDispatchMock()
+    const service = new TriggerStandupService(
+      { findDiscordIdByUserId: vi.fn() } as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(
+          Result.ok({
+            selectedRepos: '[]',
+            gitAuthor: 'nitoba',
+            timezone: 'America/Sao_Paulo',
+            gitSincePeriod: '8 hours ago',
+            azureDevopsUser: 'john@company.com',
+            azureDevopsUuid: 'uuid-123',
+          }),
+        ),
+      } as never,
+      {
+        findLatestByUserAndDate: vi.fn().mockResolvedValue(Result.ok(null)),
+      } as never,
+      dispatch as never,
+      {
+        today: vi
+          .fn()
+          .mockReturnValue({ iso: '2026-03-18', display: '18/03/2026' }),
+      } as never,
+    )
+
+    await expect(
+      service.trigger({ userId: 'user-1', discordUserId: 'discord-1' }, null),
+    ).resolves.toEqual({ ok: true, accepted: true })
+
+    expect(dispatch.dispatchStandupJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        azureDevopsUser: 'john@company.com',
+        azureDevopsUuid: 'uuid-123',
+        selectedRepos: [],
+      }),
+    )
+  })
+
+  it('forwards azureDevopsUser and azureDevopsUuid from settings to dispatch', async () => {
+    const dispatch = createDispatchMock()
+    const service = new TriggerStandupService(
+      { findDiscordIdByUserId: vi.fn() } as never,
+      {
+        findByUserId: vi.fn().mockResolvedValue(
+          Result.ok({
+            selectedRepos: '["repo-a"]',
+            gitAuthor: 'nitoba',
+            timezone: 'America/Sao_Paulo',
+            gitSincePeriod: '8 hours ago',
+            azureDevopsUser: 'john@company.com',
+            azureDevopsUuid: 'resolved-uuid-456',
+          }),
+        ),
+      } as never,
+      {
+        findLatestByUserAndDate: vi.fn().mockResolvedValue(Result.ok(null)),
+      } as never,
+      dispatch as never,
+      {
+        today: vi
+          .fn()
+          .mockReturnValue({ iso: '2026-03-18', display: '18/03/2026' }),
+      } as never,
+    )
+
+    await service.trigger(
+      { userId: 'user-1', discordUserId: 'discord-1' },
+      null,
+    )
+
+    expect(dispatch.dispatchStandupJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        azureDevopsUser: 'john@company.com',
+        azureDevopsUuid: 'resolved-uuid-456',
+      }),
+    )
   })
 
   it('throws when a pending review standup already exists', async () => {

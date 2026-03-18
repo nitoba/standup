@@ -54,8 +54,9 @@ export class TriggerStandupService {
 
     const settings = settingsResult.value
     const selectedRepos = parseSelectedRepos(settings.selectedRepos)
+    const azureDevopsUser = settings.azureDevopsUser?.trim() || undefined
 
-    if (selectedRepos.length === 0) {
+    if (selectedRepos.length === 0 && !azureDevopsUser) {
       throw new BadRequestException(
         'No repositories selected. Configure your repositories first.',
       )
@@ -108,6 +109,8 @@ export class TriggerStandupService {
       discordUserId,
       selectedRepos,
       gitAuthor: settings.gitAuthor,
+      azureDevopsUser,
+      azureDevopsUuid: settings.azureDevopsUuid || undefined,
       timezone: settings.timezone,
       gitSincePeriod: settings.gitSincePeriod,
       extraContext: body.extraContext,
