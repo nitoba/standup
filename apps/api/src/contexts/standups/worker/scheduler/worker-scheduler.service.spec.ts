@@ -32,6 +32,7 @@ function makeSettings(
     cancelledDate: null,
     emailTheme: 'dark',
     azureDevopsUser: null,
+    azureDevopsUuid: null,
     createdAt: 0,
     updatedAt: 0,
     ...overrides,

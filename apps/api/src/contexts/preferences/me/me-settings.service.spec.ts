@@ -3,7 +3,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { DbError, Result } from '../../../shared/domain'
+import { DbError, ExternalServiceError, Result } from '../../../shared/domain'
 import { MeSettingsService } from './me-settings.service'
 
 const emitSettingsReposChanged = vi.fn()
@@ -23,6 +23,7 @@ function makeSettingsRow(overrides: Record<string, unknown> = {}) {
     snoozedUntil: null,
     cancelledDate: null,
     azureDevopsUser: null,
+    azureDevopsUuid: null,
     ...overrides,
   }
 }
@@ -38,10 +39,14 @@ describe('MeSettingsService', () => {
       findByUserId: vi.fn(),
       upsert: vi.fn(),
     }
+    const azureDevopsRestClient = {
+      resolveIdentity: vi.fn(),
+    }
 
     return {
       loggerFactory,
       userSettingsRepository,
+      azureDevopsRestClient,
       service: new MeSettingsService(
         loggerFactory as never,
         userSettingsRepository as never,
@@ -51,6 +56,7 @@ describe('MeSettingsService', () => {
           ),
         } as never,
         eventBus as never,
+        azureDevopsRestClient as never,
       ),
     }
   }
@@ -72,6 +78,7 @@ describe('MeSettingsService', () => {
       snoozedUntil: null,
       cancelledDate: null,
       azureDevopsUser: null,
+      azureDevopsUuid: null,
     })
   })
 
@@ -91,6 +98,7 @@ describe('MeSettingsService', () => {
         snoozedUntil: 10,
         cancelledDate: '2026-03-13',
         azureDevopsUser: 'devops-user',
+        azureDevopsUuid: 'some-uuid',
       }),
     )
 
@@ -107,6 +115,7 @@ describe('MeSettingsService', () => {
       snoozedUntil: 10,
       cancelledDate: '13/03/2026',
       azureDevopsUser: 'devops-user',
+      azureDevopsUuid: 'some-uuid',
     })
   })
 
@@ -138,6 +147,7 @@ describe('MeSettingsService', () => {
         snoozedUntil: null,
         cancelledDate: null,
         azureDevopsUser: null,
+        azureDevopsUuid: null,
       }),
     )
 
@@ -163,6 +173,7 @@ describe('MeSettingsService', () => {
       snoozedUntil: null,
       cancelledDate: null,
       azureDevopsUser: null,
+      azureDevopsUuid: null,
     })
     expect(userSettingsRepository.upsert).toHaveBeenCalledWith({
       userId: 'user-1',
@@ -174,6 +185,7 @@ describe('MeSettingsService', () => {
       gitSincePeriod: '8 hours ago',
       selectedRepos: '["repo-1"]',
       azureDevopsUser: null,
+      azureDevopsUuid: null,
     })
   })
 
@@ -191,8 +203,12 @@ describe('MeSettingsService', () => {
   })
 
   it('allows board-only configuration without git repos', async () => {
-    const { service, userSettingsRepository } = createService()
+    const { service, userSettingsRepository, azureDevopsRestClient } =
+      createService()
     userSettingsRepository.findByUserId.mockResolvedValue(Result.ok(null))
+    azureDevopsRestClient.resolveIdentity.mockResolvedValue(
+      Result.ok({ id: 'devops-uuid', displayName: 'Devops User' }),
+    )
     userSettingsRepository.upsert.mockResolvedValue(
       Result.ok({
         standupCron: '1',
@@ -207,6 +223,7 @@ describe('MeSettingsService', () => {
         snoozedUntil: null,
         cancelledDate: null,
         azureDevopsUser: 'devops-user',
+        azureDevopsUuid: 'devops-uuid',
       }),
     )
 
@@ -225,6 +242,127 @@ describe('MeSettingsService', () => {
         selectedRepos: [],
       }),
     )
+  })
+
+  describe('azureDevopsUuid resolution', () => {
+    const userId = 'user-1'
+    const validBody = {
+      standupCron: '30 17 * * 1-5',
+      reminderCron: '20 17 * * 1-5',
+      recoveryCron: '0 18 * * 1-5',
+      timezone: 'America/Sao_Paulo',
+      gitAuthor: 'author@test.com',
+      selectedRepos: ['AGROTRACE/some-repo'],
+      azureDevopsUser: 'john@company.com',
+    }
+    const existingSettings = makeSettingsRow()
+
+    it('should resolve UUID when azureDevopsUser is provided and changed', async () => {
+      const { service, userSettingsRepository, azureDevopsRestClient } =
+        createService()
+      azureDevopsRestClient.resolveIdentity.mockResolvedValue(
+        Result.ok({ id: 'resolved-uuid', displayName: 'John Doe' }),
+      )
+      userSettingsRepository.findByUserId.mockResolvedValue(
+        Result.ok({ ...existingSettings, azureDevopsUser: 'old-user' }),
+      )
+      userSettingsRepository.upsert.mockResolvedValue(
+        Result.ok(
+          makeSettingsRow({
+            azureDevopsUser: 'john@company.com',
+            azureDevopsUuid: 'resolved-uuid',
+          }),
+        ),
+      )
+
+      await service.put(userId, validBody)
+
+      expect(azureDevopsRestClient.resolveIdentity).toHaveBeenCalledWith(
+        'john@company.com',
+      )
+      expect(userSettingsRepository.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          azureDevopsUser: 'john@company.com',
+          azureDevopsUuid: 'resolved-uuid',
+        }),
+      )
+    })
+
+    it('should throw BadRequestException when user not found in Azure DevOps', async () => {
+      const { service, userSettingsRepository, azureDevopsRestClient } =
+        createService()
+      azureDevopsRestClient.resolveIdentity.mockResolvedValue(
+        Result.err(
+          new ExternalServiceError({
+            service: 'azure-devops',
+            message: "No Azure DevOps user found matching 'nobody@x.com'",
+          }),
+        ),
+      )
+      userSettingsRepository.findByUserId.mockResolvedValue(Result.ok(null))
+
+      await expect(
+        service.put(userId, { ...validBody, azureDevopsUser: 'nobody@x.com' }),
+      ).rejects.toThrow(BadRequestException)
+    })
+
+    it('should clear both fields when azureDevopsUser is empty', async () => {
+      const { service, userSettingsRepository, azureDevopsRestClient } =
+        createService()
+      userSettingsRepository.findByUserId.mockResolvedValue(
+        Result.ok({
+          ...existingSettings,
+          azureDevopsUser: 'old-user',
+          azureDevopsUuid: 'old-uuid',
+        }),
+      )
+      userSettingsRepository.upsert.mockResolvedValue(
+        Result.ok(makeSettingsRow()),
+      )
+
+      await service.put(userId, { ...validBody, azureDevopsUser: '' })
+
+      expect(azureDevopsRestClient.resolveIdentity).not.toHaveBeenCalled()
+      expect(userSettingsRepository.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          azureDevopsUser: null,
+          azureDevopsUuid: null,
+        }),
+      )
+    })
+
+    it('should skip lookup when azureDevopsUser has not changed', async () => {
+      const { service, userSettingsRepository, azureDevopsRestClient } =
+        createService()
+      userSettingsRepository.findByUserId.mockResolvedValue(
+        Result.ok({
+          ...existingSettings,
+          azureDevopsUser: 'same@company.com',
+          azureDevopsUuid: 'existing-uuid',
+        }),
+      )
+      userSettingsRepository.upsert.mockResolvedValue(
+        Result.ok(
+          makeSettingsRow({
+            azureDevopsUser: 'same@company.com',
+            azureDevopsUuid: 'existing-uuid',
+          }),
+        ),
+      )
+
+      await service.put(userId, {
+        ...validBody,
+        azureDevopsUser: 'same@company.com',
+      })
+
+      expect(azureDevopsRestClient.resolveIdentity).not.toHaveBeenCalled()
+      expect(userSettingsRepository.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          azureDevopsUser: 'same@company.com',
+          azureDevopsUuid: 'existing-uuid',
+        }),
+      )
+    })
   })
 
   describe('put — event emission', () => {

@@ -79,4 +79,5 @@ export type MeSettingsRecord = {
   snoozedUntil: number | null
   cancelledDate: string | null
   azureDevopsUser: string | null
+  azureDevopsUuid: string | null
 }
