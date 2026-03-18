@@ -51,8 +51,8 @@ env:
     PORT: "3333"
     REPOS_ROOT_PATH: /repos
     BETTER_AUTH_URL: https://api.nitodev.com.br
-    APP_URL: https://app.nitodev.com.br
-    CORS_ORIGIN: https://app.nitodev.com.br
+    APP_URL: https://standup.nitodev.com.br
+    CORS_ORIGIN: https://standup.nitodev.com.br
     DISCORD_GATEWAY_ENABLED: "true"
     SCHEDULER_ENABLED: "true"
     OTEL_EXPORTER_OTLP_ENDPOINT: http://host.docker.internal:4318
