@@ -188,6 +188,162 @@ describe('AzureDevopsRestClientService', () => {
     })
   })
 
+  describe('resolveIdentity', () => {
+    it('should return id and displayName when exactly one active non-group user matches', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          count: 1,
+          value: [
+            {
+              id: 'abc-123-uuid',
+              providerDisplayName: 'John Doe',
+              isActive: true,
+              isContainer: false,
+            },
+          ],
+        }),
+      })
+
+      const service = createService()
+      const result = await service.resolveIdentity('john@company.com')
+
+      expect(result.isOk()).toBe(true)
+      expect(result.value).toEqual({
+        id: 'abc-123-uuid',
+        displayName: 'John Doe',
+      })
+    })
+
+    it('should filter out inactive users and groups', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          count: 3,
+          value: [
+            {
+              id: 'active-user',
+              providerDisplayName: 'John Doe',
+              isActive: true,
+              isContainer: false,
+            },
+            {
+              id: 'inactive-user',
+              providerDisplayName: 'Jane Inactive',
+              isActive: false,
+              isContainer: false,
+            },
+            {
+              id: 'group-id',
+              providerDisplayName: 'Some Group',
+              isActive: true,
+              isContainer: true,
+            },
+          ],
+        }),
+      })
+
+      const service = createService()
+      const result = await service.resolveIdentity('john@company.com')
+
+      expect(result.isOk()).toBe(true)
+      expect(result.value).toEqual({
+        id: 'active-user',
+        displayName: 'John Doe',
+      })
+    })
+
+    it('should return error when no active users match', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ count: 0, value: [] }),
+      })
+
+      const service = createService()
+      const result = await service.resolveIdentity('nobody@company.com')
+
+      expect(result.isErr()).toBe(true)
+      expect(result.error.message).toContain('nobody@company.com')
+    })
+
+    it('should return error when multiple active users match', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          count: 2,
+          value: [
+            {
+              id: 'user-1',
+              providerDisplayName: 'John A',
+              isActive: true,
+              isContainer: false,
+            },
+            {
+              id: 'user-2',
+              providerDisplayName: 'John B',
+              isActive: true,
+              isContainer: false,
+            },
+          ],
+        }),
+      })
+
+      const service = createService()
+      const result = await service.resolveIdentity('John')
+
+      expect(result.isErr()).toBe(true)
+      expect(result.error.message).toContain('Multiple')
+    })
+
+    it('should return error on HTTP failure', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        text: async () => 'Invalid PAT',
+      })
+
+      const service = createService()
+      const result = await service.resolveIdentity('john@company.com')
+
+      expect(result.isErr()).toBe(true)
+      expect(result.error.message).toContain('resolveIdentity failed')
+    })
+
+    it('should call vssps.dev.azure.com with correct parameters', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          count: 1,
+          value: [
+            {
+              id: 'x',
+              providerDisplayName: 'X',
+              isActive: true,
+              isContainer: false,
+            },
+          ],
+        }),
+      })
+
+      const service = createService()
+      await service.resolveIdentity('test user')
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('vssps.dev.azure.com'),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: expect.any(String),
+          }),
+        }),
+      )
+      const calledUrl = (mockFetch as ReturnType<typeof vi.fn>).mock
+        .calls[0][0] as string
+      expect(calledUrl).toContain('searchFilter=General')
+      expect(calledUrl).toContain('filterValue=test%20user')
+    })
+  })
+
   describe('getWorkItemUpdates', () => {
     it('returns updates for a work item', async () => {
       mockFetch.mockResolvedValueOnce({

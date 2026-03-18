@@ -8,11 +8,13 @@ const BATCH_SIZE = 200
 @Injectable()
 export class AzureDevopsRestClientService {
   private readonly baseUrl: string
+  private readonly vsspsBaseUrl: string
   private readonly authHeader: string
 
   constructor(private readonly runtimeConfig: WorkerRuntimeConfigService) {
     const { AZURE_DEVOPS_ORG, AZURE_DEVOPS_PAT } = this.runtimeConfig.config
     this.baseUrl = `https://dev.azure.com/${AZURE_DEVOPS_ORG}`
+    this.vsspsBaseUrl = `https://vssps.dev.azure.com/${AZURE_DEVOPS_ORG}`
     this.authHeader = `Basic ${Buffer.from(`:${AZURE_DEVOPS_PAT}`).toString('base64')}`
   }
 
@@ -103,6 +105,57 @@ export class AzureDevopsRestClientService {
         return data.value
       },
       catch: (error) => this.toError('getWorkItemUpdates', error),
+    })
+  }
+
+  async resolveIdentity(
+    filterValue: string,
+  ): Promise<
+    Result<{ id: string; displayName: string }, ExternalServiceError>
+  > {
+    return Result.tryPromise({
+      try: async () => {
+        const encoded = encodeURIComponent(filterValue)
+        const url = `${this.vsspsBaseUrl}/_apis/identities?searchFilter=General&filterValue=${encoded}&queryMembership=None&api-version=7.1`
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: { Authorization: this.authHeader },
+        })
+
+        await this.assertOk(response)
+
+        const data = (await response.json()) as {
+          value: Array<{
+            id: string
+            providerDisplayName: string
+            isActive: boolean
+            isContainer?: boolean
+          }>
+        }
+
+        const activeUsers = data.value.filter(
+          (identity) => identity.isActive && !identity.isContainer,
+        )
+
+        if (activeUsers.length === 0) {
+          throw new Error(
+            `No Azure DevOps user found matching '${filterValue}'`,
+          )
+        }
+
+        if (activeUsers.length > 1) {
+          throw new Error(
+            `Multiple Azure DevOps users match '${filterValue}'. Use email for a more precise match.`,
+          )
+        }
+
+        const user = activeUsers[0]!
+        return {
+          id: user.id,
+          displayName: user.providerDisplayName,
+        }
+      },
+      catch: (error) => this.toError('resolveIdentity', error),
     })
   }
 
