@@ -6,6 +6,7 @@ export interface StandupJobOptions {
   selectedRepos: string[]
   gitAuthor: string
   azureDevopsUser?: string
+  azureDevopsUuid?: string
   timezone: string
   gitSincePeriod?: string
   extraContext?: string

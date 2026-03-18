@@ -91,6 +91,7 @@ export interface GenerateStandupInput {
   gitActivity?: GatheredGitActivity
   boardActivity?: GatheredBoardActivity
   extraContext?: string
+  azureDevopsUuid?: string
 }
 
 export interface GeneratedStandup {
