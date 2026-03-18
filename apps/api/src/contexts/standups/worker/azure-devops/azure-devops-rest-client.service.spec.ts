@@ -209,10 +209,12 @@ describe('AzureDevopsRestClientService', () => {
       const result = await service.resolveIdentity('john@company.com')
 
       expect(result.isOk()).toBe(true)
-      expect(result.value).toEqual({
-        id: 'abc-123-uuid',
-        displayName: 'John Doe',
-      })
+      if (result.isOk()) {
+        expect(result.value).toEqual({
+          id: 'abc-123-uuid',
+          displayName: 'John Doe',
+        })
+      }
     })
 
     it('should filter out inactive users and groups', async () => {
@@ -247,10 +249,12 @@ describe('AzureDevopsRestClientService', () => {
       const result = await service.resolveIdentity('john@company.com')
 
       expect(result.isOk()).toBe(true)
-      expect(result.value).toEqual({
-        id: 'active-user',
-        displayName: 'John Doe',
-      })
+      if (result.isOk()) {
+        expect(result.value).toEqual({
+          id: 'active-user',
+          displayName: 'John Doe',
+        })
+      }
     })
 
     it('should return error when no active users match', async () => {
@@ -263,7 +267,9 @@ describe('AzureDevopsRestClientService', () => {
       const result = await service.resolveIdentity('nobody@company.com')
 
       expect(result.isErr()).toBe(true)
-      expect(result.error.message).toContain('nobody@company.com')
+      if (result.isErr()) {
+        expect(result.error.message).toContain('nobody@company.com')
+      }
     })
 
     it('should return error when multiple active users match', async () => {
@@ -292,7 +298,9 @@ describe('AzureDevopsRestClientService', () => {
       const result = await service.resolveIdentity('John')
 
       expect(result.isErr()).toBe(true)
-      expect(result.error.message).toContain('Multiple')
+      if (result.isErr()) {
+        expect(result.error.message).toContain('Multiple')
+      }
     })
 
     it('should return error on HTTP failure', async () => {
@@ -307,7 +315,9 @@ describe('AzureDevopsRestClientService', () => {
       const result = await service.resolveIdentity('john@company.com')
 
       expect(result.isErr()).toBe(true)
-      expect(result.error.message).toContain('resolveIdentity failed')
+      if (result.isErr()) {
+        expect(result.error.message).toContain('resolveIdentity failed')
+      }
     })
 
     it('should call vssps.dev.azure.com with correct parameters', async () => {
@@ -337,8 +347,8 @@ describe('AzureDevopsRestClientService', () => {
           }),
         }),
       )
-      const calledUrl = (mockFetch as ReturnType<typeof vi.fn>).mock
-        .calls[0][0] as string
+      const firstCall = (mockFetch as ReturnType<typeof vi.fn>).mock.calls[0]
+      const calledUrl = firstCall?.[0] as string
       expect(calledUrl).toContain('searchFilter=General')
       expect(calledUrl).toContain('filterValue=test%20user')
     })

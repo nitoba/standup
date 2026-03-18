@@ -149,7 +149,8 @@ export class AzureDevopsRestClientService {
           )
         }
 
-        const user = activeUsers[0]!
+        // activeUsers.length === 1 is guaranteed by the checks above
+        const user = activeUsers[0] as NonNullable<(typeof activeUsers)[0]>
         return {
           id: user.id,
           displayName: user.providerDisplayName,

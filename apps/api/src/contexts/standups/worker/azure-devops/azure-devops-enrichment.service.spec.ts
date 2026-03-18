@@ -99,9 +99,12 @@ describe('AzureDevopsEnrichmentService', () => {
 
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
-      const prs = result.value.repos[0].enrichedItems[0].pullRequests
+      const repo = result.value.repos[0]
+      const enrichedItem = repo?.enrichedItems[0]
+      const prs = enrichedItem?.pullRequests ?? []
       expect(prs).toHaveLength(1)
-      expect(prs[0].creatorId).toBe('uuid-match')
+      const [firstPr] = prs
+      expect(firstPr?.creatorId).toBe('uuid-match')
     }
   })
 
@@ -112,7 +115,9 @@ describe('AzureDevopsEnrichmentService', () => {
 
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
-      const prs = result.value.repos[0].enrichedItems[0].pullRequests
+      const repo = result.value.repos[0]
+      const enrichedItem = repo?.enrichedItems[0]
+      const prs = enrichedItem?.pullRequests ?? []
       expect(prs).toHaveLength(2)
     }
   })
