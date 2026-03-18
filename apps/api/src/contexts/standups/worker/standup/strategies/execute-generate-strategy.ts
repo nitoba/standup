@@ -140,6 +140,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
             gitActivity: gitActivity ?? undefined,
             boardActivity: boardActivity ?? undefined,
             extraContext: options.extraContext?.trim() || undefined,
+            azureDevopsUuid: options.azureDevopsUuid,
           },
           async (stage) => {
             if (stage === 'enriching_data') {

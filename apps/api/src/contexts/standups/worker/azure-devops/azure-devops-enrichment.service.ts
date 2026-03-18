@@ -26,6 +26,7 @@ export class AzureDevopsEnrichmentService {
 
   async enrichGitActivity(
     activity: GatheredGitActivity,
+    azureDevopsUuid?: string,
   ): Promise<Result<EnrichedGitActivity, ExternalServiceError>> {
     const activeRepos = activity.repos.filter(
       (repo: RepoActivity) => repo.commits.length > 0,
@@ -40,12 +41,7 @@ export class AzureDevopsEnrichmentService {
       )
     }
 
-    const meResult = await this.azureDevopsMcpClient.getMe()
-    if (meResult.isErr()) {
-      return meResult
-    }
-
-    const userUuid = meResult.value
+    const userUuid = azureDevopsUuid ?? 'unknown'
     const enrichedRepos: EnrichedRepo[] = []
 
     for (const repo of activeRepos) {
@@ -68,9 +64,11 @@ export class AzureDevopsEnrichmentService {
         const pullRequestsResult =
           await this.azureDevopsMcpClient.listPullRequests(repo.repoName)
         const pullRequests = pullRequestsResult.isOk()
-          ? pullRequestsResult.value.filter(
-              (pullRequest) => pullRequest.creatorId === userUuid,
-            )
+          ? azureDevopsUuid
+            ? pullRequestsResult.value.filter(
+                (pullRequest) => pullRequest.creatorId === azureDevopsUuid,
+              )
+            : pullRequestsResult.value
           : []
 
         enrichedItems.push({
