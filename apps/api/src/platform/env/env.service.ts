@@ -74,6 +74,15 @@ export class EnvService {
     }
   }
 
+  get automation() {
+    return {
+      url: this.get('DISCORD_AUTOMATION_URL'),
+      channelUrl: this.get('DISCORD_AUTOMATION_CHANNEL_URL'),
+      webhookSecret: this.get('DISCORD_AUTOMATION_WEBHOOK_SECRET'),
+      sendTimeoutMs: this.get('DISCORD_SEND_TIMEOUT_MS'),
+    }
+  }
+
   get<K extends keyof EnvironmentVariables>(key: K): EnvironmentVariables[K] {
     return this.configService.get(key, { infer: true })
   }
