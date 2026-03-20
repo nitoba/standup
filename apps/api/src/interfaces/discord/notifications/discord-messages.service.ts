@@ -169,10 +169,6 @@ export class DiscordMessagesService {
         const user = await client.users.fetch(discordUserId)
         const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
           new ButtonBuilder()
-            .setCustomId('standup-reminder:run-now')
-            .setLabel('Executar Agora')
-            .setStyle(ButtonStyle.Primary),
-          new ButtonBuilder()
             .setCustomId('standup-reminder:snooze')
             .setLabel('Adiar 15min')
             .setStyle(ButtonStyle.Secondary),

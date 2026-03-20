@@ -22,7 +22,6 @@ describe('ReminderInteractionService', () => {
           .mockResolvedValue({ hasSession: true, userId: 'user-1' }),
         replySessionExpired: vi.fn(),
       } as never,
-      { trigger: vi.fn() } as never,
       { snoozeReminder, cancelReminderForToday: vi.fn() } as never,
     )
 

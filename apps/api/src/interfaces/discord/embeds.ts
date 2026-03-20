@@ -96,11 +96,6 @@ export function buildReminderEmbed(nextRunAt: string): APIEmbed {
     ),
     fields: [
       {
-        name: 'Executar Agora',
-        value: 'Gera o standup imediatamente.',
-        inline: true,
-      },
-      {
         name: 'Adiar 15min',
         value: 'Adia a geração em 15 minutos.',
         inline: true,
