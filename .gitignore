@@ -26,3 +26,4 @@ skills-lock.json
 # Kamal secrets (contains passwords, tokens, SSH keys)
 .kamal/secrets
 .kamal/secrets-*
+.worktrees/
