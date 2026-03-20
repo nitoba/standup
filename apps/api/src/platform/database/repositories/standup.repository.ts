@@ -544,6 +544,32 @@ export class StandupRepository {
     }
   }
 
+  async updateSentToDiscordAt(
+    id: string,
+  ): Promise<Result<StandupRecord, NotFoundError | DbError>> {
+    try {
+      const found = await this.findById(id)
+
+      if (found.isErr()) {
+        return found
+      }
+
+      const now = Date.now()
+      await this.database.db
+        .update(standups)
+        .set({ sentToDiscordAt: now, updatedAt: now })
+        .where(eq(standups.id, id))
+
+      return Result.ok({
+        ...found.value,
+        sentToDiscordAt: now,
+        updatedAt: now,
+      })
+    } catch (error) {
+      return this.dbErr('updateSentToDiscordAt', error)
+    }
+  }
+
   async replaceGeneratedForUser(
     id: string,
     userId: string,
