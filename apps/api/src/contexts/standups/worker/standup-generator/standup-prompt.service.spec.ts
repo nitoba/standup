@@ -209,5 +209,82 @@ describe('StandupPromptService', () => {
       expect(message).not.toContain('Repositório')
       expect(message).not.toContain('dados duplicados')
     })
+
+    it('all system prompts contain test card exclusion rule', () => {
+      const service = createService()
+      const gitOnly = service.buildSystemPrompt({
+        hasGit: true,
+        hasBoard: false,
+      })
+      const boardOnly = service.buildSystemPrompt({
+        hasGit: false,
+        hasBoard: true,
+      })
+      const hybrid = service.buildSystemPrompt({
+        hasGit: true,
+        hasBoard: true,
+      })
+
+      for (const prompt of [gitOnly, boardOnly, hybrid]) {
+        expect(prompt).toContain('Test Case')
+        expect(prompt).toContain('NÃO devem aparecer como itens no texto final')
+      }
+    })
+
+    it('marks Test Case board items as context-only in user message', () => {
+      const service = createService()
+      const input: GenerateStandupInput = {
+        date: '2026-03-16',
+        meetingType: '',
+        boardActivity: {
+          timestamp: '2026-03-16T17:00:00.000Z',
+          workItems: [
+            {
+              id: 9999,
+              title: 'Validar fluxo de cadastro',
+              type: 'Test Case',
+              state: 'Active',
+              assignedTo: 'dev@company.com',
+              project: 'AGROTRACE',
+              actions: [
+                {
+                  type: 'state_change',
+                  timestamp: '2026-03-16T14:00:00.000Z',
+                  details: 'New → Active',
+                },
+              ],
+            },
+            {
+              id: 1000,
+              title: 'Implementar busca',
+              type: 'User Story',
+              state: 'Active',
+              assignedTo: 'dev@company.com',
+              project: 'AGROTRACE',
+              actions: [
+                {
+                  type: 'state_change',
+                  timestamp: '2026-03-16T15:00:00.000Z',
+                  details: 'New → Active',
+                },
+              ],
+            },
+          ],
+        },
+      }
+
+      const message = service.buildUserMessage(input)
+
+      expect(message).toContain('#9999')
+      expect(message).toContain('APENAS CONTEXTO')
+      expect(message).toContain('#1000')
+
+      // Test Case should be tagged, User Story should not
+      const lines = message.split('\n')
+      const testCaseLine = lines.find((l) => l.includes('#9999'))
+      const userStoryLine = lines.find((l) => l.includes('#1000'))
+      expect(testCaseLine).toContain('APENAS CONTEXTO')
+      expect(userStoryLine).not.toContain('APENAS CONTEXTO')
+    })
   })
 })

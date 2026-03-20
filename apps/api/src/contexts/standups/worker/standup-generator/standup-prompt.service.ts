@@ -87,6 +87,7 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
 - Para atividades sem card/work item, crie um título descritivo baseado nos commits, arquivos e contexto coletado
 - Para atividades sem card/work item, descreva o que foi feito normalmente nas seções **Correções** e/ou **Melhorias Técnicas**
 - NUNCA inclua expressões como "sem card associado", "sem work item" ou similares no texto final — o relatório deve soar natural
+- Cards de teste (tipo "Test Case", "Test Suite", "Test Plan") NÃO devem aparecer como itens no texto final. Use-os apenas como contexto para entender o andamento da atividade principal
 - Inclua caminhos de arquivo quando relevante (ex: \`src/services/geo.ts\`)
 - Liste migration files explicitamente quando presentes
 - Mencione novos componentes/serviços criados com seus caminhos
@@ -138,6 +139,7 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
 - Agrupe work items por projeto
 - Descreva as ações realizadas (mudança de estado, comentários, atribuição, etc.)
 - Se não houver itens Done, omitir a seção Done; idem para In Progress
+- Cards de teste (tipo "Test Case", "Test Suite", "Test Plan") NÃO devem aparecer como itens no texto final. Use-os apenas como contexto para entender o andamento da atividade principal
 - Inclua apenas o trabalho do usuário atual
 - O relatório deve ser conciso mas informativo
 - O campo \`content\` final deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres (incluindo espaços, quebras de linha e markdown)
@@ -193,6 +195,7 @@ Sua tarefa é consolidar ambas as fontes e gerar um relatório de standup em por
 - Inclua caminhos de arquivo quando relevante
 - Apenas inclua seções **Correções** ou **Melhorias Técnicas** que tenham conteúdo
 - Se não houver itens Done, omitir a seção Done; idem para In Progress
+- Cards de teste (tipo "Test Case", "Test Suite", "Test Plan") NÃO devem aparecer como itens no texto final. Use-os apenas como contexto para entender o andamento da atividade principal
 - Inclua apenas o trabalho do usuário atual
 - O relatório deve ser conciso mas informativo
 - O campo \`content\` final deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres (incluindo espaços, quebras de linha e markdown)
@@ -322,12 +325,18 @@ Sua tarefa é consolidar ambas as fontes e gerar um relatório de standup em por
     sections.push('## Atividade no Board do Azure DevOps')
     sections.push('')
 
+    const testTypes = new Set(['Test Case', 'Test Suite', 'Test Plan'])
+
     for (const item of boardActivity.workItems) {
+      const isTestItem = testTypes.has(item.type)
       const actionSummary = item.actions
         .map((a) => `${a.type}: ${a.details}`)
         .join('; ')
+      const contextTag = isTestItem
+        ? ' ⚠️ [APENAS CONTEXTO — não incluir no texto final]'
+        : ''
       sections.push(
-        `- **#${item.id}** — ${item.title} [${item.state}] (${item.project})`,
+        `- **#${item.id}** — ${item.title} [${item.state}] (${item.project})${contextTag}`,
       )
       sections.push(`  Tipo: ${item.type}`)
       sections.push(`  Ações: ${actionSummary}`)
