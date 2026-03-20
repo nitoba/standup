@@ -4,9 +4,13 @@ import {
   computed,
   input,
   output,
+  signal,
 } from '@angular/core'
 
+import { toast } from 'ngx-sonner'
+
 import { ZardButtonComponent } from '../../../../shared/components/button'
+import { ZardIconComponent } from '../../../../shared/components/icon/icon.component'
 import type {
   Standup,
   StandupStatus,
@@ -22,13 +26,13 @@ function findNewestPendingId(standups: Standup[]): string | null {
 
 @Component({
   selector: 'app-standup-table',
-  imports: [ZardButtonComponent],
+  imports: [ZardButtonComponent, ZardIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="border border-border bg-card flex flex-col">
       <!-- Desktop table header -->
       <div class="hidden md:block bg-accent/40 border-b border-border px-[20px] py-[12px]">
-        <div class="grid grid-cols-[120px_120px_1fr_100px]">
+        <div class="grid grid-cols-[120px_120px_1fr_140px] gap-x-[16px]">
           <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] font-medium">data</span>
           <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] font-medium">status</span>
           <span class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px] font-medium">prévia_do_conteúdo</span>
@@ -39,7 +43,7 @@ function findNewestPendingId(standups: Standup[]): string | null {
       @for (standup of standups(); track standup.id) {
         <!-- Desktop row -->
         <div
-          class="hidden md:grid border-b border-border px-[20px] py-[16px] grid-cols-[120px_120px_1fr_100px] items-center transition-colors duration-150 hover:bg-accent/30"
+          class="hidden md:grid border-b border-border px-[20px] py-[16px] grid-cols-[120px_120px_1fr_140px] gap-x-[16px] items-center transition-colors duration-150 hover:bg-accent/30"
           [class.bg-[color-mix(in_srgb,var(--accent-yellow)_4%,transparent)]]="standup.id === newestPendingId()"
         >
           <span class="text-foreground font-[var(--font-jetbrains)] text-[13px]">{{ standup.date }}</span>
@@ -53,16 +57,31 @@ function findNewestPendingId(standups: Standup[]): string | null {
             {{ formatStatus(standup.status) }}
           </span>
           <span class="text-muted-foreground font-[var(--font-ibm)] text-[13px] line-clamp-2">{{ standup.contentPreview }}</span>
-          <button
-            type="button"
-            z-button
-            zType="link"
-            zSize="sm"
-            class="justify-start px-0 text-primary"
-            (click)="viewStandup.emit(standup.id)"
-          >
-            $ ver >>
-          </button>
+          <div class="flex items-center gap-[6px]">
+            <button
+              type="button"
+              z-button
+              zType="link"
+              zSize="sm"
+              class="justify-start px-0 text-primary"
+              (click)="viewStandup.emit(standup.id)"
+            >
+              $ ver >>
+            </button>
+            @if (standup.status === 'approved' && standup.content) {
+              <button
+                type="button"
+                z-button
+                zType="ghost"
+                zSize="sm"
+                class="px-[6px] text-muted-foreground hover:text-foreground"
+                [attr.aria-label]="copiedId() === standup.id ? 'Copiado' : 'Copiar standup'"
+                (click)="copyContent(standup)"
+              >
+                <z-icon [zType]="copiedId() === standup.id ? 'clipboard' : 'copy'" zSize="sm" />
+              </button>
+            }
+          </div>
         </div>
 
         <!-- Mobile card -->
@@ -83,16 +102,31 @@ function findNewestPendingId(standups: Standup[]): string | null {
             </span>
           </div>
           <span class="text-muted-foreground font-[var(--font-ibm)] text-[12px] line-clamp-2">{{ standup.contentPreview }}</span>
-          <button
-            type="button"
-            z-button
-            zType="link"
-            zSize="sm"
-            class="justify-start px-0 text-primary"
-            (click)="viewStandup.emit(standup.id)"
-          >
-            $ ver >>
-          </button>
+          <div class="flex items-center gap-[8px]">
+            <button
+              type="button"
+              z-button
+              zType="link"
+              zSize="sm"
+              class="justify-start px-0 text-primary"
+              (click)="viewStandup.emit(standup.id)"
+            >
+              $ ver >>
+            </button>
+            @if (standup.status === 'approved' && standup.content) {
+              <button
+                type="button"
+                z-button
+                zType="ghost"
+                zSize="sm"
+                class="px-[6px] text-muted-foreground hover:text-foreground"
+                [attr.aria-label]="copiedId() === standup.id ? 'Copiado' : 'Copiar standup'"
+                (click)="copyContent(standup)"
+              >
+                <z-icon [zType]="copiedId() === standup.id ? 'clipboard' : 'copy'" zSize="sm" />
+              </button>
+            }
+          </div>
         </div>
       }
 
@@ -143,6 +177,9 @@ export class StandupTable {
   readonly totalPages = input.required<number>()
   readonly viewStandup = output<string>()
   readonly pageChange = output<number>()
+
+  /** Tracks the id of the standup whose content was just copied, for icon feedback */
+  readonly copiedId = signal<string | null>(null)
 
   readonly newestPendingId = computed(() =>
     findNewestPendingId(this.standups()),
@@ -219,6 +256,23 @@ export class StandupTable {
   goToPage(page: number) {
     if (page === this.page() || page < 1 || page > this.totalPages()) return
     this.pageChange.emit(page)
+  }
+
+  async copyContent(standup: Standup) {
+    const clipboard = globalThis.navigator?.clipboard
+    if (!clipboard || !standup.content?.trim()) {
+      toast.error('Clipboard indisponível')
+      return
+    }
+
+    try {
+      await clipboard.writeText(standup.content)
+      this.copiedId.set(standup.id)
+      toast.success('Standup copiado')
+      setTimeout(() => this.copiedId.set(null), 2000)
+    } catch {
+      toast.error('Falha ao copiar')
+    }
   }
 
   statusBadgeClass(status: StandupStatus) {

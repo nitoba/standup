@@ -4,6 +4,15 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Standup } from '../../../../shared/models/standup-models'
 import { StandupTable } from './standup-table'
 
+function findButtonByAriaLabel(
+  element: HTMLElement,
+  label: string,
+): HTMLButtonElement | undefined {
+  return Array.from(
+    element.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
+  ).find((btn) => btn.getAttribute('aria-label') === label)
+}
+
 describe('StandupTable', () => {
   it('renders rows and emits selected standup ids', async () => {
     await TestBed.configureTestingModule({
@@ -83,5 +92,91 @@ describe('StandupTable', () => {
     pageFiveButton.click()
 
     expect(pageChangeSpy).toHaveBeenCalledWith(5)
+  })
+
+  it('shows copy button only for approved standups with content', async () => {
+    await TestBed.configureTestingModule({
+      imports: [StandupTable],
+    }).compileComponents()
+
+    const fixture = TestBed.createComponent(StandupTable)
+    const standups: Standup[] = [
+      {
+        id: 'approved-1',
+        date: '10/03/2026',
+        status: 'approved',
+        createdAt: '17:00',
+        content: '## Atividades\n- Fez algo',
+        contentPreview: 'Fez algo',
+        sections: [],
+        sources: [],
+      },
+      {
+        id: 'pending-1',
+        date: '10/03/2026',
+        status: 'pending_review',
+        createdAt: '17:30',
+        contentPreview: 'Algo pendente',
+        sections: [],
+        sources: [],
+      },
+    ]
+
+    fixture.componentRef.setInput('standups', standups)
+    fixture.componentRef.setInput('total', 2)
+    fixture.componentRef.setInput('page', 1)
+    fixture.componentRef.setInput('pageSize', 20)
+    fixture.componentRef.setInput('totalPages', 1)
+    fixture.detectChanges()
+
+    const copyButtons = Array.from(
+      fixture.nativeElement.querySelectorAll(
+        'button',
+      ) as NodeListOf<HTMLButtonElement>,
+    ).filter((btn) => btn.getAttribute('aria-label') === 'Copiar standup')
+
+    // One copy button per approved row (desktop + mobile = 2)
+    expect(copyButtons.length).toBe(2)
+  })
+
+  it('copies approved content to clipboard on click', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.assign(globalThis.navigator, {
+      clipboard: { writeText },
+    })
+
+    await TestBed.configureTestingModule({
+      imports: [StandupTable],
+    }).compileComponents()
+
+    const fixture = TestBed.createComponent(StandupTable)
+    const standups: Standup[] = [
+      {
+        id: 'approved-1',
+        date: '10/03/2026',
+        status: 'approved',
+        createdAt: '17:00',
+        content: '## Atividades\n- Fez algo',
+        contentPreview: 'Fez algo',
+        sections: [],
+        sources: [],
+      },
+    ]
+
+    fixture.componentRef.setInput('standups', standups)
+    fixture.componentRef.setInput('total', 1)
+    fixture.componentRef.setInput('page', 1)
+    fixture.componentRef.setInput('pageSize', 20)
+    fixture.componentRef.setInput('totalPages', 1)
+    fixture.detectChanges()
+
+    const copyBtn = findButtonByAriaLabel(
+      fixture.nativeElement,
+      'Copiar standup',
+    )!
+    copyBtn.click()
+    await fixture.whenStable()
+
+    expect(writeText).toHaveBeenCalledWith('## Atividades\n- Fez algo')
   })
 })
