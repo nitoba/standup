@@ -5,6 +5,10 @@
       "type": "remote",
       "url": "https://mcp.inkeep.com/better-auth/mcp",
       "enabled": false
+    },
+    "linear": {
+      "type": "local",
+      "command": ["npx", "-y", "mcp-remote", "https://mcp.linear.app/mcp"]
     }
   }
 }
