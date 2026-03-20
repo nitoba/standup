@@ -1,0 +1,1 @@
+ALTER TABLE `standups` ADD `sent_to_discord_at` integer;

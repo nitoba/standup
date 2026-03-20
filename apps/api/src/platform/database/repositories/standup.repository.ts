@@ -51,6 +51,7 @@ function toRecord(row: typeof standups.$inferSelect): StandupRecord {
     dmMessageId: row.dmMessageId ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    sentToDiscordAt: row.sentToDiscordAt ?? null,
   }
 }
 

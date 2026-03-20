@@ -86,6 +86,7 @@ export const standups = sqliteTable('standups', {
   dmMessageId: text('dm_message_id'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
+  sentToDiscordAt: integer('sent_to_discord_at'),
 })
 
 export const jobRuns = sqliteTable('job_runs', {

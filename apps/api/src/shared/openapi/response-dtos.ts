@@ -53,6 +53,9 @@ export class StandupRecordDto {
 
   @ApiProperty()
   updatedAt!: number
+
+  @ApiPropertyOptional({ nullable: true })
+  sentToDiscordAt!: number | null
 }
 
 class PaginationDto {
