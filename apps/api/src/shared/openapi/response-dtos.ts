@@ -174,6 +174,9 @@ export class MeSettingsRecordDto {
 
   @ApiPropertyOptional({ nullable: true })
   cancelledDate!: string | null
+
+  @ApiPropertyOptional({ nullable: true })
+  azureDevopsUser?: string | null
 }
 
 export class MeSettingsResponseDto {

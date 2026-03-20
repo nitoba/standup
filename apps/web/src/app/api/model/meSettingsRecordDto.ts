@@ -21,4 +21,6 @@ export interface MeSettingsRecordDto {
   snoozedUntil?: number | null;
   /** @nullable */
   cancelledDate?: string | null;
+  /** @nullable */
+  azureDevopsUser?: string | null;
 }
