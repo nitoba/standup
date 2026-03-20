@@ -142,6 +142,7 @@ export interface Standup {
   contentPreview: string
   customEntries?: StandupCustomEntriesDto | null
   userId?: string | null
+  sentToDiscordAt?: number | null
   sections: StandupSection[]
   sources: StandupSourceRepo[]
 }

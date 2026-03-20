@@ -14,6 +14,7 @@ import {
   getListStandupsQueryKey,
   getStandupById,
   listStandups,
+  sendToDiscord,
   triggerStandup,
   updateStandupStatus,
 } from '../../../api/endpoints/standups/standups'
@@ -213,6 +214,21 @@ export class StandupService {
     },
   }))
 
+  private readonly sendToDiscordMutation = injectMutation(() => ({
+    mutationKey: ['sendToDiscord'],
+    mutationFn: async (vars: { id: string }) => {
+      return sendToDiscord(this.http, vars.id)
+    },
+    onSuccess: (_data: unknown, vars: { id: string }) => {
+      void this.queryClient.invalidateQueries({
+        queryKey: getGetStandupByIdQueryKey(vars.id),
+      })
+      void this.queryClient.invalidateQueries({
+        queryKey: getListStandupsQueryKey(),
+      })
+    },
+  }))
+
   readonly metrics = computed<DashboardMetrics>(() => {
     const counts = this.standups.value().summary
     return {
@@ -364,6 +380,10 @@ export class StandupService {
     }
   }
 
+  async sendToDiscordAction(id: string) {
+    return this.sendToDiscordMutation.mutateAsync({ id })
+  }
+
   // --- Private mapping helpers ---
 
   private mapStandupPage(response: StandupListResponseDto): StandupPage {
@@ -384,6 +404,7 @@ export class StandupService {
       sourceData: this.formatSourceData(dto.sourceData),
       contentPreview: this.buildContentPreview(dto.content),
       customEntries: this.parseCustomEntries(dto.customEntries),
+      sentToDiscordAt: dto.sentToDiscordAt ?? null,
       sections: this.parseSections(dto.content),
       sources: this.parseSources(dto.sourceData),
     }
