@@ -3,7 +3,10 @@ import { StandupRepository } from '../../../platform/database/repositories/stand
 import { UserSettingsRepository } from '../../../platform/database/repositories/user-settings.repository'
 import { EnvService } from '../../../platform/env/env.service'
 import { LocalDateService } from '../../../platform/time/local-date.service'
-import { ExternalServiceError, InvalidStateTransitionError } from '../../../shared/domain'
+import {
+  ExternalServiceError,
+  InvalidStateTransitionError,
+} from '../../../shared/domain'
 import { signWebhookPayload } from '../../../shared/utils/sign-webhook-payload'
 import { formatStandupRecord } from '../shared/format-standup-record'
 import { throwStandupHttpError } from '../shared/throw-standup-http-error'
@@ -20,7 +23,10 @@ export class SendToDiscordService {
   ) {}
 
   async send(userId: string, standupId: string) {
-    const found = await this.standupRepository.findByIdForUser(standupId, userId)
+    const found = await this.standupRepository.findByIdForUser(
+      standupId,
+      userId,
+    )
     if (found.isErr()) {
       throwStandupHttpError(found.error)
     }
@@ -35,7 +41,8 @@ export class SendToDiscordService {
       )
     }
 
-    const { url, channelUrl, webhookSecret, sendTimeoutMs } = this.envService.automation
+    const { url, channelUrl, webhookSecret, sendTimeoutMs } =
+      this.envService.automation
     if (!url || !channelUrl || !webhookSecret) {
       throwStandupHttpError(
         new ExternalServiceError({
@@ -66,7 +73,7 @@ export class SendToDiscordService {
           ? `Network error connecting to automation server: ${error.message}`
           : `Request to automation server timed out after ${sendTimeoutMs}ms`
 
-      throwStandupHttpError(
+      return throwStandupHttpError(
         new ExternalServiceError({
           service: 'discord-automation',
           message,
@@ -74,17 +81,18 @@ export class SendToDiscordService {
       )
     }
 
-    if (!response!.ok) {
-      const detail = await response!.text().catch(() => 'unknown error')
+    if (!response.ok) {
+      const detail = await response.text().catch(() => 'unknown error')
       throwStandupHttpError(
         new ExternalServiceError({
           service: 'discord-automation',
-          message: `Automation server returned ${response!.status}: ${detail}`,
+          message: `Automation server returned ${response.status}: ${detail}`,
         }),
       )
     }
 
-    const updated = await this.standupRepository.updateSentToDiscordAt(standupId)
+    const updated =
+      await this.standupRepository.updateSentToDiscordAt(standupId)
     if (updated.isErr()) {
       throwStandupHttpError(updated.error)
     }
@@ -97,7 +105,8 @@ export class SendToDiscordService {
   }
 
   private async resolveTimezone(userId: string): Promise<string> {
-    const settingsResult = await this.userSettingsRepository.findByUserId(userId)
+    const settingsResult =
+      await this.userSettingsRepository.findByUserId(userId)
     if (settingsResult.isOk() && settingsResult.value?.timezone) {
       return settingsResult.value.timezone
     }

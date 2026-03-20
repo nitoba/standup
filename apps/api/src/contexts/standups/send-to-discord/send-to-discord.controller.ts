@@ -1,10 +1,11 @@
-import { Controller, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common'
 import {
-  ApiOkResponse,
-  ApiOperation,
-  ApiParam,
-  ApiTags,
-} from '@nestjs/swagger'
+  Controller,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+} from '@nestjs/common'
+import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger'
 import { Session } from '@thallesp/nestjs-better-auth'
 import type { AuthSession } from '../../../shared/auth/auth-session'
 import { requireSessionUserId } from '../../../shared/auth/require-session-user-id'

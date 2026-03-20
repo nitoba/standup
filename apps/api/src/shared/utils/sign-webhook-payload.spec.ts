@@ -14,7 +14,8 @@ describe('signWebhookPayload', () => {
     vi.spyOn(Date, 'now').mockReturnValue(now)
 
     const secret = 'my-secret'
-    const body = '{"channelUrl":"https://discord.com/channels/1/2","message":"hello"}'
+    const body =
+      '{"channelUrl":"https://discord.com/channels/1/2","message":"hello"}'
     const result = signWebhookPayload(secret, body)
 
     const expectedPayload = `${now}.${body}`

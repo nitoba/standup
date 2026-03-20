@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { NotFoundError, Result } from '../../../shared/domain'
+import { NotFoundError } from '../../../shared/domain'
 import { StandupRepository } from './standup.repository'
 
 function makeStandupRecord(overrides?: Record<string, unknown>) {

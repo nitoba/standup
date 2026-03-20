@@ -11,7 +11,9 @@ import { SendToDiscordService } from './send-to-discord.service'
 const USER_ID = 'user-1'
 const STANDUP_ID = 'standup-1'
 
-function makeStandupRecord(overrides: Partial<StandupRecord> = {}): StandupRecord {
+function makeStandupRecord(
+  overrides: Partial<StandupRecord> = {},
+): StandupRecord {
   return {
     id: STANDUP_ID,
     date: '2026-03-20',
@@ -98,7 +100,9 @@ describe('SendToDiscordService', () => {
       Result.err(new NotFoundError({ resource: 'standup', id: STANDUP_ID })),
     )
 
-    await expect(service.send(USER_ID, STANDUP_ID)).rejects.toThrow(NotFoundException)
+    await expect(service.send(USER_ID, STANDUP_ID)).rejects.toThrow(
+      NotFoundException,
+    )
   })
 
   it('throws ConflictException when status is draft', async () => {
@@ -106,7 +110,9 @@ describe('SendToDiscordService', () => {
       Result.ok(makeStandupRecord({ status: 'draft' })),
     )
 
-    await expect(service.send(USER_ID, STANDUP_ID)).rejects.toThrow(ConflictException)
+    await expect(service.send(USER_ID, STANDUP_ID)).rejects.toThrow(
+      ConflictException,
+    )
   })
 
   it('throws ConflictException when status is pending_review', async () => {
@@ -114,7 +120,9 @@ describe('SendToDiscordService', () => {
       Result.ok(makeStandupRecord({ status: 'pending_review' })),
     )
 
-    await expect(service.send(USER_ID, STANDUP_ID)).rejects.toThrow(ConflictException)
+    await expect(service.send(USER_ID, STANDUP_ID)).rejects.toThrow(
+      ConflictException,
+    )
   })
 
   it('throws ConflictException when status is rejected', async () => {
@@ -122,7 +130,9 @@ describe('SendToDiscordService', () => {
       Result.ok(makeStandupRecord({ status: 'rejected' })),
     )
 
-    await expect(service.send(USER_ID, STANDUP_ID)).rejects.toThrow(ConflictException)
+    await expect(service.send(USER_ID, STANDUP_ID)).rejects.toThrow(
+      ConflictException,
+    )
   })
 
   it('throws ServiceUnavailableException when automation URL is not configured', async () => {
@@ -197,7 +207,9 @@ describe('SendToDiscordService', () => {
       ...updatedRecord,
       date: '2026-03-20',
     })
-    expect(standupRepository.updateSentToDiscordAt).toHaveBeenCalledWith(STANDUP_ID)
+    expect(standupRepository.updateSentToDiscordAt).toHaveBeenCalledWith(
+      STANDUP_ID,
+    )
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'http://localhost:9000/send',
       expect.objectContaining({
@@ -245,6 +257,8 @@ describe('SendToDiscordService', () => {
     const result = await service.send(USER_ID, STANDUP_ID)
 
     expect(result.sentToDiscordAt).toBe(newTimestamp)
-    expect(standupRepository.updateSentToDiscordAt).toHaveBeenCalledWith(STANDUP_ID)
+    expect(standupRepository.updateSentToDiscordAt).toHaveBeenCalledWith(
+      STANDUP_ID,
+    )
   })
 })
