@@ -8,6 +8,8 @@ import { StandupSseBusService } from './events/standup-sse-bus.service'
 import { PublishStandupService } from './publication/publish-standup.service'
 import { StandupsQueryController } from './query/standups-query.controller'
 import { StandupsQueryService } from './query/standups-query.service'
+import { SendToDiscordController } from './send-to-discord/send-to-discord.controller'
+import { SendToDiscordService } from './send-to-discord/send-to-discord.service'
 import { StandupStatusController } from './status/standup-status.controller'
 import { StandupStatusService } from './status/standup-status.service'
 import { TriggerStandupController } from './trigger/trigger-standup.controller'
@@ -22,6 +24,7 @@ import { WorkerModule } from './worker/worker.module'
     StandupsQueryController,
     StandupStatusController,
     ApproveStandupController,
+    SendToDiscordController,
   ],
   providers: [
     TriggerStandupService,
@@ -31,6 +34,7 @@ import { WorkerModule } from './worker/worker.module'
     StandupStatusService,
     ApproveStandupService,
     PublishStandupService,
+    SendToDiscordService,
   ],
   exports: [
     TriggerStandupService,
