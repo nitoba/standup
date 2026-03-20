@@ -164,6 +164,37 @@ describe('StandupPromptService', () => {
       expect(message).toContain('Repositório: my-repo')
     })
 
+    it('does not include "sem card associado" in user message for repos without work items', () => {
+      const service = createService()
+      const input: GenerateStandupInput = {
+        date: '2026-03-16',
+        meetingType: '',
+        gitActivity: {
+          timestamp: '2026-03-16T17:00:00.000Z',
+          repos: [],
+        },
+      }
+
+      const message = service.buildUserMessage(input, baseEnrichedActivity)
+
+      expect(message).not.toContain('sem card associado')
+      expect(message).not.toContain('Sem work items associados')
+      expect(message).toContain('Repositório: my-repo')
+    })
+
+    it('git-only system prompt does not contain "sem card associado" as a section header', () => {
+      const service = createService()
+      const prompt = service.buildSystemPrompt({
+        hasGit: true,
+        hasBoard: false,
+      })
+
+      expect(prompt).not.toContain('(sem card associado)')
+      expect(prompt).toContain(
+        'NUNCA inclua expressões como "sem card associado"',
+      )
+    })
+
     it('works with only board activity (no enrichedActivity)', () => {
       const service = createService()
       const input: GenerateStandupInput = {

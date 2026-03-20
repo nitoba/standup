@@ -59,9 +59,7 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
 \t\t➜ <descrição da correção>
 \t➜ **Melhorias Técnicas:**
 \t\t➜ <descrição da melhoria>
-
-**✅ Done (sem card associado):**
-➜ <título-gerado-com-base-nos-dados-coletados>
+➜ <título-descritivo-gerado-a-partir-dos-commits> (quando não houver card)
 \t➜ **Correções:**
 \t\t➜ <descrição da correção>
 \t➜ **Melhorias Técnicas:**
@@ -86,8 +84,9 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
 - Títulos dos cards vêm do Azure DevOps, não dos commits
 - Se não houver título do Azure DevOps, crie um título descritivo baseado nos commits
 - Se uma atividade não estiver atrelada a nenhum card/work item, NÃO invente número de card e NÃO use prefixo \`#\`
-- Para atividades sem card/work item, crie um título baseado nos commits, arquivos e contexto coletado
+- Para atividades sem card/work item, crie um título descritivo baseado nos commits, arquivos e contexto coletado
 - Para atividades sem card/work item, descreva o que foi feito normalmente nas seções **Correções** e/ou **Melhorias Técnicas**
+- NUNCA inclua expressões como "sem card associado", "sem work item" ou similares no texto final — o relatório deve soar natural
 - Inclua caminhos de arquivo quando relevante (ex: \`src/services/geo.ts\`)
 - Liste migration files explicitamente quando presentes
 - Mencione novos componentes/serviços criados com seus caminhos
@@ -182,7 +181,7 @@ Sua tarefa é consolidar ambas as fontes e gerar um relatório de standup em por
 **Consolidação de duas fontes:**
 - Se um work item aparece tanto nos commits git quanto na atividade do board, consolide as informações num único item
 - Evite dados duplicados: prefira o título do Azure DevOps sobre títulos inferidos de commits
-- Commits sem card associado devem aparecer normalmente sem prefixo \`#\`
+- Commits sem card associado devem aparecer na mesma seção Done/In Progress com um título descritivo gerado a partir dos commits, sem prefixo \`#\` e sem mencionar que não possuem card
 - Work items do board que não têm commits correspondentes aparecem apenas com a descrição das ações
 
 **Categorias de conteúdo:**
@@ -308,9 +307,8 @@ Sua tarefa é consolidar ambas as fontes e gerar um relatório de standup em por
           sections.push('')
         }
       } else {
-        sections.push('### Sem work items associados (commits diretos)')
         sections.push(
-          '### Instrução para commits sem card: gerar título e descrições a partir dos commits/arquivos sem incluir número de card ou prefixo #',
+          '### Nota: estes commits não possuem work items associados. Gere títulos descritivos a partir dos commits e arquivos alterados. Não use prefixo # nem mencione a ausência de cards no texto final.',
         )
         sections.push('')
       }
