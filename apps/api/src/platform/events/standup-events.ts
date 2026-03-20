@@ -54,6 +54,7 @@ export type StandupReadyEvent = {
 }
 
 export type StandupReminderEvent = {
+  userId: string
   discordUserId: string
   nextRunAt: string
 }

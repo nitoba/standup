@@ -42,8 +42,13 @@ export class ReminderActionsService {
     }
   }
 
-  notifyReminder(discordUserId: string, nextRunAt: string): void {
+  notifyReminder(
+    userId: string,
+    discordUserId: string,
+    nextRunAt: string,
+  ): void {
     this.notifications.notifyStandupReminder({
+      userId,
       discordUserId,
       nextRunAt,
     })

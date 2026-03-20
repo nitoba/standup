@@ -14,7 +14,9 @@ import {
   type DiscordLoginSuccessRequestedEvent,
   JOB_FAILED_NOTIFICATION_EVENT,
   type JobFailedNotificationEvent,
+  STANDUP_PROGRESS_EVENT,
   STANDUP_REMINDER_EVENT,
+  type StandupProgressEvent,
   type StandupReminderEvent,
   USER_DM_REQUESTED_EVENT,
   type UserDmRequestedEvent,
@@ -39,9 +41,13 @@ import {
   EMBED_COLORS,
 } from '../embeds'
 
+type PendingReminder = { discordUserId: string; messageId: string }
+
 @Injectable()
 export class DiscordMessagesService {
   private readonly logger: ReturnType<AppLoggerFactory['create']>
+  private readonly pendingReminders = new Map<string, PendingReminder>()
+
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
     private readonly discordClient: DiscordClientService,
@@ -88,7 +94,20 @@ export class DiscordMessagesService {
         discordUserId: event.discordUserId,
         error: result.error.message,
       })
+      return
     }
+
+    this.pendingReminders.set(event.userId, {
+      discordUserId: event.discordUserId,
+      messageId: result.value.messageId,
+    })
+  }
+
+  @OnEvent(STANDUP_PROGRESS_EVENT)
+  async handleStandupProgress(event: StandupProgressEvent): Promise<void> {
+    if (event.step !== 'queued') return
+
+    await this.dismissReminderDm(event.userId)
   }
 
   @OnEvent(JOB_FAILED_NOTIFICATION_EVENT)
@@ -315,6 +334,31 @@ export class DiscordMessagesService {
           message: `Failed to update DM message: ${error instanceof Error ? error.message : String(error)}`,
         }),
     })
+  }
+
+  private async dismissReminderDm(userId: string): Promise<void> {
+    const pending = this.pendingReminders.get(userId)
+    if (!pending) return
+
+    this.pendingReminders.delete(userId)
+
+    const editResult = await this.updateDmMessage({
+      discordUserId: pending.discordUserId,
+      messageId: pending.messageId,
+      payload: {
+        content: '⏳ Standup em geração — lembrete encerrado.',
+        embeds: [],
+        components: [],
+      },
+    })
+
+    if (editResult.isErr()) {
+      this.logger.warn('Failed to dismiss reminder DM', {
+        userId,
+        messageId: pending.messageId,
+        error: editResult.error.message,
+      })
+    }
   }
 
   isReady(): boolean {

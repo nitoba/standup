@@ -89,7 +89,11 @@ export class WorkerSchedulerService {
 
     if (isCronDueNow(settings.reminderCron, timezone, now)) {
       const nextRunAt = new Date(now.getTime() + 10 * 60_000).toISOString()
-      this.reminderActions.notifyReminder(discordResult.value, nextRunAt)
+      this.reminderActions.notifyReminder(
+        settings.userId,
+        discordResult.value,
+        nextRunAt,
+      )
     }
 
     if (isCronDueNow(settings.standupCron, timezone, now)) {
