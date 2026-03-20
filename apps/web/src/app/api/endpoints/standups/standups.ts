@@ -660,3 +660,97 @@ export const injectApproveStandup = <TError = unknown, TContext = unknown>(optio
 
   return injectMutation(() => approveStandupMutationOptions);
 };
+/**
+ * @summary Envia standup aprovado para o Discord via automacao
+ */
+export const sendToDiscord = (
+  http: HttpClient,
+  id: string,
+  options?: { signal?: AbortSignal | null },
+): Promise<StandupDetailResponseDto> => {
+  const url = `/standups/${id}/send-to-discord`;
+  const request$ = http.post<StandupDetailResponseDto>(url, undefined);
+  if (options?.signal) {
+    return lastValueFrom(request$.pipe(takeUntil(fromEvent(options.signal, 'abort'))));
+  }
+  return lastValueFrom(request$);
+};
+
+export const getSendToDiscordMutationOptions = <TError = unknown, TContext = unknown>(
+  http: HttpClient,
+  queryClient: QueryClient,
+  options?: {
+    mutation?: CreateMutationOptions<
+      Awaited<ReturnType<typeof sendToDiscord>>,
+      TError,
+      { id: string },
+      TContext
+    >;
+    skipInvalidation?: boolean;
+    fetch?: RequestInit;
+  },
+): CreateMutationOptions<
+  Awaited<ReturnType<typeof sendToDiscord>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ['sendToDiscord'];
+  const { mutation: mutationOptions, fetch: fetchOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, fetch: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendToDiscord>>, { id: string }> = (
+    props,
+  ) => {
+    const { id } = props ?? {};
+
+    return sendToDiscord(http, id, fetchOptions);
+  };
+
+  const onSuccess = (
+    data: Awaited<ReturnType<typeof sendToDiscord>>,
+    variables: { id: string },
+    onMutateResult: TContext,
+    context: MutationFunctionContext,
+  ) => {
+    if (!options?.skipInvalidation) {
+      queryClient.invalidateQueries({ queryKey: getListStandupsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetStandupByIdQueryKey(variables.id) });
+    }
+    mutationOptions?.onSuccess?.(data, variables, onMutateResult, context);
+  };
+
+  return { ...mutationOptions, mutationFn, onSuccess };
+};
+
+export type SendToDiscordMutationResult = NonNullable<Awaited<ReturnType<typeof sendToDiscord>>>;
+
+export type SendToDiscordMutationError = unknown;
+
+/**
+ * @summary Envia standup aprovado para o Discord via automacao
+ */
+export const injectSendToDiscord = <TError = unknown, TContext = unknown>(options?: {
+  mutation?: CreateMutationOptions<
+    Awaited<ReturnType<typeof sendToDiscord>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  skipInvalidation?: boolean;
+  fetch?: RequestInit;
+}): CreateMutationResult<
+  Awaited<ReturnType<typeof sendToDiscord>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const http = inject(HttpClient);
+  const queryClient = inject(QueryClient);
+  const sendToDiscordMutationOptions = getSendToDiscordMutationOptions(http, queryClient, options);
+
+  return injectMutation(() => sendToDiscordMutationOptions);
+};
