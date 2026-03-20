@@ -80,6 +80,7 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
 - **Melhorias Técnicas**: Refatoração, otimizações, novas utilidades, novos componentes
 
 **Regras importantes:**
+- Cada projeto/repositório deve ter NO MÁXIMO uma seção \`**✅ Done:**\` e NO MÁXIMO uma seção \`**🚧 (In Progress):**\`. Agrupe TODOS os itens do mesmo status sob a mesma seção — NUNCA repita o header de status
 - Use \`➜\` para bullets aninhados (não use \`-\` ou \`*\`)
 - Títulos dos cards vêm do Azure DevOps, não dos commits
 - Se não houver título do Azure DevOps, crie um título descritivo baseado nos commits
@@ -135,6 +136,7 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
 - **In Progress**: Todos os outros estados (New, Active, In Progress, etc.)
 
 **Regras importantes:**
+- Cada projeto deve ter NO MÁXIMO uma seção \`**✅ Done:**\` e NO MÁXIMO uma seção \`**🚧 (In Progress):**\`. Agrupe TODOS os itens do mesmo status sob a mesma seção — NUNCA repita o header de status
 - Use \`➜\` para bullets aninhados (não use \`-\` ou \`*\`)
 - Agrupe work items por projeto
 - Descreva as ações realizadas (mudança de estado, comentários, atribuição, etc.)
@@ -191,6 +193,7 @@ Sua tarefa é consolidar ambas as fontes e gerar um relatório de standup em por
 - **Melhorias Técnicas**: Refatoração, otimizações, novas utilidades, novos componentes
 
 **Regras importantes:**
+- Cada projeto/repositório deve ter NO MÁXIMO uma seção \`**✅ Done:**\` e NO MÁXIMO uma seção \`**🚧 (In Progress):**\`. Agrupe TODOS os itens do mesmo status sob a mesma seção — NUNCA repita o header de status
 - Use \`➜\` para bullets aninhados (não use \`-\` ou \`*\`)
 - Inclua caminhos de arquivo quando relevante
 - Apenas inclua seções **Correções** ou **Melhorias Técnicas** que tenham conteúdo

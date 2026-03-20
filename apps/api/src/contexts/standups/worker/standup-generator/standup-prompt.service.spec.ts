@@ -286,5 +286,26 @@ describe('StandupPromptService', () => {
       expect(testCaseLine).toContain('APENAS CONTEXTO')
       expect(userStoryLine).not.toContain('APENAS CONTEXTO')
     })
+
+    it('all system prompts contain status grouping rule', () => {
+      const service = createService()
+      const gitOnly = service.buildSystemPrompt({
+        hasGit: true,
+        hasBoard: false,
+      })
+      const boardOnly = service.buildSystemPrompt({
+        hasGit: false,
+        hasBoard: true,
+      })
+      const hybrid = service.buildSystemPrompt({
+        hasGit: true,
+        hasBoard: true,
+      })
+
+      for (const prompt of [gitOnly, boardOnly, hybrid]) {
+        expect(prompt).toContain('NO MÁXIMO uma seção')
+        expect(prompt).toContain('NUNCA repita o header de status')
+      }
+    })
   })
 })
