@@ -51,6 +51,7 @@ function toRecord(row: typeof standups.$inferSelect): StandupRecord {
     dmMessageId: row.dmMessageId ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    sentToDiscordAt: row.sentToDiscordAt ?? null,
   }
 }
 
@@ -540,6 +541,32 @@ export class StandupRepository {
       })
     } catch (error) {
       return this.dbErr('updateDmMessageId', error)
+    }
+  }
+
+  async updateSentToDiscordAt(
+    id: string,
+  ): Promise<Result<StandupRecord, NotFoundError | DbError>> {
+    try {
+      const found = await this.findById(id)
+
+      if (found.isErr()) {
+        return found
+      }
+
+      const now = Date.now()
+      await this.database.db
+        .update(standups)
+        .set({ sentToDiscordAt: now, updatedAt: now })
+        .where(eq(standups.id, id))
+
+      return Result.ok({
+        ...found.value,
+        sentToDiscordAt: now,
+        updatedAt: now,
+      })
+    } catch (error) {
+      return this.dbErr('updateSentToDiscordAt', error)
     }
   }
 

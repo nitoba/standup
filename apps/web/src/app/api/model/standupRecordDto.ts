@@ -22,4 +22,6 @@ export interface StandupRecordDto {
   dmMessageId?: string | null;
   createdAt: number;
   updatedAt: number;
+  /** @nullable */
+  sentToDiscordAt?: number | null;
 }

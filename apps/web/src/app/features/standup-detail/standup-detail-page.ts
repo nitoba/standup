@@ -11,15 +11,18 @@ import { toast } from 'ngx-sonner'
 import { SidebarLayout } from '../../core/layout/sidebar'
 import { ZardButtonComponent } from '../../shared/components/button'
 import { ZardDialogService } from '../../shared/components/dialog'
+import { ZardIconComponent } from '../../shared/components/icon'
 import { JsonViewerComponent } from '../../shared/components/json-viewer/json-viewer.component'
 import type {
   Standup,
   StandupCustomEntriesDto,
   StandupStatus,
 } from '../../shared/models/standup-models'
+import { formatTimestampPtBr } from '../../shared/utils'
 import { StandupService } from '../dashboard/services/standup-service'
 import { AdjustDialogContent } from './components/adjust-dialog/adjust-dialog-content'
 import { ApproveDialogContent } from './components/approve-dialog/approve-dialog-content'
+import { ResendConfirmDialog } from './components/resend-confirm-dialog/resend-confirm-dialog'
 import { StandupDetailSkeleton } from './components/standup-detail-skeleton/standup-detail-skeleton'
 import { DiscordFormatPipe } from './pipes/discord-format.pipe'
 
@@ -29,6 +32,7 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
     SidebarLayout,
     RouterLink,
     ZardButtonComponent,
+    ZardIconComponent,
     JsonViewerComponent,
     StandupDetailSkeleton,
     DiscordFormatPipe,
@@ -209,6 +213,19 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
                 (click)="openRegenerateModal(detail.id)"
               >
                 $ regenerar
+              </button>
+            }
+            @if (isApproved(detail.status)) {
+              <button
+                type="button"
+                z-button
+                zType="default"
+                class="w-full md:w-auto"
+                [zDisabled]="actionLoading()"
+                (click)="handleSendToDiscord(detail)"
+              >
+                <z-icon zType="send" zSize="sm" class="mr-2" />
+                {{ detail.sentToDiscordAt ? 'Reenviar para Discord' : 'Enviar para Discord' }}
               </button>
             }
           </div>
@@ -405,5 +422,39 @@ export class StandupDetailPage {
   formatStatus(status: StandupStatus) {
     if (status === 'pending_review') return '[pendente]'
     return status === 'approved' ? '[aprovado]' : '[rejeitado]'
+  }
+
+  isApproved(status: StandupStatus) {
+    return status === 'approved'
+  }
+
+  handleSendToDiscord(detail: Standup) {
+    if (detail.sentToDiscordAt) {
+      const sentDate = formatTimestampPtBr(detail.sentToDiscordAt)
+      this.dialogService.create({
+        zTitle: '// reenviar para discord',
+        zContent: ResendConfirmDialog,
+        zHideFooter: true,
+        zData: {
+          sentAt: sentDate,
+          onConfirm: () => this.executeSendToDiscord(detail.id),
+        },
+      })
+    } else {
+      void this.executeSendToDiscord(detail.id)
+    }
+  }
+
+  private async executeSendToDiscord(id: string) {
+    this.actionLoading.set(true)
+    try {
+      await this.standupService.sendToDiscordAction(id)
+      toast.success('Standup enviado para o Discord')
+      this.standup.reload()
+    } catch {
+      toast.error('Falha ao enviar para o Discord')
+    } finally {
+      this.actionLoading.set(false)
+    }
   }
 }

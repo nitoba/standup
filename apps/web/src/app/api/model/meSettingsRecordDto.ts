@@ -5,22 +5,22 @@
  * API do serviço de geração, revisão e publicação de standups.
  * OpenAPI spec version: 0.0.1
  */
-import type { MeSettingsRecordDtoEmailTheme } from './meSettingsRecordDtoEmailTheme'
+import type { MeSettingsRecordDtoEmailTheme } from './meSettingsRecordDtoEmailTheme';
 
 export interface MeSettingsRecordDto {
-  standupCron: string
-  reminderCron: string
-  recoveryCron: string
-  timezone: string
-  gitAuthor: string
-  gitSincePeriod: string
-  selectedRepos: string[]
-  active: boolean
-  emailTheme: MeSettingsRecordDtoEmailTheme
+  standupCron: string;
+  reminderCron: string;
+  recoveryCron: string;
+  timezone: string;
+  gitAuthor: string;
+  gitSincePeriod: string;
+  selectedRepos: string[];
+  active: boolean;
+  emailTheme: MeSettingsRecordDtoEmailTheme;
   /** @nullable */
-  snoozedUntil?: number | null
+  snoozedUntil?: number | null;
   /** @nullable */
-  cancelledDate?: string | null
+  cancelledDate?: string | null;
   /** @nullable */
-  azureDevopsUser?: string | null
+  azureDevopsUser?: string | null;
 }

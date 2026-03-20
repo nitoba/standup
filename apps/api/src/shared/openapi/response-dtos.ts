@@ -53,6 +53,9 @@ export class StandupRecordDto {
 
   @ApiProperty()
   updatedAt!: number
+
+  @ApiPropertyOptional({ nullable: true })
+  sentToDiscordAt!: number | null
 }
 
 class PaginationDto {
@@ -171,6 +174,9 @@ export class MeSettingsRecordDto {
 
   @ApiPropertyOptional({ nullable: true })
   cancelledDate!: string | null
+
+  @ApiPropertyOptional({ nullable: true })
+  azureDevopsUser?: string | null
 }
 
 export class MeSettingsResponseDto {

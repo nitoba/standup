@@ -22,7 +22,7 @@ export default defineConfig({
           signal: true,
           mutationInvalidates: [
             {
-              onMutations: ['approveStandup', 'updateStandupStatus'],
+              onMutations: ['approveStandup', 'updateStandupStatus', 'sendToDiscord'],
               invalidates: [
                 'listStandups',
                 { query: 'getStandupById', params: ['id'] },

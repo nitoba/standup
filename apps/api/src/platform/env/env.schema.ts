@@ -31,4 +31,8 @@ export const environmentVariablesSchema = z.object({
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().optional(),
   SMTP_SECURE: z.coerce.boolean().default(false),
+  DISCORD_AUTOMATION_URL: z.string().url().optional(),
+  DISCORD_AUTOMATION_CHANNEL_URL: z.string().url().optional(),
+  DISCORD_AUTOMATION_WEBHOOK_SECRET: z.string().optional(),
+  DISCORD_SEND_TIMEOUT_MS: z.coerce.number().default(60000),
 })

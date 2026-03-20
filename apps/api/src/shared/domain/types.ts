@@ -116,4 +116,5 @@ export interface StandupRecord {
   dmMessageId: string | null
   createdAt: number
   updatedAt: number
+  sentToDiscordAt: number | null
 }
