@@ -6,7 +6,7 @@
   "type": "module",
   "license": "UNLICENSED",
   "scripts": {
-    "dev": "bun --env-file=../../.env --watch src/main.ts",
+    "dev": "bun --env-file=../../.env.local --watch src/main.ts",
     "dev:local": "bun --env-file=../../.env.local --watch src/main.ts",
     "build": "nest build",
     "start": "bun --env-file=../../.env src/main.ts",

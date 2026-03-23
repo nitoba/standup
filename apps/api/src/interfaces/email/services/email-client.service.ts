@@ -75,6 +75,9 @@ export class EmailClientService {
             user: config.user,
             pass: config.pass,
           },
+          tls: {
+            rejectUnauthorized: config.secure,
+          },
         })
 
         const headers: Record<string, string> = {}

@@ -1,5 +1,19 @@
 import * as z from 'zod'
 
+/**
+ * z.coerce.boolean() uses Boolean(value) internally, which converts any
+ * non-empty string to true — including the string "false". This helper
+ * correctly parses env-var style booleans: "true"/"1" → true, everything
+ * else → false.
+ */
+const booleanFromEnv = z
+  .union([z.boolean(), z.string(), z.undefined()])
+  .transform((val) => {
+    if (typeof val === 'boolean') return val
+    if (val === undefined || val === '') return undefined
+    return val === 'true' || val === '1'
+  })
+
 export const environmentVariablesSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
@@ -16,8 +30,8 @@ export const environmentVariablesSchema = z.object({
   DISCORD_BOT_TOKEN: z.string().optional(),
   DISCORD_CHANNEL_ID: z.string().optional(),
   DISCORD_GUILD_ID: z.string().optional(),
-  DISCORD_GATEWAY_ENABLED: z.coerce.boolean().default(true),
-  SCHEDULER_ENABLED: z.coerce.boolean().default(true),
+  DISCORD_GATEWAY_ENABLED: booleanFromEnv.default(true),
+  SCHEDULER_ENABLED: booleanFromEnv.default(true),
   AI_PROVIDER_API_KEY: z.string().optional(),
   AZURE_DEVOPS_ORG: z.string().optional(),
   AZURE_DEVOPS_PAT: z.string().optional(),
@@ -30,7 +44,7 @@ export const environmentVariablesSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().optional(),
-  SMTP_SECURE: z.coerce.boolean().default(false),
+  SMTP_SECURE: booleanFromEnv.default(false),
   DISCORD_AUTOMATION_URL: z.string().url().optional(),
   DISCORD_AUTOMATION_CHANNEL_URL: z.string().url().optional(),
   DISCORD_AUTOMATION_WEBHOOK_SECRET: z.string().optional(),
