@@ -32,7 +32,6 @@ export const environmentVariablesSchema = z.object({
   DISCORD_GUILD_ID: z.string().optional(),
   DISCORD_GATEWAY_ENABLED: booleanFromEnv.default(true),
   SCHEDULER_ENABLED: booleanFromEnv.default(true),
-  AI_PROVIDER_API_KEY: z.string().optional(),
   GOOGLE_API_KEY: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
   OPENROUTER_API_KEY: z.string().optional(),
