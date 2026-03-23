@@ -85,3 +85,10 @@ export class RepoCloneError extends TaggedError('RepoCloneError')<{
   repo: string
   message: string
 }>() {}
+
+export class AllProvidersUnavailableError extends TaggedError(
+  'AllProvidersUnavailableError',
+)<{
+  message: string
+  modelsAttempted: number
+}>() {}
