@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/style/noNonNullAssertion: never be nullable */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Result } from '../../../../shared/domain'
 import { StandupGeneratorService } from './standup-generator.service'
@@ -10,10 +11,6 @@ function makeLoggerFactory() {
       error: vi.fn(),
     })),
   }
-}
-
-function makeRuntimeConfig() {
-  return { config: {} } as never
 }
 
 function makeAzureEnrichment() {
