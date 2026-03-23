@@ -43,12 +43,27 @@ export class EmailClientService {
   async sendEmail(
     input: SendEmailInput,
   ): Promise<Result<SendEmailResult, ExternalServiceError>> {
+    if (!input?.to || !input?.subject) {
+      this.logger.error('sendEmail called with invalid input', {
+        hasInput: input != null,
+        hasTo: Boolean(input?.to),
+        hasSubject: Boolean(input?.subject),
+      })
+      return Result.err(
+        new ExternalServiceError({
+          service: 'smtp',
+          message: 'Invalid email input: missing required fields',
+        }),
+      )
+    }
+
     const configResult = this.getSmtpConfig()
     if (configResult.isErr()) {
       return configResult
     }
 
     const config = configResult.value
+    const { to, subject, text, html, unsubscribeUrl } = input
 
     return Result.tryPromise({
       try: async () => {
@@ -63,23 +78,25 @@ export class EmailClientService {
         })
 
         const headers: Record<string, string> = {}
-        if (input.unsubscribeUrl) {
-          headers['List-Unsubscribe'] = `<${input.unsubscribeUrl}>`
+        if (unsubscribeUrl) {
+          headers['List-Unsubscribe'] = `<${unsubscribeUrl}>`
           headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
         }
 
-        const info = await transport.sendMail({
+        const mailOptions = {
           from: config.fromAddress,
-          to: input.to,
-          subject: input.subject,
-          text: input.text,
-          html: input.html,
+          to,
+          subject,
+          text,
+          html,
           headers,
-        })
+        }
+
+        const info = await transport.sendMail(mailOptions)
 
         this.logger.info('Email sent', {
-          to: input.to,
-          subject: input.subject,
+          to,
+          subject,
           messageId: info.messageId,
         })
 
@@ -88,8 +105,8 @@ export class EmailClientService {
       catch: (error) => {
         const message = error instanceof Error ? error.message : String(error)
         this.logger.error('Failed to send email', {
-          to: input.to,
-          subject: input.subject,
+          to,
+          subject,
           error: message,
         })
         return new ExternalServiceError({

@@ -205,6 +205,17 @@ export class RunWeeklyDigestJobService {
         }),
     )
 
+    if (!emailPayload?.subject) {
+      jobLogger.error('composeEmail returned invalid payload', {
+        hasPayload: emailPayload != null,
+      })
+      await this.digestRepository.markFailed(
+        digestId,
+        'Email composition returned invalid payload',
+      )
+      return
+    }
+
     const sendResult = await this.tracing.withSpan(
       'digest.email.send',
       {
