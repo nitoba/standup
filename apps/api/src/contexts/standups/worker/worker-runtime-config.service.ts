@@ -7,6 +7,10 @@ export interface WorkerRuntimeConfig {
   REPOS_ROOT_PATH: string
   SCHEDULER_ENABLED: boolean
   AI_PROVIDER_API_KEY: string
+  GOOGLE_API_KEY: string
+  GROQ_API_KEY: string
+  OPENROUTER_API_KEY: string
+  LLM_PROVIDERS_CONFIG: string
   AZURE_DEVOPS_ORG: string
   AZURE_DEVOPS_PAT: string
   AZURE_DEVOPS_DEFAULT_PROJECT: string
@@ -24,6 +28,10 @@ export class WorkerRuntimeConfigService {
       REPOS_ROOT_PATH: this.env.worker.reposRootPath,
       SCHEDULER_ENABLED: this.env.worker.schedulerEnabled,
       AI_PROVIDER_API_KEY: this.env.worker.aiProviderApiKey ?? '',
+      GOOGLE_API_KEY: this.env.worker.googleApiKey ?? '',
+      GROQ_API_KEY: this.env.worker.groqApiKey ?? '',
+      OPENROUTER_API_KEY: this.env.worker.openrouterApiKey ?? '',
+      LLM_PROVIDERS_CONFIG: this.env.worker.llmProvidersConfig ?? '[]',
       AZURE_DEVOPS_ORG: this.env.worker.azureDevopsOrg ?? '',
       AZURE_DEVOPS_PAT: this.env.worker.azureDevopsPat ?? '',
       AZURE_DEVOPS_DEFAULT_PROJECT: this.env.worker.azureDevopsDefaultProject,
