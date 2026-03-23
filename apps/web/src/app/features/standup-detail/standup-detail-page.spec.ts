@@ -64,6 +64,7 @@ function getActionButtons(
     reject: getButtonByText(fixture, '$ rejeitar'),
     adjust: getButtonByText(fixture, '$ ajustar'),
     regenerate: getButtonByText(fixture, '$ regenerar'),
+    sendToDiscord: getButtonByText(fixture, 'Enviar para Discord'),
   }
 }
 
@@ -73,6 +74,7 @@ async function createFixture(options?: {
   reject?: () => Promise<unknown>
   adjust?: (id: string, instruction: string) => Promise<unknown>
   regenerate?: () => Promise<unknown>
+  sendToDiscordAction?: (id: string) => Promise<unknown>
   reload?: () => Promise<void>
 }) {
   const detail = signal<Standup | undefined>(
@@ -94,6 +96,9 @@ async function createFixture(options?: {
     reject: vi.fn(options?.reject ?? (async () => {})),
     adjust: vi.fn(options?.adjust ?? (async () => {})),
     regenerate: vi.fn(options?.regenerate ?? (async () => {})),
+    sendToDiscordAction: vi.fn(
+      options?.sendToDiscordAction ?? (async () => {}),
+    ),
   }
   const dialogService = {
     create: vi.fn(),
@@ -417,6 +422,31 @@ describe('StandupDetailPage', () => {
     expect(reject.disabled).toBe(false)
     expect(adjust.disabled).toBe(false)
     expect(regenerate.disabled).toBe(false)
+  })
+
+  it('shows spinner and loading label while sending standup to Discord', async () => {
+    const sendDeferred = createDeferred<void>()
+    const { fixture, standupService, standupResource } = await createFixture({
+      status: 'approved',
+      sendToDiscordAction: () => sendDeferred.promise,
+    })
+
+    const sendButton = getActionButtons(fixture).sendToDiscord
+
+    sendButton.click()
+    fixture.detectChanges()
+
+    expect(standupService.sendToDiscordAction).toHaveBeenCalledWith(STANDUP_ID)
+    expect(sendButton.disabled).toBe(true)
+    expect(sendButton.textContent).toContain('Enviando...')
+    expect(sendButton.querySelector('svg')).not.toBeNull()
+
+    sendDeferred.resolve()
+    await settleFixture(fixture)
+
+    expect(standupResource.reload).toHaveBeenCalledOnce()
+    expect(sendButton.disabled).toBe(false)
+    expect(sendButton.textContent).toContain('Enviar para Discord')
   })
 
   it('opens the regenerate confirmation modal when the regenerate button is clicked', async () => {

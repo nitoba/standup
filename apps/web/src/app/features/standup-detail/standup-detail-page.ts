@@ -221,11 +221,20 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
                 z-button
                 zType="default"
                 class="w-full md:w-auto"
+                [zLoading]="actionLoading()"
                 [zDisabled]="actionLoading()"
                 (click)="handleSendToDiscord(detail)"
               >
-                <z-icon zType="send" zSize="sm" class="mr-2" />
-                {{ detail.sentToDiscordAt ? 'Reenviar para Discord' : 'Enviar para Discord' }}
+                @if (!actionLoading()) {
+                  <z-icon zType="send" zSize="sm" class="mr-2" />
+                }
+                {{
+                  actionLoading()
+                    ? 'Enviando...'
+                    : detail.sentToDiscordAt
+                      ? 'Reenviar para Discord'
+                      : 'Enviar para Discord'
+                }}
               </button>
             }
           </div>
