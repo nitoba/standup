@@ -104,13 +104,14 @@ Cada modelo mantem estado: `{ failCount, backoffUntil, lastFailureAt }`
 - Na falha por rate limit: `backoffUntil = now + 30s * 2^(failCount - 1)`
 - Cap maximo de backoff: 5 minutos (evita lockout prolongado)
 - Apos 5 minutos sem falha, `failCount` reseta para 0
-- `reportSuccess(modelKey)` — reseta o timer de staleness
+- `reportSuccess(modelKey)` — reseta `failCount` para 0, limpa `backoffUntil` e atualiza `lastSuccessAt`
 
 **Deteccao de rate limit no AI SDK:**
 - `reportFailure(modelKey, error)` verifica se o erro e rate limit checando:
   - `error instanceof APICallError && error.statusCode === 429` (AI SDK `APICallError` de `ai`)
   - Fallback: checar `error.cause?.status === 429` ou `error.message` contendo "rate limit"
 - Apenas rate limit aplica backoff. Outros erros (500, timeout) nao penalizam o modelo
+- **Importante:** `callWithFallback` usa try/catch direto ao redor da chamada do AI SDK (nao depende do Result pattern) para capturar o `APICallError` raw antes de ser wrappado em `ExternalServiceError`. O fluxo: try → chamada LLM → catch → classifica erro (429 vs outro) → reporta ao registry → se nao 429, retenta
 
 **Concorrencia:** O registry e single-threaded (Bun event loop), entao nao precisa de mutex. O estado in-memory e seguro para acesso concorrente dentro do mesmo processo.
 
@@ -120,7 +121,9 @@ Cada modelo mantem estado: `{ failCount, backoffUntil, lastFailureAt }`
 
 - Remove import de `@ai-sdk/google` e `createGoogleGenerativeAI`
 - Recebe `LlmProviderRegistry` via injecao NestJS (construtor)
-- Substitui `withRetry` por `callWithFallback` (metodo privado no proprio service)
+- Adiciona `callWithFallback` (metodo privado no service) para chamadas LLM com fallback multi-provider
+- Mantem `withRetry` existente (renomear para `withSimpleRetry`) — usado por `enrichWithFallback` (Azure DevOps) que nao precisa de multi-provider
+- Remove guards de `apiKey` em `generateAdjustedStandup` e `generateWeeklyInsights` — validacao de keys agora e responsabilidade do registry (via Zod no startup)
 
 ### Metodos afetados
 
@@ -154,10 +157,12 @@ Internamente, troca `provider('gemini-3.1-flash-lite-preview')` por usar o `mode
 
 ```typescript
 private async callWithFallback<T>(
-  fn: (model: LanguageModel) => Promise<Result<T, ExternalServiceError>>,
+  fn: (model: LanguageModel) => Promise<T>,
   errorContext: string,
-): Promise<Result<T, ExternalServiceError>>
+): Promise<Result<T, ExternalServiceError | AllProvidersUnavailableError>>
 ```
+
+Nota: `fn` lanca excecoes (nao retorna Result) — `callWithFallback` usa try/catch para capturar o `APICallError` raw e classificar o erro antes de wrappa-lo.
 
 **Fluxo:**
 
@@ -181,7 +186,9 @@ se todos os modelos falharam → AllProvidersUnavailableError
 ### Adaptacao por metodo
 
 - **`generateStandup`/`generateAdjustedStandup`**: chamam `callWithFallback((model) => this.runObjectGeneration(model, system, prompt, ctx))`
-- **`generateWeeklyInsights`**: chama `callWithFallback((model) => this.runTextGeneration(model, system, prompt, ctx))` — extrair a chamada `generateText` para um metodo `runTextGeneration` analogo ao `runObjectGeneration`
+- **`generateWeeklyInsights`**: chama `callWithFallback((model) => this.runTextGeneration(model, system, prompt, ctx))` — extrair a chamada `generateText` para um metodo `runTextGeneration` analogo ao `runObjectGeneration`. Este metodo precisa de refactoring mais amplo: atualmente usa `Result.tryPromise` diretamente, sera reestruturado para usar o pattern de `callWithFallback` com try/catch (mesma abordagem dos outros metodos)
+
+**Validacao de config no startup:** O env schema usa `z.string()` para `LLM_PROVIDERS_CONFIG`. O `LlmProviderRegistry` valida o JSON no construtor com `llmProvidersConfigSchema`. Para garantir fail-fast no startup (e nao no primeiro uso), o registry implementa `OnModuleInit` e executa a validacao/instanciacao dos providers no `onModuleInit()`.
 
 ## Novos Erros
 
