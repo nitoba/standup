@@ -92,6 +92,62 @@ describe('EmailClientService', () => {
     }
   })
 
+  it('returns ExternalServiceError when called with null input', async () => {
+    const service = new EmailClientService(
+      makeLoggerFactory() as never,
+      makeEnvService() as never,
+    )
+
+    const result = await service.sendEmail(null as never)
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error).toBeInstanceOf(ExternalServiceError)
+      expect(result.error.message).toBe(
+        'Invalid email input: missing required fields',
+      )
+    }
+  })
+
+  it('returns ExternalServiceError when called with undefined input', async () => {
+    const service = new EmailClientService(
+      makeLoggerFactory() as never,
+      makeEnvService() as never,
+    )
+
+    const result = await service.sendEmail(undefined as never)
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error).toBeInstanceOf(ExternalServiceError)
+      expect(result.error.message).toBe(
+        'Invalid email input: missing required fields',
+      )
+    }
+  })
+
+  it('returns ExternalServiceError when input is missing subject', async () => {
+    const service = new EmailClientService(
+      makeLoggerFactory() as never,
+      makeEnvService() as never,
+    )
+
+    const result = await service.sendEmail({
+      to: 'dev@example.com',
+      subject: '',
+      html: '<p>oi</p>',
+      text: 'oi',
+    })
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error).toBeInstanceOf(ExternalServiceError)
+      expect(result.error.message).toBe(
+        'Invalid email input: missing required fields',
+      )
+    }
+  })
+
   it('reports missing SMTP configuration from env', async () => {
     const service = new EmailClientService(
       makeLoggerFactory() as never,
