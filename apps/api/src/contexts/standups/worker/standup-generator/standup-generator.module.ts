@@ -7,7 +7,11 @@ import { StandupPromptService } from './standup-prompt.service'
 
 @Module({
   imports: [AzureDevopsModule, WorkerRuntimeConfigModule],
-  providers: [StandupPromptService, LlmProviderRegistry, StandupGeneratorService],
+  providers: [
+    StandupPromptService,
+    LlmProviderRegistry,
+    StandupGeneratorService,
+  ],
   exports: [StandupPromptService, LlmProviderRegistry, StandupGeneratorService],
 })
 export class StandupGeneratorModule {}

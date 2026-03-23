@@ -1,11 +1,11 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { createGroq } from '@ai-sdk/groq'
-import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { Injectable, type OnModuleInit } from '@nestjs/common'
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import type { LanguageModel } from 'ai'
 import * as z from 'zod'
-import { AllProvidersUnavailableError } from '../../../../shared/domain'
 import { AppLoggerFactory } from '../../../../platform/logger'
+import { AllProvidersUnavailableError } from '../../../../shared/domain'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
 
 const llmModelEntrySchema = z.object({
@@ -129,8 +129,9 @@ export class LlmProviderRegistry implements OnModuleInit {
     const sortedTiers = [...this.tiers.keys()].sort((a, b) => a - b)
 
     for (const tier of sortedTiers) {
-      const models = this.tiers.get(tier)!
-      const pointer = this.tierPointers.get(tier)!
+      const models = this.tiers.get(tier)
+      const pointer = this.tierPointers.get(tier)
+      if (!models || pointer === undefined) continue
 
       for (let i = 0; i < models.length; i++) {
         const index = (pointer + i) % models.length

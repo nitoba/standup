@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { generateText, Output } from 'ai'
 import type { LanguageModel } from 'ai'
+import { generateText, Output } from 'ai'
 import * as z from 'zod'
 import { AppLoggerFactory } from '../../../../platform/logger'
 import type {
@@ -16,7 +16,6 @@ import {
 } from '../../../../shared/domain'
 import { AzureDevopsEnrichmentService } from '../azure-devops/azure-devops-enrichment.service'
 import type { EnrichedGitActivity } from '../azure-devops/types'
-import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
 import type { ModelSelection } from './llm-provider-registry'
 import { LlmProviderRegistry } from './llm-provider-registry'
 import {
@@ -45,7 +44,6 @@ export class StandupGeneratorService {
 
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
-    private readonly runtimeConfig: WorkerRuntimeConfigService,
     private readonly azureDevopsEnrichment: AzureDevopsEnrichmentService,
     private readonly standupPrompt: StandupPromptService,
     private readonly llmRegistry: LlmProviderRegistry,
@@ -57,7 +55,10 @@ export class StandupGeneratorService {
     input: GenerateStandupInput,
     onStageChange?: (stage: GeneratorStage) => Promise<void> | void,
   ): Promise<
-    Result<GeneratedStandup, ExternalServiceError | AllProvidersUnavailableError>
+    Result<
+      GeneratedStandup,
+      ExternalServiceError | AllProvidersUnavailableError
+    >
   > {
     return Result.gen(
       async function* (this: StandupGeneratorService) {
@@ -126,7 +127,10 @@ export class StandupGeneratorService {
     input: AdjustStandupInput,
     onStageChange?: (stage: GeneratorStage) => Promise<void> | void,
   ): Promise<
-    Result<GeneratedStandup, ExternalServiceError | AllProvidersUnavailableError>
+    Result<
+      GeneratedStandup,
+      ExternalServiceError | AllProvidersUnavailableError
+    >
   > {
     return Result.gen(
       async function* (this: StandupGeneratorService) {
@@ -330,9 +334,7 @@ export class StandupGeneratorService {
   private async callWithFallback<T>(
     fn: (model: LanguageModel) => Promise<T>,
     errorContext: string,
-  ): Promise<
-    Result<T, ExternalServiceError | AllProvidersUnavailableError>
-  > {
+  ): Promise<Result<T, ExternalServiceError | AllProvidersUnavailableError>> {
     const totalModels = this.llmRegistry.totalModels
     let lastError: unknown
     let previousModelKey: string | undefined
@@ -385,8 +387,7 @@ export class StandupGeneratorService {
             tier,
             attempt,
             maxRetries,
-            error:
-              error instanceof Error ? error.message : String(error),
+            error: error instanceof Error ? error.message : String(error),
           })
 
           if (attempt < maxRetries) {

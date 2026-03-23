@@ -1,20 +1,23 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LlmProviderRegistry } from './llm-provider-registry'
 
 vi.mock('@ai-sdk/google', () => ({
-  createGoogleGenerativeAI: vi.fn(
-    () => (model: string) => ({ modelId: model, provider: 'google' }),
-  ),
+  createGoogleGenerativeAI: vi.fn(() => (model: string) => ({
+    modelId: model,
+    provider: 'google',
+  })),
 }))
 vi.mock('@ai-sdk/groq', () => ({
-  createGroq: vi.fn(
-    () => (model: string) => ({ modelId: model, provider: 'groq' }),
-  ),
+  createGroq: vi.fn(() => (model: string) => ({
+    modelId: model,
+    provider: 'groq',
+  })),
 }))
 vi.mock('@openrouter/ai-sdk-provider', () => ({
-  createOpenRouter: vi.fn(
-    () => (model: string) => ({ modelId: model, provider: 'openrouter' }),
-  ),
+  createOpenRouter: vi.fn(() => (model: string) => ({
+    modelId: model,
+    provider: 'openrouter',
+  })),
 }))
 
 function makeConfig() {

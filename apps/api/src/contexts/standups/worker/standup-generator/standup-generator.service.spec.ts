@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Result } from '../../../../shared/domain'
 import { StandupGeneratorService } from './standup-generator.service'
 
@@ -18,9 +18,9 @@ function makeRuntimeConfig() {
 
 function makeAzureEnrichment() {
   return {
-    enrichGitActivity: vi.fn().mockResolvedValue(
-      Result.ok({ timestamp: '', userUuid: '', repos: [] }),
-    ),
+    enrichGitActivity: vi
+      .fn()
+      .mockResolvedValue(Result.ok({ timestamp: '', userUuid: '', repos: [] })),
   }
 }
 
@@ -52,7 +52,7 @@ function makeRegistry() {
       return models.length
     },
     getNextModel: vi.fn(() => {
-      const entry = models[modelIndex % models.length]
+      const entry = models[modelIndex % models.length]!
       modelIndex++
       return {
         model: { modelId: entry.modelKey } as never,
@@ -98,7 +98,6 @@ describe('StandupGeneratorService fallback', () => {
     registry = makeRegistry()
     service = new StandupGeneratorService(
       makeLoggerFactory() as never,
-      makeRuntimeConfig(),
       makeAzureEnrichment() as never,
       makePromptService() as never,
       registry as never,
@@ -182,9 +181,7 @@ describe('StandupGeneratorService fallback', () => {
   it('generateWeeklyInsights uses fallback on rate limit', async () => {
     llmBehavior = ['rate-limit', 'success']
 
-    const standups = [
-      { id: '1', content: 'day 1', summary: 's1' },
-    ] as never
+    const standups = [{ id: '1', content: 'day 1', summary: 's1' }] as never
 
     const result = await service.generateWeeklyInsights(standups)
 
