@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.43",
+    "@ai-sdk/groq": "^3.0.31",
     "@hono/node-server": "^1.19.11",
     "@kiyasov/platform-hono": "^2.0.3",
     "@libsql/client": "^0.17.0",
@@ -35,6 +36,7 @@
     "@nestjs/platform-express": "^11.1.16",
     "@nestjs/schedule": "^6.1.1",
     "@nestjs/swagger": "^11.2.6",
+    "@openrouter/ai-sdk-provider": "^2.3.3",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.71.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.213.0",
