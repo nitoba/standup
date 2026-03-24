@@ -55,29 +55,35 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
 
 **✅ Done:**
 ➜ #<número-card> - <título-do-card>
-\t➜ **Correções:**
-\t\t➜ <descrição da correção>
-\t➜ **Melhorias Técnicas:**
-\t\t➜ <descrição da melhoria>
-➜ <título-descritivo-gerado-a-partir-dos-commits> (quando não houver card)
-\t➜ **Correções:**
-\t\t➜ <descrição da correção>
-\t➜ **Melhorias Técnicas:**
-\t\t➜ <descrição da melhoria>
+\t➜ **<Contexto Funcional>**
+\t\t➜ <o que foi feito, com detalhe técnico relevante>
+\t\t➜ <outro item do mesmo contexto>
+\t➜ **<Outro Contexto Funcional>**
+\t\t➜ <descrição>
 
 **🚧 (In Progress):**
 ➜ #<número-card> - <título-do-card>
-\t➜ **Correções:**
-\t\t➜ <descrição>
-\t➜ **Melhorias Técnicas:**
+\t➜ **<Contexto Funcional>**
 \t\t➜ <descrição>
 
 ---
 \`\`\`
 
-**Categorias de conteúdo:**
-- **Correções**: Bugs, problemas resolvidos, fixes
-- **Melhorias Técnicas**: Refatoração, otimizações, novas utilidades, novos componentes
+## Agrupamento por Contexto Funcional
+
+A regra mais importante: agrupe os commits por **contexto funcional** — ou seja, pelo domínio/feature a que pertencem — e NÃO por tipo de commit (fix, feat, refactor).
+
+**Como identificar contextos funcionais:**
+- Analise os paths dos arquivos alterados, os subjects dos commits e os nomes das branches
+- Commits que tocam os mesmos diretórios, módulos ou funcionalidades pertencem ao mesmo contexto
+- Exemplos de bons títulos de contexto: "Sistema de Newsletter", "Página de Unsubscribe", "Formulário de Contato", "Configuração de Deploy"
+- Títulos devem ser curtos (2-5 palavras) e descritivos do domínio funcional
+
+**Regras de agrupamento:**
+- Se um card/work item tem commits que pertencem a 2+ contextos funcionais distintos, crie um sub-grupo \`**<Contexto>**\` para cada
+- Se um contexto tem apenas 1 commit, pode ficar como item direto sem sub-grupo
+- Dentro de cada contexto, descreva o que foi feito de forma coesa — não repita o subject do commit literalmente, sintetize o trabalho realizado
+- Um fix e um feat no mesmo contexto (ex: newsletter) ficam juntos, não separados
 
 **Regras importantes:**
 - Cada projeto/repositório deve ter NO MÁXIMO uma seção \`**✅ Done:**\` e NO MÁXIMO uma seção \`**🚧 (In Progress):**\`. Agrupe TODOS os itens do mesmo status sob a mesma seção — NUNCA repita o header de status
@@ -86,21 +92,19 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
 - Se não houver título do Azure DevOps, crie um título descritivo baseado nos commits
 - Se uma atividade não estiver atrelada a nenhum card/work item, NÃO invente número de card e NÃO use prefixo \`#\`
 - Para atividades sem card/work item, crie um título descritivo baseado nos commits, arquivos e contexto coletado
-- Para atividades sem card/work item, descreva o que foi feito normalmente nas seções **Correções** e/ou **Melhorias Técnicas**
 - NUNCA inclua expressões como "sem card associado", "sem work item" ou similares no texto final — o relatório deve soar natural
 - Cards de teste (tipo "Test Case", "Test Suite", "Test Plan") NÃO devem aparecer como itens no texto final. Use-os apenas como contexto para entender o andamento da atividade principal
 - Inclua caminhos de arquivo quando relevante (ex: \`src/services/geo.ts\`)
 - Liste migration files explicitamente quando presentes
 - Mencione novos componentes/serviços criados com seus caminhos
-- Apenas inclua seções **Correções** ou **Melhorias Técnicas** que tenham conteúdo
 - Se não houver itens Done, omitir a seção Done; idem para In Progress
 - Inclua apenas o trabalho do usuário atual — nunca de outros membros da equipe
-- O relatório deve ser conciso mas informativo
+- O relatório deve ser conciso mas informativo — a audiência é mista (desenvolvedores e gestão/PO)
 - O campo \`content\` final deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres (incluindo espaços, quebras de linha e markdown)
 
 **summary:**
-- Uma frase curta em português resumindo o que foi feito no dia
-- Ex: "Corrigi bugs no cadastro de propriedades e implementei filtro avançado na listagem de lotes"`
+- Uma frase curta em português resumindo o que foi feito no dia, focando nas entregas funcionais
+- Ex: "Implementei o sistema de newsletter com dispatch e recovery, redesenhei a página de unsubscribe e adicionei validação ao formulário de contato"`
   }
 
   private buildBoardOnlySystemPrompt(): string {
@@ -170,14 +174,16 @@ Sua tarefa é consolidar ambas as fontes e gerar um relatório de standup em por
 
 **✅ Done:**
 ➜ #<número-card> - <título-do-card>
-\t➜ **Correções:**
-\t\t➜ <descrição da correção>
-\t➜ **Melhorias Técnicas:**
-\t\t➜ <descrição da melhoria>
+\t➜ **<Contexto Funcional>**
+\t\t➜ <o que foi feito, com detalhe técnico relevante>
+\t\t➜ <outro item do mesmo contexto>
+\t➜ **<Outro Contexto Funcional>**
+\t\t➜ <descrição>
 
 **🚧 (In Progress):**
 ➜ #<número-card> - <título-do-card>
-\t➜ <descrição>
+\t➜ **<Contexto Funcional>**
+\t\t➜ <descrição>
 
 ---
 \`\`\`
@@ -188,24 +194,37 @@ Sua tarefa é consolidar ambas as fontes e gerar um relatório de standup em por
 - Commits sem card associado devem aparecer na mesma seção Done/In Progress com um título descritivo gerado a partir dos commits, sem prefixo \`#\` e sem mencionar que não possuem card
 - Work items do board que não têm commits correspondentes aparecem apenas com a descrição das ações
 
-**Categorias de conteúdo:**
-- **Correções**: Bugs, problemas resolvidos, fixes
-- **Melhorias Técnicas**: Refatoração, otimizações, novas utilidades, novos componentes
+## Agrupamento por Contexto Funcional
+
+A regra mais importante: agrupe os commits por **contexto funcional** — ou seja, pelo domínio/feature a que pertencem — e NÃO por tipo de commit (fix, feat, refactor).
+
+**Como identificar contextos funcionais:**
+- Analise os paths dos arquivos alterados, os subjects dos commits e os nomes das branches
+- Commits que tocam os mesmos diretórios, módulos ou funcionalidades pertencem ao mesmo contexto
+- Exemplos de bons títulos de contexto: "Sistema de Newsletter", "Página de Unsubscribe", "Formulário de Contato", "Configuração de Deploy"
+- Títulos devem ser curtos (2-5 palavras) e descritivos do domínio funcional
+
+**Regras de agrupamento:**
+- Se um card/work item tem commits que pertencem a 2+ contextos funcionais distintos, crie um sub-grupo \`**<Contexto>**\` para cada
+- Se um contexto tem apenas 1 commit, pode ficar como item direto sem sub-grupo
+- Dentro de cada contexto, descreva o que foi feito de forma coesa — não repita o subject do commit literalmente, sintetize o trabalho realizado
+- Um fix e um feat no mesmo contexto (ex: newsletter) ficam juntos, não separados
 
 **Regras importantes:**
 - Cada projeto/repositório deve ter NO MÁXIMO uma seção \`**✅ Done:**\` e NO MÁXIMO uma seção \`**🚧 (In Progress):**\`. Agrupe TODOS os itens do mesmo status sob a mesma seção — NUNCA repita o header de status
 - Use \`➜\` para bullets aninhados (não use \`-\` ou \`*\`)
 - Inclua caminhos de arquivo quando relevante
-- Apenas inclua seções **Correções** ou **Melhorias Técnicas** que tenham conteúdo
+- Liste migration files explicitamente quando presentes
+- Mencione novos componentes/serviços criados com seus caminhos
 - Se não houver itens Done, omitir a seção Done; idem para In Progress
 - Cards de teste (tipo "Test Case", "Test Suite", "Test Plan") NÃO devem aparecer como itens no texto final. Use-os apenas como contexto para entender o andamento da atividade principal
 - Inclua apenas o trabalho do usuário atual
-- O relatório deve ser conciso mas informativo
+- O relatório deve ser conciso mas informativo — a audiência é mista (desenvolvedores e gestão/PO)
 - O campo \`content\` final deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres (incluindo espaços, quebras de linha e markdown)
 
 **summary:**
-- Uma frase curta em português resumindo o que foi feito no dia
-- Ex: "Corrigi bugs no cadastro de propriedades e atualizei status de cards no board"`
+- Uma frase curta em português resumindo o que foi feito no dia, focando nas entregas funcionais
+- Ex: "Implementei o sistema de newsletter com dispatch e recovery, redesenhei a página de unsubscribe e adicionei validação ao formulário de contato"`
   }
 
   buildUserMessage(
