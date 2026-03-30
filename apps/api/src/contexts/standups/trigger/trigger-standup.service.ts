@@ -27,21 +27,32 @@ export class TriggerStandupService {
     private readonly localDateService: LocalDateService,
   ) {}
 
-  async trigger(body: TriggerStandupDto, session: AuthSession | null) {
-    let userId = body.userId
-    let discordUserId = body.discordUserId
+  async trigger(
+    body: TriggerStandupDto,
+    session: AuthSession | null,
+    /**
+     * Pre-resolved identifiers for non-HTTP callers (e.g. Discord gateway).
+     * When provided, these take precedence over session resolution.
+     */
+    resolvedIds?: { userId: string; discordUserId: string },
+  ) {
+    const userId: string | undefined = resolvedIds?.userId ?? session?.user.id
+    let discordUserId: string | undefined = resolvedIds?.discordUserId
 
-    if (session?.user.id) {
-      userId = session.user.id
-      const discordResult =
-        await this.userRepository.findDiscordIdByUserId(userId)
-      if (discordResult.isOk()) {
-        discordUserId = discordResult.value ?? undefined
-      }
+    if (!userId) {
+      throw new BadRequestException('Could not resolve userId from session')
     }
 
-    if (!userId || !discordUserId) {
-      throw new BadRequestException('Could not resolve userId or discordUserId')
+    if (!discordUserId) {
+      const discordResult =
+        await this.userRepository.findDiscordIdByUserId(userId)
+      discordUserId = discordResult.isOk()
+        ? (discordResult.value ?? undefined)
+        : undefined
+    }
+
+    if (!discordUserId) {
+      throw new BadRequestException('Could not resolve discordUserId')
     }
 
     const settingsResult =

@@ -8,7 +8,8 @@
     },
     "linear": {
       "type": "remote",
-      "url": "https://mcp.linear.app/mcp"
+      "url": "https://mcp.linear.app/mcp",
+      "enabled": true
     }
   }
 }

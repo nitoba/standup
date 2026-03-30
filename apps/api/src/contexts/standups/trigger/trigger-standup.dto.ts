@@ -5,18 +5,6 @@ export class TriggerStandupDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  @MinLength(1)
-  userId?: string
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MinLength(1)
-  discordUserId?: string
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
   extraContext?: string
 
   @ApiPropertyOptional()

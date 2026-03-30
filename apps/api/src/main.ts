@@ -40,9 +40,9 @@ async function bootstrap() {
   // Security headers — applied to all Hono-handled routes.
   // Better Auth routes use toNodeHandler (raw Node.js), so those headers are
   // set separately on ctx.env.outgoing below.
-  // biome-ignore lint/suspicious/noExplicitAny: Hono ctx.env types from @hono/node-server
   adapter
     .getInstance()
+    // biome-ignore lint/suspicious/noExplicitAny: Hono ctx.env types from @hono/node-server
     .use('*', async (ctx: any, next: () => Promise<void>) => {
       await next()
       const res: Headers = ctx.res.headers
@@ -171,11 +171,14 @@ async function bootstrap() {
   // Build the OpenAPI document and serve it from a Hono route.
   // SwaggerModule.setup() uses Express-style res.type() which is incompatible
   // with the Hono adapter, so we serve the JSON directly.
-  const openApiDocument = createOpenApiDocument(app, env, betterAuthFactory)
-  // biome-ignore lint/suspicious/noExplicitAny: Hono context type
-  adapter.getInstance().get(OPENAPI_JSON_PATH, (ctx: any) => {
-    return ctx.json(openApiDocument)
-  })
+  // In production, the docs are disabled to avoid exposing the API surface.
+  if (env.app.nodeEnv !== 'production') {
+    const openApiDocument = createOpenApiDocument(app, env, betterAuthFactory)
+    // biome-ignore lint/suspicious/noExplicitAny: Hono context type
+    adapter.getInstance().get(OPENAPI_JSON_PATH, (ctx: any) => {
+      return ctx.json(openApiDocument)
+    })
+  }
 
   await app.listen(env.app.port)
 }

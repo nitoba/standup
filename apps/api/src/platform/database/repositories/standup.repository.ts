@@ -97,6 +97,11 @@ export interface PaginatedStandupList {
   summary: StandupListSummary
 }
 
+/** Escapa wildcards do SQLite LIKE: % e _ para evitar pattern injection */
+function escapeLikePattern(value: string): string {
+  return value.replace(/%/g, '\\%').replace(/_/g, '\\_')
+}
+
 function buildListConditions(filters?: ListStandupFilters): SQL<unknown>[] {
   const conditions: SQL<unknown>[] = []
 
@@ -145,9 +150,10 @@ function buildListConditions(filters?: ListStandupFilters): SQL<unknown>[] {
 
   const search = filters?.search?.trim()
   if (search) {
-    const term = `%${search}%`
+    const escaped = escapeLikePattern(search)
+    const term = `%${escaped}%`
     const isoSearch = isDisplayDate(search)
-      ? `%${toIsoDateFromDisplay(search)}%`
+      ? `%${escapeLikePattern(toIsoDateFromDisplay(search))}%`
       : null
     const searchCondition = or(
       like(standups.id, term),
