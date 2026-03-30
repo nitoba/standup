@@ -101,9 +101,6 @@ export class TriggerStandupService {
       })
     }
 
-    const shouldReuseRejectedStandup =
-      !body.rewriteInstruction && todayStandup?.status === 'rejected'
-
     this.standupDispatch.dispatchStandupJob({
       userId,
       discordUserId,
@@ -114,14 +111,11 @@ export class TriggerStandupService {
       timezone: settings.timezone,
       gitSincePeriod: settings.gitSincePeriod,
       extraContext: body.extraContext,
-      forceRegenerate: shouldReuseRejectedStandup || body.forceRegenerate,
+      forceRegenerate: body.forceRegenerate,
       rewriteFromStandupId: body.rewriteFromStandupId,
       rewriteInstruction: body.rewriteInstruction,
-      replaceStandupId:
-        body.replaceStandupId ??
-        (shouldReuseRejectedStandup ? todayStandup?.id : undefined),
-      reuseExistingSource:
-        body.reuseExistingSource ?? shouldReuseRejectedStandup,
+      replaceStandupId: body.replaceStandupId,
+      reuseExistingSource: body.reuseExistingSource,
     })
 
     return { ok: true, accepted: true }

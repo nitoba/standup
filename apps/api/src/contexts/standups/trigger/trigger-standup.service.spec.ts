@@ -213,7 +213,9 @@ describe('TriggerStandupService', () => {
     ).rejects.toThrow(BadRequestException)
   })
 
-  it('dispatches a regenerate job reusing a rejected standup by default', async () => {
+  it('dispatches a fresh generate job when standup is rejected — does not reuse previous source data', async () => {
+    // Bug TAS-106: quando o standup do dia está rejeitado, o trigger deve gerar
+    // do zero (nova coleta de git/board), não reutilizar o sourceData anterior.
     const dispatch = createDispatchMock()
     const service = new TriggerStandupService(
       { findDiscordIdByUserId: vi.fn() } as never,
@@ -266,11 +268,11 @@ describe('TriggerStandupService', () => {
       timezone: 'America/Sao_Paulo',
       gitSincePeriod: '8 hours ago',
       extraContext: 'contexto',
-      forceRegenerate: true,
+      forceRegenerate: undefined,
       rewriteFromStandupId: undefined,
       rewriteInstruction: undefined,
-      replaceStandupId: 'standup-1',
-      reuseExistingSource: true,
+      replaceStandupId: undefined, // não deve sobrescrever implicitamente
+      reuseExistingSource: undefined, // não deve reutilizar dados anteriores
     })
   })
 
@@ -334,7 +336,7 @@ describe('TriggerStandupService', () => {
       rewriteFromStandupId: undefined,
       rewriteInstruction: undefined,
       replaceStandupId: 'standup-1',
-      reuseExistingSource: false,
+      reuseExistingSource: undefined,
     })
   })
 
