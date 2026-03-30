@@ -181,6 +181,9 @@ export class StandupTable {
   /** Tracks the id of the standup whose content was just copied, for icon feedback */
   readonly copiedId = signal<string | null>(null)
 
+  /** Holds the pending reset timer so rapid clicks don't accumulate timeouts (TAS-67) */
+  private copiedResetTimer: ReturnType<typeof setTimeout> | undefined
+
   readonly newestPendingId = computed(() =>
     findNewestPendingId(this.standups()),
   )
@@ -269,7 +272,9 @@ export class StandupTable {
       await clipboard.writeText(standup.content)
       this.copiedId.set(standup.id)
       toast.success('Standup copiado')
-      setTimeout(() => this.copiedId.set(null), 2000)
+      // Cancel any pending reset before scheduling a new one (TAS-67)
+      clearTimeout(this.copiedResetTimer)
+      this.copiedResetTimer = setTimeout(() => this.copiedId.set(null), 2000)
     } catch {
       toast.error('Falha ao copiar')
     }

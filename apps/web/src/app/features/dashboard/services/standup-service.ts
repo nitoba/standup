@@ -497,7 +497,9 @@ export class StandupService {
           message: c.subject ?? c.message ?? '',
         })),
       }))
-    } catch {
+    } catch (err) {
+      // Log to aid debugging — corrupt sourceData is invisible otherwise (TAS-65)
+      console.warn('[StandupService] failed to parse source data', err)
       return []
     }
   }
@@ -505,7 +507,9 @@ export class StandupService {
   private formatSourceData(sourceData: string) {
     try {
       return JSON.stringify(JSON.parse(sourceData), null, 2)
-    } catch {
+    } catch (err) {
+      // Log to aid debugging — corrupt sourceData is invisible otherwise (TAS-65)
+      console.warn('[StandupService] failed to format source data', err)
       return sourceData
     }
   }

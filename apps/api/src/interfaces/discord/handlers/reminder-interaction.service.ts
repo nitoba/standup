@@ -4,7 +4,8 @@ import { ReminderActionsService } from '../../../contexts/standups/worker/remind
 import { Result, ValidationError } from '../../../shared/domain'
 import { DiscordAuthService } from '../services/discord-auth.service'
 
-export type ReminderAction = 'snooze' | 'cancel-today'
+export const REMINDER_ACTIONS = ['snooze', 'cancel-today'] as const
+export type ReminderAction = (typeof REMINDER_ACTIONS)[number]
 
 const ACTION_EMOJI: Record<ReminderAction, string> = {
   snooze: '⏰',

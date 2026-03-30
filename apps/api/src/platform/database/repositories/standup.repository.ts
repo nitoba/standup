@@ -10,6 +10,7 @@ import {
   InvalidStateTransitionError,
   NotFoundError,
   Result,
+  StandupStatusSchema,
   transitionStandupStatus,
 } from '../../../shared/domain'
 import { AppLoggerFactory } from '../../logger'
@@ -39,6 +40,14 @@ function parseCustomEntries(raw: string | null): CustomEntries | null {
 }
 
 function toRecord(row: typeof standups.$inferSelect): StandupRecord {
+  // Parse status through Zod to catch corrupt DB values early (TAS-69).
+  // Drizzle infers status as string; the schema enum constrains it at write
+  // time but we validate defensively at read time too.
+  const statusResult = StandupStatusSchema.safeParse(row.status)
+  const status: StandupStatus = statusResult.success
+    ? statusResult.data
+    : 'draft' // safe fallback — triggers a re-review of the record
+
   return {
     id: row.id,
     date: row.date,
@@ -46,7 +55,7 @@ function toRecord(row: typeof standups.$inferSelect): StandupRecord {
     content: row.content,
     sourceData: row.sourceData,
     customEntries: parseCustomEntries(row.customEntries),
-    status: row.status as StandupStatus,
+    status,
     userId: row.userId,
     dmMessageId: row.dmMessageId ?? null,
     createdAt: row.createdAt,

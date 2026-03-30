@@ -11,7 +11,15 @@ import { UserSettingsRepository } from './repositories/user-settings.repository'
 import { WeeklyDigestRepository } from './repositories/weekly-digest.repository'
 import * as schema from './schema'
 
+// @sixaphone/nestjs-drizzle expects Record<string, Table> but our generated
+// schema exports SQLiteTableWithColumns<...> objects. The structural shape is
+// compatible at runtime; the cast is required to satisfy the library signature.
+// Intentional: if @sixaphone/nestjs-drizzle improves its types, remove this
+// cast and verify that TypeScript still accepts the module (TAS-73).
 const drizzleSchema = schema as unknown as Record<string, Table>
+
+// DrizzleModule.forRootAsync() + useFactory types are incompatible with strict
+// NestJS generic inference. Intentional cast until upstream fixes typings (TAS-73).
 const drizzleRootModule = DrizzleModule.forRootAsync({
   imports: [EnvModule],
   inject: [EnvService],

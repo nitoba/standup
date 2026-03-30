@@ -4,7 +4,8 @@ import { StandupRepository } from '../../../platform/database/repositories/stand
 import { AppLoggerFactory } from '../../../platform/logger'
 import { NotFoundError } from '../../../shared/domain'
 
-export type CopyAction = 'content'
+export const COPY_ACTIONS = ['content'] as const
+export type CopyAction = (typeof COPY_ACTIONS)[number]
 
 function splitForDiscord(text: string, max = 2000): string[] {
   if (text.length <= max) {

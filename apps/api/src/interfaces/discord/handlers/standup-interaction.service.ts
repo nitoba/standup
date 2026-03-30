@@ -16,7 +16,8 @@ import {
 } from '../../../shared/domain'
 import { DiscordMessagesService } from '../notifications/discord-messages.service'
 
-export type StandupAction = 'approve' | 'reject' | 'regenerate'
+export const STANDUP_ACTIONS = ['approve', 'reject', 'regenerate'] as const
+export type StandupAction = (typeof STANDUP_ACTIONS)[number]
 
 export interface InteractionOutcome {
   action: StandupAction
