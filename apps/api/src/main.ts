@@ -19,6 +19,28 @@ async function bootstrap() {
 
   const adapter = new HonoAdapter()
 
+  // Security headers — applied to all Hono-handled routes.
+  // Better Auth routes use toNodeHandler (raw Node.js), so those headers are
+  // set separately on ctx.env.outgoing below.
+  // biome-ignore lint/suspicious/noExplicitAny: Hono ctx.env types from @hono/node-server
+  adapter
+    .getInstance()
+    .use('*', async (ctx: any, next: () => Promise<void>) => {
+      await next()
+      const res: Headers = ctx.res.headers
+      res.set('X-Content-Type-Options', 'nosniff')
+      res.set('X-Frame-Options', 'DENY')
+      res.set('X-XSS-Protection', '0')
+      res.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+      res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+      if (process.env.NODE_ENV === 'production') {
+        res.set(
+          'Strict-Transport-Security',
+          'max-age=31536000; includeSubDomains',
+        )
+      }
+    })
+
   // CORS origin is read from env after DI is ready; default to localhost:4200
   // for the early Hono routes registered before NestFactory.create().
   let corsOrigin = 'http://localhost:4200'
