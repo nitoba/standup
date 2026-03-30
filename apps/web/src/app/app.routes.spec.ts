@@ -23,4 +23,12 @@ describe('routes', () => {
     const loginRoute = routes.find((route) => route.path === 'login')
     expect(loginRoute?.canActivate).toContain(noAuthGuard)
   })
+
+  it('redirects default and wildcard routes to dashboard', () => {
+    const defaultRoute = routes.find((route) => route.path === '')
+    const wildcardRoute = routes.find((route) => route.path === '**')
+
+    expect(defaultRoute?.redirectTo).toBe('dashboard')
+    expect(wildcardRoute?.redirectTo).toBe('dashboard')
+  })
 })

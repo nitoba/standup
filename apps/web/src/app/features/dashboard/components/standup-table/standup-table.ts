@@ -20,7 +20,7 @@ import type {
 function findNewestPendingId(standups: Standup[]): string | null {
   const pending = standups.filter((s) => s.status === 'pending_review')
   if (pending.length === 0) return null
-  // A API retorna ordenado por createdAt DESC, logo o primeiro é o mais recente
+  // A API retorna por padrão ordenado por date DESC e tie-break por createdAt DESC.
   return pending[0]?.id ?? null
 }
 
@@ -68,7 +68,7 @@ function findNewestPendingId(standups: Standup[]): string | null {
             >
               $ ver >>
             </button>
-            @if (standup.status === 'approved' && standup.content) {
+            @if ((standup.status === 'approved' || standup.status === 'published') && standup.content) {
               <button
                 type="button"
                 z-button
@@ -113,7 +113,7 @@ function findNewestPendingId(standups: Standup[]): string | null {
             >
               $ ver >>
             </button>
-            @if (standup.status === 'approved' && standup.content) {
+            @if ((standup.status === 'approved' || standup.status === 'published') && standup.content) {
               <button
                 type="button"
                 z-button
@@ -281,6 +281,7 @@ export class StandupTable {
   }
 
   statusBadgeClass(status: StandupStatus) {
+    if (status === 'published') return 'text-cyan-400'
     if (status === 'approved') return 'text-primary'
     if (status === 'pending_review') return 'text-[var(--accent-yellow)]'
     return 'text-[var(--accent-red)]'
@@ -288,6 +289,7 @@ export class StandupTable {
 
   formatStatus(status: StandupStatus) {
     if (status === 'pending_review') return '[pendente]'
+    if (status === 'published') return '[publicado]'
     if (status === 'approved') return '[aprovado]'
     return '[rejeitado]'
   }

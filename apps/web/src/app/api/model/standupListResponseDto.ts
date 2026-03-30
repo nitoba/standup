@@ -5,6 +5,7 @@
  * API do serviço de geração, revisão e publicação de standups.
  * OpenAPI spec version: 0.0.1
  */
+import type { MetricChangesDto } from './metricChangesDto';
 import type { PaginationDto } from './paginationDto';
 import type { StandupRecordDto } from './standupRecordDto';
 import type { SummaryDto } from './summaryDto';
@@ -13,4 +14,5 @@ export interface StandupListResponseDto {
   data: StandupRecordDto[];
   pagination: PaginationDto;
   summary: SummaryDto;
+  metricChanges: MetricChangesDto;
 }

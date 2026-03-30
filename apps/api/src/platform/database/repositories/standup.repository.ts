@@ -1,5 +1,16 @@
 import { Injectable } from '@nestjs/common'
-import { and, desc, eq, gte, like, lte, or, type SQL, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  like,
+  lte,
+  or,
+  type SQL,
+  sql,
+} from 'drizzle-orm'
 import type {
   CustomEntries,
   StandupRecord,
@@ -88,6 +99,8 @@ export interface ListStandupFilters {
   search?: string
   page?: number
   pageSize?: number
+  sort?: 'date' | 'createdAt' | 'status'
+  sortDir?: 'asc' | 'desc'
 }
 
 export interface StandupListSummary {
@@ -104,6 +117,36 @@ export interface PaginatedStandupList {
   total: number
   totalPages: number
   summary: StandupListSummary
+}
+
+export interface StandupMetricChange {
+  current: number
+  previous: number
+  delta: number
+}
+
+export interface StandupMetricChanges {
+  total: StandupMetricChange
+  approved: StandupMetricChange
+  pending: StandupMetricChange
+  rejected: StandupMetricChange
+}
+
+function buildOrderBy(filters?: ListStandupFilters) {
+  const sortDir = filters?.sortDir === 'asc' ? asc : desc
+
+  switch (filters?.sort) {
+    case 'createdAt':
+      return [sortDir(standups.createdAt)]
+    case 'status':
+      return [
+        sortDir(standups.status),
+        desc(standups.date),
+        desc(standups.createdAt),
+      ]
+    default:
+      return [sortDir(standups.date), desc(standups.createdAt)]
+  }
 }
 
 /** Escapa wildcards do SQLite LIKE: % e _ para evitar pattern injection */
@@ -264,7 +307,7 @@ export class StandupRepository {
       const rowsQuery = this.database.db
         .select()
         .from(standups)
-        .orderBy(desc(standups.date), desc(standups.createdAt))
+        .orderBy(...buildOrderBy(filters))
         .limit(pageSize)
         .offset(offset)
 
@@ -298,6 +341,77 @@ export class StandupRepository {
       })
     } catch (error) {
       return this.dbErr('list', error)
+    }
+  }
+
+  async getMetricChangesForUser(
+    userId: string,
+    currentWeekFrom: string,
+    currentWeekTo: string,
+    previousWeekFrom: string,
+    previousWeekTo: string,
+  ): Promise<Result<StandupMetricChanges, DbError>> {
+    try {
+      const buildMetricsQuery = (from: string, to: string) =>
+        this.database.db
+          .select({
+            total: sql<number>`count(*)`,
+            approved: sql<number>`sum(case when ${standups.status} in ('approved', 'published') then 1 else 0 end)`,
+            pending: sql<number>`sum(case when ${standups.status} = 'pending_review' then 1 else 0 end)`,
+            rejected: sql<number>`sum(case when ${standups.status} = 'rejected' then 1 else 0 end)`,
+          })
+          .from(standups)
+          .where(
+            and(
+              eq(standups.userId, userId),
+              gte(standups.date, from),
+              lte(standups.date, to),
+            ),
+          )
+          .get()
+
+      const [current, previous] = await Promise.all([
+        buildMetricsQuery(currentWeekFrom, currentWeekTo),
+        buildMetricsQuery(previousWeekFrom, previousWeekTo),
+      ])
+
+      const currentSafe = current ?? {
+        total: 0,
+        approved: 0,
+        pending: 0,
+        rejected: 0,
+      }
+      const previousSafe = previous ?? {
+        total: 0,
+        approved: 0,
+        pending: 0,
+        rejected: 0,
+      }
+
+      return Result.ok({
+        total: {
+          current: currentSafe.total ?? 0,
+          previous: previousSafe.total ?? 0,
+          delta: (currentSafe.total ?? 0) - (previousSafe.total ?? 0),
+        },
+        approved: {
+          current: currentSafe.approved ?? 0,
+          previous: previousSafe.approved ?? 0,
+          delta: (currentSafe.approved ?? 0) - (previousSafe.approved ?? 0),
+        },
+        pending: {
+          current: currentSafe.pending ?? 0,
+          previous: previousSafe.pending ?? 0,
+          delta: (currentSafe.pending ?? 0) - (previousSafe.pending ?? 0),
+        },
+        rejected: {
+          current: currentSafe.rejected ?? 0,
+          previous: previousSafe.rejected ?? 0,
+          delta: (currentSafe.rejected ?? 0) - (previousSafe.rejected ?? 0),
+        },
+      })
+    } catch (error) {
+      return this.dbErr('getMetricChangesForUser', error)
     }
   }
 

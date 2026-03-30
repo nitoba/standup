@@ -28,11 +28,26 @@ export class StandupsQueryService {
       throwStandupHttpError(result.error)
     }
 
+    const todayIso = this.localDateService.today(timezone).iso
+    const metricChangesResult =
+      await this.standupRepository.getMetricChangesForUser(
+        userId,
+        this.localDateService.shiftIsoDate(todayIso, -6),
+        todayIso,
+        this.localDateService.shiftIsoDate(todayIso, -13),
+        this.localDateService.shiftIsoDate(todayIso, -7),
+      )
+
+    if (metricChangesResult.isErr()) {
+      throwStandupHttpError(metricChangesResult.error)
+    }
+
     return {
       ...result.value,
       items: result.value.items.map((record: StandupRecord) =>
         formatStandupRecord(record, this.localDateService, timezone),
       ),
+      metricChanges: metricChangesResult.value,
     }
   }
 

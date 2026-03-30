@@ -21,6 +21,7 @@ function buildMockSettings() {
     recoveryCron: '0 18 * * 1-5',
     timezone: 'america/sao_paulo',
     gitAuthor: 'nitoba',
+    gitSincePeriod: '8 hours ago',
     selectedRepos: ['AGROTRACE/agrotrace-web', 'AGROTRACE/agrotrace-api'],
     active: true,
     snoozedUntil: null,
@@ -116,6 +117,8 @@ describe('SettingsPage', () => {
     const recoveryCron = el.querySelector<HTMLInputElement>('#recovery-cron')
     const timezone = el.querySelector<HTMLElement>('#timezone')
     const gitAuthor = el.querySelector<HTMLInputElement>('#git-author')
+    const gitSincePeriod =
+      el.querySelector<HTMLInputElement>('#git-since-period')
 
     expect(standupCron?.value).toBe('30 17 * * 1-5')
     expect(reminderCron?.value).toBe('20 17 * * 1-5')
@@ -125,6 +128,7 @@ describe('SettingsPage', () => {
     expect(recoveryCron?.readOnly).toBe(true)
     expect(timezone?.textContent).toContain('america/sao_paulo')
     expect(gitAuthor?.value).toBe('nitoba')
+    expect(gitSincePeriod?.value).toBe('8 hours ago')
   })
 
   it('opens the cron builder popover and applies the selected schedule', async () => {
@@ -244,6 +248,7 @@ describe('SettingsPage', () => {
       recoveryCron: '0 18 * * 1-5',
       timezone: 'america/sao_paulo',
       gitAuthor: 'nitoba',
+      gitSincePeriod: '8 hours ago',
       selectedRepos: ['AGROTRACE/agrotrace-web', 'AGROTRACE/agrotrace-api'],
       active: true,
       emailTheme: 'dark',

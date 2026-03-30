@@ -28,6 +28,7 @@ import type {
   TriggerStandupDto,
 } from '../../../api/model'
 import type {
+  DashboardMetricChangesDto,
   DashboardMetrics,
   Standup,
   StandupCustomEntriesDto,
@@ -42,7 +43,6 @@ import type {
   StandupStatusChangedEvent,
 } from '../../../shared/models/standup-models'
 import { formatTimestampPtBr } from '../../../shared/utils'
-import { DASHBOARD_METRIC_CHANGES } from './dashboard-metric-changes'
 import { StandupEventsService } from './standup-events-service'
 
 type TriggerAck = { ok: boolean; accepted: boolean; error?: string }
@@ -67,6 +67,8 @@ export class StandupService {
   private readonly searchFilter = signal<string | undefined>(undefined)
   private readonly page = signal(1)
   private readonly pageSize = signal(this.DEFAULT_PAGE_SIZE)
+  private readonly sort = signal<ListStandupsParams['sort']>('date')
+  private readonly sortDir = signal<ListStandupsParams['sortDir']>('desc')
   readonly activeProgress = signal<StandupProgressEvent | undefined>(undefined)
 
   // --- TanStack Query: list standups (uses Orval-generated listStandups) ---
@@ -79,6 +81,8 @@ export class StandupService {
       const status = this.statusFilter()
       const date = this.dateFilter()
       const search = this.searchFilter()
+      params.sort = this.sort()
+      params.sortDir = this.sortDir()
       if (status && status !== 'all')
         params.status = status as ListStandupsParams['status']
       if (date && date !== 'all') params.date = date
@@ -109,6 +113,12 @@ export class StandupService {
             totalPages: 0,
           },
           summary: { total: 0, approved: 0, pending: 0, rejected: 0 },
+          metricChanges: {
+            total: { current: 0, previous: 0, delta: 0 },
+            approved: { current: 0, previous: 0, delta: 0 },
+            pending: { current: 0, previous: 0, delta: 0 },
+            rejected: { current: 0, previous: 0, delta: 0 },
+          },
         },
     ),
     reload: () => {
@@ -230,20 +240,29 @@ export class StandupService {
   }))
 
   readonly metrics = computed<DashboardMetrics>(() => {
-    const counts = this.standups.value().summary
+    const metrics = this.standups.value().metricChanges
+    const formatChange = (value: number) => {
+      if (value > 0) return `++ ${value} esta_semana`
+      if (value < 0) return `-- ${Math.abs(value)} vs_semana_passada`
+      return '= 0 vs_semana_passada'
+    }
+
     return {
-      total: { count: counts.total, change: DASHBOARD_METRIC_CHANGES.total },
+      total: {
+        count: metrics.total.current,
+        change: formatChange(metrics.total.delta),
+      },
       approved: {
-        count: counts.approved,
-        change: DASHBOARD_METRIC_CHANGES.approved,
+        count: metrics.approved.current,
+        change: formatChange(metrics.approved.delta),
       },
       pending: {
-        count: counts.pending,
-        change: DASHBOARD_METRIC_CHANGES.pending,
+        count: metrics.pending.current,
+        change: formatChange(metrics.pending.delta),
       },
       rejected: {
-        count: counts.rejected,
-        change: DASHBOARD_METRIC_CHANGES.rejected,
+        count: metrics.rejected.current,
+        change: formatChange(metrics.rejected.delta),
       },
     }
   })
@@ -391,6 +410,7 @@ export class StandupService {
       items: response.data.map((dto) => this.mapStandup(dto)),
       pagination: response.pagination,
       summary: response.summary,
+      metricChanges: response.metricChanges,
     }
   }
 
@@ -433,8 +453,9 @@ export class StandupService {
   }
 
   private mapStatus(status: string): StandupStatus {
+    if (status === 'published') return 'published'
     if (status === 'rejected') return 'rejected'
-    if (status === 'approved' || status === 'published') return 'approved'
+    if (status === 'approved') return 'approved'
     return 'pending_review'
   }
 
