@@ -1,7 +1,7 @@
 import { signal } from '@angular/core'
 import { TestBed } from '@angular/core/testing'
 import { provideRouter } from '@angular/router'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { SessionUser } from '../auth/session-service'
 import { SessionService } from '../auth/session-service'
@@ -16,6 +16,8 @@ function createMockSessionService(user: SessionUser | null = null) {
 }
 
 describe('SidebarLayout', () => {
+  afterEach(() => TestBed.resetTestingModule())
+
   it('renders navigation and project name', async () => {
     const mockSession = createMockSessionService()
 
