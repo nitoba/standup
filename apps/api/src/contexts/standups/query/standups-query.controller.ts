@@ -53,7 +53,13 @@ export class StandupsQueryController {
   @ApiQuery({ name: 'to', required: false, type: String })
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'pageSize', required: false, type: Number, example: 20 })
+  @ApiQuery({
+    name: 'pageSize',
+    required: false,
+    type: Number,
+    example: 20,
+    description: 'Max: 100',
+  })
   @ApiOkResponse({
     description: 'Lista paginada de standups.',
     type: StandupListResponseDto,

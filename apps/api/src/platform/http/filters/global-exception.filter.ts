@@ -184,17 +184,18 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   private extractExceptionDetails(
     exception: object,
   ): Record<string, unknown> | undefined {
+    /** Campos permitidos em detalhes públicos de erro — sem vazar internals */
+    const PUBLIC_DETAIL_KEYS = new Set([
+      'field',
+      'resource',
+      'code',
+      'param',
+      'id',
+    ])
+
     const source = exception as Record<string, unknown>
     const detailEntries = Object.getOwnPropertyNames(exception)
-      .filter(
-        (key) =>
-          key !== 'message' &&
-          key !== 'name' &&
-          key !== 'stack' &&
-          key !== 'cause' &&
-          key !== 'line' &&
-          key !== 'column',
-      )
+      .filter((key) => PUBLIC_DETAIL_KEYS.has(key))
       .map((key) => [key, source[key]])
       .filter(([, value]) => value !== undefined)
 

@@ -7,6 +7,8 @@ import {
   IsString,
   MinLength,
 } from 'class-validator'
+import { IsValidCron } from '../../../shared/validators/is-valid-cron.validator'
+import { IsValidTimezone } from '../../../shared/validators/is-valid-timezone.validator'
 
 function requiredField(field: string) {
   return `${field} is required`
@@ -16,21 +18,25 @@ export class PutMeSettingsDto {
   @ApiProperty()
   @IsString()
   @MinLength(1, { message: requiredField('standupCron') })
+  @IsValidCron()
   standupCron!: string
 
   @ApiProperty()
   @IsString()
   @MinLength(1, { message: requiredField('reminderCron') })
+  @IsValidCron()
   reminderCron!: string
 
   @ApiProperty()
   @IsString()
   @MinLength(1, { message: requiredField('recoveryCron') })
+  @IsValidCron()
   recoveryCron!: string
 
   @ApiProperty()
   @IsString()
   @MinLength(1, { message: requiredField('timezone') })
+  @IsValidTimezone()
   timezone!: string
 
   @ApiPropertyOptional()

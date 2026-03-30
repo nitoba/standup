@@ -31,8 +31,6 @@ export class DiscordTriggerService {
     try {
       await this.triggerStandup.trigger(
         {
-          userId,
-          discordUserId,
           extraContext: options?.extraContext,
           forceRegenerate: options?.forceRegenerate,
           rewriteFromStandupId: options?.rewriteFromStandupId,
@@ -41,6 +39,7 @@ export class DiscordTriggerService {
           reuseExistingSource: options?.reuseExistingSource,
         },
         null,
+        { userId, discordUserId },
       )
 
       return Result.ok({ accepted: true })

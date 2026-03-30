@@ -11,6 +11,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger'
+import { Throttle } from '@nestjs/throttler'
 import { Session } from '@thallesp/nestjs-better-auth'
 import {
   CancelTodayReminderResponseDto,
@@ -76,6 +77,7 @@ export class RemindersController {
 
   @Post('run-now')
   @HttpCode(202)
+  @Throttle({ strict: { limit: 5, ttl: 60_000 } })
   @ApiOperation({
     operationId: 'runReminderNow',
     summary: 'Dispara imediatamente o job de standup',

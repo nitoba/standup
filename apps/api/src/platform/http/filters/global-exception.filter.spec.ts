@@ -114,8 +114,8 @@ describe('GlobalExceptionFilter', () => {
         statusCode: 400,
         error: 'Bad Request',
         message: 'git author is required',
+        // _tag e outros campos internos não são expostos — apenas campos da allowlist pública
         details: {
-          _tag: 'ValidationError',
           field: 'gitAuthor',
         },
       }),

@@ -1,4 +1,5 @@
 import { marked } from 'marked'
+import sanitizeHtml from 'sanitize-html'
 import type { EmailTheme } from './theme'
 
 const FONT_STACK =
@@ -93,10 +94,30 @@ function inlineCss(rawHtml: string, theme: EmailTheme): string {
   )
 }
 
+/** Tags e atributos permitidos no HTML de email após parse do markdown */
+const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'img',
+  ]),
+  allowedAttributes: {
+    ...sanitizeHtml.defaults.allowedAttributes,
+    img: ['src', 'alt', 'title', 'width', 'height'],
+    '*': ['style', 'class'],
+  },
+  // Não permitir protocolos perigosos em hrefs
+  allowedSchemes: ['http', 'https', 'mailto'],
+}
+
 export async function markdownToEmailHtml(
   markdown: string,
   theme: EmailTheme,
 ): Promise<string> {
   const rawHtml = await marked.parse(markdown, { async: true })
-  return inlineCss(rawHtml, theme)
+  // Sanitizar antes de aplicar inline CSS para remover tags/atributos perigosos
+  const sanitized = sanitizeHtml(rawHtml, SANITIZE_OPTIONS)
+  return inlineCss(sanitized, theme)
 }

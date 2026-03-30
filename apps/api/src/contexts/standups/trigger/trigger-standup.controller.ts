@@ -5,6 +5,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger'
+import { Throttle } from '@nestjs/throttler'
 import { Session } from '@thallesp/nestjs-better-auth'
 import type { AuthSession } from '../../../shared/auth/auth-session'
 import { requireSessionUserId } from '../../../shared/auth/require-session-user-id'
@@ -19,6 +20,7 @@ export class TriggerStandupController {
 
   @Post('trigger')
   @HttpCode(202)
+  @Throttle({ strict: { limit: 5, ttl: 60_000 } })
   @ApiOperation({
     operationId: 'triggerStandup',
     summary: 'Dispara a geração manual de um standup',

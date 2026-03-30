@@ -10,7 +10,10 @@ describe('TriggerStandupService', () => {
     }
   }
 
-  it('throws when it cannot resolve userId or discordUserId', async () => {
+  /** Helper: resolvedIds passados diretamente (simula path Discord) */
+  const resolvedIds = { userId: 'user-1', discordUserId: 'discord-1' }
+
+  it('throws when no userId can be resolved (no session, no resolvedIds)', async () => {
     const service = new TriggerStandupService(
       { findDiscordIdByUserId: vi.fn() } as never,
       { findByUserId: vi.fn() } as never,
@@ -31,9 +34,9 @@ describe('TriggerStandupService', () => {
       { today: vi.fn() } as never,
     )
 
-    await expect(
-      service.trigger({ userId: 'user-1', discordUserId: 'discord-1' }, null),
-    ).rejects.toThrow(BadRequestException)
+    await expect(service.trigger({}, null, resolvedIds)).rejects.toThrow(
+      BadRequestException,
+    )
   })
 
   it('throws when selected repos are empty and no azureDevopsUser is configured', async () => {
@@ -56,9 +59,9 @@ describe('TriggerStandupService', () => {
       { today: vi.fn() } as never,
     )
 
-    await expect(
-      service.trigger({ userId: 'user-1', discordUserId: 'discord-1' }, null),
-    ).rejects.toThrow(BadRequestException)
+    await expect(service.trigger({}, null, resolvedIds)).rejects.toThrow(
+      BadRequestException,
+    )
   })
 
   it('does not throw when repos are empty but azureDevopsUser is configured', async () => {
@@ -88,9 +91,10 @@ describe('TriggerStandupService', () => {
       } as never,
     )
 
-    await expect(
-      service.trigger({ userId: 'user-1', discordUserId: 'discord-1' }, null),
-    ).resolves.toEqual({ ok: true, accepted: true })
+    await expect(service.trigger({}, null, resolvedIds)).resolves.toEqual({
+      ok: true,
+      accepted: true,
+    })
 
     expect(dispatch.dispatchStandupJob).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -128,10 +132,7 @@ describe('TriggerStandupService', () => {
       } as never,
     )
 
-    await service.trigger(
-      { userId: 'user-1', discordUserId: 'discord-1' },
-      null,
-    )
+    await service.trigger({}, null, resolvedIds)
 
     expect(dispatch.dispatchStandupJob).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -171,9 +172,9 @@ describe('TriggerStandupService', () => {
       } as never,
     )
 
-    await expect(
-      service.trigger({ userId: 'user-1', discordUserId: 'discord-1' }, null),
-    ).rejects.toThrow(ConflictException)
+    await expect(service.trigger({}, null, resolvedIds)).rejects.toThrow(
+      ConflictException,
+    )
   })
 
   it('throws when today standup status cannot be evaluated', async () => {
@@ -208,9 +209,9 @@ describe('TriggerStandupService', () => {
       } as never,
     )
 
-    await expect(
-      service.trigger({ userId: 'user-1', discordUserId: 'discord-1' }, null),
-    ).rejects.toThrow(BadRequestException)
+    await expect(service.trigger({}, null, resolvedIds)).rejects.toThrow(
+      BadRequestException,
+    )
   })
 
   it('dispatches a fresh generate job when standup is rejected — does not reuse previous source data', async () => {
@@ -247,14 +248,7 @@ describe('TriggerStandupService', () => {
     )
 
     await expect(
-      service.trigger(
-        {
-          userId: 'user-1',
-          discordUserId: 'discord-1',
-          extraContext: 'contexto',
-        },
-        null,
-      ),
+      service.trigger({ extraContext: 'contexto' }, null, resolvedIds),
     ).resolves.toEqual({
       ok: true,
       accepted: true,
@@ -355,14 +349,8 @@ describe('TriggerStandupService', () => {
       { today: vi.fn() } as never,
     )
 
-    await expect(
-      service.trigger(
-        {
-          userId: 'user-1',
-          discordUserId: 'discord-1',
-        },
-        null,
-      ),
-    ).rejects.toThrow(BadRequestException)
+    await expect(service.trigger({}, null, resolvedIds)).rejects.toThrow(
+      BadRequestException,
+    )
   })
 })

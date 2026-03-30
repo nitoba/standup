@@ -4,6 +4,7 @@ import { DatabaseModule } from '../../platform/database/database.module'
 import { CommandRegistrationService } from './commands/command-registration.service'
 import { DiscordClientService } from './discord-client.service'
 import { ButtonInteractionService } from './handlers/button-interaction.service'
+import { CommandCooldownService } from './handlers/command-cooldown.service'
 import { CopyInteractionService } from './handlers/copy-interaction.service'
 import { ModalInteractionService } from './handlers/modal-interaction.service'
 import { ReminderInteractionService } from './handlers/reminder-interaction.service'
@@ -32,6 +33,7 @@ import { StandupStatusSyncService } from './services/standup-status-sync.service
     StandupNotificationService,
     StandupStatusSyncService,
     CommandRegistrationService,
+    CommandCooldownService,
     CopyInteractionService,
     ReminderInteractionService,
     SettingsInteractionService,

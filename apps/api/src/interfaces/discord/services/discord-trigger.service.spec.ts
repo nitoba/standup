@@ -19,8 +19,6 @@ describe('DiscordTriggerService', () => {
 
     expect(triggerStandup.trigger).toHaveBeenCalledWith(
       {
-        userId: 'user-1',
-        discordUserId: 'discord-1',
         forceRegenerate: true,
         extraContext: undefined,
         rewriteFromStandupId: undefined,
@@ -29,6 +27,7 @@ describe('DiscordTriggerService', () => {
         reuseExistingSource: undefined,
       },
       null,
+      { userId: 'user-1', discordUserId: 'discord-1' },
     )
   })
 

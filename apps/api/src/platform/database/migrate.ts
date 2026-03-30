@@ -113,6 +113,17 @@ async function getAppliedMigrationsCount(client: Client): Promise<number> {
   return Number(row.count ?? 0)
 }
 
+/** Mascara URLs de banco de dados para evitar vazar tokens em logs */
+function maskDatabaseUrl(url: string): string {
+  try {
+    const parsed = new URL(url)
+    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`
+  } catch {
+    // URL local (ex: file:./data/standup.db) — não contém credenciais
+    return url
+  }
+}
+
 async function main(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL ?? './data/standup.db'
   const databaseAuthToken = process.env.DATABASE_AUTH_TOKEN
@@ -145,7 +156,7 @@ async function main(): Promise<void> {
     const startedAt = Date.now()
 
     logger.info('Starting migration run', {
-      databaseUrl: normalizedDatabaseUrl,
+      databaseUrl: maskDatabaseUrl(normalizedDatabaseUrl),
       migrationsFolder,
       knownMigrations,
       appliedMigrations: appliedBefore,
