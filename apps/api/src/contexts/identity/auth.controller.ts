@@ -26,9 +26,22 @@ export class AuthController {
   })
   @ApiOkResponse({ description: 'Sessão atual do usuário.' })
   getSession(@Session() session: unknown) {
+    if (
+      !session ||
+      typeof session !== 'object' ||
+      !('user' in session) ||
+      !session.user ||
+      typeof session.user !== 'object'
+    ) {
+      return { authenticated: false }
+    }
+    const user = session.user as Record<string, unknown>
     return {
-      authenticated: session !== null,
-      session,
+      authenticated: true,
+      userId: typeof user.id === 'string' ? user.id : undefined,
+      name: typeof user.name === 'string' ? user.name : undefined,
+      email: typeof user.email === 'string' ? user.email : undefined,
+      avatarUrl: typeof user.image === 'string' ? user.image : undefined,
     }
   }
 

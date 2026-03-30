@@ -238,7 +238,7 @@ export class StandupRepository {
     try {
       const conditions = buildListConditions(filters)
       const page = Math.max(filters?.page ?? 1, 1)
-      const pageSize = Math.max(filters?.pageSize ?? 20, 1)
+      const pageSize = Math.min(Math.max(filters?.pageSize ?? 20, 1), 100)
       const offset = (page - 1) * pageSize
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
