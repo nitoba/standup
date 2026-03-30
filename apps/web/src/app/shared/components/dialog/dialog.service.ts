@@ -41,12 +41,9 @@ export class ZardDialogService {
     const overlayRef = this.createOverlay()
 
     if (!overlayRef) {
-      return new ZardDialogRef(
-        undefined as unknown as OverlayRef,
-        config,
-        undefined as unknown as ZardDialogComponent<T, U>,
-        this.platformId,
-      )
+      // SSR: return a no-op ref — overlayRef and containerInstance are null,
+      // ZardDialogRef handles this safely (TAS-63)
+      return new ZardDialogRef(null, config, null, this.platformId)
     }
 
     const dialogContainer = this.attachDialogContainer<T, U>(overlayRef, config)

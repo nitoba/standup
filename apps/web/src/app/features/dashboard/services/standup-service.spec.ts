@@ -18,6 +18,8 @@ import { StandupService } from './standup-service'
 /** Stub que não abre EventSource real — evita ReferenceError em JSDOM */
 const stubEventsService = {
   standupEvents$: new Subject<StandupEvent>(),
+  connect: () => {},
+  disconnect: () => {},
   ngOnDestroy: () => {},
 }
 
@@ -377,7 +379,9 @@ describe('StandupService', () => {
 
     await expect(adjustPromise).resolves.toEqual({ ok: true, accepted: true })
     TestBed.tick()
-    httpMock.expectOne('/standups?page=1&pageSize=20').flush(makeListResponse([]))
+    httpMock
+      .expectOne('/standups?page=1&pageSize=20')
+      .flush(makeListResponse([]))
     await settleAsyncWork()
   })
 
@@ -402,7 +406,9 @@ describe('StandupService', () => {
       accepted: true,
     })
     TestBed.tick()
-    httpMock.expectOne('/standups?page=1&pageSize=20').flush(makeListResponse([]))
+    httpMock
+      .expectOne('/standups?page=1&pageSize=20')
+      .flush(makeListResponse([]))
     await settleAsyncWork()
   })
 

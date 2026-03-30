@@ -70,37 +70,60 @@ export const verification = sqliteTable('verification', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }),
 })
 
-export const standups = sqliteTable('standups', {
-  id: text('id').primaryKey(),
-  date: text('date').notNull(),
-  meetingType: text('meeting_type').notNull(),
-  content: text('content').notNull(),
-  sourceData: text('source_data').notNull(),
-  customEntries: text('custom_entries'),
-  status: text('status', {
-    enum: ['draft', 'pending_review', 'approved', 'rejected', 'published'],
-  })
-    .notNull()
-    .default('draft'),
-  userId: text('user_id').references(() => user.id),
-  dmMessageId: text('dm_message_id'),
-  createdAt: integer('created_at').notNull(),
-  updatedAt: integer('updated_at').notNull(),
-  sentToDiscordAt: integer('sent_to_discord_at'),
-})
+export const standups = sqliteTable(
+  'standups',
+  {
+    id: text('id').primaryKey(),
+    date: text('date').notNull(),
+    meetingType: text('meeting_type').notNull(),
+    content: text('content').notNull(),
+    sourceData: text('source_data').notNull(),
+    customEntries: text('custom_entries'),
+    status: text('status', {
+      enum: ['draft', 'pending_review', 'approved', 'rejected', 'published'],
+    })
+      .notNull()
+      .default('draft'),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id),
+    dmMessageId: text('dm_message_id'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    sentToDiscordAt: integer('sent_to_discord_at'),
+  },
+  (table) => ({
+    // Prevent duplicate standups for the same user on the same day (TAS-58)
+    userDateUnique: uniqueIndex('standups_user_date_unique').on(
+      table.userId,
+      table.date,
+    ),
+  }),
+)
 
-export const jobRuns = sqliteTable('job_runs', {
-  id: text('id').primaryKey(),
-  jobName: text('job_name').notNull(),
-  date: text('date').notNull(),
-  status: text('status', {
-    enum: ['running', 'success', 'failed'],
-  }).notNull(),
-  userId: text('user_id').references(() => user.id),
-  startedAt: integer('started_at').notNull(),
-  finishedAt: integer('finished_at'),
-  error: text('error'),
-})
+export const jobRuns = sqliteTable(
+  'job_runs',
+  {
+    id: text('id').primaryKey(),
+    jobName: text('job_name').notNull(),
+    date: text('date').notNull(),
+    status: text('status', {
+      enum: ['running', 'success', 'failed'],
+    }).notNull(),
+    userId: text('user_id').references(() => user.id),
+    startedAt: integer('started_at').notNull(),
+    finishedAt: integer('finished_at'),
+    error: text('error'),
+  },
+  (table) => ({
+    // Prevent duplicate lock records for the same job+date+user (TAS-59)
+    jobDateUserUnique: uniqueIndex('job_runs_job_date_user_unique').on(
+      table.jobName,
+      table.date,
+      table.userId,
+    ),
+  }),
+)
 
 export const userSettings = sqliteTable('user_settings', {
   id: text('id').primaryKey(),

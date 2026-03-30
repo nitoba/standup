@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, OnModuleDestroy } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
 import type { APIEmbed } from 'discord.js'
 import {
@@ -41,12 +41,23 @@ import {
   EMBED_COLORS,
 } from '../embeds'
 
-type PendingReminder = { discordUserId: string; messageId: string }
+type PendingReminder = {
+  discordUserId: string
+  messageId: string
+  /** Unix timestamp (ms) when this reminder was stored — used for TTL eviction */
+  storedAt: number
+}
+
+/** Reminders older than this are considered stale and removed (TAS-68) */
+const REMINDER_TTL_MS = 4 * 60 * 60 * 1000 // 4 hours
+/** How often the cleanup sweep runs */
+const REMINDER_CLEANUP_INTERVAL_MS = 60 * 60 * 1000 // 1 hour
 
 @Injectable()
-export class DiscordMessagesService {
+export class DiscordMessagesService implements OnModuleDestroy {
   private readonly logger: ReturnType<AppLoggerFactory['create']>
   private readonly pendingReminders = new Map<string, PendingReminder>()
+  private cleanupTimer: ReturnType<typeof setInterval> | undefined
 
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
@@ -54,6 +65,27 @@ export class DiscordMessagesService {
     private readonly env: EnvService,
   ) {
     this.logger = this.loggerFactory.create('discord-messages')
+    // Periodic cleanup of stale reminder entries to prevent memory leak (TAS-68)
+    this.cleanupTimer = setInterval(
+      () => this.evictStaleReminders(),
+      REMINDER_CLEANUP_INTERVAL_MS,
+    )
+  }
+
+  onModuleDestroy(): void {
+    if (this.cleanupTimer !== undefined) {
+      clearInterval(this.cleanupTimer)
+    }
+  }
+
+  /** Remove entries older than REMINDER_TTL_MS (TAS-68) */
+  private evictStaleReminders(): void {
+    const cutoff = Date.now() - REMINDER_TTL_MS
+    for (const [userId, reminder] of this.pendingReminders) {
+      if (reminder.storedAt < cutoff) {
+        this.pendingReminders.delete(userId)
+      }
+    }
   }
 
   @OnEvent(USER_DM_REQUESTED_EVENT)
@@ -100,6 +132,7 @@ export class DiscordMessagesService {
     this.pendingReminders.set(event.userId, {
       discordUserId: event.discordUserId,
       messageId: result.value.messageId,
+      storedAt: Date.now(),
     })
   }
 

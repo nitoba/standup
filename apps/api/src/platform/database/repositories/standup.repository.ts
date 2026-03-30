@@ -10,6 +10,7 @@ import {
   InvalidStateTransitionError,
   NotFoundError,
   Result,
+  StandupStatusSchema,
   transitionStandupStatus,
 } from '../../../shared/domain'
 import { AppLoggerFactory } from '../../logger'
@@ -39,6 +40,14 @@ function parseCustomEntries(raw: string | null): CustomEntries | null {
 }
 
 function toRecord(row: typeof standups.$inferSelect): StandupRecord {
+  // Parse status through Zod to catch corrupt DB values early (TAS-69).
+  // Drizzle infers status as string; the schema enum constrains it at write
+  // time but we validate defensively at read time too.
+  const statusResult = StandupStatusSchema.safeParse(row.status)
+  const status: StandupStatus = statusResult.success
+    ? statusResult.data
+    : 'draft' // safe fallback — triggers a re-review of the record
+
   return {
     id: row.id,
     date: row.date,
@@ -46,7 +55,7 @@ function toRecord(row: typeof standups.$inferSelect): StandupRecord {
     content: row.content,
     sourceData: row.sourceData,
     customEntries: parseCustomEntries(row.customEntries),
-    status: row.status as StandupStatus,
+    status,
     userId: row.userId,
     dmMessageId: row.dmMessageId ?? null,
     createdAt: row.createdAt,
@@ -519,6 +528,72 @@ export class StandupRepository {
       })
     } catch (error) {
       return this.dbErr('updateCustomEntriesForUser', error)
+    }
+  }
+
+  /**
+   * Atomically approve a standup: optionally persist custom entries + merged
+   * content, then transition status to 'approved' — all within a single
+   * transaction (TAS-57). A crash between writes can no longer leave the
+   * record in a partially-updated state.
+   */
+  async approveForUser(
+    id: string,
+    userId: string,
+    mergedContent: string | null,
+    customEntries: CustomEntries | null,
+  ): Promise<
+    Result<StandupRecord, NotFoundError | DbError | InvalidStateTransitionError>
+  > {
+    try {
+      const result = await this.database.db.transaction(async (tx) => {
+        const row = await tx
+          .select()
+          .from(standups)
+          .where(and(eq(standups.id, id), eq(standups.userId, userId)))
+          .get()
+
+        if (!row) {
+          return Result.err(new NotFoundError({ resource: 'standup', id }))
+        }
+
+        const transition = transitionStandupStatus(
+          row.status as StandupStatus,
+          'approved',
+        )
+        if (transition.isErr()) {
+          return transition
+        }
+
+        const now = Date.now()
+        const serializedEntries = customEntries
+          ? JSON.stringify(customEntries)
+          : row.customEntries
+
+        await tx
+          .update(standups)
+          .set({
+            status: 'approved',
+            content: mergedContent ?? row.content,
+            customEntries: serializedEntries,
+            updatedAt: now,
+          })
+          .where(and(eq(standups.id, id), eq(standups.userId, userId)))
+
+        return Result.ok(
+          toRecord({
+            ...row,
+            status: 'approved',
+            content: mergedContent ?? row.content,
+            customEntries: serializedEntries,
+            updatedAt: now,
+          }),
+        )
+      })
+
+      return result
+    } catch (error) {
+      return this.dbErr('approveForUser', error)
     }
   }
 

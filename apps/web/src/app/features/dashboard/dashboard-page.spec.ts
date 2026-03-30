@@ -21,6 +21,8 @@ import { StandupService } from './services/standup-service'
 /** Stub que não abre EventSource real — evita ReferenceError em JSDOM */
 const stubEventsService = {
   standupEvents$: new Subject<StandupEvent>(),
+  connect: () => {},
+  disconnect: () => {},
   ngOnDestroy: () => {},
 }
 
@@ -333,10 +335,7 @@ function makeListResponse(
   }
 }
 
-function toStandupDto(
-  standup: Standup,
-  index: number,
-): StandupDto {
+function toStandupDto(standup: Standup, index: number): StandupDto {
   return {
     id: standup.id,
     date: standup.date,

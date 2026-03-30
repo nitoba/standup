@@ -114,7 +114,8 @@ export class AuthController {
   @Header('content-type', 'text/html; charset=utf-8')
   @ApiExcludeEndpoint()
   async getAuthCallback(@Session() session: AuthSession): Promise<string> {
-    const userId = session.user.id
+    // Guard against null session — endpoint is @AllowAnonymous (TAS-61)
+    const userId = session?.user?.id
 
     if (userId) {
       const discordResult =

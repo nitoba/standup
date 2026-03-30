@@ -135,12 +135,15 @@ async function bootstrap() {
   // @hono/node-server to attempt a second writeHead. By handling it here we
   // return RESPONSE_ALREADY_SENT cleanly.
   const standupSseBus = app.get(StandupSseBusService)
+  // Cache the BetterAuth instance — create() is not free and SSE opens a
+  // persistent connection per user (TAS-72).
+  const betterAuth = betterAuthFactory.create()
   // biome-ignore lint/suspicious/noExplicitAny: Hono ctx.env from @hono/node-server
   adapter.getInstance().get('/standups/events', async (ctx: any) => {
     // Validate session via Better Auth cookie
-    const sessionRes = await betterAuthFactory
-      .create()
-      .api.getSession({ headers: ctx.req.raw.headers })
+    const sessionRes = await betterAuth.api.getSession({
+      headers: ctx.req.raw.headers,
+    })
     const userId = sessionRes?.user?.id
     if (!userId) {
       return ctx.json({ statusCode: 401, message: 'Unauthorized' }, 401)

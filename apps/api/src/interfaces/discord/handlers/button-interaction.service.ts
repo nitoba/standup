@@ -7,15 +7,18 @@ import {
   TextInputStyle,
 } from 'discord.js'
 import {
+  COPY_ACTIONS,
   type CopyAction,
   CopyInteractionService,
 } from './copy-interaction.service'
 import {
+  REMINDER_ACTIONS,
   type ReminderAction,
   ReminderInteractionService,
 } from './reminder-interaction.service'
 import { SettingsInteractionService } from './settings-interaction.service'
 import {
+  STANDUP_ACTIONS,
   type StandupAction,
   StandupInteractionService,
 } from './standup-interaction.service'
@@ -32,6 +35,23 @@ const PROCESSING_MESSAGE: Record<string, string> = {
   reject: '⏳ Rejeitando standup...',
 }
 
+// Type guards that validate action values instead of blindly casting (TAS-70)
+function isReminderAction(v: string): v is ReminderAction {
+  return (REMINDER_ACTIONS as readonly string[]).includes(v)
+}
+function isTriggerAction(v: string): v is 'confirm' | 'cancel' {
+  return v === 'confirm' || v === 'cancel'
+}
+function isSettingsAction(v: string): v is 'edit' | 'toggle' {
+  return v === 'edit' || v === 'toggle'
+}
+function isCopyAction(v: string): v is CopyAction {
+  return (COPY_ACTIONS as readonly string[]).includes(v)
+}
+function isStandupAction(v: string): v is StandupAction {
+  return (STANDUP_ACTIONS as readonly string[]).includes(v)
+}
+
 @Injectable()
 export class ButtonInteractionService {
   constructor(
@@ -46,26 +66,26 @@ export class ButtonInteractionService {
     const [namespace, action, targetId] = interaction.customId.split(':')
 
     if (namespace === 'standup-reminder') {
-      await this.reminders.handle(interaction, action as ReminderAction)
+      if (!action || !isReminderAction(action)) return
+      await this.reminders.handle(interaction, action)
       return
     }
 
     if (namespace === 'standup-trigger' && targetId) {
-      await this.trigger.handleButton(
-        interaction,
-        action as 'confirm' | 'cancel',
-        targetId,
-      )
+      if (!action || !isTriggerAction(action)) return
+      await this.trigger.handleButton(interaction, action, targetId)
       return
     }
 
     if (namespace === 'settings' && action) {
-      await this.settings.handleButton(interaction, action as 'edit' | 'toggle')
+      if (!isSettingsAction(action)) return
+      await this.settings.handleButton(interaction, action)
       return
     }
 
     if (namespace === 'standup-copy' && targetId) {
-      await this.copy.handle(interaction, action as CopyAction, targetId)
+      if (!action || !isCopyAction(action)) return
+      await this.copy.handle(interaction, action, targetId)
       return
     }
 
@@ -96,8 +116,10 @@ export class ButtonInteractionService {
       components: [],
     })
 
+    if (!isStandupAction(action)) return
+
     const result = await this.standupInteraction.handle(
-      action as StandupAction,
+      action,
       targetId,
       interaction.user.id,
     )

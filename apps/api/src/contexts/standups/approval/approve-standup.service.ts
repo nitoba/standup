@@ -12,6 +12,7 @@ import {
   mergeCustomEntries,
   type NotFoundError,
   Result,
+  type StandupRecord,
 } from '../../../shared/domain'
 import { formatStandupRecord } from '../shared/format-standup-record'
 import { throwStandupHttpError } from '../shared/throw-standup-http-error'
@@ -56,59 +57,32 @@ export class ApproveStandupService {
     standupId: string,
     customEntries?: CustomEntries | null,
     source: StandupStatusChangedEvent['source'] = 'web',
-  ): Promise<
-    Result<
-      Awaited<
-        ReturnType<StandupRepository['updateStatusForUser']>
-      > extends Result<infer TValue, infer _TError>
-        ? TValue
-        : never,
-      ApproveStandupError
-    >
-  > {
-    const found = await this.standupRepository.findByIdForUser(
-      standupId,
-      userId,
-    )
-
-    if (found.isErr()) {
-      return found
-    }
+  ): Promise<Result<StandupRecord, ApproveStandupError>> {
+    // Pre-fetch to compute mergedContent before entering the transaction
+    // (mergeCustomEntries is pure CPU — no I/O needed inside the tx).
+    let mergedContent: string | null = null
 
     if (customEntries && hasCustomEntries(customEntries)) {
-      const saveEntriesResult =
-        await this.standupRepository.updateCustomEntriesForUser(
-          standupId,
-          userId,
-          customEntries,
-        )
-
-      if (saveEntriesResult.isErr()) {
-        return saveEntriesResult
+      const found = await this.standupRepository.findByIdForUser(
+        standupId,
+        userId,
+      )
+      if (found.isErr()) {
+        return found
       }
-
-      const mergedContent = mergeCustomEntries(
-        saveEntriesResult.value.content,
-        saveEntriesResult.value.meetingType,
+      mergedContent = mergeCustomEntries(
+        found.value.content,
+        found.value.meetingType,
         customEntries,
       )
-
-      const saveContentResult =
-        await this.standupRepository.updateContentForUser(
-          standupId,
-          userId,
-          mergedContent,
-        )
-
-      if (saveContentResult.isErr()) {
-        return saveContentResult
-      }
     }
 
-    const approvedResult = await this.standupRepository.updateStatusForUser(
+    // Single atomic write: customEntries + content + status in one transaction (TAS-57)
+    const approvedResult = await this.standupRepository.approveForUser(
       standupId,
       userId,
-      'approved',
+      mergedContent,
+      customEntries && hasCustomEntries(customEntries) ? customEntries : null,
     )
 
     if (approvedResult.isErr()) {
