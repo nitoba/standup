@@ -14,6 +14,24 @@ import { startOpenTelemetry } from './platform/observability/tracing'
 import { createOpenApiDocument } from './shared/openapi/create-openapi-document'
 import { OPENAPI_JSON_PATH } from './shared/openapi/openapi.constants'
 
+/**
+ * Applies CORS headers to a raw Node.js ServerResponse.
+ * Used for routes that bypass the Hono response pipeline (Better Auth, SSE).
+ * Single source of truth for CORS logic on raw responses.
+ */
+function applyNodeCorsHeaders(
+  // biome-ignore lint/suspicious/noExplicitAny: ServerResponse from node:http
+  res: any,
+  origin: string | undefined,
+  corsOrigin: string,
+): void {
+  if (origin === corsOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', origin)
+    res.setHeader('Access-Control-Allow-Credentials', 'true')
+    res.setHeader('Vary', 'Origin')
+  }
+}
+
 async function bootstrap() {
   await startOpenTelemetry()
 
@@ -61,11 +79,7 @@ async function bootstrap() {
     // toNodeHandler writes directly to it, bypassing Hono's response pipeline.
     const origin = ctx.req.header('origin')
     const res = ctx.env.outgoing
-    if (origin === corsOrigin) {
-      res.setHeader('Access-Control-Allow-Origin', origin)
-      res.setHeader('Access-Control-Allow-Credentials', 'true')
-      res.setHeader('Vary', 'Origin')
-    }
+    applyNodeCorsHeaders(res, origin, corsOrigin)
     if (ctx.req.method === 'OPTIONS') {
       res.setHeader(
         'Access-Control-Allow-Methods',
@@ -102,6 +116,9 @@ async function bootstrap() {
   )
 
   corsOrigin = env.app.corsOrigin
+  // NestJS enableCors covers all standard NestJS-routed endpoints.
+  // Better Auth and SSE routes use raw Node.js responses and apply CORS
+  // via applyNodeCorsHeaders() to keep the logic consistent.
   app.enableCors({
     origin: corsOrigin,
     credentials: true,
@@ -130,13 +147,8 @@ async function bootstrap() {
     }
 
     const nodeRes = ctx.env.outgoing
-    // CORS for EventSource (browser sends Origin header)
     const origin = ctx.req.header('origin')
-    if (origin === corsOrigin) {
-      nodeRes.setHeader('Access-Control-Allow-Origin', origin)
-      nodeRes.setHeader('Access-Control-Allow-Credentials', 'true')
-      nodeRes.setHeader('Vary', 'Origin')
-    }
+    applyNodeCorsHeaders(nodeRes, origin, corsOrigin)
 
     nodeRes.writeHead(200, {
       'Content-Type': 'text/event-stream',

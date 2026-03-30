@@ -18,6 +18,7 @@ import {
   DiscordServiceHealthService,
   type DiscordServiceName,
 } from '../services/discord-service-health.service'
+import { CommandCooldownService } from './command-cooldown.service'
 import { SettingsInteractionService } from './settings-interaction.service'
 import { StandupInteractionService } from './standup-interaction.service'
 import { TriggerConfirmationService } from './trigger-confirmation.service'
@@ -94,6 +95,7 @@ export class SlashCommandHandlerService {
     private readonly settings: SettingsInteractionService,
     private readonly standupInteraction: StandupInteractionService,
     private readonly triggerConfirmation: TriggerConfirmationService,
+    private readonly cooldown: CommandCooldownService,
   ) {}
 
   async handle(
@@ -124,6 +126,18 @@ export class SlashCommandHandlerService {
     }
 
     if (subcommand === 'trigger') {
+      const remainingSeconds = this.cooldown.check(
+        interaction.user.id,
+        'trigger',
+      )
+      if (remainingSeconds !== null) {
+        await interaction.reply({
+          content: `⏳ Aguarde ${remainingSeconds}s antes de usar /standup trigger novamente.`,
+          flags: MessageFlags.Ephemeral,
+        })
+        return
+      }
+      this.cooldown.record(interaction.user.id, 'trigger')
       await this.triggerConfirmation.handleSlashCommand(interaction)
       return
     }
