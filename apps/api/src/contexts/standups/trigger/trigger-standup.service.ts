@@ -7,15 +7,10 @@ import { StandupRepository } from '../../../platform/database/repositories/stand
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../platform/database/repositories/user-settings.repository'
 import { LocalDateService } from '../../../platform/time/local-date.service'
+import type { AuthSession } from '../../../shared/auth/auth-session'
 import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
 import { StandupDispatchService } from '../worker/standup/standup-dispatch.service'
 import type { TriggerStandupDto } from './trigger-standup.dto'
-
-type AuthSession = {
-  user: {
-    id: string
-  }
-}
 
 @Injectable()
 export class TriggerStandupService {

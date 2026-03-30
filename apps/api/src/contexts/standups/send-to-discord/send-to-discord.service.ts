@@ -49,6 +49,7 @@ export class SendToDiscordService {
           service: 'discord-automation',
           message:
             'Discord automation is not configured. Set DISCORD_AUTOMATION_URL, DISCORD_AUTOMATION_CHANNEL_URL, and DISCORD_AUTOMATION_WEBHOOK_SECRET.',
+          publicMessage: 'Discord automation is not configured.',
         }),
       )
     }

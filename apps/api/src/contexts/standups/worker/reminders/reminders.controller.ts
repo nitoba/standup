@@ -1,10 +1,4 @@
-import {
-  BadRequestException,
-  Controller,
-  HttpCode,
-  Post,
-  UnauthorizedException,
-} from '@nestjs/common'
+import { BadRequestException, Controller, HttpCode, Post } from '@nestjs/common'
 import {
   ApiAcceptedResponse,
   ApiOkResponse,
@@ -13,6 +7,8 @@ import {
 } from '@nestjs/swagger'
 import { Throttle } from '@nestjs/throttler'
 import { Session } from '@thallesp/nestjs-better-auth'
+import type { AuthSession } from '../../../../shared/auth/auth-session'
+import { requireSessionUserId } from '../../../../shared/auth/require-session-user-id'
 import {
   CancelTodayReminderResponseDto,
   SnoozeReminderResponseDto,
@@ -20,12 +16,6 @@ import {
 } from '../../../../shared/openapi/response-dtos'
 import { StandupDispatchService } from '../standup/standup-dispatch.service'
 import { ReminderActionsService } from './reminder-actions.service'
-
-type AuthSession = {
-  user: {
-    id: string
-  }
-}
 
 @ApiTags('reminders')
 @Controller('reminders')
@@ -46,11 +36,7 @@ export class RemindersController {
     type: SnoozeReminderResponseDto,
   })
   async snooze(@Session() session: AuthSession | null) {
-    const userId = session?.user.id
-
-    if (!userId) {
-      throw new UnauthorizedException()
-    }
+    const userId = requireSessionUserId(session)
 
     return { data: await this.reminderActions.snoozeReminder(userId) }
   }
@@ -66,11 +52,7 @@ export class RemindersController {
     type: CancelTodayReminderResponseDto,
   })
   async cancelToday(@Session() session: AuthSession | null) {
-    const userId = session?.user.id
-
-    if (!userId) {
-      throw new UnauthorizedException()
-    }
+    const userId = requireSessionUserId(session)
 
     return { data: await this.reminderActions.cancelReminderForToday(userId) }
   }
@@ -87,11 +69,7 @@ export class RemindersController {
     type: TriggerAcceptedDto,
   })
   async runNow(@Session() session: AuthSession | null) {
-    const userId = session?.user.id
-
-    if (!userId) {
-      throw new UnauthorizedException()
-    }
+    const userId = requireSessionUserId(session)
 
     const result = await this.standupDispatch.dispatchStandupJobForUser(userId)
 

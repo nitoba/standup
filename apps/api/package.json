@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "bun --env-file=../../.env.local --watch src/main.ts",
     "dev:local": "bun --env-file=../../.env.local --watch src/main.ts",
-    "build": "nest build",
+    "build": "nest build && mkdir -p dist/src/contexts/standups/worker/standup-generator/prompts && cp src/contexts/standups/worker/standup-generator/prompts/*.md dist/src/contexts/standups/worker/standup-generator/prompts/",
     "start": "bun --env-file=../../.env src/main.ts",
     "start:local": "bun --env-file=../../.env.local src/main.ts",
     "start:prod": "node dist/main.js",
