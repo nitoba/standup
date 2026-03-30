@@ -109,25 +109,30 @@ export class SettingsInteractionService {
     }
 
     if (action === 'edit') {
-      const result = await this.settingsRepository.findByUserId(session.userId)
-      const currentSettings = result.isOk() ? result.value : null
-      const repos =
-        this.availableRepos.getCachedRepos().length > 0
-          ? this.availableRepos.getCachedRepos()
-          : await this.availableRepos.fetchAvailableRepos()
+      // showModal() must be the first response to an interaction — it cannot be
+      // called after deferReply/deferUpdate. To stay within the 3s window we
+      // rely exclusively on the in-memory cache populated by the background
+      // refresh. If the cache is empty we reply with a hint and trigger a
+      // background fetch so the next attempt succeeds (TAS-62).
+      const cachedRepos = this.availableRepos.getCachedRepos()
 
-      if (repos.length === 0) {
+      if (cachedRepos.length === 0) {
+        // Fire-and-forget background fetch so the cache is warm for the retry
+        void this.availableRepos.fetchAvailableRepos()
         await interaction.reply({
           content:
-            '❌ Não foi possível carregar os repositórios agora. Tente novamente em alguns segundos.',
+            '⏳ Carregando repositórios… Tente novamente em alguns segundos.',
           flags: MessageFlags.Ephemeral,
         })
         return
       }
 
+      const result = await this.settingsRepository.findByUserId(session.userId)
+      const currentSettings = result.isOk() ? result.value : null
+
       await this.showSettingsModal(
         interaction,
-        repos,
+        cachedRepos,
         currentSettings ?? undefined,
       )
       return

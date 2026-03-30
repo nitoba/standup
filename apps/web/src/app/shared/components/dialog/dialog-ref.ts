@@ -18,11 +18,16 @@ export class ZardDialogRef<T = any, R = any, U = any> {
   componentInstance: T | null = null
 
   constructor(
-    private overlayRef: OverlayRef,
+    private overlayRef: OverlayRef | null | undefined,
     private config: ZardDialogOptions<T, U>,
-    private containerInstance: ZardDialogComponent<T, U>,
+    private containerInstance: ZardDialogComponent<T, U> | null | undefined,
     @Inject(PLATFORM_ID) private platformId: object,
   ) {
+    // Guard against SSR: overlayRef and containerInstance are undefined when
+    // createOverlay() returns undefined (non-browser environment). Accessing
+    // them without a null check causes a runtime crash (TAS-63).
+    if (!this.containerInstance) return
+
     this.containerInstance.cancelTriggered.subscribe(() =>
       this.trigger(eTriggerAction.CANCEL),
     )
@@ -32,7 +37,8 @@ export class ZardDialogRef<T = any, R = any, U = any> {
 
     if (
       (this.config.zMaskClosable ?? true) &&
-      isPlatformBrowser(this.platformId)
+      isPlatformBrowser(this.platformId) &&
+      this.overlayRef
     ) {
       this.overlayRef
         .outsidePointerEvents()
@@ -58,7 +64,7 @@ export class ZardDialogRef<T = any, R = any, U = any> {
     this.isClosing = true
     this.result = result
 
-    if (isPlatformBrowser(this.platformId)) {
+    if (isPlatformBrowser(this.platformId) && this.containerInstance) {
       const hostElement = this.containerInstance.getNativeElement()
       hostElement.classList.add('dialog-leave')
     }

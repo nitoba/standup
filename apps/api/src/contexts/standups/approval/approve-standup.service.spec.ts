@@ -9,6 +9,8 @@ import { ApproveStandupService } from './approve-standup.service'
 
 describe('ApproveStandupService', () => {
   it('approves a standup and emits a web status-change event', async () => {
+    // approveForUser is the single atomic operation that replaces the
+    // three separate writes (TAS-57)
     const standupRepository = {
       findByIdForUser: vi.fn().mockResolvedValue(
         Result.ok({
@@ -17,21 +19,7 @@ describe('ApproveStandupService', () => {
           meetingType: '📆 (Planning)',
         }),
       ),
-      updateCustomEntriesForUser: vi.fn().mockResolvedValue(
-        Result.ok({
-          id: 'standup-1',
-          content: '**Standup**',
-          meetingType: '📆 (Planning)',
-        }),
-      ),
-      updateContentForUser: vi.fn().mockResolvedValue(
-        Result.ok({
-          id: 'standup-1',
-          content: '**Standup**\n📆 (Retro)',
-          meetingType: '📆 (Planning)',
-        }),
-      ),
-      updateStatusForUser: vi.fn().mockResolvedValue(
+      approveForUser: vi.fn().mockResolvedValue(
         Result.ok({
           id: 'standup-1',
           date: '2026-03-13',
@@ -65,8 +53,12 @@ describe('ApproveStandupService', () => {
       date: '13/03/2026',
       status: 'approved',
     })
-    expect(standupRepository.updateCustomEntriesForUser).toHaveBeenCalled()
-    expect(standupRepository.updateContentForUser).toHaveBeenCalled()
+    expect(standupRepository.approveForUser).toHaveBeenCalledWith(
+      'standup-1',
+      'user-1',
+      expect.any(String), // mergedContent
+      expect.objectContaining({ scheduledMeetings: ['Retro'] }),
+    )
     expect(eventBus.emitStandupStatusChanged).toHaveBeenCalledWith({
       userId: 'user-1',
       standupId: 'standup-1',
@@ -77,16 +69,8 @@ describe('ApproveStandupService', () => {
 
   it('approves a standup through the internal result API with a discord source', async () => {
     const standupRepository = {
-      findByIdForUser: vi.fn().mockResolvedValue(
-        Result.ok({
-          id: 'standup-1',
-          content: '**Standup**',
-          meetingType: '',
-        }),
-      ),
-      updateCustomEntriesForUser: vi.fn(),
-      updateContentForUser: vi.fn(),
-      updateStatusForUser: vi.fn().mockResolvedValue(
+      findByIdForUser: vi.fn(),
+      approveForUser: vi.fn().mockResolvedValue(
         Result.ok({
           id: 'standup-1',
           userId: 'user-1',
@@ -117,6 +101,12 @@ describe('ApproveStandupService', () => {
     )
 
     expect(result.isOk()).toBe(true)
+    expect(standupRepository.approveForUser).toHaveBeenCalledWith(
+      'standup-1',
+      'user-1',
+      null,
+      null,
+    )
     expect(eventBus.emitStandupStatusChanged).toHaveBeenCalledWith({
       userId: 'user-1',
       standupId: 'standup-1',
@@ -125,18 +115,10 @@ describe('ApproveStandupService', () => {
     })
   })
 
-  it('skips custom-entry persistence when there are no extra entries', async () => {
+  it('skips custom-entry merge when entries are empty', async () => {
     const standupRepository = {
-      findByIdForUser: vi.fn().mockResolvedValue(
-        Result.ok({
-          id: 'standup-1',
-          content: '**Standup**',
-          meetingType: '',
-        }),
-      ),
-      updateCustomEntriesForUser: vi.fn(),
-      updateContentForUser: vi.fn(),
-      updateStatusForUser: vi.fn().mockResolvedValue(
+      findByIdForUser: vi.fn(),
+      approveForUser: vi.fn().mockResolvedValue(
         Result.ok({
           id: 'standup-1',
           date: '2026-03-13',
@@ -160,8 +142,15 @@ describe('ApproveStandupService', () => {
       directCalls: [],
     })
 
-    expect(standupRepository.updateCustomEntriesForUser).not.toHaveBeenCalled()
-    expect(standupRepository.updateContentForUser).not.toHaveBeenCalled()
+    // When entries are empty, findByIdForUser is not called for merge and
+    // approveForUser is called with null content and null entries
+    expect(standupRepository.findByIdForUser).not.toHaveBeenCalled()
+    expect(standupRepository.approveForUser).toHaveBeenCalledWith(
+      'standup-1',
+      'user-1',
+      null,
+      null,
+    )
   })
 
   it('maps repository errors to HTTP exceptions', async () => {
@@ -173,17 +162,8 @@ describe('ApproveStandupService', () => {
             Result.err(
               new NotFoundError({ resource: 'standup', id: 'standup-1' }),
             ),
-          )
-          .mockResolvedValueOnce(
-            Result.ok({
-              id: 'standup-1',
-              content: '**Standup**',
-              meetingType: '',
-            }),
           ),
-        updateCustomEntriesForUser: vi.fn(),
-        updateContentForUser: vi.fn(),
-        updateStatusForUser: vi.fn().mockResolvedValue(
+        approveForUser: vi.fn().mockResolvedValue(
           Result.err(
             new InvalidStateTransitionError({
               from: 'draft',
@@ -201,9 +181,15 @@ describe('ApproveStandupService', () => {
       { emitStandupStatusChanged: vi.fn() } as never,
     )
 
-    await expect(service.approve('user-1', 'standup-1')).rejects.toThrow(
-      NotFoundException,
-    )
+    // First call: findByIdForUser returns NotFoundError (when customEntries provided)
+    await expect(
+      service.approve('user-1', 'standup-1', {
+        scheduledMeetings: ['Retro'],
+        directCalls: [],
+      }),
+    ).rejects.toThrow(NotFoundException)
+
+    // Second call: approveForUser returns InvalidStateTransitionError
     await expect(service.approve('user-1', 'standup-1')).rejects.toThrow(
       ConflictException,
     )

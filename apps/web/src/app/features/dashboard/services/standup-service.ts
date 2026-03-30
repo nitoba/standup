@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http'
-import { computed, Injectable, inject, signal } from '@angular/core'
+import { computed, effect, Injectable, inject, signal } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import type { CreateQueryResult } from '@tanstack/angular-query-experimental'
 import {
@@ -27,6 +27,7 @@ import type {
   TriggerAcceptedDto,
   TriggerStandupDto,
 } from '../../../api/model'
+import { SessionService } from '../../../core/auth/session-service'
 import type {
   DashboardMetrics,
   Standup,
@@ -59,6 +60,7 @@ export class StandupService {
   private readonly http = inject(HttpClient)
   private readonly eventsService = inject(StandupEventsService)
   private readonly queryClient = inject(QueryClient)
+  private readonly sessionService = inject(SessionService)
 
   private readonly DEFAULT_PAGE_SIZE = 20
 
@@ -252,6 +254,16 @@ export class StandupService {
     this.eventsService.standupEvents$
       .pipe(takeUntilDestroyed())
       .subscribe((event) => this.handleStandupEvent(event))
+
+    // Connect the SSE stream only once the user is authenticated (TAS-64).
+    // Disconnects automatically when the session ends.
+    effect(() => {
+      if (this.sessionService.isAuthenticated()) {
+        this.eventsService.connect()
+      } else {
+        this.eventsService.disconnect()
+      }
+    })
   }
 
   private handleStandupEvent(event: StandupEvent) {
