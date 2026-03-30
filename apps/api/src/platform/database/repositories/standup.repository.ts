@@ -121,19 +121,10 @@ function buildListConditions(filters?: ListStandupFilters): SQL<unknown>[] {
   }
 
   if (filters?.date) {
-    if (filters.date === 'this_week') {
-      const startOfToday = new Date()
-      startOfToday.setHours(0, 0, 0, 0)
-      startOfToday.setDate(startOfToday.getDate() - 6)
-
-      const year = startOfToday.getFullYear()
-      const month = String(startOfToday.getMonth() + 1).padStart(2, '0')
-      const day = String(startOfToday.getDate()).padStart(2, '0')
-
-      conditions.push(gte(standups.date, `${year}-${month}-${day}`))
-    } else {
-      conditions.push(eq(standups.date, filters.date))
-    }
+    // Note: 'this_week' is resolved upstream by StandupsQueryService.normalizeFilters()
+    // into { from, to } using the user's timezone via LocalDateService. The repository
+    // must never receive 'this_week' directly — removed the server-UTC fallback (TAS-54).
+    conditions.push(eq(standups.date, filters.date))
   }
 
   if (filters?.from) {
@@ -329,28 +320,41 @@ export class StandupRepository {
     Result<StandupRecord, NotFoundError | DbError | InvalidStateTransitionError>
   > {
     try {
-      const found = await this.findById(id)
+      // Wrap in transaction to prevent TOCTOU: two concurrent requests can both
+      // read the same current status and both apply the transition (TAS-52).
+      const result = await this.database.db.transaction(async (tx) => {
+        const row = await tx
+          .select()
+          .from(standups)
+          .where(eq(standups.id, id))
+          .get()
 
-      if (found.isErr()) {
-        return found
-      }
+        if (!row) {
+          return Result.err(new NotFoundError({ resource: 'standup', id }))
+        }
 
-      const transition = transitionStandupStatus(found.value.status, nextStatus)
-      if (transition.isErr()) {
-        return transition
-      }
+        const transition = transitionStandupStatus(
+          row.status as StandupStatus,
+          nextStatus,
+        )
+        if (transition.isErr()) {
+          return transition
+        }
 
-      const now = Date.now()
-      await this.database.db
-        .update(standups)
-        .set({ status: nextStatus, updatedAt: now })
-        .where(eq(standups.id, id))
+        const now = Date.now()
+        await tx
+          .update(standups)
+          .set({ status: nextStatus, updatedAt: now })
+          .where(eq(standups.id, id))
 
-      return Result.ok({
-        ...found.value,
-        status: nextStatus,
-        updatedAt: now,
+        return Result.ok({
+          ...toRecord(row),
+          status: nextStatus,
+          updatedAt: now,
+        })
       })
+
+      return result
     } catch (error) {
       return this.dbErr('updateStatus', error)
     }
@@ -364,28 +368,41 @@ export class StandupRepository {
     Result<StandupRecord, NotFoundError | DbError | InvalidStateTransitionError>
   > {
     try {
-      const found = await this.findByIdForUser(id, userId)
+      // Wrap in transaction to prevent TOCTOU: two concurrent requests can both
+      // read the same current status and both apply the transition (TAS-52).
+      const result = await this.database.db.transaction(async (tx) => {
+        const row = await tx
+          .select()
+          .from(standups)
+          .where(and(eq(standups.id, id), eq(standups.userId, userId)))
+          .get()
 
-      if (found.isErr()) {
-        return found
-      }
+        if (!row) {
+          return Result.err(new NotFoundError({ resource: 'standup', id }))
+        }
 
-      const transition = transitionStandupStatus(found.value.status, nextStatus)
-      if (transition.isErr()) {
-        return transition
-      }
+        const transition = transitionStandupStatus(
+          row.status as StandupStatus,
+          nextStatus,
+        )
+        if (transition.isErr()) {
+          return transition
+        }
 
-      const now = Date.now()
-      await this.database.db
-        .update(standups)
-        .set({ status: nextStatus, updatedAt: now })
-        .where(and(eq(standups.id, id), eq(standups.userId, userId)))
+        const now = Date.now()
+        await tx
+          .update(standups)
+          .set({ status: nextStatus, updatedAt: now })
+          .where(and(eq(standups.id, id), eq(standups.userId, userId)))
 
-      return Result.ok({
-        ...found.value,
-        status: nextStatus,
-        updatedAt: now,
+        return Result.ok({
+          ...toRecord(row),
+          status: nextStatus,
+          updatedAt: now,
+        })
       })
+
+      return result
     } catch (error) {
       return this.dbErr('updateStatusForUser', error)
     }

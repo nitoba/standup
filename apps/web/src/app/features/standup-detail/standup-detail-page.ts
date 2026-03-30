@@ -366,8 +366,10 @@ export class StandupDetailPage {
     if (!id) return
 
     // fire-and-forget: SSE event will trigger selectedStandup.reload() when ready
-    void this.standupService.adjust(id, instruction)
-    toast.success('Solicitação aceita')
+    void this.standupService.adjust(id, instruction).then(
+      () => toast.success('Solicitação aceita'),
+      () => toast.error('Falha ao solicitar ajuste'),
+    )
   }
 
   async copyToClipboard(content: string, feedback: string) {

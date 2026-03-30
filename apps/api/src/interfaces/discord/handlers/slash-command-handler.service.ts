@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   type ChatInputCommandInteraction,
   type Client,
   MessageFlags,
@@ -165,47 +168,60 @@ export class SlashCommandHandlerService {
   private async handleLogin(
     interaction: ChatInputCommandInteraction,
   ): Promise<void> {
+    // Defer immediately before any async DB call to avoid the 3s Discord timeout (TAS-56).
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+
     const session = await this.auth.resolveActiveSession(interaction.user.id)
     if (session?.hasSession) {
-      await interaction.reply({
-        content: 'Você já está logado! Use `/logout` para encerrar sua sessão.',
-        flags: MessageFlags.Ephemeral,
-      })
+      await interaction.editReply(
+        'Você já está logado! Use `/logout` para encerrar sua sessão.',
+      )
       return
     }
 
-    await this.auth.replyWithLoginLink(interaction, session)
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setLabel('Login com Discord')
+        .setStyle(ButtonStyle.Link)
+        .setURL(`${this.auth.loginUrl}`),
+    )
+
+    const content =
+      session === null
+        ? 'Você precisa conectar sua conta antes de usar este comando.\nUse `/login` ou clique no botão abaixo:'
+        : 'Sua sessão expirou. Use `/login` ou clique no botão abaixo para reconectar:'
+
+    await interaction.editReply({ content, components: [row] })
   }
 
   private async handleLogout(
     interaction: ChatInputCommandInteraction,
   ): Promise<void> {
+    // Defer immediately before any async DB calls to avoid the 3s Discord timeout (TAS-56).
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+
     const checkResult = await this.userRepository.hasActiveSession(
       interaction.user.id,
     )
 
     if (Result.isError(checkResult)) {
-      await interaction.reply({
-        content: 'Erro interno ao verificar sessão. Tente novamente.',
-        flags: MessageFlags.Ephemeral,
-      })
+      await interaction.editReply(
+        'Erro interno ao verificar sessão. Tente novamente.',
+      )
       return
     }
 
     if (checkResult.value === null) {
-      await interaction.reply({
-        content:
-          'Você não está registrado no sistema. Use `/login` para conectar sua conta.',
-        flags: MessageFlags.Ephemeral,
-      })
+      await interaction.editReply(
+        'Você não está registrado no sistema. Use `/login` para conectar sua conta.',
+      )
       return
     }
 
     if (!checkResult.value.hasSession) {
-      await interaction.reply({
-        content: 'Você não possui sessão ativa. Use `/login` para reconectar.',
-        flags: MessageFlags.Ephemeral,
-      })
+      await interaction.editReply(
+        'Você não possui sessão ativa. Use `/login` para reconectar.',
+      )
       return
     }
 
@@ -214,18 +230,13 @@ export class SlashCommandHandlerService {
     )
 
     if (Result.isError(deleteResult)) {
-      await interaction.reply({
-        content: 'Erro ao encerrar sessão. Tente novamente.',
-        flags: MessageFlags.Ephemeral,
-      })
+      await interaction.editReply('Erro ao encerrar sessão. Tente novamente.')
       return
     }
 
-    await interaction.reply({
-      content:
-        'Sessão encerrada com sucesso. Use `/login` quando quiser reconectar.',
-      flags: MessageFlags.Ephemeral,
-    })
+    await interaction.editReply(
+      'Sessão encerrada com sucesso. Use `/login` quando quiser reconectar.',
+    )
   }
 
   private async handleList(

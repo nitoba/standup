@@ -30,6 +30,10 @@ export class DiscordAuthService {
     this.logger = this.loggerFactory.create('discord-auth')
   }
 
+  get loginUrl(): string {
+    return `${this.env.auth.baseUrl}/auth/login/discord`
+  }
+
   async resolveActiveSession(
     discordUserId: string,
   ): Promise<{ userId: string; hasSession: boolean } | null> {

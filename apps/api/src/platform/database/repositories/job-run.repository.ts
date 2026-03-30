@@ -40,24 +40,27 @@ export class JobRunRepository {
     >
   > {
     try {
-      const conditions = [
-        eq(jobRuns.jobName, input.jobName),
-        eq(jobRuns.date, input.date),
-      ]
+      // Wrap in transaction to prevent TOCTOU: two concurrent jobs for the same
+      // (jobName, date, userId) can both pass the SELECT check and insert
+      // duplicate locks when not serialized (TAS-53).
+      const result = await this.database.db.transaction(async (tx) => {
+        const conditions = [
+          eq(jobRuns.jobName, input.jobName),
+          eq(jobRuns.date, input.date),
+        ]
 
-      if (input.userId) {
-        conditions.push(eq(jobRuns.userId, input.userId))
-      }
+        if (input.userId) {
+          conditions.push(eq(jobRuns.userId, input.userId))
+        }
 
-      const existing = await this.database.db
-        .select()
-        .from(jobRuns)
-        .where(and(...conditions))
-        .get()
+        const existing = await tx
+          .select()
+          .from(jobRuns)
+          .where(and(...conditions))
+          .get()
 
-      if (existing) {
-        if (existing.status === 'running') {
-          if (!input.forceRegenerate) {
+        if (existing) {
+          if (existing.status === 'running' && !input.forceRegenerate) {
             return Result.err(
               new LockAlreadyHeldError({
                 jobName: input.jobName,
@@ -66,11 +69,7 @@ export class JobRunRepository {
             )
           }
 
-          await this.database.db
-            .delete(jobRuns)
-            .where(eq(jobRuns.id, existing.id))
-        } else if (existing.status === 'success') {
-          if (!input.forceRegenerate) {
+          if (existing.status === 'success' && !input.forceRegenerate) {
             return Result.err(
               new JobAlreadyCompletedError({
                 jobName: input.jobName,
@@ -79,41 +78,35 @@ export class JobRunRepository {
             )
           }
 
-          await this.database.db
-            .delete(jobRuns)
-            .where(eq(jobRuns.id, existing.id))
-        } else {
-          await this.database.db
-            .delete(jobRuns)
-            .where(eq(jobRuns.id, existing.id))
+          // Delete the existing record (failed, or force-regenerate over running/success)
+          await tx.delete(jobRuns).where(eq(jobRuns.id, existing.id))
         }
-      }
 
-      await this.database.db.insert(jobRuns).values({
-        id: input.id,
-        jobName: input.jobName,
-        date: input.date,
-        status: 'running',
-        userId: input.userId ?? null,
-        startedAt: Date.now(),
-        finishedAt: null,
-        error: null,
+        await tx.insert(jobRuns).values({
+          id: input.id,
+          jobName: input.jobName,
+          date: input.date,
+          status: 'running',
+          userId: input.userId ?? null,
+          startedAt: Date.now(),
+          finishedAt: null,
+          error: null,
+        })
+
+        const created = await tx
+          .select()
+          .from(jobRuns)
+          .where(eq(jobRuns.id, input.id))
+          .get()
+
+        if (!created) {
+          throw new Error('insert succeeded but row not found')
+        }
+
+        return Result.ok(created)
       })
 
-      const created = await this.database.db
-        .select()
-        .from(jobRuns)
-        .where(eq(jobRuns.id, input.id))
-        .get()
-
-      if (!created) {
-        return this.dbErr(
-          'acquireLock',
-          new Error('insert succeeded but row not found'),
-        )
-      }
-
-      return Result.ok(created)
+      return result
     } catch (error) {
       return this.dbErr('acquireLock', error)
     }
