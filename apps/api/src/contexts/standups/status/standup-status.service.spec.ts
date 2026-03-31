@@ -24,14 +24,12 @@ describe('StandupStatusService', () => {
     const service = new StandupStatusService(
       standupRepository as never,
       {
-        findByUserId: vi
-          .fn()
-          .mockResolvedValue(Result.ok({ timezone: 'America/Fortaleza' })),
-      } as never,
-      {
         formatIsoForTimezone: vi.fn().mockReturnValue('13/03/2026'),
       } as never,
       eventBus as never,
+      {
+        resolve: vi.fn().mockResolvedValue('America/Fortaleza'),
+      } as never,
     )
 
     await expect(
@@ -69,12 +67,12 @@ describe('StandupStatusService', () => {
           ),
       } as never,
       {
-        findByUserId: vi.fn().mockResolvedValue(Result.ok(null)),
-      } as never,
-      {
         formatIsoForTimezone: vi.fn().mockReturnValue('13/03/2026'),
       } as never,
       { emitStandupStatusChanged: vi.fn() } as never,
+      {
+        resolve: vi.fn().mockResolvedValue('America/Sao_Paulo'),
+      } as never,
     )
 
     await expect(

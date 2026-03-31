@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { and, eq, gt } from 'drizzle-orm'
-import { Result } from '../../../shared/domain'
+import { DbError, Result } from '../../../shared/domain'
 import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { account, session, user } from '../schema'
@@ -16,9 +16,19 @@ export class UserRepository {
     this.logger = this.loggerFactory.create('user-repository')
   }
 
+  private dbErr(operation: string, error: unknown): Result<never, DbError> {
+    const message = error instanceof Error ? error.message : 'Unknown DB error'
+
+    this.logger.error(`Failed to ${operation}`, {
+      error: message,
+    })
+
+    return Result.err(new DbError({ operation, message }))
+  }
+
   async findUserIdByDiscordId(
     discordId: string,
-  ): Promise<Result<string | null, { message: string }>> {
+  ): Promise<Result<string | null, DbError>> {
     try {
       const row = await this.database.db
         .select({ id: user.id })
@@ -35,21 +45,13 @@ export class UserRepository {
 
       return Result.ok(row?.id ?? null)
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown DB error'
-
-      this.logger.error('Failed to find userId by Discord ID', {
-        discordId,
-        error: message,
-      })
-
-      return Result.err({ message })
+      return this.dbErr('findUserIdByDiscordId', error)
     }
   }
 
   async findDiscordIdByUserId(
     userId: string,
-  ): Promise<Result<string | null, { message: string }>> {
+  ): Promise<Result<string | null, DbError>> {
     try {
       const row = await this.database.db
         .select({ accountId: account.accountId })
@@ -62,15 +64,7 @@ export class UserRepository {
 
       return Result.ok(row?.accountId ?? null)
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown DB error'
-
-      this.logger.error('Failed to find Discord ID by userId', {
-        userId,
-        error: message,
-      })
-
-      return Result.err({ message })
+      return this.dbErr('findDiscordIdByUserId', error)
     }
   }
 
@@ -83,7 +77,7 @@ export class UserRepository {
         image: string | null
         discordId: string
       } | null,
-      { message: string }
+      DbError
     >
   > {
     try {
@@ -108,23 +102,13 @@ export class UserRepository {
 
       return Result.ok(row ?? null)
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown DB error'
-
-      this.logger.error('Failed to find user by Discord ID', {
-        discordId,
-        error: message,
-      })
-
-      return Result.err({ message })
+      return this.dbErr('findByDiscordId', error)
     }
   }
 
   async hasActiveSession(
     discordId: string,
-  ): Promise<
-    Result<{ userId: string; hasSession: boolean } | null, { message: string }>
-  > {
+  ): Promise<Result<{ userId: string; hasSession: boolean } | null, DbError>> {
     try {
       const accountRow = await this.database.db
         .select({ userId: account.userId })
@@ -159,25 +143,14 @@ export class UserRepository {
         hasSession: sessionRow !== undefined,
       })
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown DB error'
-
-      this.logger.error('Failed to check active session', {
-        discordId,
-        error: message,
-      })
-
-      return Result.err({ message })
+      return this.dbErr('hasActiveSession', error)
     }
   }
 
   async findById(
     userId: string,
   ): Promise<
-    Result<
-      { id: string; name: string; email: string } | null,
-      { message: string }
-    >
+    Result<{ id: string; name: string; email: string } | null, DbError>
   > {
     try {
       const row = await this.database.db
@@ -189,21 +162,13 @@ export class UserRepository {
 
       return Result.ok(row ?? null)
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown DB error'
-
-      this.logger.error('Failed to find user by ID', {
-        userId,
-        error: message,
-      })
-
-      return Result.err({ message })
+      return this.dbErr('findById', error)
     }
   }
 
   async deleteSessionsByDiscordId(
     discordId: string,
-  ): Promise<Result<boolean | null, { message: string }>> {
+  ): Promise<Result<boolean | null, DbError>> {
     try {
       const accountRow = await this.database.db
         .select({ userId: account.userId })
@@ -233,15 +198,7 @@ export class UserRepository {
 
       return Result.ok(true)
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown DB error'
-
-      this.logger.error('Failed to delete sessions by Discord ID', {
-        discordId,
-        error: message,
-      })
-
-      return Result.err({ message })
+      return this.dbErr('deleteSessionsByDiscordId', error)
     }
   }
 }

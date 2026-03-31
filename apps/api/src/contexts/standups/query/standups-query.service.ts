@@ -3,22 +3,22 @@ import {
   type ListStandupFilters,
   StandupRepository,
 } from '../../../platform/database/repositories/standup.repository'
-import { UserSettingsRepository } from '../../../platform/database/repositories/user-settings.repository'
 import { LocalDateService } from '../../../platform/time/local-date.service'
 import type { StandupRecord } from '../../../shared/domain'
 import { formatStandupRecord } from '../shared/format-standup-record'
 import { throwStandupHttpError } from '../shared/throw-standup-http-error'
+import { UserTimezoneService } from '../shared/user-timezone.service'
 
 @Injectable()
 export class StandupsQueryService {
   constructor(
     private readonly standupRepository: StandupRepository,
-    private readonly userSettingsRepository: UserSettingsRepository,
     private readonly localDateService: LocalDateService,
+    private readonly userTimezone: UserTimezoneService,
   ) {}
 
   async list(userId: string, filters: Omit<ListStandupFilters, 'userId'>) {
-    const timezone = await this.resolveTimezone(userId)
+    const timezone = await this.userTimezone.resolve(userId)
     const result = await this.standupRepository.list({
       ...this.normalizeFilters(filters, timezone),
       userId,
@@ -52,7 +52,7 @@ export class StandupsQueryService {
   }
 
   async getById(userId: string, id: string) {
-    const timezone = await this.resolveTimezone(userId)
+    const timezone = await this.userTimezone.resolve(userId)
     const result = await this.standupRepository.findByIdForUser(id, userId)
 
     if (result.isErr()) {
@@ -101,16 +101,5 @@ export class StandupsQueryService {
         'Invalid date. Use DD/MM/YYYY or YYYY-MM-DD.',
       )
     }
-  }
-
-  private async resolveTimezone(userId: string): Promise<string> {
-    const settingsResult =
-      await this.userSettingsRepository.findByUserId(userId)
-
-    if (settingsResult.isOk() && settingsResult.value?.timezone) {
-      return settingsResult.value.timezone
-    }
-
-    return 'America/Sao_Paulo'
   }
 }
