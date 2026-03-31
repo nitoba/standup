@@ -45,13 +45,13 @@ function createService(deps: {
   standupRepository: Record<string, unknown>
   envService: Record<string, unknown>
   localDateService: Record<string, unknown>
-  userSettingsRepository: Record<string, unknown>
+  userTimezone: Record<string, unknown>
 }) {
   return new SendToDiscordService(
     deps.standupRepository as never,
     deps.envService as never,
     deps.localDateService as never,
-    deps.userSettingsRepository as never,
+    deps.userTimezone as never,
   )
 }
 
@@ -62,7 +62,7 @@ describe('SendToDiscordService', () => {
   }
   let envService: { automation: ReturnType<typeof makeAutomationConfig> }
   let localDateService: { formatIsoForTimezone: ReturnType<typeof vi.fn> }
-  let userSettingsRepository: { findByUserId: ReturnType<typeof vi.fn> }
+  let userTimezone: { resolve: ReturnType<typeof vi.fn> }
   let service: SendToDiscordService
 
   beforeEach(() => {
@@ -79,15 +79,15 @@ describe('SendToDiscordService', () => {
       formatIsoForTimezone: vi.fn().mockReturnValue('2026-03-20'),
     }
 
-    userSettingsRepository = {
-      findByUserId: vi.fn().mockResolvedValue(Result.ok(null)),
+    userTimezone = {
+      resolve: vi.fn().mockResolvedValue('America/Sao_Paulo'),
     }
 
     service = createService({
       standupRepository,
       envService,
       localDateService,
-      userSettingsRepository,
+      userTimezone,
     })
   })
 

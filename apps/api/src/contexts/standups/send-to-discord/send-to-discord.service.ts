@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common'
 import { StandupRepository } from '../../../platform/database/repositories/standup.repository'
-import { UserSettingsRepository } from '../../../platform/database/repositories/user-settings.repository'
 import { EnvService } from '../../../platform/env/env.service'
 import { LocalDateService } from '../../../platform/time/local-date.service'
 import {
@@ -10,6 +9,7 @@ import {
 import { signWebhookPayload } from '../../../shared/utils/sign-webhook-payload'
 import { formatStandupRecord } from '../shared/format-standup-record'
 import { throwStandupHttpError } from '../shared/throw-standup-http-error'
+import { UserTimezoneService } from '../shared/user-timezone.service'
 
 const ALLOWED_STATES = new Set(['approved', 'published'])
 
@@ -19,7 +19,7 @@ export class SendToDiscordService {
     private readonly standupRepository: StandupRepository,
     private readonly envService: EnvService,
     private readonly localDateService: LocalDateService,
-    private readonly userSettingsRepository: UserSettingsRepository,
+    private readonly userTimezone: UserTimezoneService,
   ) {}
 
   async send(userId: string, standupId: string) {
@@ -100,16 +100,7 @@ export class SendToDiscordService {
     return formatStandupRecord(
       updated.value,
       this.localDateService,
-      await this.resolveTimezone(userId),
+      await this.userTimezone.resolve(userId),
     )
-  }
-
-  private async resolveTimezone(userId: string): Promise<string> {
-    const settingsResult =
-      await this.userSettingsRepository.findByUserId(userId)
-    if (settingsResult.isOk() && settingsResult.value?.timezone) {
-      return settingsResult.value.timezone
-    }
-    return 'America/Sao_Paulo'
   }
 }

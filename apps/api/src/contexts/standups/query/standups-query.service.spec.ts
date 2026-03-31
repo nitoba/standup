@@ -29,11 +29,6 @@ describe('StandupsQueryService', () => {
     const service = new StandupsQueryService(
       standupRepository as never,
       {
-        findByUserId: vi
-          .fn()
-          .mockResolvedValue(Result.ok({ timezone: 'America/Fortaleza' })),
-      } as never,
-      {
         formatIsoForTimezone: vi.fn().mockReturnValue('13/03/2026'),
         normalizeDateInput: vi.fn((value: string) => value),
         today: vi.fn().mockReturnValue({
@@ -41,6 +36,9 @@ describe('StandupsQueryService', () => {
           display: '13/03/2026',
         }),
         shiftIsoDate: vi.fn().mockReturnValue('2026-03-07'),
+      } as never,
+      {
+        resolve: vi.fn().mockResolvedValue('America/Fortaleza'),
       } as never,
     )
 
@@ -84,9 +82,6 @@ describe('StandupsQueryService', () => {
           ),
       } as never,
       {
-        findByUserId: vi.fn().mockResolvedValue(Result.ok(null)),
-      } as never,
-      {
         formatIsoForTimezone: vi.fn(),
         normalizeDateInput: vi.fn((value: string) => value),
         today: vi.fn().mockReturnValue({
@@ -94,6 +89,9 @@ describe('StandupsQueryService', () => {
           display: '13/03/2026',
         }),
         shiftIsoDate: vi.fn().mockReturnValue('2026-03-07'),
+      } as never,
+      {
+        resolve: vi.fn().mockResolvedValue('America/Sao_Paulo'),
       } as never,
     )
 
