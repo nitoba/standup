@@ -82,6 +82,23 @@ function resolveDateFilter(value: string, now = new Date()) {
           <app-dashboard-skeleton />
         } @else if (standupService.standups.error()) {
           <div class="text-[var(--accent-red)] font-[var(--font-ibm)] text-[13px]">// falha ao carregar standups</div>
+        } @else if (showFirstAccessEmptyState()) {
+          <div class="border border-border bg-card p-[24px] md:p-[32px] flex flex-col gap-[12px]">
+            <div class="text-foreground font-[var(--font-jetbrains)] text-[14px] md:text-[16px]">
+              // seu dashboard ainda está vazio
+            </div>
+            <div class="text-muted-foreground font-[var(--font-ibm)] text-[13px] leading-[1.7]">
+              configure seus repositórios e gere seu primeiro standup para começar a acompanhar suas métricas e histórico.
+            </div>
+            <div class="flex items-center gap-[12px]">
+              <button type="button" z-button zType="default" (click)="openGenerateModal()">
+                $ gerar primeiro standup
+              </button>
+              <button type="button" z-button zType="ghost" (click)="openSettings()">
+                $ abrir configurações
+              </button>
+            </div>
+          </div>
         } @else {
           <div class="grid grid-cols-2 md:grid-cols-4 gap-[16px] md:gap-[24px]">
             @for (card of metricCards(); track card.label) {
@@ -156,6 +173,16 @@ export class DashboardPage {
     () => this.standupService.standups.value().items,
   )
   readonly pagination = this.standupService.pagination
+  readonly showFirstAccessEmptyState = computed(() => {
+    const hasNoStandups =
+      this.visibleStandups().length === 0 && this.pagination().total === 0
+    const hasActiveFilters =
+      this.statusFilter() !== undefined ||
+      this.dateFilter() !== undefined ||
+      this.searchFilter().trim().length > 0
+
+    return hasNoStandups && !hasActiveFilters
+  })
 
   readonly metricCards = computed(() => {
     const metrics = this.standupService.metrics()
@@ -228,6 +255,10 @@ export class DashboardPage {
 
   openStandup(id: string) {
     void this.router.navigate(['/standups', id])
+  }
+
+  openSettings() {
+    void this.router.navigate(['/settings'])
   }
 
   onStatusChange(value: string) {

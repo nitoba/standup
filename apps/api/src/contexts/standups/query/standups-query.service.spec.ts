@@ -16,6 +16,14 @@ describe('StandupsQueryService', () => {
           summary: { total: 0, approved: 0, pending: 0, rejected: 0 },
         }),
       ),
+      getMetricChangesForUser: vi.fn().mockResolvedValue(
+        Result.ok({
+          total: { current: 1, previous: 0, delta: 1 },
+          approved: { current: 0, previous: 0, delta: 0 },
+          pending: { current: 1, previous: 0, delta: 1 },
+          rejected: { current: 0, previous: 0, delta: 0 },
+        }),
+      ),
       findByIdForUser: vi.fn(),
     }
     const service = new StandupsQueryService(
@@ -43,6 +51,12 @@ describe('StandupsQueryService', () => {
       total: 0,
       totalPages: 0,
       summary: { total: 0, approved: 0, pending: 0, rejected: 0 },
+      metricChanges: {
+        total: { current: 1, previous: 0, delta: 1 },
+        approved: { current: 0, previous: 0, delta: 0 },
+        pending: { current: 1, previous: 0, delta: 1 },
+        rejected: { current: 0, previous: 0, delta: 0 },
+      },
     })
     expect(standupRepository.list).toHaveBeenCalledWith({
       userId: 'user-1',
@@ -60,6 +74,7 @@ describe('StandupsQueryService', () => {
               new DbError({ operation: 'list', message: 'disk full' }),
             ),
           ),
+        getMetricChangesForUser: vi.fn(),
         findByIdForUser: vi
           .fn()
           .mockResolvedValue(

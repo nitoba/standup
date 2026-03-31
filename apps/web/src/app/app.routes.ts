@@ -40,6 +40,6 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/settings/settings-page').then((m) => m.SettingsPage),
   },
-  { path: '', pathMatch: 'full', redirectTo: 'login' },
-  { path: '**', redirectTo: 'login' },
+  { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+  { path: '**', redirectTo: 'dashboard' },
 ]

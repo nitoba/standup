@@ -45,6 +45,20 @@ export interface StandupListResponseDto
   extends ApiDataResponseDto<StandupDto[]> {
   pagination: PaginationDto
   summary: StandupSummaryDto
+  metricChanges: DashboardMetricChangesDto
+}
+
+export interface DashboardMetricChangeDto {
+  current: number
+  previous: number
+  delta: number
+}
+
+export interface DashboardMetricChangesDto {
+  total: DashboardMetricChangeDto
+  approved: DashboardMetricChangeDto
+  pending: DashboardMetricChangeDto
+  rejected: DashboardMetricChangeDto
 }
 
 export type StandupDetailResponseDto = ApiDataResponseDto<StandupDto>
@@ -228,4 +242,5 @@ export interface StandupPage {
   items: Standup[]
   pagination: StandupPagination
   summary: StandupSummary
+  metricChanges: DashboardMetricChangesDto
 }

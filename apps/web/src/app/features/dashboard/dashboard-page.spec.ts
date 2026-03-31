@@ -72,12 +72,14 @@ describe('DashboardPage', () => {
   it('renders the dashboard header', async () => {
     const fixture = await renderDashboard()
     TestBed.tick()
-    httpMock.expectOne('/standups?page=1&pageSize=20').flush(
-      makeListResponse(buildMockStandupDtos(buildDashboardStandups()), {
-        total: 142,
-        totalPages: 8,
-      }),
-    )
+    httpMock
+      .expectOne('/standups?page=1&pageSize=20&sort=date&sortDir=desc')
+      .flush(
+        makeListResponse(buildMockStandupDtos(buildDashboardStandups()), {
+          total: 142,
+          totalPages: 8,
+        }),
+      )
     await appRef.whenStable()
     fixture.detectChanges()
 
@@ -86,6 +88,19 @@ describe('DashboardPage', () => {
     expect(element.textContent).toContain(
       'visão geral dos relatórios diários de standup',
     )
+  })
+
+  it('shows first-access empty state when there are no standups and no active filters', async () => {
+    const fixture = await renderDashboard()
+    TestBed.tick()
+    httpMock
+      .expectOne('/standups?page=1&pageSize=20&sort=date&sortDir=desc')
+      .flush(makeListResponse([], { total: 0, totalPages: 0 }))
+    await appRef.whenStable()
+    await fixture.whenStable()
+    fixture.detectChanges()
+
+    expect(fixture.componentInstance.showFirstAccessEmptyState()).toBe(true)
   })
 
   it('reloads from the server for status and date filters while keeping search client-side', async () => {
@@ -107,7 +122,7 @@ describe('DashboardPage', () => {
 
     TestBed.tick()
     httpMock
-      .expectOne('/standups?page=1&pageSize=20')
+      .expectOne('/standups?page=1&pageSize=20&sort=date&sortDir=desc')
       .flush(makeListResponse(allStandupDtos, { total: 142, totalPages: 8 }))
     await appRef.whenStable()
     fixture.detectChanges()
@@ -125,7 +140,9 @@ describe('DashboardPage', () => {
 
     TestBed.tick()
     httpMock
-      .expectOne('/standups?page=1&pageSize=20&status=pending_review')
+      .expectOne(
+        '/standups?page=1&pageSize=20&sort=date&sortDir=desc&status=pending_review',
+      )
       .flush(
         makeListResponse(buildMockStandupDtos(pendingStandups), {
           total: pendingStandups.length,
@@ -149,7 +166,7 @@ describe('DashboardPage', () => {
 
     TestBed.tick()
     const filteredRequest = httpMock.expectOne(
-      '/standups?page=1&pageSize=20&status=pending_review&date=09/03/2026',
+      '/standups?page=1&pageSize=20&sort=date&sortDir=desc&status=pending_review&date=09/03/2026',
     )
     filteredRequest.flush(
       makeListResponse(buildMockStandupDtos(pendingTodayStandups), {
@@ -169,7 +186,7 @@ describe('DashboardPage', () => {
     TestBed.tick()
     httpMock
       .expectOne(
-        '/standups?page=1&pageSize=20&status=pending_review&date=09/03/2026&search=no-match',
+        '/standups?page=1&pageSize=20&sort=date&sortDir=desc&status=pending_review&date=09/03/2026&search=no-match',
       )
       .flush(
         makeListResponse([], {
@@ -201,12 +218,16 @@ describe('DashboardPage', () => {
     })
 
     TestBed.tick()
-    httpMock.expectOne('/standups?page=1&pageSize=20&search=no-match').flush(
-      makeListResponse([], {
-        total: 0,
-        totalPages: 0,
-      }),
-    )
+    httpMock
+      .expectOne(
+        '/standups?page=1&pageSize=20&sort=date&sortDir=desc&search=no-match',
+      )
+      .flush(
+        makeListResponse([], {
+          total: 0,
+          totalPages: 0,
+        }),
+      )
     await appRef.whenStable()
     fixture.detectChanges()
 
@@ -215,7 +236,7 @@ describe('DashboardPage', () => {
 
     TestBed.tick()
     httpMock
-      .expectOne('/standups?page=1&pageSize=20')
+      .expectOne('/standups?page=1&pageSize=20&sort=date&sortDir=desc')
       .flush(makeListResponse(allStandupDtos, { total: 142, totalPages: 8 }))
     await appRef.whenStable()
     fixture.detectChanges()
@@ -331,6 +352,30 @@ function makeListResponse(
       pending: standups.filter((item) => item.status === 'pending_review')
         .length,
       rejected: standups.filter((item) => item.status === 'rejected').length,
+    },
+    metricChanges: {
+      total: { current: standups.length, previous: 0, delta: standups.length },
+      approved: {
+        current: standups.filter(
+          (item) => item.status === 'approved' || item.status === 'published',
+        ).length,
+        previous: 0,
+        delta: standups.filter(
+          (item) => item.status === 'approved' || item.status === 'published',
+        ).length,
+      },
+      pending: {
+        current: standups.filter((item) => item.status === 'pending_review')
+          .length,
+        previous: 0,
+        delta: standups.filter((item) => item.status === 'pending_review')
+          .length,
+      },
+      rejected: {
+        current: standups.filter((item) => item.status === 'rejected').length,
+        previous: 0,
+        delta: standups.filter((item) => item.status === 'rejected').length,
+      },
     },
   }
 }

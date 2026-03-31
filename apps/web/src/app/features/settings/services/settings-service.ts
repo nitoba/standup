@@ -33,6 +33,7 @@ export interface SaveSettingsInput {
   recoveryCron: string
   timezone: string
   gitAuthor: string
+  gitSincePeriod: string
   selectedRepos: string[]
   active: boolean
   emailTheme: 'light' | 'dark'

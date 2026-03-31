@@ -86,6 +86,31 @@ class SummaryDto {
   rejected!: number
 }
 
+class MetricChangeDto {
+  @ApiProperty()
+  current!: number
+
+  @ApiProperty()
+  previous!: number
+
+  @ApiProperty()
+  delta!: number
+}
+
+class MetricChangesDto {
+  @ApiProperty({ type: () => MetricChangeDto })
+  total!: MetricChangeDto
+
+  @ApiProperty({ type: () => MetricChangeDto })
+  approved!: MetricChangeDto
+
+  @ApiProperty({ type: () => MetricChangeDto })
+  pending!: MetricChangeDto
+
+  @ApiProperty({ type: () => MetricChangeDto })
+  rejected!: MetricChangeDto
+}
+
 export class StandupListResponseDto {
   @ApiProperty({ type: [StandupRecordDto] })
   data!: StandupRecordDto[]
@@ -95,6 +120,9 @@ export class StandupListResponseDto {
 
   @ApiProperty({ type: () => SummaryDto })
   summary!: SummaryDto
+
+  @ApiProperty({ type: () => MetricChangesDto })
+  metricChanges!: MetricChangesDto
 }
 
 export class StandupDetailResponseDto {

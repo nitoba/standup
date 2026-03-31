@@ -1,4 +1,3 @@
-import { HttpClient } from '@angular/common/http'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -8,28 +7,13 @@ import {
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { injectQuery } from '@tanstack/angular-query-experimental'
-import { firstValueFrom } from 'rxjs'
-import { getListStandupsQueryKey } from '../../api/endpoints/standups/standups'
 import { SidebarLayout } from '../../core/layout/sidebar'
-import type {
-  StandupDto,
-  StandupListResponseDto,
-  StandupStatus,
-} from '../../shared/models/standup-models'
+import type { StandupStatus } from '../../shared/models/standup-models'
 import { normalizeDisplayDate } from '../../shared/utils'
-
-interface WeekStandup {
-  id: string
-  date: string
-  status: StandupStatus
-  content: string
-}
-
-function mapStatus(status: string): StandupStatus {
-  if (status === 'rejected') return 'rejected'
-  if (status === 'approved' || status === 'published') return 'approved'
-  return 'pending_review'
-}
+import {
+  WeeklyDigestService,
+  type WeekStandup,
+} from './services/weekly-digest-service'
 
 function formatDisplayDate(dateStr: string): string {
   return normalizeDisplayDate(dateStr)
@@ -138,7 +122,7 @@ function formatDisplayDate(dateStr: string): string {
   `,
 })
 export class WeeklyDigestPage {
-  private readonly http = inject(HttpClient)
+  private readonly weeklyDigestService = inject(WeeklyDigestService)
 
   readonly from = input<string>()
   readonly to = input<string>()
@@ -150,26 +134,17 @@ export class WeeklyDigestPage {
     const toDate = this.to()
     const params: Record<string, string> = {
       status: 'approved',
-      pageSize: '100',
     }
     if (fromDate) params['from'] = fromDate
     if (toDate) params['to'] = toDate
 
     return {
-      queryKey: [...getListStandupsQueryKey(), 'weekly-digest', params],
-      queryFn: async () => {
-        const response = await firstValueFrom(
-          this.http.get<StandupListResponseDto>('/standups', { params }),
-        )
-        return response.data.map(
-          (dto: StandupDto): WeekStandup => ({
-            id: dto.id,
-            date: dto.date,
-            status: mapStatus(dto.status),
-            content: dto.content,
-          }),
-        )
-      },
+      queryKey: ['/standups', 'weekly-digest', params],
+      queryFn: () =>
+        this.weeklyDigestService.listApprovedStandups({
+          from: fromDate,
+          to: toDate,
+        }),
     }
   })
 
@@ -194,12 +169,14 @@ export class WeeklyDigestPage {
   }
 
   statusDotClass(status: StandupStatus): string {
+    if (status === 'published') return 'bg-cyan-400'
     if (status === 'approved') return 'bg-primary'
     if (status === 'pending_review') return 'bg-[var(--accent-yellow)]'
     return 'bg-[var(--accent-red)]'
   }
 
   statusTextClass(status: StandupStatus): string {
+    if (status === 'published') return 'text-cyan-400'
     if (status === 'approved') return 'text-primary'
     if (status === 'pending_review') return 'text-[var(--accent-yellow)]'
     return 'text-[var(--accent-red)]'
@@ -207,6 +184,8 @@ export class WeeklyDigestPage {
 
   formatStatus(status: StandupStatus): string {
     if (status === 'pending_review') return '[pendente]'
-    return status === 'approved' ? '[aprovado]' : '[rejeitado]'
+    if (status === 'approved') return '[aprovado]'
+    if (status === 'published') return '[publicado]'
+    return '[rejeitado]'
   }
 }

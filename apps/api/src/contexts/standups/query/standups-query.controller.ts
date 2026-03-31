@@ -33,6 +33,17 @@ const STANDUP_STATUS_QUERY = {
   published: 'published',
 } as const
 
+const STANDUP_SORT_QUERY = {
+  date: 'date',
+  createdAt: 'createdAt',
+  status: 'status',
+} as const
+
+const STANDUP_SORT_DIR_QUERY = {
+  asc: 'asc',
+  desc: 'desc',
+} as const
+
 @ApiTags('standups')
 @Controller('standups')
 export class StandupsQueryController {
@@ -52,6 +63,16 @@ export class StandupsQueryController {
   @ApiQuery({ name: 'from', required: false, type: String })
   @ApiQuery({ name: 'to', required: false, type: String })
   @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    enum: Object.values(STANDUP_SORT_QUERY),
+  })
+  @ApiQuery({
+    name: 'sortDir',
+    required: false,
+    enum: Object.values(STANDUP_SORT_DIR_QUERY),
+  })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({
     name: 'pageSize',
@@ -75,6 +96,13 @@ export class StandupsQueryController {
     @Query('from') from: string | undefined,
     @Query('to') to: string | undefined,
     @Query('search') search: string | undefined,
+    @Query('sort', new ParseEnumPipe(STANDUP_SORT_QUERY, { optional: true }))
+    sort: 'date' | 'createdAt' | 'status' | undefined,
+    @Query(
+      'sortDir',
+      new ParseEnumPipe(STANDUP_SORT_DIR_QUERY, { optional: true }),
+    )
+    sortDir: 'asc' | 'desc' | undefined,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('pageSize', new DefaultValuePipe(20), ParseIntPipe) pageSize: number,
   ) {
@@ -85,6 +113,8 @@ export class StandupsQueryController {
       from,
       to,
       search,
+      sort,
+      sortDir,
       page,
       pageSize,
     })
@@ -98,6 +128,7 @@ export class StandupsQueryController {
         totalPages: result.totalPages,
       },
       summary: result.summary,
+      metricChanges: result.metricChanges,
     }
   }
 

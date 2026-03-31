@@ -7,8 +7,6 @@
  */
 
 export interface TriggerStandupDto {
-  userId?: string;
-  discordUserId?: string;
   extraContext?: string;
   forceRegenerate?: boolean;
   rewriteFromStandupId?: string;

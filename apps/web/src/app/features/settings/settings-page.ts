@@ -319,6 +319,23 @@ const DEFAULT_CRON_POPOVER_STATE: Record<CronFieldKey, boolean> = {
                     </span>
                   }
                 </div>
+                <div class="flex flex-col gap-[6px]">
+                  <label
+                    for="git-since-period"
+                    class="text-muted-foreground font-[var(--font-jetbrains)] text-[12px]"
+                    >periodo_de_coleta_git</label
+                  >
+                  <input
+                    id="git-since-period"
+                    type="text"
+                    z-input
+                    [value]="settingsModel().gitSincePeriod"
+                    (input)="onGitSincePeriodInput($any($event.target).value)"
+                  />
+                  <span class="text-muted-foreground/70 font-[var(--font-ibm)] text-[11px]">
+                    // ex: 8 hours ago, 24 hours ago, 2 days ago. Esse valor define o recorte da coleta de commits.
+                  </span>
+                </div>
               </div>
 
               <!-- Azure DevOps section -->
@@ -534,6 +551,7 @@ export class SettingsPage {
     recoveryCron: '',
     timezone: '',
     gitAuthor: '',
+    gitSincePeriod: '',
     selectedRepos: [],
     active: false,
     emailTheme: 'dark',
@@ -643,6 +661,13 @@ export class SettingsPage {
     }))
   }
 
+  onGitSincePeriodInput(gitSincePeriod: string) {
+    this.settingsModel.update((model) => ({
+      ...model,
+      gitSincePeriod,
+    }))
+  }
+
   retryLoad() {
     this.loadError.set(false)
     this.loading.set(true)
@@ -676,6 +701,7 @@ export class SettingsPage {
         recoveryCron: settings.recoveryCron,
         timezone: settings.timezone,
         gitAuthor: settings.gitAuthor,
+        gitSincePeriod: settings.gitSincePeriod,
         selectedRepos: settings.selectedRepos,
         active: settings.active,
         emailTheme: settings.emailTheme,

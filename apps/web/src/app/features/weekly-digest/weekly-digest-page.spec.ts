@@ -77,6 +77,7 @@ describe('WeeklyDigestPage', () => {
     const page = fixture.componentInstance
 
     expect(page.formatStatus('approved')).toBe('[aprovado]')
+    expect(page.formatStatus('published')).toBe('[publicado]')
     expect(page.formatStatus('pending_review')).toBe('[pendente]')
     expect(page.formatStatus('rejected')).toBe('[rejeitado]')
   })

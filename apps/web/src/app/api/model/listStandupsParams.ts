@@ -5,6 +5,8 @@
  * API do serviço de geração, revisão e publicação de standups.
  * OpenAPI spec version: 0.0.1
  */
+import type { ListStandupsSort } from './listStandupsSort';
+import type { ListStandupsSortDir } from './listStandupsSortDir';
 import type { ListStandupsStatus } from './listStandupsStatus';
 
 export type ListStandupsParams = {
@@ -12,7 +14,12 @@ export type ListStandupsParams = {
   from?: string;
   to?: string;
   search?: string;
+  sort?: ListStandupsSort;
+  sortDir?: ListStandupsSortDir;
   page?: number;
+  /**
+   * Max: 100
+   */
   pageSize?: number;
   status?: ListStandupsStatus;
 };

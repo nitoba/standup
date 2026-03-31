@@ -52,6 +52,12 @@ function makeListResponse(
       pending: number
       rejected: number
     }
+    metricChanges: {
+      total: { current: number; previous: number; delta: number }
+      approved: { current: number; previous: number; delta: number }
+      pending: { current: number; previous: number; delta: number }
+      rejected: { current: number; previous: number; delta: number }
+    }
   }>,
 ) {
   return {
@@ -69,6 +75,28 @@ function makeListResponse(
       ).length,
       pending: data.filter((item) => item.status === 'pending_review').length,
       rejected: data.filter((item) => item.status === 'rejected').length,
+    },
+    metricChanges: overrides?.metricChanges ?? {
+      total: { current: data.length, previous: 0, delta: data.length },
+      approved: {
+        current: data.filter(
+          (item) => item.status === 'approved' || item.status === 'published',
+        ).length,
+        previous: 0,
+        delta: data.filter(
+          (item) => item.status === 'approved' || item.status === 'published',
+        ).length,
+      },
+      pending: {
+        current: data.filter((item) => item.status === 'pending_review').length,
+        previous: 0,
+        delta: data.filter((item) => item.status === 'pending_review').length,
+      },
+      rejected: {
+        current: data.filter((item) => item.status === 'rejected').length,
+        previous: 0,
+        delta: data.filter((item) => item.status === 'rejected').length,
+      },
     },
   }
 }
@@ -109,7 +137,7 @@ describe('StandupService', () => {
     // httpResource fires initial request on creation
     TestBed.tick()
     httpMock
-      .expectOne('/standups?page=1&pageSize=20')
+      .expectOne('/standups?page=1&pageSize=20&sort=date&sortDir=desc')
       .flush(makeListResponse([]))
     await settleAsyncWork()
   })
@@ -123,7 +151,9 @@ describe('StandupService', () => {
     service.standups.reload()
     TestBed.tick()
 
-    const request = httpMock.expectOne('/standups?page=1&pageSize=20')
+    const request = httpMock.expectOne(
+      '/standups?page=1&pageSize=20&sort=date&sortDir=desc',
+    )
     expect(request.request.method).toBe('GET')
     request.flush(
       makeListResponse([
@@ -193,6 +223,8 @@ describe('StandupService', () => {
     const request = httpMock.expectOne(
       (req) =>
         req.url === '/standups' &&
+        req.params.get('sort') === 'date' &&
+        req.params.get('sortDir') === 'desc' &&
         req.params.get('status') === 'approved' &&
         req.params.get('date') === '09/03/2026',
     )
@@ -214,7 +246,9 @@ describe('StandupService', () => {
     service.standups.reload()
     TestBed.tick()
 
-    const request = httpMock.expectOne('/standups?page=1&pageSize=20')
+    const request = httpMock.expectOne(
+      '/standups?page=1&pageSize=20&sort=date&sortDir=desc',
+    )
     request.flush(
       makeListResponse(
         [makeStandupDto({ id: 'standup-2', status: 'approved' })],
@@ -222,6 +256,12 @@ describe('StandupService', () => {
           total: 42,
           totalPages: 3,
           summary: { total: 42, approved: 20, pending: 18, rejected: 4 },
+          metricChanges: {
+            total: { current: 12, previous: 9, delta: 3 },
+            approved: { current: 8, previous: 7, delta: 1 },
+            pending: { current: 3, previous: 1, delta: 2 },
+            rejected: { current: 1, previous: 2, delta: -1 },
+          },
         },
       ),
     )
@@ -235,10 +275,10 @@ describe('StandupService', () => {
       totalPages: 3,
     })
     expect(service.metrics()).toEqual({
-      total: { count: 42, change: '++ 12 esta_semana' },
-      approved: { count: 20, change: '++ 8 esta_semana' },
-      pending: { count: 18, change: '++ 3 hoje' },
-      rejected: { count: 4, change: '++ 1 hoje' },
+      total: { count: 12, change: '++ 3 esta_semana' },
+      approved: { count: 8, change: '++ 1 esta_semana' },
+      pending: { count: 3, change: '++ 2 esta_semana' },
+      rejected: { count: 1, change: '-- 1 vs_semana_passada' },
     })
   })
 
@@ -247,7 +287,9 @@ describe('StandupService', () => {
     service.setDashboardPageSize(50)
     TestBed.tick()
 
-    const request = httpMock.expectOne('/standups?page=1&pageSize=50')
+    const request = httpMock.expectOne(
+      '/standups?page=1&pageSize=50&sort=date&sortDir=desc',
+    )
     request.flush(
       makeListResponse([], { pageSize: 50, total: 0, totalPages: 0 }),
     )
@@ -267,7 +309,7 @@ describe('StandupService', () => {
     TestBed.tick()
 
     const request = httpMock.expectOne(
-      '/standups?page=1&pageSize=20&search=retry',
+      '/standups?page=1&pageSize=20&sort=date&sortDir=desc&search=retry',
     )
     request.flush(makeListResponse([]))
 
@@ -312,7 +354,7 @@ describe('StandupService', () => {
       expect.objectContaining({
         standup: expect.objectContaining({
           id: '7f3a2b1c',
-          status: 'approved',
+          status: 'published',
         }),
       }),
     )
@@ -320,7 +362,7 @@ describe('StandupService', () => {
     // approve calls standups.reload() which fires a new GET
     TestBed.tick()
     httpMock
-      .expectOne('/standups?page=1&pageSize=20')
+      .expectOne('/standups?page=1&pageSize=20&sort=date&sortDir=desc')
       .flush(
         makeListResponse([
           makeStandupDto({ id: '7f3a2b1c', status: 'published' }),
@@ -347,7 +389,7 @@ describe('StandupService', () => {
     // reject calls standups.reload()
     TestBed.tick()
     httpMock
-      .expectOne('/standups?page=1&pageSize=20')
+      .expectOne('/standups?page=1&pageSize=20&sort=date&sortDir=desc')
       .flush(
         makeListResponse([
           makeStandupDto({ id: '7f3a2b1c', status: 'rejected' }),
@@ -380,7 +422,7 @@ describe('StandupService', () => {
     await expect(adjustPromise).resolves.toEqual({ ok: true, accepted: true })
     TestBed.tick()
     httpMock
-      .expectOne('/standups?page=1&pageSize=20')
+      .expectOne('/standups?page=1&pageSize=20&sort=date&sortDir=desc')
       .flush(makeListResponse([]))
     await settleAsyncWork()
   })
@@ -407,7 +449,7 @@ describe('StandupService', () => {
     })
     TestBed.tick()
     httpMock
-      .expectOne('/standups?page=1&pageSize=20')
+      .expectOne('/standups?page=1&pageSize=20&sort=date&sortDir=desc')
       .flush(makeListResponse([]))
     await settleAsyncWork()
   })
@@ -439,7 +481,7 @@ describe('StandupService', () => {
 
     TestBed.tick()
     httpMock
-      .expectOne('/standups?page=1&pageSize=20')
+      .expectOne('/standups?page=1&pageSize=20&sort=date&sortDir=desc')
       .flush(makeListResponse([makeStandupDto({ id: '7f3a2b1c' })]))
     await settleAsyncWork()
 
