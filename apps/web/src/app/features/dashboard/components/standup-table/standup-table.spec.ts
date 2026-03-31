@@ -13,6 +13,15 @@ function findButtonByAriaLabel(
   ).find((btn) => btn.getAttribute('aria-label') === label)
 }
 
+function findSpanByText(
+  element: HTMLElement,
+  text: string,
+): HTMLSpanElement | undefined {
+  return Array.from(
+    element.querySelectorAll('span') as NodeListOf<HTMLSpanElement>,
+  ).find((span) => span.textContent?.trim() === text)
+}
+
 describe('StandupTable', () => {
   it('renders rows and emits selected standup ids', async () => {
     await TestBed.configureTestingModule({
@@ -178,5 +187,49 @@ describe('StandupTable', () => {
     await fixture.whenStable()
 
     expect(writeText).toHaveBeenCalledWith('## Atividades\n- Fez algo')
+  })
+
+  it('renders published and draft statuses with canonical labels and classes', async () => {
+    await TestBed.configureTestingModule({
+      imports: [StandupTable],
+    }).compileComponents()
+
+    const fixture = TestBed.createComponent(StandupTable)
+    const standups: Standup[] = [
+      {
+        id: 'published-1',
+        date: '10/03/2026',
+        status: 'published',
+        createdAt: '17:00',
+        contentPreview: 'Publicado',
+        sections: [],
+        sources: [],
+      },
+      {
+        id: 'draft-1',
+        date: '11/03/2026',
+        status: 'draft',
+        createdAt: '18:00',
+        contentPreview: 'Rascunho',
+        sections: [],
+        sources: [],
+      },
+    ]
+
+    fixture.componentRef.setInput('standups', standups)
+    fixture.componentRef.setInput('total', 2)
+    fixture.componentRef.setInput('page', 1)
+    fixture.componentRef.setInput('pageSize', 20)
+    fixture.componentRef.setInput('totalPages', 1)
+    fixture.detectChanges()
+
+    const element = fixture.nativeElement as HTMLElement
+    const publishedStatus = findSpanByText(element, '[publicado]')
+    const draftStatus = findSpanByText(element, '[rascunho]')
+
+    expect(publishedStatus).toBeDefined()
+    expect(publishedStatus?.className).toContain('text-cyan-400')
+    expect(draftStatus).toBeDefined()
+    expect(draftStatus?.className).toContain('text-muted-foreground')
   })
 })

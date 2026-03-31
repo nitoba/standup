@@ -11,6 +11,11 @@ import { SidebarLayout } from '../../core/layout/sidebar'
 import type { StandupStatus } from '../../shared/models/standup-models'
 import { normalizeDisplayDate } from '../../shared/utils'
 import {
+  formatStandupStatus,
+  getStandupStatusDotClass,
+  getStandupStatusTextClass,
+} from '../../shared/utils/standup-status'
+import {
   WeeklyDigestService,
   type WeekStandup,
 } from './services/weekly-digest-service'
@@ -169,23 +174,14 @@ export class WeeklyDigestPage {
   }
 
   statusDotClass(status: StandupStatus): string {
-    if (status === 'published') return 'bg-cyan-400'
-    if (status === 'approved') return 'bg-primary'
-    if (status === 'pending_review') return 'bg-[var(--accent-yellow)]'
-    return 'bg-[var(--accent-red)]'
+    return getStandupStatusDotClass(status)
   }
 
   statusTextClass(status: StandupStatus): string {
-    if (status === 'published') return 'text-cyan-400'
-    if (status === 'approved') return 'text-primary'
-    if (status === 'pending_review') return 'text-[var(--accent-yellow)]'
-    return 'text-[var(--accent-red)]'
+    return getStandupStatusTextClass(status)
   }
 
   formatStatus(status: StandupStatus): string {
-    if (status === 'pending_review') return '[pendente]'
-    if (status === 'approved') return '[aprovado]'
-    if (status === 'published') return '[publicado]'
-    return '[rejeitado]'
+    return formatStandupStatus(status)
   }
 }

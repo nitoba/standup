@@ -213,6 +213,22 @@ describe('StandupService', () => {
     ])
   })
 
+  it('preserves draft status when mapping API data', async () => {
+    service.standups.reload()
+    TestBed.tick()
+
+    const request = httpMock.expectOne(
+      '/standups?page=1&pageSize=20&sort=date&sortDir=desc',
+    )
+    request.flush(makeListResponse([makeStandupDto({ status: 'draft' })]))
+
+    await settleAsyncWork()
+
+    expect(service.standups.value().items).toEqual([
+      expect.objectContaining({ status: 'draft' }),
+    ])
+  })
+
   it('re-fetches dashboard standups with status and date filters', async () => {
     service.setDashboardFilters({
       status: 'approved',
