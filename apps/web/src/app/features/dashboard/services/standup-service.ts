@@ -37,22 +37,12 @@ import type {
   StandupGeneratedEvent,
   StandupPage,
   StandupProgressEvent,
-  StandupSection,
-  StandupSourceRepo,
-  StandupStatus,
   StandupStatusChangedEvent,
 } from '../../../shared/models/standup-models'
-import { formatTimestampPtBr } from '../../../shared/utils'
 import { StandupEventsService } from './standup-events-service'
+import { mapStandupRecordDtoToStandup } from './standup-view-mappers'
 
 type TriggerAck = { ok: boolean; accepted: boolean; error?: string }
-
-type SourceDataDto = {
-  repos?: Array<{
-    repoName?: string
-    commits?: Array<{ hash?: string; subject?: string; message?: string }>
-  }>
-}
 
 @Injectable({ providedIn: 'root' })
 export class StandupService {
@@ -415,121 +405,6 @@ export class StandupService {
   }
 
   private mapStandup(dto: StandupRecordDto): Standup {
-    return {
-      id: dto.id,
-      date: dto.date,
-      status: this.mapStatus(dto.status),
-      createdAt: this.formatTimestamp(dto.createdAt),
-      content: dto.content,
-      sourceData: this.formatSourceData(dto.sourceData),
-      contentPreview: this.buildContentPreview(dto.content),
-      customEntries: this.parseCustomEntries(dto.customEntries),
-      sentToDiscordAt: dto.sentToDiscordAt ?? null,
-      sections: this.parseSections(dto.content),
-      sources: this.parseSources(dto.sourceData),
-    }
-  }
-
-  private parseCustomEntries(
-    customEntries: unknown,
-  ): StandupCustomEntriesDto | null {
-    if (!customEntries || typeof customEntries !== 'object') return null
-    const maybeEntries = customEntries as {
-      scheduledMeetings?: unknown
-      directCalls?: unknown
-    }
-    const scheduledMeetings = Array.isArray(maybeEntries.scheduledMeetings)
-      ? maybeEntries.scheduledMeetings.filter(
-          (v): v is string => typeof v === 'string',
-        )
-      : []
-    const directCalls = Array.isArray(maybeEntries.directCalls)
-      ? maybeEntries.directCalls.filter(
-          (v): v is string => typeof v === 'string',
-        )
-      : []
-    if (scheduledMeetings.length === 0 && directCalls.length === 0) return null
-    return { scheduledMeetings, directCalls }
-  }
-
-  private mapStatus(status: string): StandupStatus {
-    if (status === 'published') return 'published'
-    if (status === 'rejected') return 'rejected'
-    if (status === 'approved') return 'approved'
-    return 'pending_review'
-  }
-
-  private buildContentPreview(content: string) {
-    const preview = content
-      .split('\n')
-      .map((l) => l.trim())
-      .find((l) => l.startsWith('- '))
-    return preview ? preview.slice(2) : content.trim()
-  }
-
-  private parseSections(content: string): StandupSection[] {
-    const lines = content.split('\n').map((l) => l.trim())
-    const sections: StandupSection[] = []
-    let cur: StandupSection | null = null
-    for (const line of lines) {
-      if (!line) continue
-      if (line.startsWith('## ')) {
-        cur = { title: line, tone: this.resolveSectionTone(line), items: [] }
-        sections.push(cur)
-        continue
-      }
-      if (line.startsWith('- ')) {
-        if (!cur) {
-          cur = { title: '## resumo', tone: 'default', items: [] }
-          sections.push(cur)
-        }
-        cur.items.push(line)
-      }
-    }
-    return sections
-  }
-
-  private resolveSectionTone(title: string): StandupSection['tone'] {
-    const t = title.toLowerCase()
-    if (t.includes('andamento')) return 'cyan'
-    if (t.includes('bloqueio')) return 'muted'
-    return 'default'
-  }
-
-  private parseSources(sourceData: string): StandupSourceRepo[] {
-    try {
-      const parsed = JSON.parse(sourceData) as SourceDataDto
-      return (parsed.repos ?? []).map((repo) => ({
-        name: this.formatRepoName(repo.repoName),
-        commits: (repo.commits ?? []).map((c) => ({
-          hash: c.hash ?? '',
-          message: c.subject ?? c.message ?? '',
-        })),
-      }))
-    } catch (err) {
-      // Log to aid debugging — corrupt sourceData is invisible otherwise (TAS-65)
-      console.warn('[StandupService] failed to parse source data', err)
-      return []
-    }
-  }
-
-  private formatSourceData(sourceData: string) {
-    try {
-      return JSON.stringify(JSON.parse(sourceData), null, 2)
-    } catch (err) {
-      // Log to aid debugging — corrupt sourceData is invisible otherwise (TAS-65)
-      console.warn('[StandupService] failed to format source data', err)
-      return sourceData
-    }
-  }
-
-  private formatRepoName(name?: string) {
-    const n = name?.trim() ?? ''
-    if (!n) return 'unknown/'
-    return n.endsWith('/') ? n : `${n}/`
-  }
-
-  private formatTimestamp(ts: number) {
-    return formatTimestampPtBr(ts)
+    return mapStandupRecordDtoToStandup(dto)
   }
 }

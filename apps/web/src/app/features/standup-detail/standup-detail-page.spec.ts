@@ -68,6 +68,17 @@ function getActionButtons(
   }
 }
 
+function findSpanByText(
+  fixture: ReturnType<typeof TestBed.createComponent<StandupDetailPage>>,
+  text: string,
+) {
+  return Array.from(
+    fixture.nativeElement.querySelectorAll(
+      'span',
+    ) as NodeListOf<HTMLSpanElement>,
+  ).find((span) => span.textContent?.trim() === text)
+}
+
 async function createFixture(options?: {
   status?: StandupStatus
   approve?: (customEntries?: unknown) => Promise<unknown>
@@ -282,6 +293,40 @@ describe('StandupDetailPage', () => {
     expect(buttons.reject).toBeUndefined()
     expect(buttons.adjust).toBeUndefined()
     expect(buttons.regenerate.textContent).toContain('$ regenerar')
+  })
+
+  it('treats published consistently in labels, classes and actions', async () => {
+    const { fixture } = await createFixture({ status: 'published' })
+    const buttons = getActionButtons(fixture)
+    const statusLabel = findSpanByText(fixture, '[publicado]')
+    const statusContainer = statusLabel?.parentElement
+    const statusDot = Array.from(
+      statusContainer?.querySelectorAll('span') ?? [],
+    ).find(
+      (span) =>
+        span.className.includes('h-[6px]') &&
+        span.className.includes('w-[6px]') &&
+        span.className.includes('rounded-full'),
+    )
+
+    expect(statusLabel).toBeDefined()
+    expect(statusLabel?.className).toContain('text-cyan-400')
+    expect(statusDot?.className).toContain('bg-cyan-400')
+    expect(buttons.approve).toBeUndefined()
+    expect(buttons.reject).toBeUndefined()
+    expect(buttons.adjust).toBeUndefined()
+    expect(buttons.regenerate).toBeUndefined()
+    expect(buttons.sendToDiscord).toBeUndefined()
+  })
+
+  it('preserves regenerate policy for pending_review, rejected, approved and published', async () => {
+    const { fixture } = await createFixture()
+    const page = fixture.componentInstance
+
+    expect(page.canRegenerate('pending_review')).toBe(true)
+    expect(page.canRegenerate('rejected')).toBe(true)
+    expect(page.canRegenerate('approved')).toBe(false)
+    expect(page.canRegenerate('published')).toBe(false)
   })
 
   it('opens the approve dialog when the approve button is clicked', async () => {

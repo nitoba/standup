@@ -15,6 +15,10 @@ import type {
   Standup,
   StandupStatus,
 } from '../../../../shared/models/standup-models'
+import {
+  formatStandupStatus,
+  getStandupStatusBadgeClass,
+} from '../../../../shared/utils/standup-status'
 
 /** Id do standup mais recente com status pending_review na lista atual */
 function findNewestPendingId(standups: Standup[]): string | null {
@@ -281,16 +285,10 @@ export class StandupTable {
   }
 
   statusBadgeClass(status: StandupStatus) {
-    if (status === 'published') return 'text-cyan-400'
-    if (status === 'approved') return 'text-primary'
-    if (status === 'pending_review') return 'text-[var(--accent-yellow)]'
-    return 'text-[var(--accent-red)]'
+    return getStandupStatusBadgeClass(status)
   }
 
   formatStatus(status: StandupStatus) {
-    if (status === 'pending_review') return '[pendente]'
-    if (status === 'published') return '[publicado]'
-    if (status === 'approved') return '[aprovado]'
-    return '[rejeitado]'
+    return formatStandupStatus(status)
   }
 }

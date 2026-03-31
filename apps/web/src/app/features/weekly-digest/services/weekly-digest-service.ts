@@ -7,19 +7,13 @@ import type {
 } from '../../../api/model'
 import type { StandupStatus } from '../../../shared/models/standup-models'
 import { normalizeDisplayDate } from '../../../shared/utils'
+import { normalizeStandupStatus } from '../../../shared/utils/standup-status'
 
 export interface WeekStandup {
   id: string
   date: string
   status: StandupStatus
   content: string
-}
-
-function mapStatus(status: string): StandupStatus {
-  if (status === 'published') return 'published'
-  if (status === 'rejected') return 'rejected'
-  if (status === 'approved') return 'approved'
-  return 'pending_review'
 }
 
 @Injectable({ providedIn: 'root' })
@@ -45,7 +39,7 @@ export class WeeklyDigestService {
     return response.data.map((dto) => ({
       id: dto.id,
       date: normalizeDisplayDate(dto.date),
-      status: mapStatus(dto.status),
+      status: normalizeStandupStatus(dto.status),
       content: dto.content,
     }))
   }

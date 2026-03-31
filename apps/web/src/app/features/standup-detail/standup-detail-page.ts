@@ -19,6 +19,14 @@ import type {
   StandupStatus,
 } from '../../shared/models/standup-models'
 import { formatTimestampPtBr } from '../../shared/utils'
+import {
+  canRegenerateStandup,
+  formatStandupStatus,
+  getStandupStatusDotClass,
+  getStandupStatusTextClass,
+  isApprovedStandup,
+  isPendingReviewStandup,
+} from '../../shared/utils/standup-status'
 import { StandupService } from '../dashboard/services/standup-service'
 import { AdjustDialogContent } from './components/adjust-dialog/adjust-dialog-content'
 import { ApproveDialogContent } from './components/approve-dialog/approve-dialog-content'
@@ -388,11 +396,11 @@ export class StandupDetailPage {
   }
 
   isPendingReview(status: StandupStatus) {
-    return status === 'pending_review'
+    return isPendingReviewStandup(status)
   }
 
   canRegenerate(status: StandupStatus) {
-    return status === 'pending_review' || status === 'rejected'
+    return canRegenerateStandup(status)
   }
 
   previewDatasource(sourceData: string) {
@@ -419,24 +427,19 @@ export class StandupDetailPage {
   }
 
   statusDotClass(status: StandupStatus) {
-    if (status === 'approved') return 'bg-primary'
-    if (status === 'pending_review') return 'bg-[var(--accent-yellow)]'
-    return 'bg-[var(--accent-red)]'
+    return getStandupStatusDotClass(status)
   }
 
   statusTextClass(status: StandupStatus) {
-    if (status === 'approved') return 'text-primary'
-    if (status === 'pending_review') return 'text-[var(--accent-yellow)]'
-    return 'text-[var(--accent-red)]'
+    return getStandupStatusTextClass(status)
   }
 
   formatStatus(status: StandupStatus) {
-    if (status === 'pending_review') return '[pendente]'
-    return status === 'approved' ? '[aprovado]' : '[rejeitado]'
+    return formatStandupStatus(status)
   }
 
   isApproved(status: StandupStatus) {
-    return status === 'approved'
+    return isApprovedStandup(status)
   }
 
   handleSendToDiscord(detail: Standup) {

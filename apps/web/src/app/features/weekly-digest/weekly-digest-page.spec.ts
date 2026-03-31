@@ -11,8 +11,32 @@ import {
   QueryClient,
 } from '@tanstack/angular-query-experimental'
 import { describe, expect, it } from 'vitest'
-
 import { WeeklyDigestPage } from './weekly-digest-page'
+
+async function flushWeekStandups(
+  fixture: ReturnType<typeof TestBed.createComponent<WeeklyDigestPage>>,
+  response: object,
+) {
+  const httpMock = TestBed.inject(HttpTestingController)
+  const appRef = TestBed.inject(ApplicationRef)
+
+  for (const _attempt of [1, 2, 3]) {
+    TestBed.tick()
+    const requests = httpMock.match((request) => request.url === '/standups')
+    for (const request of requests) {
+      request.flush(response)
+    }
+    await Promise.resolve()
+    await Promise.resolve()
+    fixture.detectChanges()
+  }
+
+  await fixture.whenStable()
+  await appRef.whenStable()
+  fixture.detectChanges()
+
+  httpMock.verify()
+}
 
 describe('WeeklyDigestPage', () => {
   it('renderiza os textos principais em pt-BR', async () => {
@@ -26,9 +50,6 @@ describe('WeeklyDigestPage', () => {
       ],
     }).compileComponents()
 
-    const httpMock = TestBed.inject(HttpTestingController)
-    const appRef = TestBed.inject(ApplicationRef)
-
     const fixture = TestBed.createComponent(WeeklyDigestPage)
     fixture.componentRef.setInput('from', '2026-03-03')
     fixture.componentRef.setInput('to', '2026-03-09')
@@ -40,45 +61,66 @@ describe('WeeklyDigestPage', () => {
       summary: { total: 0, approved: 0, pending: 0, rejected: 0 },
     }
 
-    for (const _attempt of [1, 2, 3]) {
-      TestBed.tick()
-      const requests = httpMock.match((request) => request.url === '/standups')
-      for (const request of requests) {
-        request.flush(emptyResponse)
-      }
-      await Promise.resolve()
-      await Promise.resolve()
-      fixture.detectChanges()
-    }
-
-    await fixture.whenStable()
-    await appRef.whenStable()
-    fixture.detectChanges()
+    await flushWeekStandups(fixture, emptyResponse)
 
     const element = fixture.nativeElement as HTMLElement
     expect(element.textContent).toContain('voltar para standups')
     expect(element.textContent).toContain('resumo_semanal')
-
-    httpMock.verify()
   })
 
-  it('mapeia status para rotulos em pt-BR', async () => {
+  it('renderiza published com label publicado e estilo cyan no dom', async () => {
     await TestBed.configureTestingModule({
       imports: [WeeklyDigestPage],
-      providers: [
-        provideRouter([]),
-        provideHttpClient(),
-        provideHttpClientTesting(),
-        provideTanStackQuery(new QueryClient()),
-      ],
+      providers: [provideRouter([]), provideTanStackQuery(new QueryClient())],
     }).compileComponents()
 
     const fixture = TestBed.createComponent(WeeklyDigestPage)
-    const page = fixture.componentInstance
+    fixture.componentRef.setInput('from', '2026-03-03')
+    fixture.componentRef.setInput('to', '2026-03-09')
+    Object.assign(fixture.componentInstance, {
+      standups: {
+        isPending: () => false,
+        error: () => null,
+      },
+      weekStandups: () => [
+        {
+          id: 'published-1',
+          date: '09/03/2026',
+          content: 'standup publicado',
+          status: 'published',
+        },
+        {
+          id: 'draft-1',
+          date: '08/03/2026',
+          content: 'rascunho semanal',
+          status: 'draft',
+        },
+      ],
+    })
+    fixture.detectChanges()
 
-    expect(page.formatStatus('approved')).toBe('[aprovado]')
-    expect(page.formatStatus('published')).toBe('[publicado]')
-    expect(page.formatStatus('pending_review')).toBe('[pendente]')
-    expect(page.formatStatus('rejected')).toBe('[rejeitado]')
+    const element = fixture.nativeElement as HTMLElement
+    const publishedStatusLabel = Array.from(
+      element.querySelectorAll('span') as NodeListOf<HTMLSpanElement>,
+    ).find((span) => span.textContent?.includes('[publicado]'))
+    const publishedStatusContainer = publishedStatusLabel?.parentElement
+    const publishedStatusIndicator = Array.from(
+      publishedStatusContainer?.querySelectorAll('span') ?? [],
+    ).find(
+      (span) =>
+        span.className.includes('h-[6px]') &&
+        span.className.includes('w-[6px]') &&
+        span.className.includes('rounded-full'),
+    )
+
+    const draftStatusLabel = Array.from(
+      element.querySelectorAll('span') as NodeListOf<HTMLSpanElement>,
+    ).find((span) => span.textContent?.includes('[rascunho]'))
+
+    expect(element.textContent).toContain('[publicado]')
+    expect(element.textContent).toContain('[rascunho]')
+    expect(publishedStatusLabel?.className).toContain('text-cyan-400')
+    expect(publishedStatusIndicator?.className).toContain('bg-cyan-400')
+    expect(draftStatusLabel?.className).toContain('text-muted-foreground')
   })
 })
