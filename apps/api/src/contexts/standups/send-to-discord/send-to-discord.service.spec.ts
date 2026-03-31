@@ -42,13 +42,15 @@ function makeAutomationConfig(overrides: Record<string, unknown> = {}) {
 }
 
 function createService(deps: {
-  standupRepository: Record<string, unknown>
+  standupRead: Record<string, unknown>
+  standupWrite: Record<string, unknown>
   envService: Record<string, unknown>
   localDateService: Record<string, unknown>
   userTimezone: Record<string, unknown>
 }) {
   return new SendToDiscordService(
-    deps.standupRepository as never,
+    deps.standupRead as never,
+    deps.standupWrite as never,
     deps.envService as never,
     deps.localDateService as never,
     deps.userTimezone as never,
@@ -56,7 +58,7 @@ function createService(deps: {
 }
 
 describe('SendToDiscordService', () => {
-  let standupRepository: {
+  let standupRead: {
     findByIdForUser: ReturnType<typeof vi.fn>
     updateSentToDiscordAt: ReturnType<typeof vi.fn>
   }
@@ -66,7 +68,7 @@ describe('SendToDiscordService', () => {
   let service: SendToDiscordService
 
   beforeEach(() => {
-    standupRepository = {
+    standupRead = {
       findByIdForUser: vi.fn(),
       updateSentToDiscordAt: vi.fn(),
     }
@@ -84,7 +86,8 @@ describe('SendToDiscordService', () => {
     }
 
     service = createService({
-      standupRepository,
+      standupRead,
+      standupWrite: standupRead,
       envService,
       localDateService,
       userTimezone,
@@ -96,7 +99,7 @@ describe('SendToDiscordService', () => {
   })
 
   it('throws NotFoundException when standup not found', async () => {
-    standupRepository.findByIdForUser.mockResolvedValue(
+    standupRead.findByIdForUser.mockResolvedValue(
       Result.err(new NotFoundError({ resource: 'standup', id: STANDUP_ID })),
     )
 
@@ -106,7 +109,7 @@ describe('SendToDiscordService', () => {
   })
 
   it('throws ConflictException when status is draft', async () => {
-    standupRepository.findByIdForUser.mockResolvedValue(
+    standupRead.findByIdForUser.mockResolvedValue(
       Result.ok(makeStandupRecord({ status: 'draft' })),
     )
 
@@ -116,7 +119,7 @@ describe('SendToDiscordService', () => {
   })
 
   it('throws ConflictException when status is pending_review', async () => {
-    standupRepository.findByIdForUser.mockResolvedValue(
+    standupRead.findByIdForUser.mockResolvedValue(
       Result.ok(makeStandupRecord({ status: 'pending_review' })),
     )
 
@@ -126,7 +129,7 @@ describe('SendToDiscordService', () => {
   })
 
   it('throws ConflictException when status is rejected', async () => {
-    standupRepository.findByIdForUser.mockResolvedValue(
+    standupRead.findByIdForUser.mockResolvedValue(
       Result.ok(makeStandupRecord({ status: 'rejected' })),
     )
 
@@ -136,7 +139,7 @@ describe('SendToDiscordService', () => {
   })
 
   it('throws ServiceUnavailableException when automation URL is not configured', async () => {
-    standupRepository.findByIdForUser.mockResolvedValue(
+    standupRead.findByIdForUser.mockResolvedValue(
       Result.ok(makeStandupRecord()),
     )
     envService.automation = makeAutomationConfig({ url: '' })
@@ -147,7 +150,7 @@ describe('SendToDiscordService', () => {
   })
 
   it('throws ServiceUnavailableException when fetch fails (network error)', async () => {
-    standupRepository.findByIdForUser.mockResolvedValue(
+    standupRead.findByIdForUser.mockResolvedValue(
       Result.ok(makeStandupRecord()),
     )
 
@@ -161,7 +164,7 @@ describe('SendToDiscordService', () => {
   })
 
   it('throws ServiceUnavailableException when fetch times out', async () => {
-    standupRepository.findByIdForUser.mockResolvedValue(
+    standupRead.findByIdForUser.mockResolvedValue(
       Result.ok(makeStandupRecord()),
     )
 
@@ -175,7 +178,7 @@ describe('SendToDiscordService', () => {
   })
 
   it('throws ServiceUnavailableException when automation server returns non-200', async () => {
-    standupRepository.findByIdForUser.mockResolvedValue(
+    standupRead.findByIdForUser.mockResolvedValue(
       Result.ok(makeStandupRecord()),
     )
 
@@ -192,8 +195,8 @@ describe('SendToDiscordService', () => {
     const record = makeStandupRecord()
     const updatedRecord = { ...record, sentToDiscordAt: Date.now() }
 
-    standupRepository.findByIdForUser.mockResolvedValue(Result.ok(record))
-    standupRepository.updateSentToDiscordAt.mockResolvedValue(
+    standupRead.findByIdForUser.mockResolvedValue(Result.ok(record))
+    standupRead.updateSentToDiscordAt.mockResolvedValue(
       Result.ok(updatedRecord),
     )
 
@@ -207,9 +210,7 @@ describe('SendToDiscordService', () => {
       ...updatedRecord,
       date: '2026-03-20',
     })
-    expect(standupRepository.updateSentToDiscordAt).toHaveBeenCalledWith(
-      STANDUP_ID,
-    )
+    expect(standupRead.updateSentToDiscordAt).toHaveBeenCalledWith(STANDUP_ID)
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'http://localhost:9000/send',
       expect.objectContaining({
@@ -226,8 +227,8 @@ describe('SendToDiscordService', () => {
     const record = makeStandupRecord({ status: 'published' })
     const updatedRecord = { ...record, sentToDiscordAt: Date.now() }
 
-    standupRepository.findByIdForUser.mockResolvedValue(Result.ok(record))
-    standupRepository.updateSentToDiscordAt.mockResolvedValue(
+    standupRead.findByIdForUser.mockResolvedValue(Result.ok(record))
+    standupRead.updateSentToDiscordAt.mockResolvedValue(
       Result.ok(updatedRecord),
     )
 
@@ -245,8 +246,8 @@ describe('SendToDiscordService', () => {
     const newTimestamp = Date.now()
     const updatedRecord = { ...record, sentToDiscordAt: newTimestamp }
 
-    standupRepository.findByIdForUser.mockResolvedValue(Result.ok(record))
-    standupRepository.updateSentToDiscordAt.mockResolvedValue(
+    standupRead.findByIdForUser.mockResolvedValue(Result.ok(record))
+    standupRead.updateSentToDiscordAt.mockResolvedValue(
       Result.ok(updatedRecord),
     )
 
@@ -257,8 +258,6 @@ describe('SendToDiscordService', () => {
     const result = await service.send(USER_ID, STANDUP_ID)
 
     expect(result.sentToDiscordAt).toBe(newTimestamp)
-    expect(standupRepository.updateSentToDiscordAt).toHaveBeenCalledWith(
-      STANDUP_ID,
-    )
+    expect(standupRead.updateSentToDiscordAt).toHaveBeenCalledWith(STANDUP_ID)
   })
 })

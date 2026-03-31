@@ -5,7 +5,8 @@ import { EnvModule } from '../env/env.module'
 import { EnvService } from '../env/env.service'
 import { DatabaseService } from './database.service'
 import { JobRunRepository } from './repositories/job-run.repository'
-import { StandupRepository } from './repositories/standup.repository'
+import { StandupReadRepository } from './repositories/standup-read.repository'
+import { StandupWriteRepository } from './repositories/standup-write.repository'
 import { UserRepository } from './repositories/user.repository'
 import { UserSettingsRepository } from './repositories/user-settings.repository'
 import { WeeklyDigestRepository } from './repositories/weekly-digest.repository'
@@ -36,7 +37,8 @@ const drizzleRootModule = DrizzleModule.forRootAsync({
   imports: [EnvModule, drizzleRootModule],
   providers: [
     DatabaseService,
-    StandupRepository,
+    StandupReadRepository,
+    StandupWriteRepository,
     JobRunRepository,
     UserRepository,
     UserSettingsRepository,
@@ -45,7 +47,8 @@ const drizzleRootModule = DrizzleModule.forRootAsync({
   exports: [
     DrizzleModule,
     DatabaseService,
-    StandupRepository,
+    StandupReadRepository,
+    StandupWriteRepository,
     JobRunRepository,
     UserRepository,
     UserSettingsRepository,

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { StandupRepository } from '../../../platform/database/repositories/standup.repository'
+import { StandupWriteRepository } from '../../../platform/database/repositories/standup-write.repository'
 import { EventBusService } from '../../../platform/events/event-bus.service'
 import type { StandupStatusChangedEvent } from '../../../platform/events/standup-events'
 import { LocalDateService } from '../../../platform/time/local-date.service'
@@ -22,7 +22,7 @@ type StandupStatusTransitionError =
 @Injectable()
 export class StandupStatusService {
   constructor(
-    private readonly standupRepository: StandupRepository,
+    private readonly standupRepository: StandupWriteRepository,
     private readonly localDateService: LocalDateService,
     private readonly eventBus: EventBusService,
     private readonly userTimezone: UserTimezoneService,
@@ -55,7 +55,7 @@ export class StandupStatusService {
   ): Promise<
     Result<
       Awaited<
-        ReturnType<StandupRepository['updateStatusForUser']>
+        ReturnType<StandupWriteRepository['updateStatusForUser']>
       > extends Result<infer TValue, infer _TError>
         ? TValue
         : never,

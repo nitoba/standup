@@ -76,6 +76,7 @@ describe('StandupNotificationService', () => {
     const service = new StandupNotificationService(
       makeLoggerFactory() as never,
       standupRepository as never,
+      standupRepository as never,
       messages as never,
       eventBus as never,
     )
@@ -145,6 +146,7 @@ describe('StandupNotificationService', () => {
 
     const service = new StandupNotificationService(
       makeLoggerFactory() as never,
+      standupRepository as never,
       standupRepository as never,
       messages as never,
       eventBus as never,

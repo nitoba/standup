@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { StandupRepository } from '../../../platform/database/repositories/standup.repository'
+import { StandupReadRepository } from '../../../platform/database/repositories/standup-read.repository'
+import { StandupWriteRepository } from '../../../platform/database/repositories/standup-write.repository'
 import { EnvService } from '../../../platform/env/env.service'
 import { LocalDateService } from '../../../platform/time/local-date.service'
 import {
@@ -16,17 +17,15 @@ const ALLOWED_STATES = new Set(['approved', 'published'])
 @Injectable()
 export class SendToDiscordService {
   constructor(
-    private readonly standupRepository: StandupRepository,
+    private readonly standupRead: StandupReadRepository,
+    private readonly standupWrite: StandupWriteRepository,
     private readonly envService: EnvService,
     private readonly localDateService: LocalDateService,
     private readonly userTimezone: UserTimezoneService,
   ) {}
 
   async send(userId: string, standupId: string) {
-    const found = await this.standupRepository.findByIdForUser(
-      standupId,
-      userId,
-    )
+    const found = await this.standupRead.findByIdForUser(standupId, userId)
     if (found.isErr()) {
       throwStandupHttpError(found.error)
     }
@@ -91,8 +90,7 @@ export class SendToDiscordService {
       )
     }
 
-    const updated =
-      await this.standupRepository.updateSentToDiscordAt(standupId)
+    const updated = await this.standupWrite.updateSentToDiscordAt(standupId)
     if (updated.isErr()) {
       throwStandupHttpError(updated.error)
     }
