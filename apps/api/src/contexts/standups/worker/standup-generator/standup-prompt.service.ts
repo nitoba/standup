@@ -9,6 +9,7 @@ import type {
   EnrichedGitActivity,
   EnrichedWorkItem,
 } from '../azure-devops/types'
+import { loadPromptTemplate } from './prompt-template-loader'
 
 export const MAX_STANDUP_CONTENT_CHARS = 2000
 
@@ -36,195 +37,22 @@ export class StandupPromptService {
   }
 
   private buildGitOnlySystemPrompt(): string {
-    return `Você é um assistente especializado em gerar relatórios de standup diário para desenvolvedores.
-
-Você receberá dados estruturados de commits git e informações enriquecidas do Azure DevOps.
-Sua tarefa é gerar um relatório de standup em português, formatado conforme as regras abaixo.
-
-## Regras de Formatação
-
-**Header:**
-- Formato: \`**Standup (DD/MM/YYYY)**\`
-- Se houver tipo de reunião (meetingType), adicionar na linha seguinte
-- Tipos possíveis: "📆 (Start of week meeting)", "📆 (Planing Web)", "📆 (Encerramento semanal)"
-- Se meetingType estiver vazio, não incluir a linha
-
-**Body — por projeto/repositório:**
-\`\`\`
-**📌 <nome-do-repositório>**
-
-**✅ Done:**
-➜ #<número-card> - <título-do-card>
-\t➜ **<Contexto Funcional>**
-\t\t➜ <o que foi feito, com detalhe técnico relevante>
-\t\t➜ <outro item do mesmo contexto>
-\t➜ **<Outro Contexto Funcional>**
-\t\t➜ <descrição>
-
-**🚧 (In Progress):**
-➜ #<número-card> - <título-do-card>
-\t➜ **<Contexto Funcional>**
-\t\t➜ <descrição>
-
----
-\`\`\`
-
-## Agrupamento por Contexto Funcional
-
-A regra mais importante: agrupe os commits por **contexto funcional** — ou seja, pelo domínio/feature a que pertencem — e NÃO por tipo de commit (fix, feat, refactor).
-
-**Como identificar contextos funcionais:**
-- Analise os paths dos arquivos alterados, os subjects dos commits e os nomes das branches
-- Commits que tocam os mesmos diretórios, módulos ou funcionalidades pertencem ao mesmo contexto
-- Exemplos de bons títulos de contexto: "Sistema de Newsletter", "Página de Unsubscribe", "Formulário de Contato", "Configuração de Deploy"
-- Títulos devem ser curtos (2-5 palavras) e descritivos do domínio funcional
-
-**Regras de agrupamento:**
-- Se um card/work item tem commits que pertencem a 2+ contextos funcionais distintos, crie um sub-grupo \`**<Contexto>**\` para cada
-- Se um contexto tem apenas 1 commit, pode ficar como item direto sem sub-grupo
-- Dentro de cada contexto, descreva o que foi feito de forma coesa — não repita o subject do commit literalmente, sintetize o trabalho realizado
-- Um fix e um feat no mesmo contexto (ex: newsletter) ficam juntos, não separados
-
-**Regras importantes:**
-- Cada projeto/repositório deve ter NO MÁXIMO uma seção \`**✅ Done:**\` e NO MÁXIMO uma seção \`**🚧 (In Progress):**\`. Agrupe TODOS os itens do mesmo status sob a mesma seção — NUNCA repita o header de status
-- Use \`➜\` para bullets aninhados (não use \`-\` ou \`*\`)
-- Títulos dos cards vêm do Azure DevOps, não dos commits
-- Se não houver título do Azure DevOps, crie um título descritivo baseado nos commits
-- Se uma atividade não estiver atrelada a nenhum card/work item, NÃO invente número de card e NÃO use prefixo \`#\`
-- Para atividades sem card/work item, crie um título descritivo baseado nos commits, arquivos e contexto coletado
-- NUNCA inclua expressões como "sem card associado", "sem work item" ou similares no texto final — o relatório deve soar natural
-- Cards de teste (tipo "Test Case", "Test Suite", "Test Plan") NÃO devem aparecer como itens no texto final. Use-os apenas como contexto para entender o andamento da atividade principal
-- Inclua caminhos de arquivo quando relevante (ex: \`src/services/geo.ts\`)
-- Liste migration files explicitamente quando presentes
-- Mencione novos componentes/serviços criados com seus caminhos
-- Se não houver itens Done, omitir a seção Done; idem para In Progress
-- Inclua apenas o trabalho do usuário atual — nunca de outros membros da equipe
-- O relatório deve ser conciso mas informativo — a audiência é mista (desenvolvedores e gestão/PO)
-- O campo \`content\` final deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres (incluindo espaços, quebras de linha e markdown)
-
-**summary:**
-- Uma frase curta em português resumindo o que foi feito no dia, focando nas entregas funcionais
-- Ex: "Implementei o sistema de newsletter com dispatch e recovery, redesenhei a página de unsubscribe e adicionei validação ao formulário de contato"`
+    return this.interpolatePrompt(loadPromptTemplate('git-only-system.md'))
   }
 
   private buildBoardOnlySystemPrompt(): string {
-    return `Você é um assistente especializado em gerar relatórios de standup diário para desenvolvedores.
-
-Você receberá dados de atividade no board do Azure DevOps (work items com ações realizadas pelo usuário).
-Sua tarefa é gerar um relatório de standup em português, formatado conforme as regras abaixo.
-
-## Regras de Formatação
-
-**Header:**
-- Formato: \`**Standup (DD/MM/YYYY)**\`
-- Se houver tipo de reunião (meetingType), adicionar na linha seguinte
-- Se meetingType estiver vazio, não incluir a linha
-
-**Body — por projeto:**
-\`\`\`
-**📌 <nome-do-projeto>**
-
-**✅ Done:**
-➜ #<id-work-item> - <título-do-work-item>
-\t➜ <descrição das ações realizadas>
-
-**🚧 (In Progress):**
-➜ #<id-work-item> - <título-do-work-item>
-\t➜ <descrição das ações realizadas>
-
----
-\`\`\`
-
-**Classificação de status:**
-- **Done**: Work items com estado "Done" ou "Closed" ou "Resolved"
-- **In Progress**: Todos os outros estados (New, Active, In Progress, etc.)
-
-**Regras importantes:**
-- Cada projeto deve ter NO MÁXIMO uma seção \`**✅ Done:**\` e NO MÁXIMO uma seção \`**🚧 (In Progress):**\`. Agrupe TODOS os itens do mesmo status sob a mesma seção — NUNCA repita o header de status
-- Use \`➜\` para bullets aninhados (não use \`-\` ou \`*\`)
-- Agrupe work items por projeto
-- Descreva as ações realizadas (mudança de estado, comentários, atribuição, etc.)
-- Se não houver itens Done, omitir a seção Done; idem para In Progress
-- Cards de teste (tipo "Test Case", "Test Suite", "Test Plan") NÃO devem aparecer como itens no texto final. Use-os apenas como contexto para entender o andamento da atividade principal
-- Inclua apenas o trabalho do usuário atual
-- O relatório deve ser conciso mas informativo
-- O campo \`content\` final deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres (incluindo espaços, quebras de linha e markdown)
-
-**summary:**
-- Uma frase curta em português resumindo o que foi feito no dia
-- Ex: "Atualizei status de cards no board e comentei em itens de bug"`
+    return this.interpolatePrompt(loadPromptTemplate('board-only-system.md'))
   }
 
   private buildHybridSystemPrompt(): string {
-    return `Você é um assistente especializado em gerar relatórios de standup diário para desenvolvedores.
+    return this.interpolatePrompt(loadPromptTemplate('hybrid-system.md'))
+  }
 
-Você receberá dados de duas fontes: commits git com informações enriquecidas E atividade no board do Azure DevOps.
-Sua tarefa é consolidar ambas as fontes e gerar um relatório de standup em português, formatado conforme as regras abaixo.
-
-## Regras de Formatação
-
-**Header:**
-- Formato: \`**Standup (DD/MM/YYYY)**\`
-- Se houver tipo de reunião (meetingType), adicionar na linha seguinte
-- Se meetingType estiver vazio, não incluir a linha
-
-**Body — por projeto/repositório:**
-\`\`\`
-**📌 <nome-do-repositório-ou-projeto>**
-
-**✅ Done:**
-➜ #<número-card> - <título-do-card>
-\t➜ **<Contexto Funcional>**
-\t\t➜ <o que foi feito, com detalhe técnico relevante>
-\t\t➜ <outro item do mesmo contexto>
-\t➜ **<Outro Contexto Funcional>**
-\t\t➜ <descrição>
-
-**🚧 (In Progress):**
-➜ #<número-card> - <título-do-card>
-\t➜ **<Contexto Funcional>**
-\t\t➜ <descrição>
-
----
-\`\`\`
-
-**Consolidação de duas fontes:**
-- Se um work item aparece tanto nos commits git quanto na atividade do board, consolide as informações num único item
-- Evite dados duplicados: prefira o título do Azure DevOps sobre títulos inferidos de commits
-- Commits sem card associado devem aparecer na mesma seção Done/In Progress com um título descritivo gerado a partir dos commits, sem prefixo \`#\` e sem mencionar que não possuem card
-- Work items do board que não têm commits correspondentes aparecem apenas com a descrição das ações
-
-## Agrupamento por Contexto Funcional
-
-A regra mais importante: agrupe os commits por **contexto funcional** — ou seja, pelo domínio/feature a que pertencem — e NÃO por tipo de commit (fix, feat, refactor).
-
-**Como identificar contextos funcionais:**
-- Analise os paths dos arquivos alterados, os subjects dos commits e os nomes das branches
-- Commits que tocam os mesmos diretórios, módulos ou funcionalidades pertencem ao mesmo contexto
-- Exemplos de bons títulos de contexto: "Sistema de Newsletter", "Página de Unsubscribe", "Formulário de Contato", "Configuração de Deploy"
-- Títulos devem ser curtos (2-5 palavras) e descritivos do domínio funcional
-
-**Regras de agrupamento:**
-- Se um card/work item tem commits que pertencem a 2+ contextos funcionais distintos, crie um sub-grupo \`**<Contexto>**\` para cada
-- Se um contexto tem apenas 1 commit, pode ficar como item direto sem sub-grupo
-- Dentro de cada contexto, descreva o que foi feito de forma coesa — não repita o subject do commit literalmente, sintetize o trabalho realizado
-- Um fix e um feat no mesmo contexto (ex: newsletter) ficam juntos, não separados
-
-**Regras importantes:**
-- Cada projeto/repositório deve ter NO MÁXIMO uma seção \`**✅ Done:**\` e NO MÁXIMO uma seção \`**🚧 (In Progress):**\`. Agrupe TODOS os itens do mesmo status sob a mesma seção — NUNCA repita o header de status
-- Use \`➜\` para bullets aninhados (não use \`-\` ou \`*\`)
-- Inclua caminhos de arquivo quando relevante
-- Liste migration files explicitamente quando presentes
-- Mencione novos componentes/serviços criados com seus caminhos
-- Se não houver itens Done, omitir a seção Done; idem para In Progress
-- Cards de teste (tipo "Test Case", "Test Suite", "Test Plan") NÃO devem aparecer como itens no texto final. Use-os apenas como contexto para entender o andamento da atividade principal
-- Inclua apenas o trabalho do usuário atual
-- O relatório deve ser conciso mas informativo — a audiência é mista (desenvolvedores e gestão/PO)
-- O campo \`content\` final deve ter no máximo ${MAX_STANDUP_CONTENT_CHARS} caracteres (incluindo espaços, quebras de linha e markdown)
-
-**summary:**
-- Uma frase curta em português resumindo o que foi feito no dia, focando nas entregas funcionais
-- Ex: "Implementei o sistema de newsletter com dispatch e recovery, redesenhei a página de unsubscribe e adicionei validação ao formulário de contato"`
+  private interpolatePrompt(template: string): string {
+    return template.replaceAll(
+      '{{MAX_STANDUP_CONTENT_CHARS}}',
+      String(MAX_STANDUP_CONTENT_CHARS),
+    )
   }
 
   buildUserMessage(
@@ -451,28 +279,7 @@ ${content}
   }
 
   buildWeeklyInsightsSystemPrompt(): string {
-    return `Você é um assistente técnico que analisa standups de desenvolvedores.
-Sua tarefa é gerar um resumo executivo semanal em Markdown (português).
-
-Diretrizes:
-- Seja objetivo e técnico — sem frases vazias ou elogios
-- Use bullet points (- item) para listas
-- Organize em seções com ## (nível 2 apenas)
-- Limite: 800 palavras no total
-- Idioma: português do Brasil
-
-Seções obrigatórias:
-## Destaques da Semana
-(principais entregas e conquistas técnicas)
-
-## Padrões Identificados
-(repetições, bloqueios, ou tendências nos commits)
-
-## Itens para Atenção
-(pendências, débitos técnicos, ou riscos observados)
-
-## Próximos Passos Sugeridos
-(baseado no que foi feito esta semana)`
+    return loadPromptTemplate('weekly-insights-system.md')
   }
 
   private determineWorkItemStatus(

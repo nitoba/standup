@@ -41,6 +41,7 @@ export class InvalidStateTransitionError extends TaggedError(
 export class ExternalServiceError extends TaggedError('ExternalServiceError')<{
   service: string
   message: string
+  publicMessage?: string
 }>() {}
 
 export class LlmTemporaryError extends TaggedError('LlmTemporaryError')<{

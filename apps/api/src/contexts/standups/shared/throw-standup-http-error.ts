@@ -27,7 +27,9 @@ export function throwStandupHttpError(error: StandupHttpError): never {
   }
 
   if (ExternalServiceError.is(error)) {
-    throw new ServiceUnavailableException('Service unavailable')
+    throw new ServiceUnavailableException(
+      error.publicMessage ?? 'Service unavailable',
+    )
   }
 
   throw new InternalServerErrorException('Internal server error')
