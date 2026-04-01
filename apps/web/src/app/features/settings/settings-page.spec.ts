@@ -112,9 +112,9 @@ describe('SettingsPage', () => {
     expect(el.textContent).not.toContain('// loading settings...')
     expect(el.querySelector('form')).toBeTruthy()
 
-    const standupCron = el.querySelector<HTMLInputElement>('#standup-cron')
-    const reminderCron = el.querySelector<HTMLInputElement>('#reminder-cron')
-    const recoveryCron = el.querySelector<HTMLInputElement>('#recovery-cron')
+    const standupCron = el.querySelector<HTMLInputElement>('#standupCron')
+    const reminderCron = el.querySelector<HTMLInputElement>('#reminderCron')
+    const recoveryCron = el.querySelector<HTMLInputElement>('#recoveryCron')
     const timezone = el.querySelector<HTMLElement>('#timezone')
     const gitAuthor = el.querySelector<HTMLInputElement>('#git-author')
     const gitSincePeriod =
@@ -135,7 +135,11 @@ describe('SettingsPage', () => {
     const fixture = await renderAndLoad()
     const el = fixture.nativeElement as HTMLElement
 
-    fixture.componentInstance.onCronPopoverVisibilityChange('standupCron', true)
+    fixture.componentInstance.onCronPopoverVisibilityChange({
+      standupCron: true,
+      reminderCron: false,
+      recoveryCron: false,
+    })
     fixture.detectChanges()
     await appRef.whenStable()
 
@@ -157,7 +161,7 @@ describe('SettingsPage', () => {
     expect(fixture.componentInstance.settingsModel().standupCron).toBe(
       '30 18 * * 1-5',
     )
-    expect(el.querySelector<HTMLInputElement>('#standup-cron')?.value).toBe(
+    expect(el.querySelector<HTMLInputElement>('#standupCron')?.value).toBe(
       '30 18 * * 1-5',
     )
   })
