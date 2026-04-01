@@ -1,12 +1,5 @@
 import type { ServerResponse } from 'node:http'
-import {
-  Controller,
-  Get,
-  type MessageEvent,
-  Req,
-  Res,
-  UnauthorizedException,
-} from '@nestjs/common'
+import { Controller, Get, type MessageEvent, Req, Res } from '@nestjs/common'
 import {
   ApiOkResponse,
   ApiOperation,
@@ -14,13 +7,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger'
 import { Session } from '@thallesp/nestjs-better-auth'
+import type { AuthSession } from '../../../shared/auth/auth-session'
+import { requireSessionUserId } from '../../../shared/auth/require-session-user-id'
 import { StandupSseBusService } from './standup-sse-bus.service'
-
-type AuthSession = {
-  user: {
-    id: string
-  }
-}
 
 type ExpressLikeRequest = {
   res?: unknown
@@ -79,10 +68,7 @@ export class StandupEventsController {
     @Req() req: ExpressLikeRequest,
     @Res() res: unknown,
   ): void {
-    const userId = session?.user.id
-    if (!userId) {
-      throw new UnauthorizedException()
-    }
+    const userId = requireSessionUserId(session)
 
     // Express path (used in tests): req.res or res itself is the ServerResponse
     const nodeRes = isServerResponse(res)
