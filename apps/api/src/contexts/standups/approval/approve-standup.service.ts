@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { StandupRepository } from '../../../platform/database/repositories/standup.repository'
+import { StandupReadRepository } from '../../../platform/database/repositories/standup-read.repository'
+import { StandupWriteRepository } from '../../../platform/database/repositories/standup-write.repository'
 import { EventBusService } from '../../../platform/events/event-bus.service'
 import type { StandupStatusChangedEvent } from '../../../platform/events/standup-events'
 import { LocalDateService } from '../../../platform/time/local-date.service'
@@ -22,7 +23,8 @@ type ApproveStandupError = NotFoundError | DbError | InvalidStateTransitionError
 @Injectable()
 export class ApproveStandupService {
   constructor(
-    private readonly standupRepository: StandupRepository,
+    private readonly standupRead: StandupReadRepository,
+    private readonly standupWrite: StandupWriteRepository,
     private readonly localDateService: LocalDateService,
     private readonly eventBus: EventBusService,
     private readonly userTimezone: UserTimezoneService,
@@ -63,10 +65,7 @@ export class ApproveStandupService {
     let mergedContent: string | null = null
 
     if (customEntries && hasCustomEntries(customEntries)) {
-      const found = await this.standupRepository.findByIdForUser(
-        standupId,
-        userId,
-      )
+      const found = await this.standupRead.findByIdForUser(standupId, userId)
       if (found.isErr()) {
         return found
       }
@@ -78,7 +77,7 @@ export class ApproveStandupService {
     }
 
     // Single atomic write: customEntries + content + status in one transaction (TAS-57)
-    const approvedResult = await this.standupRepository.approveForUser(
+    const approvedResult = await this.standupWrite.approveForUser(
       standupId,
       userId,
       mergedContent,

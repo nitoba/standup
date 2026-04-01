@@ -3,7 +3,7 @@ import {
   ConflictException,
   Injectable,
 } from '@nestjs/common'
-import { StandupRepository } from '../../../platform/database/repositories/standup.repository'
+import { StandupReadRepository } from '../../../platform/database/repositories/standup-read.repository'
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../platform/database/repositories/user-settings.repository'
 import { LocalDateService } from '../../../platform/time/local-date.service'
@@ -22,7 +22,7 @@ export class TriggerStandupService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly userSettingsRepository: UserSettingsRepository,
-    private readonly standupRepository: StandupRepository,
+    private readonly standupRepository: StandupReadRepository,
     private readonly standupDispatch: StandupDispatchService,
     private readonly localDateService: LocalDateService,
   ) {}

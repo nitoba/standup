@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { Span } from 'nestjs-otel'
 import { EmailClientService } from '../../../../interfaces/email/services/email-client.service'
 import { WeeklyDigestEmailService } from '../../../../interfaces/email/services/weekly-digest-email.service'
-import { StandupRepository } from '../../../../platform/database/repositories/standup.repository'
+import { StandupReadRepository } from '../../../../platform/database/repositories/standup-read.repository'
 import { UserRepository } from '../../../../platform/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../../platform/database/repositories/user-settings.repository'
 import { WeeklyDigestRepository } from '../../../../platform/database/repositories/weekly-digest.repository'
@@ -25,7 +25,7 @@ export class RunWeeklyDigestJobService {
     private readonly emailClient: EmailClientService,
     private readonly weeklyDigestEmail: WeeklyDigestEmailService,
     private readonly digestRepository: WeeklyDigestRepository,
-    private readonly standupRepository: StandupRepository,
+    private readonly standupRepository: StandupReadRepository,
     private readonly userRepository: UserRepository,
     private readonly userSettingsRepository: UserSettingsRepository,
     private readonly standupGenerator: StandupGeneratorService,

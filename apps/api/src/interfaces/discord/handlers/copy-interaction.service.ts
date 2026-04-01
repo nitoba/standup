@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { type ButtonInteraction, MessageFlags } from 'discord.js'
-import { StandupRepository } from '../../../platform/database/repositories/standup.repository'
+import { StandupReadRepository } from '../../../platform/database/repositories/standup-read.repository'
 import { AppLoggerFactory } from '../../../platform/logger'
 import { NotFoundError } from '../../../shared/domain'
 
@@ -34,7 +34,7 @@ export class CopyInteractionService {
   private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
-    private readonly standupRepository: StandupRepository,
+    private readonly standupRepository: StandupReadRepository,
   ) {
     this.logger = this.loggerFactory.create('discord-copy-interaction')
   }

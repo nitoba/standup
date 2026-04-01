@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { StandupRepository } from '../../../../platform/database/repositories/standup.repository'
+import { StandupWriteRepository } from '../../../../platform/database/repositories/standup-write.repository'
 import type {
   StandupProgressStep,
   StandupRunMode,
@@ -25,7 +25,7 @@ export class StandupPipelineService {
   private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
-    private readonly standupRepository: StandupRepository,
+    private readonly standupRepository: StandupWriteRepository,
     private readonly notifications: WorkerEventPublisherService,
     private readonly generateStrategy: ExecuteGenerateStrategy,
     private readonly regenerateStrategy: ExecuteRegenerateStrategy,

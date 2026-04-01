@@ -7,7 +7,7 @@ import {
   type Client,
   MessageFlags,
 } from 'discord.js'
-import { StandupRepository } from '../../../platform/database/repositories/standup.repository'
+import { StandupReadRepository } from '../../../platform/database/repositories/standup-read.repository'
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import {
   isIsoDate,
@@ -93,7 +93,7 @@ export class SlashCommandHandlerService {
   constructor(
     private readonly auth: DiscordAuthService,
     private readonly userRepository: UserRepository,
-    private readonly standupRepository: StandupRepository,
+    private readonly standupRepository: StandupReadRepository,
     private readonly health: DiscordServiceHealthService,
     private readonly settings: SettingsInteractionService,
     private readonly standupInteraction: StandupInteractionService,

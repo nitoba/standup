@@ -32,6 +32,7 @@ describe('ApproveStandupService', () => {
     }
     const service = new ApproveStandupService(
       standupRepository as never,
+      standupRepository as never,
       {
         formatIsoForTimezone: vi.fn().mockReturnValue('13/03/2026'),
       } as never,
@@ -82,6 +83,7 @@ describe('ApproveStandupService', () => {
     }
     const service = new ApproveStandupService(
       standupRepository as never,
+      standupRepository as never,
       {
         formatIsoForTimezone: vi.fn().mockReturnValue('13/03/2026'),
       } as never,
@@ -126,6 +128,7 @@ describe('ApproveStandupService', () => {
     }
     const service = new ApproveStandupService(
       standupRepository as never,
+      standupRepository as never,
       {
         formatIsoForTimezone: vi.fn().mockReturnValue('13/03/2026'),
       } as never,
@@ -152,24 +155,26 @@ describe('ApproveStandupService', () => {
   })
 
   it('maps repository errors to HTTP exceptions', async () => {
-    const service = new ApproveStandupService(
-      {
-        findByIdForUser: vi
-          .fn()
-          .mockResolvedValueOnce(
-            Result.err(
-              new NotFoundError({ resource: 'standup', id: 'standup-1' }),
-            ),
-          ),
-        approveForUser: vi.fn().mockResolvedValue(
+    const repo = {
+      findByIdForUser: vi
+        .fn()
+        .mockResolvedValueOnce(
           Result.err(
-            new InvalidStateTransitionError({
-              from: 'draft',
-              to: 'approved',
-            }),
+            new NotFoundError({ resource: 'standup', id: 'standup-1' }),
           ),
         ),
-      } as never,
+      approveForUser: vi.fn().mockResolvedValue(
+        Result.err(
+          new InvalidStateTransitionError({
+            from: 'draft',
+            to: 'approved',
+          }),
+        ),
+      ),
+    }
+    const service = new ApproveStandupService(
+      repo as never,
+      repo as never,
       {
         formatIsoForTimezone: vi.fn().mockReturnValue('13/03/2026'),
       } as never,

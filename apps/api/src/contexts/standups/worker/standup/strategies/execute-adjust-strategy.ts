@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { StandupRepository } from '../../../../../platform/database/repositories/standup.repository'
+import { StandupReadRepository } from '../../../../../platform/database/repositories/standup-read.repository'
 import { Result, ValidationError } from '../../../../../shared/domain'
 import { StandupGeneratorService } from '../../standup-generator/standup-generator.service'
 import type {
@@ -12,7 +12,7 @@ import { StandupStrategyBase } from './standup-strategy.base'
 @Injectable()
 export class ExecuteAdjustStrategy extends StandupStrategyBase {
   constructor(
-    private readonly standupRepository: StandupRepository,
+    private readonly standupRepository: StandupReadRepository,
     private readonly standupGenerator: StandupGeneratorService,
   ) {
     super()

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
-import { StandupRepository } from '../../../platform/database/repositories/standup.repository'
+import { StandupReadRepository } from '../../../platform/database/repositories/standup-read.repository'
+import { StandupWriteRepository } from '../../../platform/database/repositories/standup-write.repository'
 import { EventBusService } from '../../../platform/events/event-bus.service'
 import {
   STANDUP_READY_EVENT,
@@ -25,7 +26,8 @@ export class StandupNotificationService {
   private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
-    private readonly standupRepository: StandupRepository,
+    private readonly standupRead: StandupReadRepository,
+    private readonly standupWrite: StandupWriteRepository,
     private readonly messages: DiscordMessagesService,
     private readonly eventBus: EventBusService,
   ) {
@@ -51,7 +53,7 @@ export class StandupNotificationService {
     standupId: string,
     discordUserId: string,
   ): Promise<Result<StandupReadyResult, NotFoundError | DbError>> {
-    const found = await this.standupRepository.findById(standupId)
+    const found = await this.standupRead.findById(standupId)
     if (found.isErr()) {
       return found
     }
@@ -67,7 +69,7 @@ export class StandupNotificationService {
       return Result.ok({ standupId, dmSent: false, transitioned: false })
     }
 
-    const saveMessageIdResult = await this.standupRepository.updateDmMessageId(
+    const saveMessageIdResult = await this.standupWrite.updateDmMessageId(
       standupId,
       dmResult.value.messageId,
     )
@@ -78,7 +80,7 @@ export class StandupNotificationService {
       })
     }
 
-    const transitionResult = await this.standupRepository.updateStatus(
+    const transitionResult = await this.standupWrite.updateStatus(
       standupId,
       'pending_review',
     )

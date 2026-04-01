@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
 import { PublishStandupService } from '../../../contexts/standups/publication/publish-standup.service'
-import { StandupRepository } from '../../../platform/database/repositories/standup.repository'
+import { StandupReadRepository } from '../../../platform/database/repositories/standup-read.repository'
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import { EnvService } from '../../../platform/env/env.service'
 import {
@@ -30,7 +30,7 @@ export class StandupStatusSyncService {
   private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
-    private readonly standupRepository: StandupRepository,
+    private readonly standupRepository: StandupReadRepository,
     private readonly userRepository: UserRepository,
     private readonly messages: DiscordMessagesService,
     private readonly env: EnvService,
