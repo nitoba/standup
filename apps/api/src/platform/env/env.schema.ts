@@ -55,4 +55,5 @@ export const environmentVariablesSchema = z.object({
   DISCORD_AUTOMATION_CHANNEL_URL: z.string().url().optional(),
   DISCORD_AUTOMATION_WEBHOOK_SECRET: z.string().optional(),
   DISCORD_SEND_TIMEOUT_MS: z.coerce.number().default(60000),
+  USE_PI_AGENT: booleanFromEnv.default(false),
 })

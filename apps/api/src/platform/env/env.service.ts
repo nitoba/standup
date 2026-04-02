@@ -57,6 +57,7 @@ export class EnvService {
         ?.split(',')
         .map((value) => value.trim())
         .filter(Boolean) ?? [this.get('AZURE_DEVOPS_DEFAULT_PROJECT')],
+      usePiAgent: this.get('USE_PI_AGENT'),
     }
   }
 

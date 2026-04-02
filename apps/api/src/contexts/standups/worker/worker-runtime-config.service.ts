@@ -14,6 +14,7 @@ export interface WorkerRuntimeConfig {
   AZURE_DEVOPS_PAT: string
   AZURE_DEVOPS_DEFAULT_PROJECT: string
   AZURE_DEVOPS_PROJECTS: string[]
+  USE_PI_AGENT: boolean
 }
 
 @Injectable()
@@ -34,6 +35,7 @@ export class WorkerRuntimeConfigService {
       AZURE_DEVOPS_PAT: this.env.worker.azureDevopsPat ?? '',
       AZURE_DEVOPS_DEFAULT_PROJECT: this.env.worker.azureDevopsDefaultProject,
       AZURE_DEVOPS_PROJECTS: this.env.worker.azureDevopsProjects,
+      USE_PI_AGENT: this.env.worker.usePiAgent,
     }
   }
 }
