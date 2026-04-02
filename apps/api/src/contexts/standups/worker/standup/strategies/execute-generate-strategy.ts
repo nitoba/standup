@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { Span } from 'nestjs-otel'
+import { StandupReadRepository } from '../../../../../platform/database/repositories/standup-read.repository'
 import { AppLoggerFactory } from '../../../../../platform/logger'
 import { AppTracingService } from '../../../../../platform/observability/app-tracing.service'
-import { StandupReadRepository } from '../../../../../platform/database/repositories/standup-read.repository'
 import { LocalDateService } from '../../../../../platform/time/local-date.service'
 import type {
   GatheredBoardActivity,
@@ -60,8 +60,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
     ).toISOString()
 
     // Use the more recent of midnight and last approved standup
-    const sinceDate =
-      lastCreatedAt > midnightUtc ? lastCreatedAt : midnightUtc
+    const sinceDate = lastCreatedAt > midnightUtc ? lastCreatedAt : midnightUtc
 
     this.logger.debug('Computed smart sinceDate', {
       userId,

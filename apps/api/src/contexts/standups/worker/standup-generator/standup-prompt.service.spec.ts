@@ -310,8 +310,14 @@ describe('StandupPromptService', () => {
 
     it('all system prompts contain anti-hallucination rule', () => {
       const service = createService()
-      const gitOnly = service.buildSystemPrompt({ hasGit: true, hasBoard: false })
-      const boardOnly = service.buildSystemPrompt({ hasGit: false, hasBoard: true })
+      const gitOnly = service.buildSystemPrompt({
+        hasGit: true,
+        hasBoard: false,
+      })
+      const boardOnly = service.buildSystemPrompt({
+        hasGit: false,
+        hasBoard: true,
+      })
       const hybrid = service.buildSystemPrompt({ hasGit: true, hasBoard: true })
 
       for (const prompt of [gitOnly, boardOnly, hybrid]) {
@@ -322,8 +328,14 @@ describe('StandupPromptService', () => {
 
     it('all system prompts list Test QA as a done state', () => {
       const service = createService()
-      const gitOnly = service.buildSystemPrompt({ hasGit: true, hasBoard: false })
-      const boardOnly = service.buildSystemPrompt({ hasGit: false, hasBoard: true })
+      const gitOnly = service.buildSystemPrompt({
+        hasGit: true,
+        hasBoard: false,
+      })
+      const boardOnly = service.buildSystemPrompt({
+        hasGit: false,
+        hasBoard: true,
+      })
       const hybrid = service.buildSystemPrompt({ hasGit: true, hasBoard: true })
 
       for (const prompt of [gitOnly, boardOnly, hybrid]) {
@@ -336,7 +348,13 @@ describe('StandupPromptService', () => {
 describe('determineWorkItemStatus (via buildUserMessage)', () => {
   function buildInputWithEnrichedItem(
     state: string,
-    pullRequests: { id: number; title: string; status: 'active' | 'completed' | 'abandoned'; repoId: string; creatorId: string }[] = [],
+    pullRequests: {
+      id: number
+      title: string
+      status: 'active' | 'completed' | 'abandoned'
+      repoId: string
+      creatorId: string
+    }[] = [],
   ) {
     const enrichedActivity: EnrichedGitActivity = {
       timestamp: '2026-03-16T17:00:00.000Z',
@@ -409,9 +427,18 @@ describe('determineWorkItemStatus (via buildUserMessage)', () => {
 
   it('maps "In Progress" with all completed/active PRs to Done', () => {
     const service = createService()
-    const { input, enrichedActivity } = buildInputWithEnrichedItem('In Progress', [
-      { id: 1, title: 'PR 1', status: 'completed', repoId: 'r1', creatorId: 'u1' },
-    ])
+    const { input, enrichedActivity } = buildInputWithEnrichedItem(
+      'In Progress',
+      [
+        {
+          id: 1,
+          title: 'PR 1',
+          status: 'completed',
+          repoId: 'r1',
+          creatorId: 'u1',
+        },
+      ],
+    )
     const message = service.buildUserMessage(input, enrichedActivity)
     expect(message).toContain('Status calculado: Done ✅')
   })
