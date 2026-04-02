@@ -7,6 +7,7 @@ import type {
 import { AppLoggerFactory } from '../../../../platform/logger'
 import { DbError, NotFoundError, Result } from '../../../../shared/domain'
 import { WorkerEventPublisherService } from '../worker-event-publisher.service'
+import { AgentSessionManager } from '../standup-agent/agent-session-manager'
 import { ExecuteAdjustStrategy } from './strategies/execute-adjust-strategy'
 import { ExecuteGenerateStrategy } from './strategies/execute-generate-strategy'
 import { ExecuteRegenerateStrategy } from './strategies/execute-regenerate-strategy'
@@ -30,6 +31,7 @@ export class StandupPipelineService {
     private readonly generateStrategy: ExecuteGenerateStrategy,
     private readonly regenerateStrategy: ExecuteRegenerateStrategy,
     private readonly adjustStrategy: ExecuteAdjustStrategy,
+    private readonly sessionManager: AgentSessionManager,
   ) {
     this.logger = this.loggerFactory.create('standup-pipeline')
   }
@@ -114,6 +116,12 @@ export class StandupPipelineService {
 
     const standupId = saveResult.value.id
     this.logger.info('Standup draft saved', { standupId })
+
+    // Create agent session if agent instance was returned by strategy
+    if (generated.agent) {
+      this.sessionManager.create(standupId, generated.agent)
+      this.logger.info('Agent session created', { standupId })
+    }
 
     await this.emitProgress({
       userId: options.userId,
