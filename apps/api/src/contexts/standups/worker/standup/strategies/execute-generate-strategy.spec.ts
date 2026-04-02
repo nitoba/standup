@@ -86,6 +86,10 @@ function makeRuntimeConfig(usePiAgent: boolean) {
   }
 }
 
+function makeSessionManager() {
+  return { create: vi.fn(), get: vi.fn(), destroy: vi.fn(), has: vi.fn() }
+}
+
 function makeDefaultOptions() {
   return {
     userId: 'user-1',
@@ -106,10 +110,10 @@ describe('ExecuteGenerateStrategy', () => {
   let standupReadRepo: ReturnType<typeof makeStandupReadRepo>
   let localDateService: ReturnType<typeof makeLocalDateService>
 
-  function buildStrategy(usePiAgent: boolean) {
+  function buildStrategy(usePiAgent: boolean, sessionManager = makeSessionManager()) {
     const runtimeConfig = makeRuntimeConfig(usePiAgent)
     // biome-ignore lint/suspicious/noExplicitAny: test mock wiring
-    return new (ExecuteGenerateStrategy as any)(
+    const strategy = new (ExecuteGenerateStrategy as any)(
       loggerFactory,
       gitCollector,
       boardCollector,
@@ -119,7 +123,9 @@ describe('ExecuteGenerateStrategy', () => {
       localDateService,
       standupAgent,
       runtimeConfig,
+      sessionManager,
     ) as ExecuteGenerateStrategy
+    return { strategy, sessionManager }
   }
 
   beforeEach(() => {
@@ -135,7 +141,7 @@ describe('ExecuteGenerateStrategy', () => {
   })
 
   it('uses legacy generator when USE_PI_AGENT is false', async () => {
-    const strategy = buildStrategy(false)
+    const { strategy } = buildStrategy(false)
 
     const result = await strategy.execute({
       options: makeDefaultOptions(),
@@ -152,7 +158,7 @@ describe('ExecuteGenerateStrategy', () => {
   })
 
   it('uses PI Agent when USE_PI_AGENT is true', async () => {
-    const strategy = buildStrategy(true)
+    const { strategy } = buildStrategy(true)
 
     const result = await strategy.execute({
       options: makeDefaultOptions(),
@@ -169,7 +175,7 @@ describe('ExecuteGenerateStrategy', () => {
   })
 
   it('passes correct tracing span name for agent mode', async () => {
-    const strategy = buildStrategy(true)
+    const { strategy } = buildStrategy(true)
 
     await strategy.execute({
       options: makeDefaultOptions(),
@@ -187,7 +193,7 @@ describe('ExecuteGenerateStrategy', () => {
   })
 
   it('passes correct tracing span name for legacy mode', async () => {
-    const strategy = buildStrategy(false)
+    const { strategy } = buildStrategy(false)
 
     await strategy.execute({
       options: makeDefaultOptions(),
@@ -201,5 +207,41 @@ describe('ExecuteGenerateStrategy', () => {
     expect(generationSpanCall![1]).toEqual(
       expect.objectContaining({ 'standup.mode': 'generate' }),
     )
+  })
+
+  it('destroys old session on regenerate when USE_PI_AGENT is true', async () => {
+    const sm = makeSessionManager()
+    const { strategy } = buildStrategy(true, sm)
+
+    await strategy.execute({
+      options: { ...makeDefaultOptions(), replaceStandupId: 'old-standup' } as never,
+      today: '2026-04-02',
+    })
+
+    expect(sm.destroy).toHaveBeenCalledWith('old-standup')
+  })
+
+  it('does not destroy session when replaceStandupId is absent', async () => {
+    const sm = makeSessionManager()
+    const { strategy } = buildStrategy(true, sm)
+
+    await strategy.execute({
+      options: makeDefaultOptions() as never,
+      today: '2026-04-02',
+    })
+
+    expect(sm.destroy).not.toHaveBeenCalled()
+  })
+
+  it('does not destroy session when USE_PI_AGENT is false', async () => {
+    const sm = makeSessionManager()
+    const { strategy } = buildStrategy(false, sm)
+
+    await strategy.execute({
+      options: { ...makeDefaultOptions(), replaceStandupId: 'old-standup' } as never,
+      today: '2026-04-02',
+    })
+
+    expect(sm.destroy).not.toHaveBeenCalled()
   })
 })

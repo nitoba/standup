@@ -4,6 +4,7 @@ import { StandupReadRepository } from '../../../../../platform/database/reposito
 import { AppLoggerFactory } from '../../../../../platform/logger'
 import { AppTracingService } from '../../../../../platform/observability/app-tracing.service'
 import { LocalDateService } from '../../../../../platform/time/local-date.service'
+import type { Agent } from '@mariozechner/pi-agent-core'
 import type {
   GatheredBoardActivity,
   GatheredGitActivity,
@@ -13,6 +14,7 @@ import { AzureDevopsActivityCollectorService } from '../../azure-devops/azure-de
 import { GitCollectorService } from '../../git-collector/git-collector.service'
 import { StandupAgentService } from '../../standup-agent/standup-agent.service'
 import { StandupGeneratorService } from '../../standup-generator/standup-generator.service'
+import { AgentSessionManager } from '../../standup-agent/agent-session-manager'
 import { WorkerRuntimeConfigService } from '../../worker-runtime-config.service'
 import type {
   GeneratedContent,
@@ -34,6 +36,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
     private readonly localDateService: LocalDateService,
     private readonly standupAgent: StandupAgentService,
     private readonly runtimeConfig: WorkerRuntimeConfigService,
+    private readonly sessionManager: AgentSessionManager,
   ) {
     super()
     this.logger = this.loggerFactory.create('generate-strategy')
@@ -181,6 +184,12 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
     const meetingType = this.standupGenerator.determineMeetingType(today)
 
     const usePiAgent = this.runtimeConfig.config.USE_PI_AGENT
+
+    // Destroy old agent session on regenerate
+    if (usePiAgent && options.replaceStandupId) {
+      this.sessionManager.destroy(options.replaceStandupId)
+    }
+
     const generated = usePiAgent
       ? await this.tracing.withSpan(
           'standup.agent.generate',
@@ -246,6 +255,10 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
       content: generated.value.content,
       meetingType,
       sourceData: JSON.stringify({ git: gitActivity, board: boardActivity }),
+      // Pass agent for session creation in pipeline (only present when usePiAgent=true)
+      ...('agent' in generated.value
+        ? { agent: generated.value.agent as Agent }
+        : {}),
     })
   }
 }
