@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { ApproveStandupService } from '../../../contexts/standups/approval/approve-standup.service'
 import { PublishStandupService } from '../../../contexts/standups/publication/publish-standup.service'
 import { StandupStatusService } from '../../../contexts/standups/status/standup-status.service'
+import { AgentSessionManager } from '../../../contexts/standups/worker/standup-agent/agent-session-manager'
 import { StandupReadRepository } from '../../../platform/database/repositories/standup-read.repository'
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import { EnvService } from '../../../platform/env/env.service'
@@ -45,6 +46,7 @@ export class StandupInteractionService {
     private readonly approveStandup: ApproveStandupService,
     private readonly publishStandup: PublishStandupService,
     private readonly standupStatus: StandupStatusService,
+    private readonly sessionManager: AgentSessionManager,
   ) {
     this.logger = this.loggerFactory.create('discord-standup-interaction')
   }
@@ -106,6 +108,8 @@ export class StandupInteractionService {
     if (approveResult.isErr()) {
       return approveResult
     }
+
+    this.sessionManager.destroy(standupId)
 
     if (!this.env.discord.channelId) {
       return Result.ok({
@@ -185,6 +189,8 @@ export class StandupInteractionService {
     if (result.isErr()) {
       return result
     }
+
+    this.sessionManager.destroy(standupId)
 
     return Result.ok({
       action: 'reject',
