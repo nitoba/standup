@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Query,
 } from '@nestjs/common'
+import { SkipThrottle } from '@nestjs/throttler'
 import {
   ApiOkResponse,
   ApiOperation,
@@ -45,6 +46,7 @@ const STANDUP_SORT_DIR_QUERY = {
 } as const
 
 @ApiTags('standups')
+@SkipThrottle({ strict: true, auth: true })
 @Controller('standups')
 export class StandupsQueryController {
   constructor(private readonly standupsQuery: StandupsQueryService) {}
