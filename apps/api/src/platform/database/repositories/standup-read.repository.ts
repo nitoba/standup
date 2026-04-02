@@ -239,4 +239,29 @@ export class StandupReadRepository {
       return dbErr(this.logger, 'findApprovedByUserAndDateRange', error)
     }
   }
+
+  async findLastApprovedByUser(
+    userId: string,
+  ): Promise<Result<StandupRecord | null, DbError>> {
+    try {
+      const row = await this.database.db
+        .select()
+        .from(standups)
+        .where(
+          and(
+            eq(standups.userId, userId),
+            or(
+              eq(standups.status, 'approved'),
+              eq(standups.status, 'published'),
+            ),
+          ),
+        )
+        .orderBy(desc(standups.createdAt))
+        .limit(1)
+        .get()
+      return Result.ok(row ? toRecord(row) : null)
+    } catch (error) {
+      return dbErr(this.logger, 'findLastApprovedByUser', error)
+    }
+  }
 }

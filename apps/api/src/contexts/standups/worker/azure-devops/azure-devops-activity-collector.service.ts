@@ -261,6 +261,11 @@ export class AzureDevopsActivityCollectorService {
   }
 
   private resolveSinceDate(sincePeriod: string): string {
+    // If it's already an ISO date, return as-is
+    if (/^\d{4}-\d{2}-\d{2}/.test(sincePeriod)) {
+      return sincePeriod
+    }
+
     const match = sincePeriod.match(/^(\d+)\s*hours?\s*ago$/i)
     const hours = match ? Number(match[1]) : 8
 
