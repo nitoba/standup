@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { Span } from 'nestjs-otel'
+import { StandupReadRepository } from '../../../../../platform/database/repositories/standup-read.repository'
 import { AppLoggerFactory } from '../../../../../platform/logger'
 import { AppTracingService } from '../../../../../platform/observability/app-tracing.service'
+import { LocalDateService } from '../../../../../platform/time/local-date.service'
 import type {
   GatheredBoardActivity,
   GatheredGitActivity,
@@ -26,14 +28,58 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
     private readonly boardCollector: AzureDevopsActivityCollectorService,
     private readonly standupGenerator: StandupGeneratorService,
     private readonly tracing: AppTracingService,
+    private readonly standupReadRepo: StandupReadRepository,
+    private readonly localDateService: LocalDateService,
   ) {
     super()
     this.logger = this.loggerFactory.create('generate-strategy')
   }
 
+  private async computeSinceDate(
+    userId: string,
+    timezone: string,
+  ): Promise<string> {
+    // Calculate midnight in user's timezone
+    const todayIso = this.localDateService.today(timezone).iso
+    const midnightUtc = new Date(`${todayIso}T00:00:00`).toISOString()
+
+    // Find last approved/published standup
+    const lastApprovedResult =
+      await this.standupReadRepo.findLastApprovedByUser(userId)
+
+    if (lastApprovedResult.isErr() || !lastApprovedResult.value) {
+      this.logger.debug('No previous approved standup found, using midnight', {
+        userId,
+        midnight: midnightUtc,
+      })
+      return midnightUtc
+    }
+
+    const lastCreatedAt = new Date(
+      lastApprovedResult.value.createdAt,
+    ).toISOString()
+
+    // Use the more recent of midnight and last approved standup
+    const sinceDate = lastCreatedAt > midnightUtc ? lastCreatedAt : midnightUtc
+
+    this.logger.debug('Computed smart sinceDate', {
+      userId,
+      midnight: midnightUtc,
+      lastApproved: lastCreatedAt,
+      sinceDate,
+    })
+
+    return sinceDate
+  }
+
   @Span('worker.standup.generate.execute')
   async execute(input: StrategyExecutionInput): Promise<StrategyResult> {
     const { options, today, reportProgress } = input
+
+    const sinceDate = await this.computeSinceDate(
+      options.userId,
+      options.timezone,
+    )
 
     const hasGitSource =
       options.selectedRepos.length > 0 && options.gitAuthor.trim().length > 0
@@ -60,7 +106,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
           this.gitCollector.collect(
             options.selectedRepos,
             options.gitAuthor,
-            options.gitSincePeriod ?? '8 hours ago',
+            sinceDate,
           ),
       )
 
@@ -97,7 +143,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
             this.boardCollector.collect(
               // biome-ignore lint/style/noNonNullAssertion: checked via hasBoardSource
               options.azureDevopsUser!,
-              options.gitSincePeriod ?? '8 hours ago',
+              sinceDate,
             ),
         )
       } catch (error) {

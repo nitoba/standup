@@ -323,4 +323,102 @@ describe('AzureDevopsActivityCollectorService', () => {
     // No work items have actions by John Doe, so result is null
     expect(result).toBeNull()
   })
+
+  it('deduplicates work items with same id across projects using AreaPath as project', async () => {
+    const queryWorkItems = vi.fn().mockResolvedValue(Result.ok([101]))
+    const getWorkItemsBatch = vi.fn().mockResolvedValue(
+      Result.ok([
+        {
+          id: 101,
+          fields: {
+            'System.Title': 'Shared task',
+            'System.WorkItemType': 'Enhancement',
+            'System.State': 'Done',
+            'System.AssignedTo': 'John Doe',
+            'System.AreaPath': 'AGROTRACE\\Devops',
+          },
+        } satisfies WorkItemResponse,
+      ]),
+    )
+    const getWorkItemUpdates = vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok([
+          stateChangeUpdate(
+            1,
+            '2024-06-15T14:00:00Z',
+            'John Doe',
+            'New',
+            'Done',
+          ),
+        ]),
+      )
+
+    const { service } = createService(
+      { queryWorkItems, getWorkItemsBatch, getWorkItemUpdates },
+      ['AGROTRACE', 'CHECKMILK', 'JASPER-RELATORIOS'],
+    )
+
+    const result = await service.collect('John Doe', '8 hours ago')
+
+    expect(result).not.toBeNull()
+    if (result === null) throw new Error('Expected non-null result')
+    // Same work item 101 exists in 3 projects but should appear only once
+    expect(result.workItems).toHaveLength(1)
+    const item =
+      result.workItems[0] ??
+      (() => {
+        throw new Error('Expected item')
+      })()
+    expect(item.id).toBe(101)
+    expect(item.project).toBe('AGROTRACE')
+  })
+
+  it('falls back to first project when AreaPath is not available', async () => {
+    const queryWorkItems = vi.fn().mockResolvedValue(Result.ok([202]))
+    const getWorkItemsBatch = vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok([
+          workItemResponse(
+            202,
+            'Task without AreaPath',
+            'Task',
+            'Active',
+            'John Doe',
+          ),
+        ]),
+      )
+    const getWorkItemUpdates = vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok([
+          stateChangeUpdate(
+            1,
+            '2024-06-15T14:00:00Z',
+            'John Doe',
+            'New',
+            'Active',
+          ),
+        ]),
+      )
+
+    const { service } = createService(
+      { queryWorkItems, getWorkItemsBatch, getWorkItemUpdates },
+      ['ProjectA', 'ProjectB'],
+    )
+
+    const result = await service.collect('John Doe', '8 hours ago')
+
+    expect(result).not.toBeNull()
+    if (result === null) throw new Error('Expected non-null result')
+    expect(result.workItems).toHaveLength(1)
+    const item =
+      result.workItems[0] ??
+      (() => {
+        throw new Error('Expected item')
+      })()
+    expect(item.id).toBe(202)
+    expect(item.project).toBe('ProjectA')
+  })
 })

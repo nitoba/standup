@@ -17,6 +17,7 @@ const WORK_ITEM_FIELDS = [
   'System.WorkItemType',
   'System.State',
   'System.AssignedTo',
+  'System.AreaPath',
 ]
 
 const NOISE_FIELDS = new Set([
@@ -62,10 +63,40 @@ export class AzureDevopsActivityCollectorService {
       return null
     }
 
+    const deduplicated = this.deduplicateWorkItems(allWorkItems)
+
     return {
       timestamp: new Date().toISOString(),
-      workItems: allWorkItems,
+      workItems: deduplicated,
     }
+  }
+
+  private deduplicateWorkItems(
+    items: BoardWorkItemActivity[],
+  ): BoardWorkItemActivity[] {
+    const seen = new Map<number, BoardWorkItemActivity>()
+
+    for (const item of items) {
+      const existing = seen.get(item.id)
+      if (!existing) {
+        seen.set(item.id, item)
+        continue
+      }
+
+      // Merge actions that don't already exist
+      const existingKeys = new Set(
+        existing.actions.map((a) => `${a.timestamp}|${a.details}`),
+      )
+      for (const action of item.actions) {
+        const key = `${action.timestamp}|${action.details}`
+        if (!existingKeys.has(key)) {
+          existing.actions.push(action)
+          existingKeys.add(key)
+        }
+      }
+    }
+
+    return [...seen.values()]
   }
 
   private async collectForProject(
@@ -214,18 +245,27 @@ export class AzureDevopsActivityCollectorService {
     project: string,
     actions: BoardAction[],
   ): BoardWorkItemActivity {
+    const areaPath = item.fields['System.AreaPath']
+    const projectFromArea =
+      typeof areaPath === 'string' ? areaPath.split('\\')[0] : undefined
+
     return {
       id: item.id,
       title: String(item.fields['System.Title'] ?? ''),
       type: String(item.fields['System.WorkItemType'] ?? ''),
       state: String(item.fields['System.State'] ?? ''),
       assignedTo: String(item.fields['System.AssignedTo'] ?? ''),
-      project,
+      project: projectFromArea ?? project,
       actions,
     }
   }
 
   private resolveSinceDate(sincePeriod: string): string {
+    // If it's already an ISO date, return as-is
+    if (/^\d{4}-\d{2}-\d{2}/.test(sincePeriod)) {
+      return sincePeriod
+    }
+
     const match = sincePeriod.match(/^(\d+)\s*hours?\s*ago$/i)
     const hours = match ? Number(match[1]) : 8
 

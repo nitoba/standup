@@ -56,6 +56,8 @@ A regra mais importante: agrupe os commits por **contexto funcional** — ou sej
 - Para atividades sem card/work item, crie um título descritivo baseado nos commits, arquivos e contexto coletado
 - NUNCA inclua expressões como "sem card associado", "sem work item" ou similares no texto final — o relatório deve soar natural
 - Cards de teste (tipo "Test Case", "Test Suite", "Test Plan") NÃO devem aparecer como itens no texto final. Use-os apenas como contexto para entender o andamento da atividade principal
+- REGRA CRITICA: NUNCA invente, fabrique ou inclua work items, cards ou numeros de card que nao estejam EXPLICITAMENTE presentes nos dados fornecidos abaixo. Se um item nao aparece nos commits git, ele NAO existe para este standup. Incluir items inexistentes e uma falha grave.
+- Para classificar items como Done ou In Progress, use EXCLUSIVAMENTE o campo "Status calculado" quando disponivel. Sem status calculado, considere como Done os estados: "Done", "Closed", "Resolved", "Test QA". Todos os demais estados sao In Progress.
 - Inclua caminhos de arquivo quando relevante (ex: `src/services/geo.ts`)
 - Liste migration files explicitly quando presentes
 - Mencione novos componentes/serviços criados com seus caminhos

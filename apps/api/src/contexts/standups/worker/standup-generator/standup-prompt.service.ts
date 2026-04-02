@@ -282,12 +282,19 @@ ${content}
     return loadPromptTemplate('weekly-insights-system.md')
   }
 
+  private static readonly DONE_STATES = new Set([
+    'Done',
+    'Closed',
+    'Resolved',
+    'Test QA',
+  ])
+
   private determineWorkItemStatus(
     item: EnrichedWorkItem,
   ): 'done' | 'in_progress' {
     const state = item.workItem?.state ?? ''
 
-    if (state === 'Done') {
+    if (StandupPromptService.DONE_STATES.has(state)) {
       return 'done'
     }
 

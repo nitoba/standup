@@ -307,5 +307,139 @@ describe('StandupPromptService', () => {
         expect(prompt).toContain('NUNCA repita o header de status')
       }
     })
+
+    it('all system prompts contain anti-hallucination rule', () => {
+      const service = createService()
+      const gitOnly = service.buildSystemPrompt({
+        hasGit: true,
+        hasBoard: false,
+      })
+      const boardOnly = service.buildSystemPrompt({
+        hasGit: false,
+        hasBoard: true,
+      })
+      const hybrid = service.buildSystemPrompt({ hasGit: true, hasBoard: true })
+
+      for (const prompt of [gitOnly, boardOnly, hybrid]) {
+        expect(prompt).toContain('NUNCA invente')
+        expect(prompt).toContain('falha grave')
+      }
+    })
+
+    it('all system prompts list Test QA as a done state', () => {
+      const service = createService()
+      const gitOnly = service.buildSystemPrompt({
+        hasGit: true,
+        hasBoard: false,
+      })
+      const boardOnly = service.buildSystemPrompt({
+        hasGit: false,
+        hasBoard: true,
+      })
+      const hybrid = service.buildSystemPrompt({ hasGit: true, hasBoard: true })
+
+      for (const prompt of [gitOnly, boardOnly, hybrid]) {
+        expect(prompt).toContain('Test QA')
+      }
+    })
+  })
+})
+
+describe('determineWorkItemStatus (via buildUserMessage)', () => {
+  function buildInputWithEnrichedItem(
+    state: string,
+    pullRequests: {
+      id: number
+      title: string
+      status: 'active' | 'completed' | 'abandoned'
+      repoId: string
+      creatorId: string
+    }[] = [],
+  ) {
+    const enrichedActivity: EnrichedGitActivity = {
+      timestamp: '2026-03-16T17:00:00.000Z',
+      userUuid: 'user-uuid',
+      repos: [
+        {
+          repoName: 'my-repo',
+          repoPath: '/path/to/repo',
+          commits: [
+            {
+              hash: 'abc12345',
+              subject: 'fix: something',
+              body: '',
+              sourceBranch: 'feat/1234-feature',
+              filesChanged: 1,
+              insertions: 1,
+              deletions: 0,
+              files: ['src/file.ts'],
+            },
+          ],
+          cardNumbers: ['1234'],
+          enrichedItems: [
+            {
+              cardNumber: '1234',
+              workItem: {
+                id: '1234',
+                title: 'Some task',
+                state,
+                assignedTo: 'dev@company.com',
+              },
+              pullRequests,
+            },
+          ],
+        },
+      ],
+    }
+
+    const input: GenerateStandupInput = {
+      date: '2026-03-16',
+      meetingType: '',
+      gitActivity: { timestamp: '2026-03-16T17:00:00.000Z', repos: [] },
+    }
+
+    return { input, enrichedActivity }
+  }
+
+  it.each([
+    ['Done', 'Done ✅'],
+    ['Closed', 'Done ✅'],
+    ['Resolved', 'Done ✅'],
+    ['Test QA', 'Done ✅'],
+  ])('maps Azure DevOps state "%s" to "%s"', (state, expectedLabel) => {
+    const service = createService()
+    const { input, enrichedActivity } = buildInputWithEnrichedItem(state)
+    const message = service.buildUserMessage(input, enrichedActivity)
+    expect(message).toContain(`Status calculado: ${expectedLabel}`)
+  })
+
+  it.each([
+    ['New'],
+    ['Committed'],
+    ['Active'],
+    ['In Progress'],
+  ])('maps Azure DevOps state "%s" to "In Progress 🚧"', (state) => {
+    const service = createService()
+    const { input, enrichedActivity } = buildInputWithEnrichedItem(state)
+    const message = service.buildUserMessage(input, enrichedActivity)
+    expect(message).toContain('Status calculado: In Progress 🚧')
+  })
+
+  it('maps "In Progress" with all completed/active PRs to Done', () => {
+    const service = createService()
+    const { input, enrichedActivity } = buildInputWithEnrichedItem(
+      'In Progress',
+      [
+        {
+          id: 1,
+          title: 'PR 1',
+          status: 'completed',
+          repoId: 'r1',
+          creatorId: 'u1',
+        },
+      ],
+    )
+    const message = service.buildUserMessage(input, enrichedActivity)
+    expect(message).toContain('Status calculado: Done ✅')
   })
 })
