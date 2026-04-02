@@ -79,6 +79,9 @@ export class StandupAgentService {
     const totalModels = this.llmRegistry.totalModels
     let lastError: unknown
 
+    // Single attempt per model (no inner retry). Agent calls create stateful sessions
+    // which are more expensive than one-shot generateText. Retry at the model level
+    // (via the outer loop) is sufficient for Phase 1.
     for (let i = 0; i < totalModels; i++) {
       let selection: ReturnType<LlmProviderRegistry['getNextModel']>
       try {
@@ -109,15 +112,16 @@ export class StandupAgentService {
           },
         })
 
+        let timeoutHandle: ReturnType<typeof setTimeout> | undefined
         await Promise.race([
           agent.prompt(userMessage),
-          new Promise((_, reject) =>
-            setTimeout(
+          new Promise<never>((_, reject) => {
+            timeoutHandle = setTimeout(
               () => reject(new Error('Agent prompt timed out')),
               AGENT_TIMEOUT_MS,
-            ),
-          ),
-        ])
+            )
+          }),
+        ]).finally(() => clearTimeout(timeoutHandle))
 
         const result = extractSubmitStandupResult(agent.state.messages)
         if (!result) {
@@ -137,6 +141,7 @@ export class StandupAgentService {
             limit: MAX_STANDUP_CONTENT_CHARS,
           })
 
+          let rewriteTimeoutHandle: ReturnType<typeof setTimeout> | undefined
           await Promise.race([
             agent.prompt(
               this.standupPrompt.buildRewriteUserMessage(
@@ -144,13 +149,13 @@ export class StandupAgentService {
                 result.summary,
               ),
             ),
-            new Promise((_, reject) =>
-              setTimeout(
+            new Promise<never>((_, reject) => {
+              rewriteTimeoutHandle = setTimeout(
                 () => reject(new Error('Agent rewrite timed out')),
                 AGENT_TIMEOUT_MS,
-              ),
-            ),
-          ])
+              )
+            }),
+          ]).finally(() => clearTimeout(rewriteTimeoutHandle))
 
           const rewriteResult = extractSubmitStandupResult(
             agent.state.messages,
@@ -168,7 +173,13 @@ export class StandupAgentService {
         }
 
         this.llmRegistry.reportSuccess(modelKey)
-        return Result.ok({ content: result.content, summary: result.summary })
+        return Result.ok({
+          content:
+            result.content.length > MAX_STANDUP_CONTENT_CHARS
+              ? result.content.slice(0, MAX_STANDUP_CONTENT_CHARS)
+              : result.content,
+          summary: result.summary,
+        })
       } catch (error) {
         lastError = error
         this.logger.warn('PI Agent generation failed', {

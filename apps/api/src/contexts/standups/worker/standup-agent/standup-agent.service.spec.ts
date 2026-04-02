@@ -246,6 +246,29 @@ describe('StandupAgentService', () => {
     }
   })
 
+  it('slices content at max chars when rewrite does not produce a tool call', async () => {
+    let extractCallCount = 0
+    mockExtract.mockImplementation(() => {
+      extractCallCount++
+      if (extractCallCount === 1) {
+        // Initial call: oversized content triggers rewrite attempt
+        return { content: 'x'.repeat(2500), summary: 'summary' }
+      }
+      // Rewrite call: agent didn't call the tool
+      return null
+    })
+
+    const result = await service.generate(makeInput())
+
+    expect(result.isOk()).toBe(true)
+    if (result.isOk()) {
+      expect(result.value.content.length).toBe(2000)
+      expect(result.value.summary).toBe('summary')
+    }
+    expect(promptService.buildRewriteUserMessage).toHaveBeenCalled()
+    expect(mockPrompt).toHaveBeenCalledTimes(2)
+  })
+
   it('returns AllProvidersUnavailableError when registry throws it', async () => {
     const registryError = new AllProvidersUnavailableError({
       message: 'All exhausted',
