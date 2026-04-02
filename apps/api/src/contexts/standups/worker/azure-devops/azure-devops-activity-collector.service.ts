@@ -191,14 +191,11 @@ export class AzureDevopsActivityCollectorService {
         continue
       }
 
-      // Azure DevOps uses 9999-01-01 as sentinel for the latest (current) revision.
-      // For date filtering, fall back to System.ChangedDate from the fields.
-      const effectiveDate = update.revisedDate.startsWith('9999')
-        ? String(
-            update.fields?.['System.ChangedDate']?.newValue ??
-              update.revisedDate,
-          )
-        : update.revisedDate
+      // Determine when this change actually happened (not when Azure DevOps recorded it).
+      // Priority: StateChangeDate.newValue > ChangedDate.newValue > revisedDate
+      // Azure DevOps can re-record old revisions (e.g. sprint close sync) with today's
+      // revisedDate, so we need the actual timestamp of the state change.
+      const effectiveDate = this.resolveEffectiveDate(update)
 
       if (effectiveDate < sinceDate) {
         continue
@@ -298,6 +295,36 @@ export class AzureDevopsActivityCollectorService {
       }
     }
     return false
+  }
+
+  /**
+   * Resolves the actual date when the change happened.
+   * Azure DevOps can re-record old revisions with today's revisedDate
+   * (e.g. sprint close sync), so we prefer StateChangeDate or ChangedDate.
+   * Falls back to revisedDate when no better signal exists.
+   * Skips 9999 sentinel dates (used for the latest revision).
+   */
+  private resolveEffectiveDate(update: WorkItemUpdate): string {
+    // Skip 9999 sentinel — use field dates instead
+    const revisedDate = update.revisedDate.startsWith('9999')
+      ? undefined
+      : update.revisedDate
+
+    const stateChangeDate =
+      update.fields?.['Microsoft.VSTS.Common.StateChangeDate']?.newValue
+    if (
+      typeof stateChangeDate === 'string' &&
+      !stateChangeDate.startsWith('9999')
+    ) {
+      return stateChangeDate
+    }
+
+    const changedDate = update.fields?.['System.ChangedDate']?.newValue
+    if (typeof changedDate === 'string' && !changedDate.startsWith('9999')) {
+      return changedDate
+    }
+
+    return revisedDate ?? update.revisedDate
   }
 
   private buildWiql(sinceDate: string): string {

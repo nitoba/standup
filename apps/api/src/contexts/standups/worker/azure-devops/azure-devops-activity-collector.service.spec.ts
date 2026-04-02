@@ -608,4 +608,55 @@ describe('AzureDevopsActivityCollectorService', () => {
     if (result === null) throw new Error('Expected non-null result')
     expect(result.workItems).toHaveLength(1)
   })
+
+  it('skips updates where StateChangeDate.newValue is before sinceDate (sprint close reindex)', async () => {
+    const queryWorkItems = vi.fn().mockResolvedValue(Result.ok([701]))
+    const getWorkItemsBatch = vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok([
+          workItemResponse(
+            701,
+            'Old task reindexed today',
+            'User Story',
+            'Done',
+            'John Doe',
+          ),
+        ]),
+      )
+    const getWorkItemUpdates = vi.fn().mockResolvedValue(
+      Result.ok([
+        {
+          id: 701,
+          rev: 1,
+          // revisedDate is today (reindex), but actual state change was in January
+          revisedDate: '2024-06-15T14:00:00Z',
+          revisedBy: { displayName: 'John Doe' },
+          fields: {
+            'System.State': { oldValue: 'Test QA', newValue: 'Done' },
+            'Microsoft.VSTS.Common.StateChangeDate': {
+              oldValue: '2024-01-12T13:27:47.773Z',
+              newValue: '2024-01-26T11:24:47.387Z',
+            },
+            'Microsoft.VSTS.Common.ClosedDate': {
+              oldValue: null,
+              newValue: '2024-01-26T11:24:47.387Z',
+            },
+          },
+        } satisfies WorkItemUpdate,
+      ]),
+    )
+
+    const { service } = createService({
+      queryWorkItems,
+      getWorkItemsBatch,
+      getWorkItemUpdates,
+    })
+
+    // sinceDate is 2024-06-15T09:00:00Z (8 hours before 17:00)
+    // StateChangeDate.newValue is 2024-01-26 — way before sinceDate
+    const result = await service.collect('John Doe', '8 hours ago')
+
+    expect(result).toBeNull()
+  })
 })
