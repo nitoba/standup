@@ -8,7 +8,6 @@ import {
   ParseUUIDPipe,
   Query,
 } from '@nestjs/common'
-import { SkipThrottle } from '@nestjs/throttler'
 import {
   ApiOkResponse,
   ApiOperation,
@@ -16,6 +15,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger'
+import { SkipThrottle } from '@nestjs/throttler'
 import { Session } from '@thallesp/nestjs-better-auth'
 import type { AuthSession } from '../../../shared/auth/auth-session'
 import { requireSessionUserId } from '../../../shared/auth/require-session-user-id'

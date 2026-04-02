@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
-  StandupProgressEvent,
   StandupFailedEvent,
+  StandupProgressEvent,
 } from '../../../platform/events/standup-events'
 import { DiscordStreamingListener } from './discord-streaming.listener'
 
@@ -235,9 +235,7 @@ describe('DiscordStreamingListener', () => {
 
       await listener.handleProgress(makeProgressEvent({ step: 'queued' }))
 
-      await listener.handleProgress(
-        makeProgressEvent({ step: 'completed' }),
-      )
+      await listener.handleProgress(makeProgressEvent({ step: 'completed' }))
 
       expect(messages.updateDmMessage).toHaveBeenCalledWith({
         discordUserId: 'discord-user-456',
@@ -254,9 +252,7 @@ describe('DiscordStreamingListener', () => {
 
       await listener.handleProgress(makeProgressEvent({ step: 'queued' }))
 
-      await listener.handleProgress(
-        makeProgressEvent({ step: 'no_activity' }),
-      )
+      await listener.handleProgress(makeProgressEvent({ step: 'no_activity' }))
 
       expect(messages.updateDmMessage).toHaveBeenCalledWith({
         discordUserId: 'discord-user-456',
@@ -282,9 +278,7 @@ describe('DiscordStreamingListener', () => {
       )
 
       // Complete before timer fires
-      await listener.handleProgress(
-        makeProgressEvent({ step: 'completed' }),
-      )
+      await listener.handleProgress(makeProgressEvent({ step: 'completed' }))
 
       // Advance timer — should NOT trigger a stale edit
       await vi.advanceTimersByTimeAsync(2_000)
@@ -307,9 +301,7 @@ describe('DiscordStreamingListener', () => {
 
       await listener.handleProgress(makeProgressEvent({ step: 'queued' }))
 
-      await listener.handleFailed(
-        makeFailedEvent({ message: 'LLM timeout' }),
-      )
+      await listener.handleFailed(makeFailedEvent({ message: 'LLM timeout' }))
 
       expect(messages.updateDmMessage).toHaveBeenCalledWith({
         discordUserId: 'discord-user-456',
@@ -324,9 +316,7 @@ describe('DiscordStreamingListener', () => {
     it('ignores failed events for unknown runIds', async () => {
       const { listener, messages } = createListener()
 
-      await listener.handleFailed(
-        makeFailedEvent({ runId: 'unknown-run' }),
-      )
+      await listener.handleFailed(makeFailedEvent({ runId: 'unknown-run' }))
 
       expect(messages.updateDmMessage).not.toHaveBeenCalled()
     })

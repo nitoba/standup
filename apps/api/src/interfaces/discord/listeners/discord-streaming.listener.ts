@@ -1,5 +1,6 @@
 import { Injectable, type OnModuleDestroy } from '@nestjs/common'
 import { OnEvent } from '@nestjs/event-emitter'
+import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import {
   STANDUP_FAILED_EVENT,
   STANDUP_PROGRESS_EVENT,
@@ -7,7 +8,6 @@ import {
   type StandupProgressEvent,
 } from '../../../platform/events/standup-events'
 import { AppLoggerFactory } from '../../../platform/logger'
-import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import { DiscordMessagesService } from '../notifications/discord-messages.service'
 
 interface ActiveStream {

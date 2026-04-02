@@ -1,4 +1,5 @@
-/** biome-ignore-all lint/style/noNonNullAssertion: never be nullable */
+/** biome-ignore-all lint/style/noNonNullAssertion: test assertions after expect().toBeDefined() */
+/** biome-ignore-all lint/suspicious/noExplicitAny: accessing private methods for unit testing */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AllProvidersUnavailableError } from '../../../../shared/domain'
 import type { AgentGenerateInput } from './standup-agent.service'
