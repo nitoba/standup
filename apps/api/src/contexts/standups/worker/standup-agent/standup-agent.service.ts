@@ -12,6 +12,7 @@ import {
 } from '../../../../shared/domain'
 import type { EnrichedGitActivity } from '../azure-devops/types'
 import { LlmProviderRegistry } from '../standup-generator/llm-provider-registry'
+import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
 import {
   MAX_STANDUP_CONTENT_CHARS,
   StandupPromptService,
@@ -45,8 +46,23 @@ export class StandupAgentService {
     private readonly loggerFactory: AppLoggerFactory,
     private readonly standupPrompt: StandupPromptService,
     private readonly llmRegistry: LlmProviderRegistry,
+    private readonly runtimeConfig: WorkerRuntimeConfigService,
   ) {
     this.logger = this.loggerFactory.create('standup-agent')
+  }
+
+  /**
+   * Resolves API keys for pi-ai providers.
+   * pi-ai expects GEMINI_API_KEY for Google, but our config uses GOOGLE_API_KEY.
+   */
+  private resolveApiKey(provider: string): string | undefined {
+    const config = this.runtimeConfig.config
+    const keyMap: Record<string, string> = {
+      google: config.GOOGLE_API_KEY,
+      groq: config.GROQ_API_KEY,
+      openrouter: config.OPENROUTER_API_KEY,
+    }
+    return keyMap[provider]
   }
 
   async generate(
@@ -110,6 +126,7 @@ export class StandupAgentService {
             tools: [submitStandupTool],
             messages: [],
           },
+          getApiKey: (p) => this.resolveApiKey(p),
         })
 
         let timeoutHandle: ReturnType<typeof setTimeout> | undefined

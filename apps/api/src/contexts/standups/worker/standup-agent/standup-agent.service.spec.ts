@@ -58,6 +58,16 @@ function makePromptService() {
   }
 }
 
+function makeRuntimeConfig() {
+  return {
+    config: {
+      GOOGLE_API_KEY: 'test-google-key',
+      GROQ_API_KEY: 'test-groq-key',
+      OPENROUTER_API_KEY: 'test-openrouter-key',
+    },
+  }
+}
+
 function makeRegistry() {
   let modelIndex = 0
   const models = [
@@ -117,6 +127,7 @@ describe('StandupAgentService', () => {
       makeLoggerFactory() as never,
       promptService as never,
       registry as never,
+      makeRuntimeConfig() as never,
     )
   })
 
