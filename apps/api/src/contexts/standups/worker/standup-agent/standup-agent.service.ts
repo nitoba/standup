@@ -1,4 +1,4 @@
-import { Agent } from '@mariozechner/pi-agent-core'
+import { Agent, type AgentMessage } from '@mariozechner/pi-agent-core'
 import { Injectable } from '@nestjs/common'
 import { AppLoggerFactory } from '../../../../platform/logger'
 import type {
@@ -17,6 +17,8 @@ import {
   StandupPromptService,
 } from '../standup-generator/standup-prompt.service'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
+import { AgentSessionManager } from './agent-session-manager'
+import { buildSeedMessages } from './build-seed-messages'
 import { toPiAiModel } from './pi-ai-model-adapter'
 import {
   extractSubmitStandupResult,
@@ -36,6 +38,19 @@ export interface AgentGenerateInput {
   onStageChange?: (stage: GeneratorStage) => Promise<void> | void
 }
 
+export interface AgentAdjustInput {
+  standupId: string
+  instruction: string
+  previousContent: string
+  previousSummary?: string
+  extraContext?: string
+  onStageChange?: (stage: GeneratorStage) => Promise<void> | void
+}
+
+export interface AgentGenerateResult extends GeneratedStandup {
+  agent: Agent
+}
+
 const AGENT_TIMEOUT_MS = 60_000
 
 @Injectable()
@@ -47,6 +62,7 @@ export class StandupAgentService {
     private readonly standupPrompt: StandupPromptService,
     private readonly llmRegistry: LlmProviderRegistry,
     private readonly runtimeConfig: WorkerRuntimeConfigService,
+    private readonly sessionManager: AgentSessionManager,
   ) {
     this.logger = this.loggerFactory.create('standup-agent')
   }
@@ -69,7 +85,7 @@ export class StandupAgentService {
     input: AgentGenerateInput,
   ): Promise<
     Result<
-      GeneratedStandup,
+      AgentGenerateResult,
       ExternalServiceError | AllProvidersUnavailableError
     >
   > {
@@ -183,6 +199,7 @@ export class StandupAgentService {
                 MAX_STANDUP_CONTENT_CHARS,
               ),
               summary: rewriteResult.summary,
+              agent,
             })
           }
         }
@@ -194,6 +211,7 @@ export class StandupAgentService {
               ? result.content.slice(0, MAX_STANDUP_CONTENT_CHARS)
               : result.content,
           summary: result.summary,
+          agent,
         })
       } catch (error) {
         lastError = error
@@ -213,6 +231,179 @@ export class StandupAgentService {
     return Result.err(
       new AllProvidersUnavailableError({
         message: `PI Agent standup generation: all ${totalModels} models failed. Last error: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
+        modelsAttempted: totalModels,
+      }),
+    )
+  }
+
+  async adjust(
+    input: AgentAdjustInput,
+  ): Promise<
+    Result<GeneratedStandup, ExternalServiceError | AllProvidersUnavailableError>
+  > {
+    await input.onStageChange?.('generating_standup')
+
+    const existingAgent = this.sessionManager.get(input.standupId)
+
+    if (existingAgent) {
+      return this.adjustWithExistingAgent(existingAgent, input)
+    }
+
+    return this.adjustWithSeedAgent(input)
+  }
+
+  private async adjustWithExistingAgent(
+    agent: Agent,
+    input: AgentAdjustInput,
+  ): Promise<
+    Result<GeneratedStandup, ExternalServiceError | AllProvidersUnavailableError>
+  > {
+    const adjustPrompt = input.extraContext
+      ? `${input.instruction}\n\nContexto adicional: ${input.extraContext}`
+      : input.instruction
+
+    try {
+      let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+      await Promise.race([
+        agent.prompt(adjustPrompt),
+        new Promise<never>((_, reject) => {
+          timeoutHandle = setTimeout(
+            () => reject(new Error('Agent adjust timed out')),
+            AGENT_TIMEOUT_MS,
+          )
+        }),
+      ]).finally(() => clearTimeout(timeoutHandle))
+
+      const result = extractSubmitStandupResult(agent.state.messages)
+      if (!result) {
+        return Result.err(
+          new ExternalServiceError({
+            service: 'pi-agent',
+            message: 'Agent did not call submit_standup tool during adjust',
+          }),
+        )
+      }
+
+      return Result.ok({
+        content:
+          result.content.length > MAX_STANDUP_CONTENT_CHARS
+            ? result.content.slice(0, MAX_STANDUP_CONTENT_CHARS)
+            : result.content,
+        summary: result.summary,
+      })
+    } catch (error) {
+      return Result.err(
+        new ExternalServiceError({
+          service: 'pi-agent',
+          message: `Agent adjust failed: ${error instanceof Error ? error.message : String(error)}`,
+        }),
+      )
+    }
+  }
+
+  private async adjustWithSeedAgent(
+    input: AgentAdjustInput,
+  ): Promise<
+    Result<GeneratedStandup, ExternalServiceError | AllProvidersUnavailableError>
+  > {
+    const systemPrompt = this.standupPrompt.buildSystemPrompt({
+      hasGit: true,
+      hasBoard: false,
+    })
+
+    const seedMessages = buildSeedMessages({
+      content: input.previousContent,
+      summary: input.previousSummary,
+    })
+
+    const adjustPrompt = input.extraContext
+      ? `${input.instruction}\n\nContexto adicional: ${input.extraContext}`
+      : input.instruction
+
+    const totalModels = this.llmRegistry.totalModels
+    let lastError: unknown
+
+    for (let i = 0; i < totalModels; i++) {
+      let selection: ReturnType<LlmProviderRegistry['getNextModel']>
+      try {
+        selection = this.llmRegistry.getNextModel()
+      } catch (error) {
+        if (error instanceof AllProvidersUnavailableError) {
+          return Result.err(error)
+        }
+        throw error
+      }
+
+      const { modelKey, provider, tier } = selection
+
+      try {
+        this.logger.info('Creating seed agent for adjust', {
+          model: modelKey,
+          provider,
+          tier,
+          standupId: input.standupId,
+        })
+
+        const piModel = toPiAiModel({ provider, modelKey })
+        const agent = new Agent({
+          initialState: {
+            systemPrompt,
+            model: piModel,
+            tools: [submitStandupTool],
+            messages: seedMessages as AgentMessage[],
+          },
+          getApiKey: (p) => this.resolveApiKey(p),
+        })
+
+        let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+        await Promise.race([
+          agent.prompt(adjustPrompt),
+          new Promise<never>((_, reject) => {
+            timeoutHandle = setTimeout(
+              () => reject(new Error('Agent seed adjust timed out')),
+              AGENT_TIMEOUT_MS,
+            )
+          }),
+        ]).finally(() => clearTimeout(timeoutHandle))
+
+        const result = extractSubmitStandupResult(agent.state.messages)
+        if (!result) {
+          this.logger.warn('Seed agent did not call submit_standup', {
+            model: modelKey,
+            provider,
+          })
+          lastError = new Error('Agent did not call submit_standup tool')
+          continue
+        }
+
+        this.llmRegistry.reportSuccess(modelKey)
+        this.sessionManager.create(input.standupId, agent)
+
+        return Result.ok({
+          content:
+            result.content.length > MAX_STANDUP_CONTENT_CHARS
+              ? result.content.slice(0, MAX_STANDUP_CONTENT_CHARS)
+              : result.content,
+          summary: result.summary,
+        })
+      } catch (error) {
+        lastError = error
+        this.logger.warn('Seed agent adjust failed', {
+          model: modelKey,
+          provider,
+          tier,
+          error: error instanceof Error ? error.message : String(error),
+        })
+
+        if (this.isRateLimitError(error)) {
+          this.llmRegistry.reportFailure(modelKey, error)
+        }
+      }
+    }
+
+    return Result.err(
+      new AllProvidersUnavailableError({
+        message: `PI Agent adjust: all ${totalModels} models failed. Last error: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
         modelsAttempted: totalModels,
       }),
     )

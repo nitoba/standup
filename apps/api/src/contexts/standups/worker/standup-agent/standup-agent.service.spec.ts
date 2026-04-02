@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: never be nullable */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AllProvidersUnavailableError } from '../../../../shared/domain'
-import type { AgentGenerateInput } from './standup-agent.service'
+import type { AgentAdjustInput, AgentGenerateInput } from './standup-agent.service'
 import { StandupAgentService } from './standup-agent.service'
 
 // --- Mock state ---
@@ -101,6 +101,15 @@ function makeInput(
   }
 }
 
+function makeSessionManager() {
+  return {
+    get: vi.fn().mockReturnValue(null),
+    create: vi.fn(),
+    destroy: vi.fn(),
+    has: vi.fn().mockReturnValue(false),
+  }
+}
+
 describe('StandupAgentService', () => {
   let service: StandupAgentService
   let registry: ReturnType<typeof makeRegistry>
@@ -128,6 +137,7 @@ describe('StandupAgentService', () => {
       promptService as never,
       registry as never,
       makeRuntimeConfig() as never,
+      makeSessionManager() as never,
     )
   })
 
@@ -136,10 +146,9 @@ describe('StandupAgentService', () => {
 
     expect(result.isOk()).toBe(true)
     if (result.isOk()) {
-      expect(result.value).toEqual({
-        content: 'standup content',
-        summary: 'standup summary',
-      })
+      expect(result.value.content).toBe('standup content')
+      expect(result.value.summary).toBe('standup summary')
+      expect(result.value.agent).toBeDefined()
     }
     expect(registry.reportSuccess).toHaveBeenCalledWith('google:gemini')
     expect(registry.getNextModel).toHaveBeenCalledTimes(1)
@@ -315,5 +324,123 @@ describe('StandupAgentService', () => {
       },
       input.enrichedActivity,
     )
+  })
+
+  describe('adjust()', () => {
+    it('uses existing agent session for multi-turn adjust', async () => {
+      const sessionManager = makeSessionManager()
+      const existingAgent = {
+        prompt: vi.fn().mockResolvedValue(undefined),
+        state: mockState,
+      }
+      sessionManager.get.mockReturnValue(existingAgent)
+
+      const svc = new StandupAgentService(
+        makeLoggerFactory() as never,
+        makePromptService() as never,
+        makeRegistry() as never,
+        makeRuntimeConfig() as never,
+        sessionManager as never,
+      )
+
+      mockExtract.mockReturnValue({ content: 'adjusted', summary: 'adj' })
+
+      const result = await svc.adjust({
+        standupId: 'standup-1',
+        instruction: 'make it shorter',
+        previousContent: 'old content',
+      })
+
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value.content).toBe('adjusted')
+      }
+      expect(sessionManager.get).toHaveBeenCalledWith('standup-1')
+      expect(existingAgent.prompt).toHaveBeenCalledWith('make it shorter')
+    })
+
+    it('creates seed agent when session does not exist', async () => {
+      const sessionManager = makeSessionManager()
+      sessionManager.get.mockReturnValue(null)
+
+      const svc = new StandupAgentService(
+        makeLoggerFactory() as never,
+        makePromptService() as never,
+        makeRegistry() as never,
+        makeRuntimeConfig() as never,
+        sessionManager as never,
+      )
+
+      mockExtract.mockReturnValue({ content: 'seeded', summary: 'seed' })
+
+      const result = await svc.adjust({
+        standupId: 'standup-1',
+        instruction: 'add detail',
+        previousContent: 'old content',
+      })
+
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value.content).toBe('seeded')
+      }
+      expect(sessionManager.create).toHaveBeenCalledWith('standup-1', expect.anything())
+    })
+
+    it('appends extraContext to instruction', async () => {
+      const sessionManager = makeSessionManager()
+      const existingAgent = {
+        prompt: vi.fn().mockResolvedValue(undefined),
+        state: mockState,
+      }
+      sessionManager.get.mockReturnValue(existingAgent)
+
+      const svc = new StandupAgentService(
+        makeLoggerFactory() as never,
+        makePromptService() as never,
+        makeRegistry() as never,
+        makeRuntimeConfig() as never,
+        sessionManager as never,
+      )
+
+      mockExtract.mockReturnValue({ content: 'c', summary: 's' })
+
+      await svc.adjust({
+        standupId: 'standup-1',
+        instruction: 'shorten item 2',
+        previousContent: 'old',
+        extraContext: 'focus on the PR',
+      })
+
+      expect(existingAgent.prompt).toHaveBeenCalledWith(
+        'shorten item 2\n\nContexto adicional: focus on the PR',
+      )
+    })
+
+    it('returns error when existing agent fails to call tool', async () => {
+      const sessionManager = makeSessionManager()
+      const existingAgent = {
+        prompt: vi.fn().mockResolvedValue(undefined),
+        state: mockState,
+      }
+      sessionManager.get.mockReturnValue(existingAgent)
+
+      const svc = new StandupAgentService(
+        makeLoggerFactory() as never,
+        makePromptService() as never,
+        makeRegistry() as never,
+        makeRuntimeConfig() as never,
+        sessionManager as never,
+      )
+
+      mockExtract.mockReturnValue(null)
+
+      const result = await svc.adjust({
+        standupId: 'standup-1',
+        instruction: 'fix it',
+        previousContent: 'old',
+      })
+
+      expect(result.isErr()).toBe(true)
+    })
   })
 })
