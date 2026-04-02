@@ -40,6 +40,18 @@ function extractDisplayName(value: unknown): string {
   return String(value)
 }
 
+/**
+ * Identity fields that indicate who actually performed a state change.
+ * When these fields appear in an update and point to a different user,
+ * the update was NOT performed by the revisedBy user — it was likely
+ * a bulk sprint close or board automation attributed to the assignee.
+ */
+const ACTOR_IDENTITY_FIELDS = new Set([
+  'Microsoft.VSTS.Common.ClosedBy',
+  'Microsoft.VSTS.Common.ResolvedBy',
+  'Microsoft.VSTS.Common.ActivatedBy',
+])
+
 @Injectable()
 export class AzureDevopsActivityCollectorService {
   private readonly logger: ReturnType<AppLoggerFactory['create']>
@@ -196,6 +208,13 @@ export class AzureDevopsActivityCollectorService {
         continue
       }
 
+      // Check if an actor identity field (ClosedBy, ResolvedBy, ActivatedBy)
+      // indicates a different user actually performed this action.
+      // This catches sprint closes and board automations attributed to the assignee.
+      if (this.isActorMismatch(update.fields, user)) {
+        continue
+      }
+
       const fieldActions = this.classifyFieldChanges(
         update.fields,
         update.revisedDate,
@@ -242,15 +261,43 @@ export class AzureDevopsActivityCollectorService {
           details: `Created by ${extractDisplayName(change.newValue) || 'unknown'}`,
         })
       } else {
+        // Use extractDisplayName for identity fields to avoid [object Object]
+        const oldVal = ACTOR_IDENTITY_FIELDS.has(fieldName)
+          ? extractDisplayName(change.oldValue) || 'none'
+          : String(change.oldValue ?? 'none')
+        const newVal = ACTOR_IDENTITY_FIELDS.has(fieldName)
+          ? extractDisplayName(change.newValue) || 'none'
+          : String(change.newValue ?? 'none')
         actions.push({
           type: 'field_changed',
           timestamp,
-          details: `${fieldName}: ${String(change.oldValue ?? 'none')} → ${String(change.newValue ?? 'none')}`,
+          details: `${fieldName}: ${oldVal} → ${newVal}`,
         })
       }
     }
 
     return actions
+  }
+
+  /**
+   * Returns true if an actor identity field (ClosedBy, ResolvedBy, ActivatedBy)
+   * exists in this update and its newValue points to a different user.
+   * This means the action was performed by someone else (e.g. sprint close by manager).
+   */
+  private isActorMismatch(
+    fields: Record<string, WorkItemUpdateFieldChange>,
+    user: string,
+  ): boolean {
+    for (const fieldName of ACTOR_IDENTITY_FIELDS) {
+      const change = fields[fieldName]
+      if (!change?.newValue) continue
+
+      const actorName = extractDisplayName(change.newValue)
+      if (actorName && actorName !== user) {
+        return true
+      }
+    }
+    return false
   }
 
   private buildWiql(sinceDate: string): string {

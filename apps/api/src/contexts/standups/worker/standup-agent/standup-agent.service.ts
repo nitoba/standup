@@ -12,11 +12,11 @@ import {
 } from '../../../../shared/domain'
 import type { EnrichedGitActivity } from '../azure-devops/types'
 import { LlmProviderRegistry } from '../standup-generator/llm-provider-registry'
-import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
 import {
   MAX_STANDUP_CONTENT_CHARS,
   StandupPromptService,
 } from '../standup-generator/standup-prompt.service'
+import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
 import { toPiAiModel } from './pi-ai-model-adapter'
 import {
   extractSubmitStandupResult,

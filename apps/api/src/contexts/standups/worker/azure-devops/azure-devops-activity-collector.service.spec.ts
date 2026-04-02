@@ -511,4 +511,101 @@ describe('AzureDevopsActivityCollectorService', () => {
 
     expect(result).toBeNull()
   })
+
+  it('skips updates where ClosedBy points to a different user (sprint close by manager)', async () => {
+    const queryWorkItems = vi.fn().mockResolvedValue(Result.ok([501]))
+    const getWorkItemsBatch = vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok([
+          workItemResponse(
+            501,
+            'Task closed by manager',
+            'User Story',
+            'Done',
+            'John Doe',
+          ),
+        ]),
+      )
+    const getWorkItemUpdates = vi.fn().mockResolvedValue(
+      Result.ok([
+        {
+          id: 501,
+          rev: 1,
+          revisedDate: '2024-06-15T14:00:00Z',
+          revisedBy: { displayName: 'John Doe' },
+          fields: {
+            'System.State': { oldValue: 'Test QA', newValue: 'Done' },
+            'Microsoft.VSTS.Common.ClosedBy': {
+              oldValue: null,
+              newValue: {
+                displayName: 'Manager User',
+                uniqueName: 'manager@company.com',
+              },
+            },
+          },
+        } satisfies WorkItemUpdate,
+      ]),
+    )
+
+    const { service } = createService({
+      queryWorkItems,
+      getWorkItemsBatch,
+      getWorkItemUpdates,
+    })
+
+    const result = await service.collect('John Doe', '8 hours ago')
+
+    // ClosedBy is "Manager User" not "John Doe", so the update should be skipped
+    expect(result).toBeNull()
+  })
+
+  it('keeps updates where ClosedBy matches the user', async () => {
+    const queryWorkItems = vi.fn().mockResolvedValue(Result.ok([601]))
+    const getWorkItemsBatch = vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok([
+          workItemResponse(
+            601,
+            'Task closed by user',
+            'User Story',
+            'Done',
+            'John Doe',
+          ),
+        ]),
+      )
+    const getWorkItemUpdates = vi.fn().mockResolvedValue(
+      Result.ok([
+        {
+          id: 601,
+          rev: 1,
+          revisedDate: '2024-06-15T14:00:00Z',
+          revisedBy: { displayName: 'John Doe' },
+          fields: {
+            'System.State': { oldValue: 'Test QA', newValue: 'Done' },
+            'Microsoft.VSTS.Common.ClosedBy': {
+              oldValue: null,
+              newValue: {
+                displayName: 'John Doe',
+                uniqueName: 'john@company.com',
+              },
+            },
+          },
+        } satisfies WorkItemUpdate,
+      ]),
+    )
+
+    const { service } = createService({
+      queryWorkItems,
+      getWorkItemsBatch,
+      getWorkItemUpdates,
+    })
+
+    const result = await service.collect('John Doe', '8 hours ago')
+
+    expect(result).not.toBeNull()
+    if (result === null) throw new Error('Expected non-null result')
+    expect(result.workItems).toHaveLength(1)
+  })
 })
