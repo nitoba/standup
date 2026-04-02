@@ -110,7 +110,10 @@ describe('ExecuteGenerateStrategy', () => {
   let standupReadRepo: ReturnType<typeof makeStandupReadRepo>
   let localDateService: ReturnType<typeof makeLocalDateService>
 
-  function buildStrategy(usePiAgent: boolean, sessionManager = makeSessionManager()) {
+  function buildStrategy(
+    usePiAgent: boolean,
+    sessionManager = makeSessionManager(),
+  ) {
     const runtimeConfig = makeRuntimeConfig(usePiAgent)
     // biome-ignore lint/suspicious/noExplicitAny: test mock wiring
     const strategy = new (ExecuteGenerateStrategy as any)(
@@ -214,7 +217,10 @@ describe('ExecuteGenerateStrategy', () => {
     const { strategy } = buildStrategy(true, sm)
 
     await strategy.execute({
-      options: { ...makeDefaultOptions(), replaceStandupId: 'old-standup' } as never,
+      options: {
+        ...makeDefaultOptions(),
+        replaceStandupId: 'old-standup',
+      } as never,
       today: '2026-04-02',
     })
 
@@ -238,7 +244,10 @@ describe('ExecuteGenerateStrategy', () => {
     const { strategy } = buildStrategy(false, sm)
 
     await strategy.execute({
-      options: { ...makeDefaultOptions(), replaceStandupId: 'old-standup' } as never,
+      options: {
+        ...makeDefaultOptions(),
+        replaceStandupId: 'old-standup',
+      } as never,
       today: '2026-04-02',
     })
 

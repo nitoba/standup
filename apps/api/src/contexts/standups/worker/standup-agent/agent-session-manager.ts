@@ -1,5 +1,9 @@
 import type { Agent } from '@mariozechner/pi-agent-core'
-import { Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common'
+import {
+  Injectable,
+  type OnModuleDestroy,
+  type OnModuleInit,
+} from '@nestjs/common'
 
 interface AgentSession {
   agent: Agent

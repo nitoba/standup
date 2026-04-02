@@ -239,7 +239,10 @@ export class StandupAgentService {
   async adjust(
     input: AgentAdjustInput,
   ): Promise<
-    Result<GeneratedStandup, ExternalServiceError | AllProvidersUnavailableError>
+    Result<
+      GeneratedStandup,
+      ExternalServiceError | AllProvidersUnavailableError
+    >
   > {
     await input.onStageChange?.('generating_standup')
 
@@ -256,7 +259,10 @@ export class StandupAgentService {
     agent: Agent,
     input: AgentAdjustInput,
   ): Promise<
-    Result<GeneratedStandup, ExternalServiceError | AllProvidersUnavailableError>
+    Result<
+      GeneratedStandup,
+      ExternalServiceError | AllProvidersUnavailableError
+    >
   > {
     const adjustPrompt = input.extraContext
       ? `${input.instruction}\n\nContexto adicional: ${input.extraContext}`
@@ -304,7 +310,10 @@ export class StandupAgentService {
   private async adjustWithSeedAgent(
     input: AgentAdjustInput,
   ): Promise<
-    Result<GeneratedStandup, ExternalServiceError | AllProvidersUnavailableError>
+    Result<
+      GeneratedStandup,
+      ExternalServiceError | AllProvidersUnavailableError
+    >
   > {
     const systemPrompt = this.standupPrompt.buildSystemPrompt({
       hasGit: true,

@@ -1,10 +1,10 @@
+import type { Agent } from '@mariozechner/pi-agent-core'
 import { Injectable } from '@nestjs/common'
 import { Span } from 'nestjs-otel'
 import { StandupReadRepository } from '../../../../../platform/database/repositories/standup-read.repository'
 import { AppLoggerFactory } from '../../../../../platform/logger'
 import { AppTracingService } from '../../../../../platform/observability/app-tracing.service'
 import { LocalDateService } from '../../../../../platform/time/local-date.service'
-import type { Agent } from '@mariozechner/pi-agent-core'
 import type {
   GatheredBoardActivity,
   GatheredGitActivity,
@@ -12,9 +12,9 @@ import type {
 import { Result } from '../../../../../shared/domain'
 import { AzureDevopsActivityCollectorService } from '../../azure-devops/azure-devops-activity-collector.service'
 import { GitCollectorService } from '../../git-collector/git-collector.service'
+import { AgentSessionManager } from '../../standup-agent/agent-session-manager'
 import { StandupAgentService } from '../../standup-agent/standup-agent.service'
 import { StandupGeneratorService } from '../../standup-generator/standup-generator.service'
-import { AgentSessionManager } from '../../standup-agent/agent-session-manager'
 import { WorkerRuntimeConfigService } from '../../worker-runtime-config.service'
 import type {
   GeneratedContent,

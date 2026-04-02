@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: never be nullable */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AllProvidersUnavailableError } from '../../../../shared/domain'
-import type { AgentAdjustInput, AgentGenerateInput } from './standup-agent.service'
+import type { AgentGenerateInput } from './standup-agent.service'
 import { StandupAgentService } from './standup-agent.service'
 
 // --- Mock state ---
@@ -383,7 +383,10 @@ describe('StandupAgentService', () => {
       if (result.isOk()) {
         expect(result.value.content).toBe('seeded')
       }
-      expect(sessionManager.create).toHaveBeenCalledWith('standup-1', expect.anything())
+      expect(sessionManager.create).toHaveBeenCalledWith(
+        'standup-1',
+        expect.anything(),
+      )
     })
 
     it('appends extraContext to instruction', async () => {

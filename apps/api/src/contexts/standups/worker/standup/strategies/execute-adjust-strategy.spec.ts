@@ -19,18 +19,22 @@ function makeStandupRepository(overrides: Record<string, unknown> = {}) {
 
 function makeStandupGenerator(overrides: Record<string, unknown> = {}) {
   return {
-    generateAdjustedStandup: vi.fn().mockResolvedValue(
-      Result.ok({ content: 'legacy adjusted', summary: 'legacy' }),
-    ),
+    generateAdjustedStandup: vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok({ content: 'legacy adjusted', summary: 'legacy' }),
+      ),
     ...overrides,
   }
 }
 
 function makeStandupAgent(overrides: Record<string, unknown> = {}) {
   return {
-    adjust: vi.fn().mockResolvedValue(
-      Result.ok({ content: 'agent adjusted', summary: 'agent' }),
-    ),
+    adjust: vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok({ content: 'agent adjusted', summary: 'agent' }),
+      ),
     ...overrides,
   }
 }
@@ -43,12 +47,14 @@ function makeRuntimeConfig(usePiAgent = false) {
   }
 }
 
-function buildStrategy(opts: {
-  repo?: ReturnType<typeof makeStandupRepository>
-  generator?: ReturnType<typeof makeStandupGenerator>
-  agent?: ReturnType<typeof makeStandupAgent>
-  runtimeConfig?: ReturnType<typeof makeRuntimeConfig>
-} = {}) {
+function buildStrategy(
+  opts: {
+    repo?: ReturnType<typeof makeStandupRepository>
+    generator?: ReturnType<typeof makeStandupGenerator>
+    agent?: ReturnType<typeof makeStandupAgent>
+    runtimeConfig?: ReturnType<typeof makeRuntimeConfig>
+  } = {},
+) {
   return new ExecuteAdjustStrategy(
     (opts.repo ?? makeStandupRepository()) as never,
     (opts.generator ?? makeStandupGenerator()) as never,
@@ -141,9 +147,9 @@ describe('ExecuteAdjustStrategy — PI Agent branching', () => {
 
   it('returns error when base standup is not found', async () => {
     const repo = makeStandupRepository({
-      findByIdForUser: vi.fn().mockResolvedValue(
-        Result.err(new Error('not found')),
-      ),
+      findByIdForUser: vi
+        .fn()
+        .mockResolvedValue(Result.err(new Error('not found'))),
     })
     const strategy = buildStrategy({ repo })
 
