@@ -17,10 +17,13 @@ const mockState = {
   }>,
 }
 
+const mockSubscribe = vi.fn(() => vi.fn())
+
 vi.mock('@mariozechner/pi-agent-core', () => {
   function Agent(this: Record<string, unknown>) {
     this.prompt = mockPrompt
     this.state = mockState
+    this.subscribe = mockSubscribe
   }
   return { Agent }
 })
@@ -324,6 +327,46 @@ describe('StandupAgentService', () => {
       },
       input.enrichedActivity,
     )
+  })
+
+  describe('extractPartialContent', () => {
+    it('extracts from complete JSON', () => {
+      const svc = service as any
+      expect(
+        svc.extractPartialContent('{"content":"hello world","summary":"s"}'),
+      ).toBe('hello world')
+    })
+
+    it('extracts from incomplete JSON', () => {
+      const svc = service as any
+      expect(svc.extractPartialContent('{"content":"hello world')).toBe(
+        'hello world',
+      )
+    })
+
+    it('handles escaped characters', () => {
+      const svc = service as any
+      expect(svc.extractPartialContent('{"content":"line1\\nline2')).toBe(
+        'line1\nline2',
+      )
+    })
+
+    it('returns null when no content field', () => {
+      const svc = service as any
+      expect(svc.extractPartialContent('{"summary":"s')).toBeNull()
+    })
+
+    it('returns null for empty string', () => {
+      const svc = service as any
+      expect(svc.extractPartialContent('')).toBeNull()
+    })
+  })
+
+  it('accepts onContentDelta without errors', async () => {
+    const onContentDelta = vi.fn()
+    const result = await service.generate(makeInput({ onContentDelta }))
+    expect(result.isOk()).toBe(true)
+    // onContentDelta may not be called since mock Agent doesn't emit events
   })
 
   describe('adjust()', () => {

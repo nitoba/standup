@@ -36,6 +36,7 @@ export interface AgentGenerateInput {
   extraContext?: string
   azureDevopsUuid?: string
   onStageChange?: (stage: GeneratorStage) => Promise<void> | void
+  onContentDelta?: (partialContent: string) => void
 }
 
 export interface AgentAdjustInput {
@@ -45,6 +46,7 @@ export interface AgentAdjustInput {
   previousSummary?: string
   extraContext?: string
   onStageChange?: (stage: GeneratorStage) => Promise<void> | void
+  onContentDelta?: (partialContent: string) => void
 }
 
 export interface AgentGenerateResult extends GeneratedStandup {
@@ -145,74 +147,85 @@ export class StandupAgentService {
           getApiKey: (p) => this.resolveApiKey(p),
         })
 
-        let timeoutHandle: ReturnType<typeof setTimeout> | undefined
-        await Promise.race([
-          agent.prompt(userMessage),
-          new Promise<never>((_, reject) => {
-            timeoutHandle = setTimeout(
-              () => reject(new Error('Agent prompt timed out')),
-              AGENT_TIMEOUT_MS,
-            )
-          }),
-        ]).finally(() => clearTimeout(timeoutHandle))
+        const unsubscribe = this.subscribeToContentDeltas(
+          agent,
+          input.onContentDelta,
+        )
 
-        const result = extractSubmitStandupResult(agent.state.messages)
-        if (!result) {
-          this.logger.warn('Agent did not call submit_standup tool', {
-            model: modelKey,
-            provider,
-          })
-          lastError = new Error('Agent did not call submit_standup tool')
-          continue
-        }
-
-        // Rewrite if content too long
-        if (result.content.length > MAX_STANDUP_CONTENT_CHARS) {
-          this.logger.info('Content exceeds limit, requesting rewrite', {
-            model: modelKey,
-            length: result.content.length,
-            limit: MAX_STANDUP_CONTENT_CHARS,
-          })
-
-          let rewriteTimeoutHandle: ReturnType<typeof setTimeout> | undefined
+        try {
+          let timeoutHandle: ReturnType<typeof setTimeout> | undefined
           await Promise.race([
-            agent.prompt(
-              this.standupPrompt.buildRewriteUserMessage(
-                result.content,
-                result.summary,
-              ),
-            ),
+            agent.prompt(userMessage),
             new Promise<never>((_, reject) => {
-              rewriteTimeoutHandle = setTimeout(
-                () => reject(new Error('Agent rewrite timed out')),
+              timeoutHandle = setTimeout(
+                () => reject(new Error('Agent prompt timed out')),
                 AGENT_TIMEOUT_MS,
               )
             }),
-          ]).finally(() => clearTimeout(rewriteTimeoutHandle))
+          ]).finally(() => clearTimeout(timeoutHandle))
 
-          const rewriteResult = extractSubmitStandupResult(agent.state.messages)
-          if (rewriteResult) {
-            this.llmRegistry.reportSuccess(modelKey)
-            return Result.ok({
-              content: rewriteResult.content.slice(
-                0,
-                MAX_STANDUP_CONTENT_CHARS,
-              ),
-              summary: rewriteResult.summary,
-              agent,
+          const result = extractSubmitStandupResult(agent.state.messages)
+          if (!result) {
+            this.logger.warn('Agent did not call submit_standup tool', {
+              model: modelKey,
+              provider,
             })
+            lastError = new Error('Agent did not call submit_standup tool')
+            continue
           }
-        }
 
-        this.llmRegistry.reportSuccess(modelKey)
-        return Result.ok({
-          content:
-            result.content.length > MAX_STANDUP_CONTENT_CHARS
-              ? result.content.slice(0, MAX_STANDUP_CONTENT_CHARS)
-              : result.content,
-          summary: result.summary,
-          agent,
-        })
+          // Rewrite if content too long
+          if (result.content.length > MAX_STANDUP_CONTENT_CHARS) {
+            this.logger.info('Content exceeds limit, requesting rewrite', {
+              model: modelKey,
+              length: result.content.length,
+              limit: MAX_STANDUP_CONTENT_CHARS,
+            })
+
+            let rewriteTimeoutHandle: ReturnType<typeof setTimeout> | undefined
+            await Promise.race([
+              agent.prompt(
+                this.standupPrompt.buildRewriteUserMessage(
+                  result.content,
+                  result.summary,
+                ),
+              ),
+              new Promise<never>((_, reject) => {
+                rewriteTimeoutHandle = setTimeout(
+                  () => reject(new Error('Agent rewrite timed out')),
+                  AGENT_TIMEOUT_MS,
+                )
+              }),
+            ]).finally(() => clearTimeout(rewriteTimeoutHandle))
+
+            const rewriteResult = extractSubmitStandupResult(
+              agent.state.messages,
+            )
+            if (rewriteResult) {
+              this.llmRegistry.reportSuccess(modelKey)
+              return Result.ok({
+                content: rewriteResult.content.slice(
+                  0,
+                  MAX_STANDUP_CONTENT_CHARS,
+                ),
+                summary: rewriteResult.summary,
+                agent,
+              })
+            }
+          }
+
+          this.llmRegistry.reportSuccess(modelKey)
+          return Result.ok({
+            content:
+              result.content.length > MAX_STANDUP_CONTENT_CHARS
+                ? result.content.slice(0, MAX_STANDUP_CONTENT_CHARS)
+                : result.content,
+            summary: result.summary,
+            agent,
+          })
+        } finally {
+          unsubscribe()
+        }
       } catch (error) {
         lastError = error
         this.logger.warn('PI Agent generation failed', {
@@ -268,6 +281,11 @@ export class StandupAgentService {
       ? `${input.instruction}\n\nContexto adicional: ${input.extraContext}`
       : input.instruction
 
+    const unsubscribe = this.subscribeToContentDeltas(
+      agent,
+      input.onContentDelta,
+    )
+
     try {
       let timeoutHandle: ReturnType<typeof setTimeout> | undefined
       await Promise.race([
@@ -304,6 +322,8 @@ export class StandupAgentService {
           message: `Agent adjust failed: ${error instanceof Error ? error.message : String(error)}`,
         }),
       )
+    } finally {
+      unsubscribe()
     }
   }
 
@@ -364,37 +384,46 @@ export class StandupAgentService {
           getApiKey: (p) => this.resolveApiKey(p),
         })
 
-        let timeoutHandle: ReturnType<typeof setTimeout> | undefined
-        await Promise.race([
-          agent.prompt(adjustPrompt),
-          new Promise<never>((_, reject) => {
-            timeoutHandle = setTimeout(
-              () => reject(new Error('Agent seed adjust timed out')),
-              AGENT_TIMEOUT_MS,
-            )
-          }),
-        ]).finally(() => clearTimeout(timeoutHandle))
+        const unsubscribe = this.subscribeToContentDeltas(
+          agent,
+          input.onContentDelta,
+        )
 
-        const result = extractSubmitStandupResult(agent.state.messages)
-        if (!result) {
-          this.logger.warn('Seed agent did not call submit_standup', {
-            model: modelKey,
-            provider,
+        try {
+          let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+          await Promise.race([
+            agent.prompt(adjustPrompt),
+            new Promise<never>((_, reject) => {
+              timeoutHandle = setTimeout(
+                () => reject(new Error('Agent seed adjust timed out')),
+                AGENT_TIMEOUT_MS,
+              )
+            }),
+          ]).finally(() => clearTimeout(timeoutHandle))
+
+          const result = extractSubmitStandupResult(agent.state.messages)
+          if (!result) {
+            this.logger.warn('Seed agent did not call submit_standup', {
+              model: modelKey,
+              provider,
+            })
+            lastError = new Error('Agent did not call submit_standup tool')
+            continue
+          }
+
+          this.llmRegistry.reportSuccess(modelKey)
+          this.sessionManager.create(input.standupId, agent)
+
+          return Result.ok({
+            content:
+              result.content.length > MAX_STANDUP_CONTENT_CHARS
+                ? result.content.slice(0, MAX_STANDUP_CONTENT_CHARS)
+                : result.content,
+            summary: result.summary,
           })
-          lastError = new Error('Agent did not call submit_standup tool')
-          continue
+        } finally {
+          unsubscribe()
         }
-
-        this.llmRegistry.reportSuccess(modelKey)
-        this.sessionManager.create(input.standupId, agent)
-
-        return Result.ok({
-          content:
-            result.content.length > MAX_STANDUP_CONTENT_CHARS
-              ? result.content.slice(0, MAX_STANDUP_CONTENT_CHARS)
-              : result.content,
-          summary: result.summary,
-        })
       } catch (error) {
         lastError = error
         this.logger.warn('Seed agent adjust failed', {
@@ -416,6 +445,69 @@ export class StandupAgentService {
         modelsAttempted: totalModels,
       }),
     )
+  }
+
+  private subscribeToContentDeltas(
+    agent: Agent,
+    onContentDelta?: (partialContent: string) => void,
+  ): () => void {
+    if (!onContentDelta) return () => {}
+
+    let accumulatedArgs = ''
+    let isSubmitStandupCall = false
+
+    return agent.subscribe((event) => {
+      if (event.type !== 'message_update') return
+
+      const msgEvent = event.assistantMessageEvent
+
+      if (msgEvent.type === 'toolcall_start') {
+        const partial = msgEvent.partial
+        const lastContent = partial.content[msgEvent.contentIndex]
+        if (
+          lastContent &&
+          'name' in lastContent &&
+          lastContent.name === 'submit_standup'
+        ) {
+          isSubmitStandupCall = true
+          accumulatedArgs = ''
+        }
+      }
+
+      if (msgEvent.type === 'toolcall_delta' && isSubmitStandupCall) {
+        accumulatedArgs += msgEvent.delta
+        const content = this.extractPartialContent(accumulatedArgs)
+        if (content) {
+          onContentDelta(content)
+        }
+      }
+
+      if (msgEvent.type === 'toolcall_end') {
+        isSubmitStandupCall = false
+        accumulatedArgs = ''
+      }
+    })
+  }
+
+  private extractPartialContent(partialJson: string): string | null {
+    // Try full parse first
+    try {
+      const parsed = JSON.parse(partialJson)
+      if (typeof parsed.content === 'string') return parsed.content
+    } catch {
+      // Expected — JSON is incomplete
+    }
+
+    // Regex for partial JSON: find "content":"..." even if unclosed
+    const match = partialJson.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)/)
+    if (match?.[1]) {
+      return match[1]
+        .replace(/\\n/g, '\n')
+        .replace(/\\"/g, '"')
+        .replace(/\\\\/g, '\\')
+    }
+
+    return null
   }
 
   private isRateLimitError(error: unknown): boolean {
