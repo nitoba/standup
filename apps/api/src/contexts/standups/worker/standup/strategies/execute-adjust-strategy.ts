@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { StandupReadRepository } from '../../../../../platform/database/repositories/standup-read.repository'
 import { Result, ValidationError } from '../../../../../shared/domain'
+import { StandupAgentService } from '../../standup-agent/standup-agent.service'
 import { StandupGeneratorService } from '../../standup-generator/standup-generator.service'
+import { WorkerRuntimeConfigService } from '../../worker-runtime-config.service'
 import type {
   GeneratedContent,
   StrategyExecutionInput,
@@ -14,6 +16,8 @@ export class ExecuteAdjustStrategy extends StandupStrategyBase {
   constructor(
     private readonly standupRepository: StandupReadRepository,
     private readonly standupGenerator: StandupGeneratorService,
+    private readonly standupAgent: StandupAgentService,
+    private readonly runtimeConfig: WorkerRuntimeConfigService,
   ) {
     super()
   }
@@ -49,20 +53,37 @@ export class ExecuteAdjustStrategy extends StandupStrategyBase {
       return baseResult
     }
 
-    const adjusted = await this.standupGenerator.generateAdjustedStandup(
-      {
-        previousContent: baseResult.value.content,
-        instruction,
-        extraContext: options.extraContext?.trim() || undefined,
-      },
-      async () => {
-        await this.reportStage(
-          reportProgress,
-          'generating_standup',
-          'Gerando standup ajustado',
+    const usePiAgent = this.runtimeConfig.config.USE_PI_AGENT
+
+    const adjusted = usePiAgent
+      ? await this.standupAgent.adjust({
+          standupId: baseStandupId,
+          instruction,
+          previousContent: baseResult.value.content,
+          previousSummary: undefined,
+          extraContext: options.extraContext?.trim() || undefined,
+          onStageChange: async () => {
+            await this.reportStage(
+              reportProgress,
+              'generating_standup',
+              'Ajustando standup (PI Agent)',
+            )
+          },
+        })
+      : await this.standupGenerator.generateAdjustedStandup(
+          {
+            previousContent: baseResult.value.content,
+            instruction,
+            extraContext: options.extraContext?.trim() || undefined,
+          },
+          async () => {
+            await this.reportStage(
+              reportProgress,
+              'generating_standup',
+              'Gerando standup ajustado',
+            )
+          },
         )
-      },
-    )
 
     if (adjusted.isErr()) {
       return adjusted
