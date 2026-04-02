@@ -23,10 +23,12 @@ export type StrategyProgressStep =
   | 'collecting_board'
   | 'enriching_data'
   | 'generating_standup'
+  | 'streaming_content'
 
 export interface StrategyProgressUpdate {
   step: StrategyProgressStep
   message: string
+  partialContent?: string
 }
 
 export type StrategyProgressReporter = (

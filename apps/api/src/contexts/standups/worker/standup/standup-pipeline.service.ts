@@ -223,6 +223,7 @@ export class StandupPipelineService {
     step: StandupProgressStep
     message: string
     standupId?: string
+    partialContent?: string
   }) {
     this.notifications.emitStandupProgress({
       userId: event.userId,
@@ -232,6 +233,7 @@ export class StandupPipelineService {
       step: event.step,
       message: event.message,
       ...(event.standupId ? { standupId: event.standupId } : {}),
+      ...(event.partialContent ? { partialContent: event.partialContent } : {}),
     })
   }
 
@@ -241,7 +243,7 @@ export class StandupPipelineService {
     date: string,
     mode: StandupRunMode,
   ) {
-    return async ({ step, message }: StrategyProgressUpdate) =>
+    return async ({ step, message, partialContent }: StrategyProgressUpdate) =>
       this.emitProgress({
         userId,
         runId,
@@ -249,6 +251,7 @@ export class StandupPipelineService {
         mode,
         step,
         message,
+        ...(partialContent ? { partialContent } : {}),
       })
   }
 }

@@ -10,8 +10,8 @@ import type { ThrottlerModuleOptions } from '@nestjs/throttler'
  */
 export const THROTTLER_CONFIG: ThrottlerModuleOptions = {
   throttlers: [
-    { name: 'global', ttl: 60_000, limit: 100 },
+    { name: 'global', ttl: 60_000, limit: 5000 },
     { name: 'strict', ttl: 60_000, limit: 5 },
-    { name: 'auth', ttl: 60_000, limit: 10 },
+    { name: 'auth', ttl: 60_000, limit: 200 },
   ],
 }

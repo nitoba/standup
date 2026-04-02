@@ -10,12 +10,14 @@ export type StandupSseEvent =
         | 'collecting_board'
         | 'enriching_data'
         | 'generating_standup'
+        | 'streaming_content'
         | 'saving_draft'
         | 'notifying_review'
         | 'completed'
         | 'no_activity'
       message: string
       standupId?: string
+      partialContent?: string
     }
   | {
       type: 'standup_generated'

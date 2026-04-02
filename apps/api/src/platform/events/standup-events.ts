@@ -17,6 +17,7 @@ export type StandupProgressStep =
   | 'collecting_board'
   | 'enriching_data'
   | 'generating_standup'
+  | 'streaming_content'
   | 'saving_draft'
   | 'notifying_review'
   | 'completed'
@@ -30,6 +31,7 @@ export type StandupProgressEvent = {
   step: StandupProgressStep
   message: string
   standupId?: string
+  partialContent?: string
 }
 
 export type StandupGeneratedEvent = {
