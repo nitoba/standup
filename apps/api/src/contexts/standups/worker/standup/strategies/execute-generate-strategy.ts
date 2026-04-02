@@ -11,7 +11,9 @@ import type {
 import { Result } from '../../../../../shared/domain'
 import { AzureDevopsActivityCollectorService } from '../../azure-devops/azure-devops-activity-collector.service'
 import { GitCollectorService } from '../../git-collector/git-collector.service'
+import { StandupAgentService } from '../../standup-agent/standup-agent.service'
 import { StandupGeneratorService } from '../../standup-generator/standup-generator.service'
+import { WorkerRuntimeConfigService } from '../../worker-runtime-config.service'
 import type {
   GeneratedContent,
   StrategyExecutionInput,
@@ -30,6 +32,8 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
     private readonly tracing: AppTracingService,
     private readonly standupReadRepo: StandupReadRepository,
     private readonly localDateService: LocalDateService,
+    private readonly standupAgent: StandupAgentService,
+    private readonly runtimeConfig: WorkerRuntimeConfigService,
   ) {
     super()
     this.logger = this.loggerFactory.create('generate-strategy')
@@ -175,37 +179,64 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
 
     // --- Generate standup ---
     const meetingType = this.standupGenerator.determineMeetingType(today)
-    const generated = await this.tracing.withSpan(
-      'standup.llm.generate',
-      { 'standup.meeting_type': meetingType, 'standup.mode': 'generate' },
-      () =>
-        this.standupGenerator.generateStandup(
-          {
-            date: today,
-            meetingType,
-            gitActivity: gitActivity ?? undefined,
-            boardActivity: boardActivity ?? undefined,
-            extraContext: options.extraContext?.trim() || undefined,
-            azureDevopsUuid: options.azureDevopsUuid,
-          },
-          async (stage) => {
-            if (stage === 'enriching_data') {
-              await this.reportStage(
-                reportProgress,
-                'enriching_data',
-                'Enriquecendo contexto para o standup',
-              )
-              return
-            }
 
-            await this.reportStage(
-              reportProgress,
-              'generating_standup',
-              'Gerando texto do standup',
-            )
-          },
-        ),
-    )
+    const usePiAgent = this.runtimeConfig.config.USE_PI_AGENT
+    const generated = usePiAgent
+      ? await this.tracing.withSpan(
+          'standup.agent.generate',
+          { 'standup.meeting_type': meetingType, 'standup.mode': 'agent' },
+          () =>
+            this.standupAgent.generate({
+              date: today,
+              meetingType,
+              gitActivity: gitActivity ?? undefined,
+              boardActivity: boardActivity ?? undefined,
+              extraContext: options.extraContext?.trim() || undefined,
+              azureDevopsUuid: options.azureDevopsUuid,
+              onStageChange: async (stage) => {
+                await this.reportStage(
+                  reportProgress,
+                  stage === 'enriching_data'
+                    ? 'enriching_data'
+                    : 'generating_standup',
+                  stage === 'enriching_data'
+                    ? 'Enriquecendo contexto para o standup'
+                    : 'Gerando texto do standup (PI Agent)',
+                )
+              },
+            }),
+        )
+      : await this.tracing.withSpan(
+          'standup.llm.generate',
+          { 'standup.meeting_type': meetingType, 'standup.mode': 'generate' },
+          () =>
+            this.standupGenerator.generateStandup(
+              {
+                date: today,
+                meetingType,
+                gitActivity: gitActivity ?? undefined,
+                boardActivity: boardActivity ?? undefined,
+                extraContext: options.extraContext?.trim() || undefined,
+                azureDevopsUuid: options.azureDevopsUuid,
+              },
+              async (stage) => {
+                if (stage === 'enriching_data') {
+                  await this.reportStage(
+                    reportProgress,
+                    'enriching_data',
+                    'Enriquecendo contexto para o standup',
+                  )
+                  return
+                }
+
+                await this.reportStage(
+                  reportProgress,
+                  'generating_standup',
+                  'Gerando texto do standup',
+                )
+              },
+            ),
+        )
 
     if (generated.isErr()) {
       return generated
