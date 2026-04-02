@@ -1,14 +1,11 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: never be nullable */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { AllProvidersUnavailableError, Result } from '../../../../shared/domain'
-import { StandupAgentService } from './standup-agent.service'
+import { AllProvidersUnavailableError } from '../../../../shared/domain'
 import type { AgentGenerateInput } from './standup-agent.service'
+import { StandupAgentService } from './standup-agent.service'
 
 // --- Mock state ---
 
-let agentPromptCalls: string[]
-let agentPromptBehavior: Array<'success' | 'no-tool-call' | 'error' | 'timeout'>
-let agentCallIndex: number
 let toolCallContent: string
 let toolCallSummary: string
 
@@ -37,7 +34,6 @@ vi.mock('./submit-standup.tool', () => ({
   extractSubmitStandupResult: vi.fn(),
 }))
 
-import { Agent } from '@mariozechner/pi-agent-core'
 import { extractSubmitStandupResult } from './submit-standup.tool'
 
 const mockExtract = vi.mocked(extractSubmitStandupResult)
@@ -84,7 +80,9 @@ function makeRegistry() {
   }
 }
 
-function makeInput(overrides?: Partial<AgentGenerateInput>): AgentGenerateInput {
+function makeInput(
+  overrides?: Partial<AgentGenerateInput>,
+): AgentGenerateInput {
   return {
     date: '2026-04-01',
     meetingType: 'daily',
@@ -100,9 +98,6 @@ describe('StandupAgentService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    agentPromptCalls = []
-    agentPromptBehavior = []
-    agentCallIndex = 0
     toolCallContent = 'standup content'
     toolCallSummary = 'standup summary'
 

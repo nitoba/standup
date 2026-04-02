@@ -1,9 +1,10 @@
-import { Type } from '@sinclair/typebox'
 import type { AgentMessage, AgentTool } from '@mariozechner/pi-agent-core'
+import { Type } from '@sinclair/typebox'
 
 export const SubmitStandupParams = Type.Object({
   content: Type.String({
-    description: 'The standup content in markdown format. Must be under 2000 characters.',
+    description:
+      'The standup content in markdown format. Must be under 2000 characters.',
   }),
   summary: Type.String({
     description: 'A single-line summary of the standup.',
@@ -16,9 +17,14 @@ export const submitStandupTool: AgentTool<typeof SubmitStandupParams> = {
   description:
     'Call submit_standup to submit the final standup report. You MUST call this tool exactly once with the generated standup content and summary. Do not respond with text — always use this tool.',
   parameters: SubmitStandupParams,
-  execute: async (_toolCallId: string, _params: { content: string; summary: string }) => {
+  execute: async (
+    _toolCallId: string,
+    _params: { content: string; summary: string },
+  ) => {
     return {
-      content: [{ type: 'text' as const, text: 'Standup submitted successfully.' }],
+      content: [
+        { type: 'text' as const, text: 'Standup submitted successfully.' },
+      ],
       details: undefined,
     }
   },
@@ -40,7 +46,10 @@ export function extractSubmitStandupResult(
     for (const block of message.content) {
       if (block.type === 'toolCall' && block.name === 'submit_standup') {
         const args = block.arguments as Record<string, unknown>
-        if (typeof args.content === 'string' && typeof args.summary === 'string') {
+        if (
+          typeof args.content === 'string' &&
+          typeof args.summary === 'string'
+        ) {
           last = { content: args.content, summary: args.summary }
         }
       }

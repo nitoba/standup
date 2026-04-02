@@ -1,5 +1,5 @@
-import { getModel } from '@mariozechner/pi-ai'
 import type { KnownProvider, Model } from '@mariozechner/pi-ai'
+import { getModel } from '@mariozechner/pi-ai'
 
 export interface RegistryModelInfo {
   provider: string
@@ -12,8 +12,5 @@ export function toPiAiModel(registryModel: RegistryModelInfo): Model<never> {
     ? registryModel.modelKey.split(':').slice(1).join(':')
     : registryModel.modelKey
 
-  return getModel(
-    registryModel.provider as KnownProvider,
-    modelName as never,
-  )
+  return getModel(registryModel.provider as KnownProvider, modelName as never)
 }

@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common'
 import { Agent } from '@mariozechner/pi-agent-core'
+import { Injectable } from '@nestjs/common'
 import { AppLoggerFactory } from '../../../../platform/logger'
 import type {
   GeneratedStandup,
@@ -157,9 +157,7 @@ export class StandupAgentService {
             }),
           ]).finally(() => clearTimeout(rewriteTimeoutHandle))
 
-          const rewriteResult = extractSubmitStandupResult(
-            agent.state.messages,
-          )
+          const rewriteResult = extractSubmitStandupResult(agent.state.messages)
           if (rewriteResult) {
             this.llmRegistry.reportSuccess(modelKey)
             return Result.ok({

@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/style/noNonNullAssertion: test assertions after expect().toBeDefined() */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Result } from '../../../../../shared/domain'
 import { ExecuteGenerateStrategy } from './execute-generate-strategy'
@@ -58,17 +59,15 @@ function makeTracing() {
   return {
     withSpan: vi
       .fn()
-      .mockImplementation(
-        (_name: string, _attrs: unknown, fn: () => unknown) => fn(),
+      .mockImplementation((_name: string, _attrs: unknown, fn: () => unknown) =>
+        fn(),
       ),
   }
 }
 
 function makeStandupReadRepo() {
   return {
-    findLastApprovedByUser: vi
-      .fn()
-      .mockResolvedValue(Result.ok(null)),
+    findLastApprovedByUser: vi.fn().mockResolvedValue(Result.ok(null)),
   }
 }
 
@@ -179,8 +178,7 @@ describe('ExecuteGenerateStrategy', () => {
 
     // Find the generation span call (not the git collection span)
     const generationSpanCall = tracing.withSpan.mock.calls.find(
-      (call: unknown[]) =>
-        call[0] === 'standup.agent.generate',
+      (call: unknown[]) => call[0] === 'standup.agent.generate',
     )
     expect(generationSpanCall).toBeDefined()
     expect(generationSpanCall![1]).toEqual(
@@ -197,8 +195,7 @@ describe('ExecuteGenerateStrategy', () => {
     })
 
     const generationSpanCall = tracing.withSpan.mock.calls.find(
-      (call: unknown[]) =>
-        call[0] === 'standup.llm.generate',
+      (call: unknown[]) => call[0] === 'standup.llm.generate',
     )
     expect(generationSpanCall).toBeDefined()
     expect(generationSpanCall![1]).toEqual(
