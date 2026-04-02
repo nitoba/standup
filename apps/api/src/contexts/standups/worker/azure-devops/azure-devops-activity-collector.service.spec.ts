@@ -421,4 +421,94 @@ describe('AzureDevopsActivityCollectorService', () => {
     expect(item.id).toBe(202)
     expect(item.project).toBe('ProjectA')
   })
+
+  it('extracts displayName from object-type AssignedTo field', async () => {
+    const queryWorkItems = vi.fn().mockResolvedValue(Result.ok([301]))
+    const getWorkItemsBatch = vi.fn().mockResolvedValue(
+      Result.ok([
+        {
+          id: 301,
+          fields: {
+            'System.Title': 'Task with object assignee',
+            'System.WorkItemType': 'Task',
+            'System.State': 'Active',
+            'System.AssignedTo': {
+              displayName: 'Bruno Alves',
+              uniqueName: 'bruno@company.com',
+            },
+          },
+        } satisfies WorkItemResponse,
+      ]),
+    )
+    const getWorkItemUpdates = vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok([
+          stateChangeUpdate(
+            1,
+            '2024-06-15T14:00:00Z',
+            'Bruno Alves',
+            'New',
+            'Active',
+          ),
+        ]),
+      )
+
+    const { service } = createService({
+      queryWorkItems,
+      getWorkItemsBatch,
+      getWorkItemUpdates,
+    })
+
+    const result = await service.collect('Bruno Alves', '8 hours ago')
+
+    expect(result).not.toBeNull()
+    if (result === null) throw new Error('Expected non-null result')
+    const item =
+      result.workItems[0] ??
+      (() => {
+        throw new Error('Expected item')
+      })()
+    expect(item.assignedTo).toBe('Bruno Alves')
+  })
+
+  it('skips updates with 9999 sentinel revisedDate when actual change is before sinceDate', async () => {
+    const queryWorkItems = vi.fn().mockResolvedValue(Result.ok([401]))
+    const getWorkItemsBatch = vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok([
+          workItemResponse(401, 'Old task', 'Task', 'Active', 'John Doe'),
+        ]),
+      )
+    const getWorkItemUpdates = vi.fn().mockResolvedValue(
+      Result.ok([
+        {
+          id: 401,
+          rev: 1,
+          revisedDate: '9999-01-01T00:00:00Z',
+          revisedBy: { displayName: 'John Doe' },
+          fields: {
+            'System.State': { oldValue: 'New', newValue: 'Active' },
+            'System.ChangedDate': {
+              oldValue: '2024-06-10T10:00:00Z',
+              newValue: '2024-06-10T10:00:00Z',
+            },
+          },
+        } satisfies WorkItemUpdate,
+      ]),
+    )
+
+    const { service } = createService({
+      queryWorkItems,
+      getWorkItemsBatch,
+      getWorkItemUpdates,
+    })
+
+    // sinceDate is 2024-06-15T09:00:00Z (8 hours before 17:00)
+    // The update's actual ChangedDate is 2024-06-10 — should be excluded
+    const result = await service.collect('John Doe', '8 hours ago')
+
+    expect(result).toBeNull()
+  })
 })

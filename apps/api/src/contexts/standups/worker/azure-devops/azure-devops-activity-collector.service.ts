@@ -31,6 +31,15 @@ const NOISE_FIELDS = new Set([
   'System.PersonId',
 ])
 
+function extractDisplayName(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'object' && 'displayName' in value) {
+    return String((value as { displayName: unknown }).displayName ?? '')
+  }
+  return String(value)
+}
+
 @Injectable()
 export class AzureDevopsActivityCollectorService {
   private readonly logger: ReturnType<AppLoggerFactory['create']>
@@ -170,7 +179,16 @@ export class AzureDevopsActivityCollectorService {
         continue
       }
 
-      if (update.revisedDate < sinceDate) {
+      // Azure DevOps uses 9999-01-01 as sentinel for the latest (current) revision.
+      // For date filtering, fall back to System.ChangedDate from the fields.
+      const effectiveDate = update.revisedDate.startsWith('9999')
+        ? String(
+            update.fields?.['System.ChangedDate']?.newValue ??
+              update.revisedDate,
+          )
+        : update.revisedDate
+
+      if (effectiveDate < sinceDate) {
         continue
       }
 
@@ -209,7 +227,7 @@ export class AzureDevopsActivityCollectorService {
         actions.push({
           type: 'assigned',
           timestamp,
-          details: `Assigned to ${String(change.newValue ?? 'unassigned')}`,
+          details: `Assigned to ${extractDisplayName(change.newValue) || 'unassigned'}`,
         })
       } else if (fieldName === 'System.History') {
         actions.push({
@@ -221,7 +239,7 @@ export class AzureDevopsActivityCollectorService {
         actions.push({
           type: 'created',
           timestamp,
-          details: `Created by ${String(change.newValue ?? 'unknown')}`,
+          details: `Created by ${extractDisplayName(change.newValue) || 'unknown'}`,
         })
       } else {
         actions.push({
@@ -254,7 +272,7 @@ export class AzureDevopsActivityCollectorService {
       title: String(item.fields['System.Title'] ?? ''),
       type: String(item.fields['System.WorkItemType'] ?? ''),
       state: String(item.fields['System.State'] ?? ''),
-      assignedTo: String(item.fields['System.AssignedTo'] ?? ''),
+      assignedTo: extractDisplayName(item.fields['System.AssignedTo']),
       project: projectFromArea ?? project,
       actions,
     }
