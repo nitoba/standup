@@ -69,6 +69,14 @@ export class ExecuteAdjustStrategy extends StandupStrategyBase {
               'Ajustando standup (PI Agent)',
             )
           },
+          onContentDelta: (partialContent) => {
+            this.reportStage(
+              reportProgress,
+              'streaming_content',
+              'Ajustando conteudo...',
+              partialContent,
+            )
+          },
         })
       : await this.standupGenerator.generateAdjustedStandup(
           {

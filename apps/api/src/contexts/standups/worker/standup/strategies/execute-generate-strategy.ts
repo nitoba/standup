@@ -213,6 +213,14 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
                     : 'Gerando texto do standup (PI Agent)',
                 )
               },
+              onContentDelta: (partialContent) => {
+                this.reportStage(
+                  reportProgress,
+                  'streaming_content',
+                  'Gerando conteudo...',
+                  partialContent,
+                )
+              },
             }),
         )
       : await this.tracing.withSpan(
