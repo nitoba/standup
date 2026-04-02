@@ -60,6 +60,8 @@ A regra mais importante: agrupe os commits por **contexto funcional** — ou sej
 - Mencione novos componentes/serviços criados com seus caminhos
 - Se não houver itens Done, omitir a seção Done; idem para In Progress
 - Cards de teste (tipo "Test Case", "Test Suite", "Test Plan") NÃO devem aparecer como itens no texto final. Use-os apenas como contexto para entender o andamento da atividade principal
+- REGRA CRITICA: NUNCA invente, fabrique ou inclua work items, cards ou numeros de card que nao estejam EXPLICITAMENTE presentes nos dados fornecidos abaixo. Se um item nao aparece nos commits git ou na atividade do board, ele NAO existe para este standup. Incluir items inexistentes e uma falha grave.
+- Para classificar items como Done ou In Progress, use EXCLUSIVAMENTE o campo "Status calculado" quando disponivel. Para items do board sem status calculado, considere como Done os estados: "Done", "Closed", "Resolved", "Test QA". Todos os demais estados sao In Progress.
 - Inclua apenas o trabalho do usuário atual
 - O relatório deve ser conciso mas informativo — a audiência é mista (desenvolvedores e gestão/PO)
 - O campo `content` final deve ter no máximo {{MAX_STANDUP_CONTENT_CHARS}} caracteres (incluindo espaços, quebras de linha e markdown)

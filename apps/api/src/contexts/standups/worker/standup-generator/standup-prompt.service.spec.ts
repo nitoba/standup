@@ -307,6 +307,29 @@ describe('StandupPromptService', () => {
         expect(prompt).toContain('NUNCA repita o header de status')
       }
     })
+
+    it('all system prompts contain anti-hallucination rule', () => {
+      const service = createService()
+      const gitOnly = service.buildSystemPrompt({ hasGit: true, hasBoard: false })
+      const boardOnly = service.buildSystemPrompt({ hasGit: false, hasBoard: true })
+      const hybrid = service.buildSystemPrompt({ hasGit: true, hasBoard: true })
+
+      for (const prompt of [gitOnly, boardOnly, hybrid]) {
+        expect(prompt).toContain('NUNCA invente')
+        expect(prompt).toContain('falha grave')
+      }
+    })
+
+    it('all system prompts list Test QA as a done state', () => {
+      const service = createService()
+      const gitOnly = service.buildSystemPrompt({ hasGit: true, hasBoard: false })
+      const boardOnly = service.buildSystemPrompt({ hasGit: false, hasBoard: true })
+      const hybrid = service.buildSystemPrompt({ hasGit: true, hasBoard: true })
+
+      for (const prompt of [gitOnly, boardOnly, hybrid]) {
+        expect(prompt).toContain('Test QA')
+      }
+    })
   })
 })
 
