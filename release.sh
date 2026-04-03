@@ -96,6 +96,16 @@ fi
 
 # ---- Confirm ----
 CURRENT_VERSION="$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo "unknown")"
+
+if [[ "$CURRENT_VERSION" == "$VERSION" ]]; then
+  log_warn "A versao atual ($CURRENT_VERSION) ja e a mesma que a informada ($VERSION)."
+  read -rp "Continuar mesmo assim? (y/N) " confirm_same
+  if [[ "$confirm_same" != "y" && "$confirm_same" != "Y" ]]; then
+    log_info "Cancelado."
+    exit 0
+  fi
+fi
+
 echo ""
 echo -e "${BOLD}Release $TAG${NC}"
 echo -e "${BOLD}==================${NC}"
