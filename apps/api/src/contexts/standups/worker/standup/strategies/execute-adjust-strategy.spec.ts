@@ -17,17 +17,6 @@ function makeStandupRepository(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function makeStandupGenerator(overrides: Record<string, unknown> = {}) {
-  return {
-    generateAdjustedStandup: vi
-      .fn()
-      .mockResolvedValue(
-        Result.ok({ content: 'legacy adjusted', summary: 'legacy' }),
-      ),
-    ...overrides,
-  }
-}
-
 function makeStandupAgent(overrides: Record<string, unknown> = {}) {
   return {
     adjust: vi
@@ -39,27 +28,15 @@ function makeStandupAgent(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function makeRuntimeConfig(usePiAgent = false) {
-  return {
-    get config() {
-      return { USE_PI_AGENT: usePiAgent }
-    },
-  }
-}
-
 function buildStrategy(
   opts: {
     repo?: ReturnType<typeof makeStandupRepository>
-    generator?: ReturnType<typeof makeStandupGenerator>
     agent?: ReturnType<typeof makeStandupAgent>
-    runtimeConfig?: ReturnType<typeof makeRuntimeConfig>
   } = {},
 ) {
   return new ExecuteAdjustStrategy(
     (opts.repo ?? makeStandupRepository()) as never,
-    (opts.generator ?? makeStandupGenerator()) as never,
     (opts.agent ?? makeStandupAgent()) as never,
-    (opts.runtimeConfig ?? makeRuntimeConfig(false)) as never,
   )
 }
 
@@ -74,38 +51,14 @@ const defaultOptions = {
   replaceStandupId: 'standup-1',
 }
 
-describe('ExecuteAdjustStrategy — PI Agent branching', () => {
+describe('ExecuteAdjustStrategy', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('uses legacy generator when USE_PI_AGENT is false', async () => {
-    const generator = makeStandupGenerator()
+  it('uses PI Agent to adjust standup', async () => {
     const agent = makeStandupAgent()
-    const strategy = buildStrategy({
-      generator,
-      agent,
-      runtimeConfig: makeRuntimeConfig(false),
-    })
-
-    const result = await strategy.execute({
-      options: defaultOptions as never,
-      today: '2026-04-02',
-    })
-
-    expect(result.isOk()).toBe(true)
-    expect(generator.generateAdjustedStandup).toHaveBeenCalled()
-    expect(agent.adjust).not.toHaveBeenCalled()
-  })
-
-  it('uses PI Agent when USE_PI_AGENT is true', async () => {
-    const generator = makeStandupGenerator()
-    const agent = makeStandupAgent()
-    const strategy = buildStrategy({
-      generator,
-      agent,
-      runtimeConfig: makeRuntimeConfig(true),
-    })
+    const strategy = buildStrategy({ agent })
 
     const result = await strategy.execute({
       options: defaultOptions as never,
@@ -120,7 +73,6 @@ describe('ExecuteAdjustStrategy — PI Agent branching', () => {
         previousContent: 'old standup',
       }),
     )
-    expect(generator.generateAdjustedStandup).not.toHaveBeenCalled()
   })
 
   it('returns error when rewriteInstruction is missing', async () => {
@@ -163,10 +115,7 @@ describe('ExecuteAdjustStrategy — PI Agent branching', () => {
 
   it('passes extraContext to PI Agent when provided', async () => {
     const agent = makeStandupAgent()
-    const strategy = buildStrategy({
-      agent,
-      runtimeConfig: makeRuntimeConfig(true),
-    })
+    const strategy = buildStrategy({ agent })
 
     await strategy.execute({
       options: { ...defaultOptions, extraContext: ' some context ' } as never,
@@ -180,30 +129,8 @@ describe('ExecuteAdjustStrategy — PI Agent branching', () => {
     )
   })
 
-  it('passes extraContext to legacy generator when provided', async () => {
-    const generator = makeStandupGenerator()
-    const strategy = buildStrategy({
-      generator,
-      runtimeConfig: makeRuntimeConfig(false),
-    })
-
-    await strategy.execute({
-      options: { ...defaultOptions, extraContext: ' some context ' } as never,
-      today: '2026-04-02',
-    })
-
-    expect(generator.generateAdjustedStandup).toHaveBeenCalledWith(
-      expect.objectContaining({
-        extraContext: 'some context',
-      }),
-      expect.any(Function),
-    )
-  })
-
   it('returns content with meetingType and sourceData from base standup', async () => {
-    const strategy = buildStrategy({
-      runtimeConfig: makeRuntimeConfig(false),
-    })
+    const strategy = buildStrategy()
 
     const result = await strategy.execute({
       options: defaultOptions as never,
@@ -214,7 +141,7 @@ describe('ExecuteAdjustStrategy — PI Agent branching', () => {
     if (result.isOk()) {
       expect(result.value).toEqual(
         expect.objectContaining({
-          content: 'legacy adjusted',
+          content: 'agent adjusted',
           meetingType: 'daily',
           sourceData: '{}',
           replaceStandupId: 'standup-1',

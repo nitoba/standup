@@ -2,8 +2,6 @@ import { Injectable } from '@nestjs/common'
 import { StandupReadRepository } from '../../../../../platform/database/repositories/standup-read.repository'
 import { Result, ValidationError } from '../../../../../shared/domain'
 import { StandupAgentService } from '../../standup-agent/standup-agent.service'
-import { StandupGeneratorService } from '../../standup-generator/standup-generator.service'
-import { WorkerRuntimeConfigService } from '../../worker-runtime-config.service'
 import type {
   GeneratedContent,
   StrategyExecutionInput,
@@ -15,9 +13,7 @@ import { StandupStrategyBase } from './standup-strategy.base'
 export class ExecuteAdjustStrategy extends StandupStrategyBase {
   constructor(
     private readonly standupRepository: StandupReadRepository,
-    private readonly standupGenerator: StandupGeneratorService,
     private readonly standupAgent: StandupAgentService,
-    private readonly runtimeConfig: WorkerRuntimeConfigService,
   ) {
     super()
   }
@@ -53,45 +49,28 @@ export class ExecuteAdjustStrategy extends StandupStrategyBase {
       return baseResult
     }
 
-    const usePiAgent = this.runtimeConfig.config.USE_PI_AGENT
-
-    const adjusted = usePiAgent
-      ? await this.standupAgent.adjust({
-          standupId: baseStandupId,
-          instruction,
-          previousContent: baseResult.value.content,
-          previousSummary: undefined,
-          extraContext: options.extraContext?.trim() || undefined,
-          onStageChange: async () => {
-            await this.reportStage(
-              reportProgress,
-              'generating_standup',
-              'Ajustando standup (PI Agent)',
-            )
-          },
-          onContentDelta: (partialContent) => {
-            this.reportStage(
-              reportProgress,
-              'streaming_content',
-              'Ajustando conteudo...',
-              partialContent,
-            )
-          },
-        })
-      : await this.standupGenerator.generateAdjustedStandup(
-          {
-            previousContent: baseResult.value.content,
-            instruction,
-            extraContext: options.extraContext?.trim() || undefined,
-          },
-          async () => {
-            await this.reportStage(
-              reportProgress,
-              'generating_standup',
-              'Gerando standup ajustado',
-            )
-          },
+    const adjusted = await this.standupAgent.adjust({
+      standupId: baseStandupId,
+      instruction,
+      previousContent: baseResult.value.content,
+      previousSummary: undefined,
+      extraContext: options.extraContext?.trim() || undefined,
+      onStageChange: async () => {
+        await this.reportStage(
+          reportProgress,
+          'generating_standup',
+          'Ajustando standup (PI Agent)',
         )
+      },
+      onContentDelta: (partialContent) => {
+        this.reportStage(
+          reportProgress,
+          'streaming_content',
+          'Ajustando conteudo...',
+          partialContent,
+        )
+      },
+    })
 
     if (adjusted.isErr()) {
       return adjusted
