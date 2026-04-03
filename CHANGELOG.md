@@ -5,7 +5,16 @@
 
 ### Bug Fixes
 
+- Fix: skip lifecycle scripts during Docker install to prevent better-sqlite3 hang (`af02e35`)
+
+- Fix: explicitly trigger CI/CD workflow after auto-tag creation (`2a53039`)
+
 - Fix: disable lifecycle scripts to prevent better-sqlite3 build hang (`ebbfdbe`)
+
+
+### Chores
+
+- Chore: bump version to v0.1.2 (#45) (`b48b719`)
 
 
 ## 0.1.1 — 2026-04-03
