@@ -3,27 +3,27 @@
 ## Visao Geral
 
 Servico que automatiza a geracao de standups diarios baseado no historico de commits
-dos repositorios da empresa. Coleta dados git, gera relatorios via IA (AI SDK da Vercel),
-permite revisao/aprovacao via bot do Discord, e publica standups aprovados num canal do Discord.
+dos repositorios da empresa. Coleta dados git, enriquece com Azure DevOps via MCP/REST,
+gera relatorios via IA (AI SDK da Vercel + pi-ai), permite revisao/aprovacao via bot do Discord,
+e publica standups aprovados num canal do Discord.
 
 O usuario e um desenvolvedor web full stack que precisa gerar reports de standup ao final do dia.
-Hoje ele faz isso manualmente usando uma skill de terminal. Este projeto transforma isso
-num servico persistente com agendamento, lembretes e publicacao automatizada.
+Este projeto transforma isso num servico persistente com agendamento, lembretes e publicacao automatizada.
 
 ### Fluxo Principal
 
-1. **Coleta**: Busca commits do dia nos repos da empresa via git
-2. **Enriquecimento**: Consulta Azure DevOps via MCP para detalhes de work items
-3. **Geracao**: LLM gera o standup formatado em portugues
-4. **Revisao**: Bot do Discord envia DM com preview + botoes (Aprovar/Rejeitar/Regenerar)
+1. **Coleta**: Busca commits do dia nos repos da empresa via git (fetch + log)
+2. **Enriquecimento**: Consulta Azure DevOps via MCP ou REST para detalhes de work items e PRs
+3. **Geracao**: LLM (Google, Groq, OpenRouter ou pi-ai) gera o standup formatado em portugues
+4. **Revisao**: Bot do Discord envia DM com preview + botoes (Aprovar/Rejeitar/Ajustar/Regenerar)
 5. **Publicacao**: Standup aprovado e publicado no canal do Discord
-6. **Persistencia**: Todos os standups ficam salvos em banco SQLite/libSQL (local ou Turso) para busca/filtro/resumos
+6. **Persistencia**: Todos os standups ficam salvos em banco SQLite/libSQL (local ou Turso)
 
 ### Modos de Operacao
 
-- **Cron**: Horario fixo configuravel (ex: 17:30 em dias uteis)
+- **Cron**: Horario fixo configuravel por usuario (ex: 17:30 em dias uteis)
 - **Manual**: Trigger via comando no Discord ou HTTP API
-- **Lembrete**: 5-10 min antes do cron, DM com opcao de adiar/cancelar
+- **Lembrete**: Antes do cron, DM com opcao de adiar/cancelar
 
 ## Stack
 
@@ -32,67 +32,71 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 - Testes: Vitest
 - Linter/Formatter: Biome
 - ORM: Drizzle ORM + SQLite/libSQL (Turso-ready)
-- HTTP Server: NestJS 11 com `@kiyasov/platform-hono`
-- Validacao: `class-validator`/`class-transformer` para DTOs HTTP; Zod para env e alguns schemas internos
+- HTTP Server: NestJS 11 com `@kiyasov/platform-hono` + `@hono/node-server`
+- Validacao: `class-validator`/`class-transformer` para DTOs HTTP; Zod para env e schemas internos
 - Error Handling: better-result (Result + TaggedError)
-- LLM: AI SDK da Vercel (provider configuravel)
-- Azure DevOps: MCP client para work items e PRs
-- Discord: discord.js (gateway, slash commands, modais, DMs)
+- LLM: AI SDK da Vercel (`@ai-sdk/google`, `@ai-sdk/groq`, `@openrouter/ai-sdk-provider`) + pi-ai (`@mariozechner/pi-agent-core`)
+- Azure DevOps: MCP client (`@modelcontextprotocol/sdk`) + REST client para work items e PRs
+- Discord: discord.js (gateway, slash commands, modais, DMs, botoes)
 - Scheduler: `@nestjs/schedule` + `croner` para avaliacao de cron por usuario
 - Logs: Winston via `nest-winston`
 - Observabilidade: OpenTelemetry via `nestjs-otel` + NodeSDK
+- API Docs: `@scalar/nestjs-api-reference` + `@nestjs/swagger`
+- Throttle: `@nestjs/throttler`
+- Auth: Better Auth (`@thallesp/nestjs-better-auth`) + OAuth Discord
 - Deploy: Docker + Kamal + Colima ARM64 via Tailscale
 
 ## Design Patterns
 
-- Workspace ativo com `apps/api` e `apps/web`
-- O backend roda como um monolito modular em NestJS
-- Modulos independentes nao devem se chamar diretamente quando o contrato for de integracao; use eventos internos
-- Services encapsulam logica de aplicacao por contexto funcional
+- Monorepo com `apps/api` (NestJS monolito) e `apps/web` (Angular SPA)
+- Modulos independentes nao devem se chamar diretamente via contexto de integracao; use eventos internos (`EventBusService`)
+- Controllers delegam para services; services encapsulam logica por contexto funcional
 - DTOs com `class-validator` para body; parse pipes built-in do Nest para query/path params
 - Erros explicitos com better-result (Result + TaggedError, sem try/catch)
-- Jobs idempotentes
-- Logs estruturados; evitar `console.log`
+- Jobs idempotentes com lock por `(jobName, date)`
+- Logs estruturados via `AppLoggerFactory`; evitar `console.log`
 - Barrel exports apenas em modulos publicos
 - Nunca use `any` — prefira `unknown` + type guard
 - Prefira composicao sobre heranca
-- Estado de standups via state machine simples: draft -> pending_review -> approved -> published (ou rejected -> draft)
+- Estado de standups via state machine simples: `draft -> pending_review -> approved -> published` (ou `rejected -> draft`)
+- Estrategias para pipeline: `generate`, `regenerate`, `adjust` (Strategy pattern em `worker/standup/strategies/`)
 
 ## Configuracao de Ambiente
 
-- O backend usa um unico schema em `apps/api/src/shared/env/env.schema.ts`
-- O acesso tipado a env fica em `EnvService`
-- Nao reintroduzir loaders separados por processo antigo (`loadApiEnv`, `loadBotEnv`, `loadWorkerEnv`)
-- Se uma nova env for necessaria, adicione no schema e exponha via `EnvService`
+- Schema unico em `apps/api/src/platform/env/env.schema.ts`
+- Acesso tipado via `EnvService` (injetavel no Nest)
+- Nao criar loaders separados por processo — tudo centralizado no `EnvModule`
+- Para nova env: adicionar no schema e expor via `EnvService`
 
 ## Arquitetura de Comunicacao
 
 ```
                     ┌──────────────────────────────────────────────────┐
                     │                    web (Angular)                 │
-                    │  REST + EventSource /standups/events            │
+                    │  REST + EventSource /standups/events             │
                     └───────────────────┬──────────────────────────────┘
                                         │
                                         ▼
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                            apps/api (porta 3333)                          │
 │                                                                            │
-│  Auth + Better Auth                                                        │
+│  Auth + Better Auth (OAuth Discord)                                        │
 │  HTTP + SSE                                                                │
-│  Standups CRUD/trigger/approve/status/settings                             │
+│  Standups CRUD / trigger / approve / status / send-to-discord / events     │
+│  Preferences (settings/me)                                                 │
 │  Scheduler + reminders + digests                                           │
-│  Git collector + Azure DevOps enrichment + geracao via LLM                 │
+│  Git collector + clone + Azure DevOps (MCP + REST) + geracao via LLM       │
 │  Discord gateway + slash commands + DMs + publicacao                       │
-│  Email + SMTP                                                              │
-│  Event bus interno para desacoplar modulos                                 │
+│  Email + SMTP (weekly digest)                                              │
+│  Event bus interno (EventBusService) para desacoplar contextos             │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Regras de comunicacao
 
 - O frontend conversa com a API por REST + SSE (`/standups/events`)
-- O monolito nao usa mais HTTP interno nem `x-internal-secret`
-- Modulos independentes se coordenam por eventos internos do Nest
+- Nao ha mais HTTP interno nem `x-internal-secret` — tudo e um monolito
+- Contextos independentes se coordenam por eventos internos do Nest (`EventBusService`)
 - Triggers HTTP e Discord convergem para os mesmos services/eventos de aplicacao
 - Falha em DM/email e non-fatal quando o dado principal do standup ja foi persistido
 - O scheduler roda dentro da API e pode ser desabilitado por `SCHEDULER_ENABLED`
@@ -116,144 +120,148 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 - camelCase para variaveis e funcoes
 - PascalCase para types, interfaces e classes de erro
 - UPPER_SNAKE_CASE para constantes e env vars
-- Arquivos: kebab-case (ex: standup-generator.ts, discord-publisher.ts)
-- Testes: co-locados (standup-generator.test.ts ao lado de standup-generator.ts)
+- Arquivos: kebab-case (ex: standup-generator.service.ts, discord-messages.service.ts)
+- Testes: co-locados com `.spec.ts` (ex: approve-standup.service.spec.ts)
 
 ## Principios de Organizacao de Arquivos
 
-### Uma funcao/responsabilidade por arquivo
+### Uma responsabilidade por arquivo
 
-Cada arquivo exporta **uma unica funcao principal**. Nunca agrupar funcoes nao relacionadas
-num mesmo arquivo so porque "sao do mesmo modulo".
+Cada arquivo exporta uma unica classe/funcao principal. Nunca agrupar responsabilidades nao relacionadas.
 
-```
-# ERRADO — duas responsabilidades no mesmo arquivo
-notify-standup-ready.ts  ← exporta notifyStandupReady() E notifyJobFailed()
+### Agrupamento por contexto funcional, nao por tipo tecnico
 
-# CORRETO — um arquivo por responsabilidade
-notifications/
-  notify-standup-ready.ts   ← exporta so notifyStandupReady()
-  notify-job-failed.ts      ← exporta so notifyJobFailed()
-```
+Pastas agrupam pelo **que fazem juntos**. Contextos de dominio em `contexts/`, adapters externos em `interfaces/`, infra em `platform/`.
 
-### Agrupamento por contexto, nao por tipo
+### Controllers sao entrypoints HTTP puros
 
-Pastas agrupam arquivos pelo **que fazem juntos**, nao pelo que sao tecnicamente.
-So crie uma pasta quando houver 2+ arquivos do mesmo contexto.
-
-```
-# ERRADO — agrupa por tipo tecnico
-handlers/
-  button-handler.ts
-  slash-command-handler.ts
-  interaction-handler.ts
-notifications/
-  send-review-dm.ts
-  send-channel-notification.ts
-  publish-standup.ts
-
-# CORRETO — mesmo resultado, mas o criterio e correto
-# (neste caso coincide, mas o raciocinio importa)
-```
-
-### index.ts e entrypoint puro
-
-O `index.ts` de cada app so contem: carregar env, instanciar dependencias, conectar servicos.
-**Nenhuma logica de negocio ou handler inline**.
-
-```ts
-// CORRETO — index.ts como bootstrap puro
-client.on(Events.InteractionCreate, async (interaction) => {
-  if (interaction.isChatInputCommand()) {
-    await handleSlashCommand(interaction, client, env); // delega
-    return;
-  }
-  if (interaction.isButton()) {
-    await handleButtonInteraction(interaction, client, env); // delega
-  }
-});
-```
+Controllers delegam para services; nenhuma logica de negocio inline no controller.
 
 ### Arquivo utilitario fica proximo de quem o usa
 
-`embeds.ts` fica em `discord/` (raiz do contexto Discord), nao dentro de `notifications/`,
-porque e usado tanto por `notifications/` quanto potencialmente por `handlers/`.
+`embeds.ts` fica na raiz de `interfaces/discord/`, acessivel tanto por `notifications/` quanto por `handlers/`.
 
 ## Estrutura de Pastas
 
 ```
 standup/
   apps/
-    api/                    # Monolito NestJS ativo
+    api/                    # Monolito NestJS
       src/
-        app.module.ts
-        main.ts
-        modules/
-          auth/             # Better Auth, OAuth Discord, session
-          discord/          # Gateway, slash commands, interacoes, DMs
-          email/            # SMTP client, templates, composicao de email
-          events/           # Event bus interno e contratos de eventos
-          http/             # Health endpoints
-          settings/         # GET/PUT /settings/me
-          standups/         # query, trigger, approval, status, SSE
-          worker/           # scheduler, repos, reminders, digests, pipeline
-        shared/
-          auth/            # helpers de sessao
-          database/        # schema, migrations, repositories, runner
-          domain/          # types, errors, state machine, schemas
-          env/             # env schema + EnvService
-          logger/          # nest-winston + factory tipada
-          observability/   # NodeSDK + nestjs-otel
-          repos/           # parse-selected-repos
-          time/            # local date/time services
+        app.module.ts       # Modulo raiz
+        main.ts             # Bootstrap NestJS + Hono
+        contexts/           # Logica de dominio (bounded contexts)
+          identity/         # Auth + Better Auth + OAuth Discord
+          preferences/
+            me/             # GET/PUT /settings/me (MeSettingsController)
+          standups/         # Contexto principal de standups
+            approval/       # POST /standups/:id/approve
+            events/         # SSE /standups/events (StandupSseBusService)
+            publication/    # PublishStandupService (publica no Discord)
+            query/          # GET /standups, GET /standups/:id
+            send-to-discord/# POST /standups/:id/send-to-discord
+            shared/         # Utilitarios compartilhados entre sub-contextos
+            status/         # PATCH /standups/:id/status
+            trigger/        # POST /standups/trigger
+            worker/         # Pipeline de geracao e infraestrutura do worker
+              azure-devops/ # MCP + REST client para Azure DevOps
+              digests/      # Weekly digest (job + dispatch + controller)
+              git-collector/# Coleta de commits + repo clone
+              reminders/    # Lembretes pre-standup (controller + actions)
+              repos/        # Listagem de repos disponiveis
+              scheduler/    # WorkerSchedulerService + is-cron-due-now
+              standup/      # Pipeline principal (run-standup-job, dispatch, strategies)
+                strategies/ # execute-generate, execute-regenerate, execute-adjust
+              standup-agent/# Agente LLM com pi-ai (session manager, tools, prompts)
+              standup-generator/ # StandupGeneratorService + prompts + LlmProviderRegistry
+        interfaces/         # Adapters de interfaces externas
+          discord/          # Gateway Discord completo
+            commands/       # CommandRegistrationService (slash commands)
+            handlers/       # StandupInteractionService, ButtonInteractionService,
+                            #   ModalInteractionService, ReminderInteractionService,
+                            #   TriggerConfirmationService, CopyInteractionService,
+                            #   SlashCommandHandlerService, CommandCooldownService
+            listeners/      # DiscordGatewayService, DiscordStreamingListener
+            notifications/  # DiscordMessagesService
+            services/       # StandupNotificationService, StandupStatusSyncService,
+                            #   DiscordTriggerService, DiscordAuthService,
+                            #   DiscordAvailableReposService, DiscordServiceHealthService
+            discord-client.service.ts
+            discord.module.ts
+            embeds.ts       # Builders de embed (review, published, job-failed, reminder)
+          email/            # SMTP + templates
+            services/       # EmailClientService, WeeklyDigestEmailService
+            templates/      # weekly-digest.ts (HTML template)
+            utils/
+        platform/           # Infraestrutura tecnica
+          database/
+            migrations/     # SQL gerados por drizzle-kit
+            repositories/   # job-run, standup-read, standup-write, user, user-settings,
+                            #   weekly-digest
+            schema.ts       # Schema Drizzle (fonte de verdade do banco)
+            database.module.ts
+            database.service.ts
+            migrate.ts      # Runner de migrations (entrypoint do container)
+          env/              # EnvModule + EnvService + env.schema.ts
+          events/           # EventBusService + contratos de eventos (standup-events.ts)
+          http/
+            controllers/    # HealthController, ApiReferenceController
+            filters/        # GlobalExceptionFilter
+            throttler/      # ThrottlerConfig
+          logger/           # AppLoggerFactory + create-winston-options
+          observability/    # AppTracingService + NodeSDK
+          time/             # Servicos de data/hora local
+        shared/             # Cross-cutting concerns
+          auth/             # Helpers de sessao
+          domain/           # Types, errors, state machine, schemas Zod
+          openapi/          # Decorators Swagger
+          repos/            # parse-selected-repos
+          utils/
+          validators/
+        test/               # Helpers de teste (e2e, fixtures)
 
-    web/                    # Angular 21 SPA — dashboard, detalhe, settings
+    web/                    # Angular SPA
       src/app/
-        services/
-          standup.service.ts        # httpResource (lista+detalhe), trigger/approve/reject/adjust/regenerate
-          standup-events.service.ts # EventSource /standups/events → standupGenerated$ Subject
-          settings.service.ts
-        pages/
-          dashboard/        # tabela com pulse no pending mais recente, filtros, metricas
-          standup-detail/   # detalhe com acoes (approve/reject fire-and-forget via SSE)
-          settings/
+        api/
+          endpoints/        # standups, settings, digests, reminders, repos
+          model/            # DTOs gerados (OpenAPI)
+        core/               # auth, layout
+        features/
+          dashboard/        # Tabela de standups, filtros, metricas
+          login/
+          settings/         # Configuracoes do usuario
+          standup-detail/   # Detalhe com acoes (approve/reject/adjust/regenerate)
+          weekly-digest/    # Visualizacao do digest semanal
+        shared/             # components, core, models, pipes, services, utils
 
   data/               # SQLite files locais para dev (gitignored)
+  config/             # Kamal deploy configs (deploy.api.yml, deploy.web.yml)
+  scripts/            # Scripts utilitarios
   turbo.json          # Pipeline: lint → typecheck → test → build
 ```
-
-## Ordem de Implementacao (Obrigatoria)
-
-1. Fase 0: contrato de arquitetura + responsabilidades por app
-2. Fase 1: fundacoes (turbo, tsconfig strict, biome, vitest, CI)
-3. Fase 1: contratos de dominio e testes dos paths Ok/Err
-4. Fase 2: features por fatias pequenas (collector, generator, persistence, bot, scheduler)
-5. So com `bun run ci` verde: lint + typecheck + test
 
 ## Regras de Banco de Dados (Drizzle)
 
 - **NUNCA criar arquivos de migration manualmente** — sempre usar `bun run db:generate` no `apps/api`
-- `db:generate` atualiza o `_journal.json` e cria o snapshot corretamente; criar arquivos `.sql` manualmente quebra o journal e pode causar migrations aplicadas parcialmente
-- `db:migrate` aplica as migrations pendentes usando `apps/api/src/shared/database/migrate.ts` com `--env-file=../../.env.local`
+- `db:generate` atualiza o `_journal.json` e cria o snapshot corretamente; criar arquivos `.sql` manualmente quebra o journal
+- `db:migrate` aplica as migrations pendentes usando `apps/api/src/platform/database/migrate.ts`
 - Em container, as migrations rodam no entrypoint da API antes do binario compilado subir
-- Sempre rodar `db:migrate` apos `db:generate` para aplicar no banco configurado no ambiente (`file:...`, `http://127.0.0.1:8080`, `libsql://...`)
-- Desenvolvimento local pode usar:
+- Desenvolvimento local:
   - `DATABASE_URL=file:./data/standup.db` para SQLite local
-  - `turso dev --db-file ./data/standup.db` + `DATABASE_URL=http://127.0.0.1:8080` para libSQL local via Turso CLI
+  - `turso dev --db-file ./data/standup.db` + `DATABASE_URL=http://127.0.0.1:8080` para libSQL local
   - `DATABASE_URL=libsql://...` + `DATABASE_AUTH_TOKEN=...` para Turso remoto
 
 Fluxo correto para adicionar ou alterar schema:
-1. Editar `apps/api/src/shared/database/schema.ts`
+1. Editar `apps/api/src/platform/database/schema.ts`
 2. `bun run db:generate` (dentro de `apps/api`) — gera o `.sql` e atualiza o journal
 3. `bun run db:migrate` (dentro de `apps/api`) — aplica no banco
 
 ## Regras de Monorepo (Turborepo)
 
-- Scripts de task ficam em cada pacote/app (`build`, `lint`, `typecheck`, `test`)
+- Scripts de task ficam em cada app (`build`, `lint`, `typecheck`, `test`)
 - Root apenas delega: `turbo run <task>`
 - Evitar logica de build no root `package.json`
 - Definir outputs de build para cache (`dist/**`)
-- Dependencias internas sempre via `workspace:*`
 - Cache stale apos mudancas de biome/lint: usar `--force` para invalidar
 
 ## Env Vars Necessarias
@@ -279,18 +287,31 @@ DISCORD_BOT_TOKEN=
 DISCORD_CHANNEL_ID=
 DISCORD_GUILD_ID=
 DISCORD_GATEWAY_ENABLED=true
+DISCORD_SEND_TIMEOUT_MS=60000
+
+# Discord Automation (opcional — webhook para notificacoes de CI/deploy)
+DISCORD_AUTOMATION_URL=
+DISCORD_AUTOMATION_CHANNEL_URL=
+DISCORD_AUTOMATION_WEBHOOK_SECRET=
 
 # Worker internals
 SCHEDULER_ENABLED=true
-AI_PROVIDER_API_KEY=
+
+# LLM Providers (pelo menos um obrigatorio)
+GOOGLE_API_KEY=
+GROQ_API_KEY=
+OPENROUTER_API_KEY=
+LLM_PROVIDERS_CONFIG=    # JSON de configuracao de provedores (opcional)
+
+# Azure DevOps
 AZURE_DEVOPS_ORG=
 AZURE_DEVOPS_PAT=
 AZURE_DEVOPS_DEFAULT_PROJECT=AGROTRACE
-AZURE_DEVOPS_PROJECTS=
+AZURE_DEVOPS_PROJECTS=AGROTRACE,CHECKMILK,JASPER-RELATORIOS
 
 # SMTP
 SMTP_HOST=
-SMTP_PORT=1025
+SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_FROM=
 SMTP_USER=
@@ -304,23 +325,135 @@ HOST_REPOS_ROOT_PATH=/home/nitoba/Documents/repos/ibs/repos
 HOST_SSH_PATH=~/.ssh
 ```
 
+## Padroes de Jobs Resilientes
+
+Implementados em `contexts/standups/worker/standup/` e `platform/database/repositories/job-run.repository.ts`:
+
+**Padrao 1 — Retry com Backoff Exponencial:**
+
+- `withRetry()` helper: 3 tentativas, delays 5s→10s→20s
+- So retenta `LlmTemporaryError` e `McpConnectionError` (erros transitorios)
+
+**Padrao 2 — Lock Distribuido via `job_runs`:**
+
+- `JobRunRepository.acquireLock(jobName, date)`:
+  - `running` existente → `LockAlreadyHeldError`
+  - `success` existente → `JobAlreadyCompletedError`
+  - `failed` existente → deleta e permite nova tentativa
+- `releaseLock(id, 'success'|'failed', error?)` no `finally` do job
+- Lock scoped por `(jobName, date)`
+
+**Padrao 3 — Idempotencia:**
+
+- `JobAlreadyCompletedError` torna o job no-op se ja teve `success` no dia
+
+**Padrao 5 — Recovery Cron:**
+
+- `WorkerSchedulerService` — executado 30 min apos o cron principal salvo em `user_settings`
+- Busca runs em `running` com mais de 1h → marca como `failed`
+- Verifica se existe `success` para hoje → se nao, re-executa
+
+**Padrao 6 — Notificacoes:**
+
+- `WorkerEventPublisherService` publica eventos de dominio via `EventBusService`
+- `interfaces/discord` e `contexts/standups/events` reagem sem acoplamento direto
+
+### TaggedErrors
+
+```ts
+LlmTemporaryError;        // erro transitorio de LLM (safe to retry)
+McpConnectionError;       // falha de conexao MCP (safe to retry)
+LockAlreadyHeldError;     // job ja esta rodando para (jobName, date)
+JobAlreadyCompletedError; // job ja completou com sucesso para (jobName, date)
+```
+
+## Padroes do Discord (Akita)
+
+**Padrao 2 — Reacoes como Status:**
+
+- `approve` → `✅`, `reject` → `❌`, `regenerate` → `🔄`, `adjust` → `✏️`
+- Implementado em `interfaces/discord/handlers/standup-interaction.service.ts`
+
+**Padrao 3 — Embeds Ricos:**
+
+- DM de revisao: embed **azul** (`0x3498DB`) — `buildReviewEmbed`
+- Publicacao no canal: embed **verde** (`0x2ECC71`) — `buildPublishedEmbed`
+- Notificacao de falha: embed **vermelho** (`0xE74C3C`) — `buildJobFailedEmbed`
+- Lembrete: embed **ambar** (`0xF39C12`) — `buildReminderEmbed`
+- Limites Discord: title=256, description=4096, field_value=1024 — sempre truncar
+- Todos os builders em `interfaces/discord/embeds.ts`
+
+**Padrao 8 — Notificacoes de Status:**
+
+- `WorkerEventPublisherService` publica evento interno
+- `DiscordMessagesService` e `StandupNotificationService` cuidam das mensagens finais
+- Falha na notificacao e logada, mas nao deve derrubar o fluxo principal
+
+**Padrao 13 — Application Commands:**
+
+- `SlashCommandBuilder` com `/standup` e subcommands: `trigger`, `list`, `approve <id>`, `settings`
+- `CommandRegistrationService.registerApplicationCommands()` chamado no `ClientReady` — idempotente
+- Guild commands quando `DISCORD_GUILD_ID` presente, global caso contrario
+
+### Nest SSE: bus separado do EventEmitter interno
+
+- `EventBusService` para eventos internos entre contextos
+- `StandupSseBusService` para conexoes abertas por `userId`
+- `@Sse()` retornando `Observable<MessageEvent>`
+
+### discord.js: message.edit() em DM causa "channel not in cache"
+
+Usar apenas `interaction.editReply()` — opera via webhook da interacao, sem cache:
+
+```ts
+// CORRETO
+await interaction.editReply(payload)
+// ERRADO em DM — crasha
+await interaction.message?.edit(payload)
+```
+
+### interaction.deferUpdate() para evitar timeout de 3s
+
+```ts
+await interaction.deferUpdate();
+// ... logica async ...
+await interaction.editReply({ content: result.message, components: [] });
+```
+
+### discord.js isSendable() para channels com send()
+
+```ts
+if (!channel.isTextBased() || !channel.isSendable()) {
+  throw new ExternalServiceError({ service: "discord", message: "Not a sendable channel" });
+}
+await channel.send({ content });
+```
+
+### discord.js: race condition no ClientReady
+
+```ts
+await new Promise<void>((resolve, reject) => {
+  client.once(Events.ClientReady, () => resolve());
+  client.once(Events.Error, reject);
+  client.login(token).catch(reject);
+});
+```
+
 ## Hurdles (Barreiras Conhecidas)
 
 - discord.js com Bun: funciona nativamente desde Bun 1.1+
-- SQLite WAL mode: necessario para leitura concorrente entre HTTP, scheduler e jobs
-- AI SDK: usar provider configuravel com `generateObject` para geracao de standups
-- croner: usado para avaliar cron por usuario dentro do scheduler do Nest
+- SQLite WAL mode: necessario para leitura concorrente
+- AI SDK: usar provider configuravel; `LlmProviderRegistry` centraliza a selecao de provider
+- croner: usado para avaliar cron por usuario dentro do `WorkerSchedulerService`
 
 ### Vitest roda em Node
 
-Vitest nao roda no runtime Bun. Evite depender de globais exclusivas do Bun no codigo
-que precisa ser testado. Prefira `node:crypto`, APIs Web padrao e mocks explicitos.
+Vitest nao roda no runtime Bun. Evite depender de globais exclusivas do Bun no codigo testado. Prefira `node:crypto`, APIs Web padrao e mocks explicitos.
 
 ### Biome --unsafe pode trocar node:crypto por Bun globals
 
 `biome check --write --unsafe` pode substituir `crypto.randomUUID()` por `Bun.randomUUIDv7()`.
-Isso quebra testes Vitest (que rodam em Node). Sempre revisar o diff apos `--unsafe`
-e manter `node:crypto` quando o codigo tambem roda em testes.
+Isso quebra testes Vitest. Sempre revisar o diff apos `--unsafe`.
 
 ### vi.mock com classes instanciadas com `new`
 
@@ -336,19 +469,7 @@ vi.mock("../shared/database/repositories/standup.repository", () => {
 });
 ```
 
-O mesmo padrao se aplica ao `discord.js Client`:
-
-```ts
-function Client(this: Record<string, unknown>) {
-  this.login = mocks.login;
-  this.once = mocks.once;
-}
-```
-
 ### vi.hoisted() para evitar TDZ em vi.mock factories
-
-Quando factories de `vi.mock()` referenciam variaveis declaradas no mesmo escopo,
-usar `vi.hoisted()` para evitar TDZ (Temporal Dead Zone):
 
 ```ts
 const mocks = vi.hoisted(() => ({
@@ -360,208 +481,23 @@ vi.mock("../notifications/notify-standup-ready.js", () => ({
 }));
 ```
 
-### Vitest + import transitive de router (driver de banco)
+### Vitest + import transitive de repositorios
 
-Quando um teste importa um controller/module, ele carrega services e repositories
-transitivamente. Se algum caminho tocar no driver real de banco, o teste deixa de
-ser unitario e pode quebrar por boundary errado.
-
-Padrao para testes de controller/module: mockar **todos** os services e repositories
-importados transitivamente, mesmo os nao usados diretamente no caso testado.
-
-Exemplo: ao testar `POST /standups/trigger`, mockar tambem dependencias de query/status
-caso o modulo carregue esses providers juntos.
-
-### discord.js: race condition no ClientReady
-
-`client.login()` e async mas o client so esta pronto no evento `ClientReady`.
-Padrao correto para aguardar conexao:
-
-```ts
-await new Promise<void>((resolve, reject) => {
-  client.once(Events.ClientReady, () => resolve());
-  client.once(Events.Error, reject);
-  client.login(token).catch(reject);
-});
-```
-
-### discord.js isSendable() para channels com send()
-
-`channel.isTextBased()` retorna uma union que inclui `PartialGroupDMChannel` que nao tem `send()`.
-Usar `channel.isSendable()` para narrowing correto antes de enviar mensagem:
-
-```ts
-if (!channel.isTextBased() || !channel.isSendable()) {
-  throw new ExternalServiceError({
-    service: "discord",
-    message: "Not a sendable channel",
-  });
-}
-await channel.send({ content });
-```
-
-`SendableChannels` e exportado como tipo: `type SendableChannels = Extract<Channel, { send: (...args: any[]) => any }>`.
-
-### interaction.deferUpdate() para evitar timeout de 3s no Discord
-
-Operacoes de DB + publicacao podem demorar mais que 3s (limite do Discord para interacoes).
-Padrao correto:
-
-```ts
-await interaction.deferUpdate(); // avisa Discord que estamos processando
-// ... logica async ...
-await interaction.editReply({
-  // atualiza a mensagem original
-  content: result.message,
-  components: [], // remove os botoes apos a acao
-});
-```
-
-`deferUpdate()` edita a mensagem original (botoes permanecem desabilitados).
-`editReply()` com `components: []` remove os botoes para evitar cliques duplicados.
-
-### Mock de discord.js Client para testes
-
-O Client real conecta ao Discord. Para testes unitarios, passar um fake client tipado:
-
-```ts
-const fakeClient = {} as unknown as Client;
-
-// Para testar funcoes que usam channels.fetch:
-function makeClient(channelResult: unknown) {
-  const fetchChannel = vi.fn().mockResolvedValue(channelResult);
-  return {
-    client: { channels: { fetch: fetchChannel } } as unknown as Client,
-    fetchChannel,
-  };
-}
-// Canal mock precisa de isTextBased() + isSendable() + send():
-function makeChannel() {
-  const send = vi.fn();
-  return {
-    channel: { isTextBased: () => true, isSendable: () => true, send },
-    send,
-  };
-}
-```
-
-### Nest SSE: bus separado do EventEmitter interno
-
-Nao reutilize o `EventEmitter2` diretamente como stream de SSE. O padrao atual e:
-
-- `EventBusService` para eventos internos entre modulos
-- `StandupSseBusService` para conexoes abertas por `userId`
-- `@Sse()` retornando `Observable<MessageEvent>`
-
-### discord.js: message.edit() em DM causa "channel not in cache"
-
-`interaction.message.edit()` tenta resolver o canal via cache do Client. Canais de DM
-nao sao cacheados automaticamente, causando `Could not find the channel in the cache`.
-
-Usar apenas `interaction.editReply()` — opera via webhook da interacao, sem cache:
-
-```ts
-// ERRADO — crasha em DM
-await interaction.editReply(payload)
-await interaction.message?.edit(payload)  // ← remove isso
-
-// CORRETO
-await interaction.editReply(payload)
-```
+Ao testar controllers/modules, mockar **todos** os services e repositories importados transitivamente,
+mesmo os nao usados diretamente no caso testado, para evitar que o driver real de banco seja carregado.
 
 ### Docker ARM + libsql nativo
 
 O runtime de producao e ARM64 e a API e compilada com `bun build --compile`.
 `@libsql/client` ainda carrega addon nativo dinamicamente, entao o Dockerfile precisa:
-
 - copiar o binario do Bun para o runtime
 - copiar o pacote nativo `@libsql/linux-arm64-gnu` para `/app/node_modules/@libsql`
 - rodar `migrate.ts` no entrypoint antes do binario compilado
 
-### Padroes do Akita (Discord como Admin Panel)
-
-**Padrao 2 — Reacoes como Status:** Emojis no `editReply` como feedback visual apos botao.
-
-- `approve` → `✅`, `reject` → `❌`, `regenerate` → `🔄`
-- Implementado em `discord/handlers/button-handler.ts`
-
-**Padrao 3 — Embeds Ricos:**
-
-- DM de revisao: embed **azul** (`0x3498DB`) — `buildReviewEmbed`
-- Publicacao no canal: embed **verde** (`0x2ECC71`) — `buildPublishedEmbed`
-- Notificacao de falha: embed **vermelho** (`0xE74C3C`) — `buildJobFailedEmbed`
-- Lembrete de standup: embed **ambar** (`0xF39C12`) — `buildReminderEmbed`
-- Limites Discord: title=256, description=4096, field_value=1024 — sempre truncar
-- Todos os builders em `discord/embeds.ts`
-
-**Padrao 8 — Notificacoes de Status em Producao:**
-
-- `notifyJobFailed()` publica evento interno
-- `DiscordMessagesService` e `StandupNotificationService` cuidam das mensagens finais
-- Falha na notificacao e logada, mas nao deve derrubar o fluxo principal quando o dado ja foi salvo
-- Non-fatal em dois niveis: falha na notificacao e logada mas nao propaga
-
-**Padrao 13 — Application Commands:**
-
-- `SlashCommandBuilder` com `/standup` e 3 subcommands: `trigger`, `list`, `approve <id>`
-- `trigger` dispara o mesmo fluxo de aplicacao usado pelo endpoint HTTP
-- `registerApplicationCommands()` chamado no `ClientReady` — idempotente, safe on reconnect
-- Guild commands (propagacao instantanea) quando `DISCORD_GUILD_ID` presente, global caso contrario
-- Implementado em `modules/discord/commands/command-registration.service.ts`
-
-## Padroes de Jobs Resilientes (Akita)
-
-Implementados em `apps/api/src/modules/worker` e `apps/api/src/shared/database`:
-
-**Padrao 1 — Retry com Backoff Exponencial:**
-
-- `withRetry()` helper: 3 tentativas, delays 5s→10s→20s
-- So retenta `LlmTemporaryError` e `McpConnectionError` (erros transitorios)
-- Erros nao-retentaveis retornam imediatamente sem esperar
-
-**Padrao 2 — Lock Distribuido via `job_runs`:**
-
-- `JobRunRepository.acquireLock(jobName, date)`:
-  - `running` existente → `LockAlreadyHeldError`
-  - `success` existente → `JobAlreadyCompletedError`
-  - `failed` existente → deleta e permite nova tentativa
-- `releaseLock(id, 'success'|'failed', error?)` no `finally` do job
-- Lock scoped por `(jobName, date)` — previne execucao concorrente e duplicate runs
-
-**Padrao 3 — Idempotencia:**
-
-- `JobAlreadyCompletedError` torna o job no-op se ja teve `success` no dia
-
-**Padrao 5 — Recovery Cron:**
-
-- `recoveryCron` em `scheduler.ts` — executado 30 min apos o cron principal salvo em `user_settings`
-- Busca runs em `running` com mais de 1h → marca como `failed`
-- Verifica se existe `success` para hoje → se nao, re-executa o job
-
-**Padrao 6 — Notificacoes (ja existia):**
-
-- `WorkerEventPublisherService` publica eventos de dominio
-- `discord` e `standups/events` reagem sem acoplamento direto
-
-### TaggedErrors
-
-```ts
-LlmTemporaryError; // erro transitorio de LLM (safe to retry)
-McpConnectionError; // falha de conexao MCP (safe to retry)
-LockAlreadyHeldError; // job ja esta rodando para (jobName, date)
-JobAlreadyCompletedError; // job ja completou com sucesso para (jobName, date)
-```
-
-### JobRunRepository
-
-`acquireLock(jobName, date)`, `releaseLock(id, status, error?)`, `findStaleRuns(maxAgeMs)`, `findByJobAndDate(jobName, date)` — 13 testes unitarios.
-
-Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock por dia.
-
 ## Estado Atual
 
-- `apps/api` e a fonte de verdade do backend, do scheduler, do Discord, do email, das migrations e da observabilidade
-- `apps/web` continua como frontend Angular consumindo REST + SSE
-- Os antigos apps e packages foram internalizados ou arquivados
-- O deploy sobe 2 imagens: `standup-api` e `standup-web`
+- `apps/api` e a fonte de verdade do backend: scheduler, Discord, email, migrations, observabilidade
+- `apps/web` e o frontend Angular consumindo REST + SSE
+- Deploy sobe 2 imagens: `standup-api` e `standup-web`
 - As migrations rodam no startup da API, nao em container separado
+- CI verde: lint + typecheck + test em todos os contextos/apps
