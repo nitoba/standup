@@ -66,3 +66,28 @@ bun run db:studio
 ```
 
 Em container, a API roda as migrations no entrypoint antes de subir o binario compilado. Nao existe mais um servico `migrate` separado no deploy.
+
+## Processo de Release
+
+### Criar uma nova versão
+
+```bash
+./release.sh 0.2.0
+```
+
+O script faz:
+1. Atualiza `VERSION`, `package.json` versions e `CHANGELOG.md`
+2. Cria branch `release/0.2.0` com commit
+3. Push e abre PR para `main`
+
+### Após o merge do PR
+
+- O CI existente faz o deploy automaticamente
+- O workflow `auto-tag.yml` cria a tag `v0.2.0` automaticamente
+- O workflow `release.yml` cria o GitHub Release com o changelog
+
+### Versionamento Semântico
+
+- **MAJOR** — Breaking changes
+- **MINOR** — Novas features
+- **PATCH** — Bug fixes
