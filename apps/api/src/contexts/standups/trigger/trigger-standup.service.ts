@@ -121,7 +121,6 @@ export class TriggerStandupService {
       rewriteFromStandupId: body.rewriteFromStandupId,
       rewriteInstruction: body.rewriteInstruction,
       replaceStandupId: body.replaceStandupId,
-      reuseExistingSource: body.reuseExistingSource,
     })
 
     return { ok: true, accepted: true }

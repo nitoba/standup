@@ -10,7 +10,6 @@ import { AgentSessionManager } from '../standup-agent/agent-session-manager'
 import { WorkerEventPublisherService } from '../worker-event-publisher.service'
 import { ExecuteAdjustStrategy } from './strategies/execute-adjust-strategy'
 import { ExecuteGenerateStrategy } from './strategies/execute-generate-strategy'
-import { ExecuteRegenerateStrategy } from './strategies/execute-regenerate-strategy'
 import type { StandupJobOptions, StrategyProgressUpdate } from './types'
 
 interface PipelineContext {
@@ -29,7 +28,6 @@ export class StandupPipelineService {
     private readonly standupRepository: StandupWriteRepository,
     private readonly notifications: WorkerEventPublisherService,
     private readonly generateStrategy: ExecuteGenerateStrategy,
-    private readonly regenerateStrategy: ExecuteRegenerateStrategy,
     private readonly adjustStrategy: ExecuteAdjustStrategy,
     private readonly sessionManager: AgentSessionManager,
   ) {
@@ -174,8 +172,6 @@ export class StandupPipelineService {
     switch (mode) {
       case 'adjust':
         return this.adjustStrategy.execute(executionInput)
-      case 'regenerate':
-        return this.regenerateStrategy.execute(executionInput)
       default:
         return this.generateStrategy.execute(executionInput)
     }

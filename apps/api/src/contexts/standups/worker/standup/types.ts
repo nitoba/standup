@@ -15,7 +15,6 @@ export interface StandupJobOptions {
   rewriteFromStandupId?: string
   rewriteInstruction?: string
   replaceStandupId?: string
-  reuseExistingSource?: boolean
 }
 
 export type StrategyProgressStep =
