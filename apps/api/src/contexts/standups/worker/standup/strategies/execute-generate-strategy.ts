@@ -14,8 +14,7 @@ import { AzureDevopsActivityCollectorService } from '../../azure-devops/azure-de
 import { GitCollectorService } from '../../git-collector/git-collector.service'
 import { AgentSessionManager } from '../../standup-agent/agent-session-manager'
 import { StandupAgentService } from '../../standup-agent/standup-agent.service'
-import { StandupGeneratorService } from '../../standup-generator/standup-generator.service'
-import { WorkerRuntimeConfigService } from '../../worker-runtime-config.service'
+import { StandupPromptService } from '../../standup-generator/standup-prompt.service'
 import type {
   GeneratedContent,
   StrategyExecutionInput,
@@ -30,13 +29,12 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
     private readonly loggerFactory: AppLoggerFactory,
     private readonly gitCollector: GitCollectorService,
     private readonly boardCollector: AzureDevopsActivityCollectorService,
-    private readonly standupGenerator: StandupGeneratorService,
     private readonly tracing: AppTracingService,
     private readonly standupReadRepo: StandupReadRepository,
     private readonly localDateService: LocalDateService,
     private readonly standupAgent: StandupAgentService,
-    private readonly runtimeConfig: WorkerRuntimeConfigService,
     private readonly sessionManager: AgentSessionManager,
+    private readonly standupPrompt: StandupPromptService,
   ) {
     super()
     this.logger = this.loggerFactory.create('generate-strategy')
@@ -181,79 +179,45 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
     }
 
     // --- Generate standup ---
-    const meetingType = this.standupGenerator.determineMeetingType(today)
-
-    const usePiAgent = this.runtimeConfig.config.USE_PI_AGENT
+    const meetingType = this.standupPrompt.determineMeetingType(today)
 
     // Destroy old agent session on regenerate
-    if (usePiAgent && options.replaceStandupId) {
+    if (options.replaceStandupId) {
       this.sessionManager.destroy(options.replaceStandupId)
     }
 
-    const generated = usePiAgent
-      ? await this.tracing.withSpan(
-          'standup.agent.generate',
-          { 'standup.meeting_type': meetingType, 'standup.mode': 'agent' },
-          () =>
-            this.standupAgent.generate({
-              date: today,
-              meetingType,
-              gitActivity: gitActivity ?? undefined,
-              boardActivity: boardActivity ?? undefined,
-              extraContext: options.extraContext?.trim() || undefined,
-              azureDevopsUuid: options.azureDevopsUuid,
-              onStageChange: async (stage) => {
-                await this.reportStage(
-                  reportProgress,
-                  stage === 'enriching_data'
-                    ? 'enriching_data'
-                    : 'generating_standup',
-                  stage === 'enriching_data'
-                    ? 'Enriquecendo contexto para o standup'
-                    : 'Gerando texto do standup (PI Agent)',
-                )
-              },
-              onContentDelta: (partialContent) => {
-                this.reportStage(
-                  reportProgress,
-                  'streaming_content',
-                  'Gerando conteudo...',
-                  partialContent,
-                )
-              },
-            }),
-        )
-      : await this.tracing.withSpan(
-          'standup.llm.generate',
-          { 'standup.meeting_type': meetingType, 'standup.mode': 'generate' },
-          () =>
-            this.standupGenerator.generateStandup(
-              {
-                date: today,
-                meetingType,
-                gitActivity: gitActivity ?? undefined,
-                boardActivity: boardActivity ?? undefined,
-                extraContext: options.extraContext?.trim() || undefined,
-                azureDevopsUuid: options.azureDevopsUuid,
-              },
-              async (stage) => {
-                if (stage === 'enriching_data') {
-                  await this.reportStage(
-                    reportProgress,
-                    'enriching_data',
-                    'Enriquecendo contexto para o standup',
-                  )
-                  return
-                }
-
-                await this.reportStage(
-                  reportProgress,
-                  'generating_standup',
-                  'Gerando texto do standup',
-                )
-              },
-            ),
-        )
+    const generated = await this.tracing.withSpan(
+      'standup.agent.generate',
+      { 'standup.meeting_type': meetingType, 'standup.mode': 'agent' },
+      () =>
+        this.standupAgent.generate({
+          date: today,
+          meetingType,
+          gitActivity: gitActivity ?? undefined,
+          boardActivity: boardActivity ?? undefined,
+          extraContext: options.extraContext?.trim() || undefined,
+          azureDevopsUuid: options.azureDevopsUuid,
+          onStageChange: async (stage) => {
+            await this.reportStage(
+              reportProgress,
+              stage === 'enriching_data'
+                ? 'enriching_data'
+                : 'generating_standup',
+              stage === 'enriching_data'
+                ? 'Enriquecendo contexto para o standup'
+                : 'Gerando texto do standup (PI Agent)',
+            )
+          },
+          onContentDelta: (partialContent) => {
+            this.reportStage(
+              reportProgress,
+              'streaming_content',
+              'Gerando conteudo...',
+              partialContent,
+            )
+          },
+        }),
+    )
 
     if (generated.isErr()) {
       return generated
@@ -263,10 +227,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
       content: generated.value.content,
       meetingType,
       sourceData: JSON.stringify({ git: gitActivity, board: boardActivity }),
-      // Pass agent for session creation in pipeline (only present when usePiAgent=true)
-      ...('agent' in generated.value
-        ? { agent: generated.value.agent as Agent }
-        : {}),
+      agent: generated.value.agent as Agent,
     })
   }
 }

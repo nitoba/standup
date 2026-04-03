@@ -32,24 +32,13 @@ function makeBoardCollector() {
   }
 }
 
-function makeStandupGenerator() {
-  return {
-    determineMeetingType: vi.fn().mockReturnValue('daily'),
-    generateStandup: vi.fn().mockResolvedValue(
-      Result.ok({
-        content: 'Legacy standup content',
-        summary: 'Legacy summary',
-      }),
-    ),
-  }
-}
-
 function makeStandupAgent() {
   return {
     generate: vi.fn().mockResolvedValue(
       Result.ok({
         content: 'Agent standup content',
         summary: 'Agent summary',
+        agent: {},
       }),
     ),
   }
@@ -78,11 +67,9 @@ function makeLocalDateService() {
   }
 }
 
-function makeRuntimeConfig(usePiAgent: boolean) {
+function makePromptService() {
   return {
-    get config() {
-      return { USE_PI_AGENT: usePiAgent }
-    },
+    determineMeetingType: vi.fn().mockReturnValue('daily'),
   }
 }
 
@@ -104,29 +91,24 @@ describe('ExecuteGenerateStrategy', () => {
   let loggerFactory: ReturnType<typeof makeLoggerFactory>
   let gitCollector: ReturnType<typeof makeGitCollector>
   let boardCollector: ReturnType<typeof makeBoardCollector>
-  let standupGenerator: ReturnType<typeof makeStandupGenerator>
   let standupAgent: ReturnType<typeof makeStandupAgent>
   let tracing: ReturnType<typeof makeTracing>
   let standupReadRepo: ReturnType<typeof makeStandupReadRepo>
   let localDateService: ReturnType<typeof makeLocalDateService>
+  let promptService: ReturnType<typeof makePromptService>
 
-  function buildStrategy(
-    usePiAgent: boolean,
-    sessionManager = makeSessionManager(),
-  ) {
-    const runtimeConfig = makeRuntimeConfig(usePiAgent)
+  function buildStrategy(sessionManager = makeSessionManager()) {
     // biome-ignore lint/suspicious/noExplicitAny: test mock wiring
     const strategy = new (ExecuteGenerateStrategy as any)(
       loggerFactory,
       gitCollector,
       boardCollector,
-      standupGenerator,
       tracing,
       standupReadRepo,
       localDateService,
       standupAgent,
-      runtimeConfig,
       sessionManager,
+      promptService,
     ) as ExecuteGenerateStrategy
     return { strategy, sessionManager }
   }
@@ -136,32 +118,15 @@ describe('ExecuteGenerateStrategy', () => {
     loggerFactory = makeLoggerFactory()
     gitCollector = makeGitCollector()
     boardCollector = makeBoardCollector()
-    standupGenerator = makeStandupGenerator()
     standupAgent = makeStandupAgent()
     tracing = makeTracing()
     standupReadRepo = makeStandupReadRepo()
     localDateService = makeLocalDateService()
+    promptService = makePromptService()
   })
 
-  it('uses legacy generator when USE_PI_AGENT is false', async () => {
-    const { strategy } = buildStrategy(false)
-
-    const result = await strategy.execute({
-      options: makeDefaultOptions(),
-      today: '2026-04-01',
-    })
-
-    expect(result.isOk()).toBe(true)
-    expect(standupGenerator.generateStandup).toHaveBeenCalledOnce()
-    expect(standupAgent.generate).not.toHaveBeenCalled()
-
-    if (result.isOk() && result.value) {
-      expect(result.value.content).toBe('Legacy standup content')
-    }
-  })
-
-  it('uses PI Agent when USE_PI_AGENT is true', async () => {
-    const { strategy } = buildStrategy(true)
+  it('uses PI Agent to generate standup', async () => {
+    const { strategy } = buildStrategy()
 
     const result = await strategy.execute({
       options: makeDefaultOptions(),
@@ -170,22 +135,20 @@ describe('ExecuteGenerateStrategy', () => {
 
     expect(result.isOk()).toBe(true)
     expect(standupAgent.generate).toHaveBeenCalledOnce()
-    expect(standupGenerator.generateStandup).not.toHaveBeenCalled()
 
     if (result.isOk() && result.value) {
       expect(result.value.content).toBe('Agent standup content')
     }
   })
 
-  it('passes correct tracing span name for agent mode', async () => {
-    const { strategy } = buildStrategy(true)
+  it('passes correct tracing span name', async () => {
+    const { strategy } = buildStrategy()
 
     await strategy.execute({
       options: makeDefaultOptions(),
       today: '2026-04-01',
     })
 
-    // Find the generation span call (not the git collection span)
     const generationSpanCall = tracing.withSpan.mock.calls.find(
       (call: unknown[]) => call[0] === 'standup.agent.generate',
     )
@@ -195,26 +158,9 @@ describe('ExecuteGenerateStrategy', () => {
     )
   })
 
-  it('passes correct tracing span name for legacy mode', async () => {
-    const { strategy } = buildStrategy(false)
-
-    await strategy.execute({
-      options: makeDefaultOptions(),
-      today: '2026-04-01',
-    })
-
-    const generationSpanCall = tracing.withSpan.mock.calls.find(
-      (call: unknown[]) => call[0] === 'standup.llm.generate',
-    )
-    expect(generationSpanCall).toBeDefined()
-    expect(generationSpanCall![1]).toEqual(
-      expect.objectContaining({ 'standup.mode': 'generate' }),
-    )
-  })
-
-  it('destroys old session on regenerate when USE_PI_AGENT is true', async () => {
+  it('destroys old session on regenerate', async () => {
     const sm = makeSessionManager()
-    const { strategy } = buildStrategy(true, sm)
+    const { strategy } = buildStrategy(sm)
 
     await strategy.execute({
       options: {
@@ -229,25 +175,10 @@ describe('ExecuteGenerateStrategy', () => {
 
   it('does not destroy session when replaceStandupId is absent', async () => {
     const sm = makeSessionManager()
-    const { strategy } = buildStrategy(true, sm)
+    const { strategy } = buildStrategy(sm)
 
     await strategy.execute({
       options: makeDefaultOptions() as never,
-      today: '2026-04-02',
-    })
-
-    expect(sm.destroy).not.toHaveBeenCalled()
-  })
-
-  it('does not destroy session when USE_PI_AGENT is false', async () => {
-    const sm = makeSessionManager()
-    const { strategy } = buildStrategy(false, sm)
-
-    await strategy.execute({
-      options: {
-        ...makeDefaultOptions(),
-        replaceStandupId: 'old-standup',
-      } as never,
       today: '2026-04-02',
     })
 
