@@ -266,7 +266,6 @@ describe('TriggerStandupService', () => {
       rewriteFromStandupId: undefined,
       rewriteInstruction: undefined,
       replaceStandupId: undefined, // não deve sobrescrever implicitamente
-      reuseExistingSource: undefined, // não deve reutilizar dados anteriores
     })
   })
 
@@ -330,7 +329,6 @@ describe('TriggerStandupService', () => {
       rewriteFromStandupId: undefined,
       rewriteInstruction: undefined,
       replaceStandupId: 'standup-1',
-      reuseExistingSource: undefined,
     })
   })
 

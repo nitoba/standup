@@ -8,7 +8,6 @@ export interface DiscordTriggerOptions {
   rewriteFromStandupId?: string
   rewriteInstruction?: string
   replaceStandupId?: string
-  reuseExistingSource?: boolean
 }
 
 export type DiscordTriggerOutcome =
@@ -36,7 +35,6 @@ export class DiscordTriggerService {
           rewriteFromStandupId: options?.rewriteFromStandupId,
           rewriteInstruction: options?.rewriteInstruction,
           replaceStandupId: options?.replaceStandupId,
-          reuseExistingSource: options?.reuseExistingSource,
         },
         null,
         { userId, discordUserId },
