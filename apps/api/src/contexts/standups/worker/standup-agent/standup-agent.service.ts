@@ -4,6 +4,7 @@ import { AppLoggerFactory } from '../../../../platform/logger'
 import type {
   GeneratedStandup,
   GenerateStandupInput,
+  StandupRecord,
 } from '../../../../shared/domain'
 import {
   AllProvidersUnavailableError,
@@ -445,6 +446,119 @@ export class StandupAgentService {
         modelsAttempted: totalModels,
       }),
     )
+  }
+
+  async generateWeeklyInsights(
+    standups: StandupRecord[],
+  ): Promise<
+    Result<string, ExternalServiceError | AllProvidersUnavailableError>
+  > {
+    if (standups.length === 0) {
+      return Result.err(
+        new ExternalServiceError({
+          service: 'pi-agent',
+          message: 'No standups provided for weekly insights generation',
+        }),
+      )
+    }
+
+    const systemPrompt = this.standupPrompt.buildWeeklyInsightsSystemPrompt()
+    const userMessage =
+      this.standupPrompt.buildWeeklyInsightsUserMessage(standups)
+
+    const totalModels = this.llmRegistry.totalModels
+    let lastError: unknown
+
+    for (let i = 0; i < totalModels; i++) {
+      let selection: ReturnType<LlmProviderRegistry['getNextModel']>
+      try {
+        selection = this.llmRegistry.getNextModel()
+      } catch (error) {
+        if (error instanceof AllProvidersUnavailableError) {
+          return Result.err(error)
+        }
+        throw error
+      }
+
+      const { modelKey, provider, tier } = selection
+
+      try {
+        this.logger.info('Calling PI Agent for weekly insights', {
+          model: modelKey,
+          provider,
+          tier,
+        })
+
+        const piModel = toPiAiModel({ provider, modelKey })
+        const agent = new Agent({
+          initialState: {
+            systemPrompt,
+            model: piModel,
+            tools: [],
+            messages: [],
+          },
+          getApiKey: (p) => this.resolveApiKey(p),
+        })
+
+        let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+        await Promise.race([
+          agent.prompt(userMessage),
+          new Promise<never>((_, reject) => {
+            timeoutHandle = setTimeout(
+              () => reject(new Error('Agent weekly insights timed out')),
+              AGENT_TIMEOUT_MS,
+            )
+          }),
+        ]).finally(() => clearTimeout(timeoutHandle))
+
+        const text = this.extractLastAssistantText(agent.state.messages)
+        if (!text) {
+          this.logger.warn('Agent produced no text for weekly insights', {
+            model: modelKey,
+            provider,
+          })
+          lastError = new Error('Agent produced no text')
+          continue
+        }
+
+        this.llmRegistry.reportSuccess(modelKey)
+        return Result.ok(text)
+      } catch (error) {
+        lastError = error
+        this.logger.warn('PI Agent weekly insights failed', {
+          model: modelKey,
+          provider,
+          tier,
+          error: error instanceof Error ? error.message : String(error),
+        })
+
+        if (this.isRateLimitError(error)) {
+          this.llmRegistry.reportFailure(modelKey, error)
+        }
+      }
+    }
+
+    return Result.err(
+      new AllProvidersUnavailableError({
+        message: `PI Agent weekly insights: all ${totalModels} models failed. Last error: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
+        modelsAttempted: totalModels,
+      }),
+    )
+  }
+
+  private extractLastAssistantText(messages: AgentMessage[]): string | null {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i]
+      if (msg && 'role' in msg && (msg as { role: string }).role === 'assistant') {
+        const content = (msg as { role: string; content: Array<{ type: string; text?: string }> }).content
+        const textParts = content
+          .filter((c) => c.type === 'text' && typeof c.text === 'string')
+          .map((c) => c.text as string)
+        const joined = textParts.join('').trim()
+        if (joined) return joined
+      }
+    }
+    return null
   }
 
   private subscribeToContentDeltas(

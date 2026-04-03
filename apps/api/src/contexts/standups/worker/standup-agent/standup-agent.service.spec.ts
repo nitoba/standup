@@ -59,6 +59,12 @@ function makePromptService() {
     buildSystemPrompt: vi.fn().mockReturnValue('system-prompt'),
     buildUserMessage: vi.fn().mockReturnValue('user-message'),
     buildRewriteUserMessage: vi.fn().mockReturnValue('rewrite-message'),
+    buildWeeklyInsightsSystemPrompt: vi
+      .fn()
+      .mockReturnValue('weekly-system-prompt'),
+    buildWeeklyInsightsUserMessage: vi
+      .fn()
+      .mockReturnValue('weekly-user-message'),
   }
 }
 
@@ -123,6 +129,7 @@ describe('StandupAgentService', () => {
     vi.clearAllMocks()
     toolCallContent = 'standup content'
     toolCallSummary = 'standup summary'
+    mockState.messages = []
 
     registry = makeRegistry()
     promptService = makePromptService()
@@ -368,6 +375,67 @@ describe('StandupAgentService', () => {
     const result = await service.generate(makeInput({ onContentDelta }))
     expect(result.isOk()).toBe(true)
     // onContentDelta may not be called since mock Agent doesn't emit events
+  })
+
+  describe('generateWeeklyInsights()', () => {
+    const mockStandups = [
+      { id: '1', content: 'day 1', summary: 's1', date: '2026-03-30', meetingType: 'daily' },
+      { id: '2', content: 'day 2', summary: 's2', date: '2026-03-31', meetingType: 'daily' },
+    ] as never
+
+    it('returns text from last assistant message on success', async () => {
+      mockState.messages = [
+        {
+          role: 'assistant',
+          content: [{ type: 'text', text: 'Weekly insights text' }],
+        },
+      ] as never
+
+      const result = await service.generateWeeklyInsights(mockStandups)
+
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value).toBe('Weekly insights text')
+      }
+      expect(registry.reportSuccess).toHaveBeenCalledWith('google:gemini')
+    })
+
+    it('returns error for empty standups array', async () => {
+      const result = await service.generateWeeklyInsights([])
+
+      expect(result.isErr()).toBe(true)
+      expect(registry.getNextModel).not.toHaveBeenCalled()
+    })
+
+    it('falls back to next model on rate limit', async () => {
+      let callCount = 0
+      mockPrompt.mockImplementation(async () => {
+        callCount++
+        if (callCount === 1) {
+          const err = new Error('Rate limited')
+          Object.assign(err, { statusCode: 429 })
+          throw err
+        }
+        mockState.messages = [
+          {
+            role: 'assistant',
+            content: [{ type: 'text', text: 'Fallback insights' }],
+          },
+        ] as never
+      })
+
+      const result = await service.generateWeeklyInsights(mockStandups)
+
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value).toBe('Fallback insights')
+      }
+      expect(registry.reportFailure).toHaveBeenCalledWith(
+        'google:gemini',
+        expect.objectContaining({ statusCode: 429 }),
+      )
+      expect(registry.reportSuccess).toHaveBeenCalledWith('groq:qwen')
+    })
   })
 
   describe('adjust()', () => {
