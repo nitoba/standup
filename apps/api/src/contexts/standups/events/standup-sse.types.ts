@@ -3,7 +3,7 @@ export type StandupSseEvent =
       type: 'standup_progress'
       runId: string
       date: string
-      mode: 'generate' | 'regenerate' | 'adjust'
+      mode: 'generate' | 'adjust'
       step:
         | 'queued'
         | 'collecting_git'
@@ -24,13 +24,13 @@ export type StandupSseEvent =
       runId: string
       standupId: string
       date: string
-      mode: 'generate' | 'regenerate' | 'adjust'
+      mode: 'generate' | 'adjust'
     }
   | {
       type: 'standup_failed'
       runId: string
       date: string
-      mode: 'generate' | 'regenerate' | 'adjust'
+      mode: 'generate' | 'adjust'
       message: string
     }
   | {

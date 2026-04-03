@@ -9,7 +9,7 @@ export const DISCORD_LOGIN_SUCCESS_REQUESTED_EVENT =
 export const USER_DM_REQUESTED_EVENT = 'notification.user-dm.requested'
 export const JOB_FAILED_NOTIFICATION_EVENT = 'notification.job-failed.requested'
 
-export type StandupRunMode = 'generate' | 'regenerate' | 'adjust'
+export type StandupRunMode = 'generate' | 'adjust'
 
 export type StandupProgressStep =
   | 'queued'
