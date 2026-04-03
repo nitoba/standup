@@ -57,14 +57,45 @@ As aplicacoes rodam dentro da VM Linux do Colima, nao diretamente no macOS host.
 [ Push na main ]
         |
 [ GitHub Actions ]
+   └─ quality: lint + typecheck + test (ubuntu-latest)
+
+[ Merge de PR release/* ]
+        |
+[ auto-tag.yml: cria tag vX.Y.Z com GH_PAT ]
+        |
+[ CI disparado pela tag v* ]
    ├─ quality: lint + typecheck + test (ubuntu-latest)
    ├─ build: Docker images arm64 → GHCR (ubuntu-24.04-arm nativo, sem QEMU)
    │         2 imagens: api e web
    └─ deploy:
-        ├─ Tailscale connect (OAuth, tag:ci, efemero)
-        ├─ SSH na VM Colima via Tailscale
-        ├─ kamal deploy x2 (api, web) com --skip-push
-        └─ SSH no MacBook host → launchctl reload cloudflared
+         ├─ Tailscale connect (OAuth, tag:ci, efemero)
+         ├─ SSH na VM Colima via Tailscale
+         ├─ kamal deploy x2 (api, web) com --skip-push
+         └─ SSH no MacBook host → launchctl reload cloudflared
+
+[ release.yml: cria GitHub Release com changelog ]
+```
+
+### Fluxo de release
+
+```
+[ ./release.sh 0.2.0 ]
+        |
+   Atualiza VERSION, package.json, CHANGELOG.md
+        |
+   Cria branch release/0.2.0 + commit
+        |
+   Push + abre PR para main
+        |
+[ CI: quality checks ]
+        |
+[ Merge do PR ]
+        |
+   auto-tag.yml → tag v0.2.0 (via GH_PAT)
+        |
+   CI: quality → build → deploy (triggered by tag)
+        |
+   release.yml → GitHub Release com changelog
 ```
 
 ### Fluxo de admin (Tailscale)
@@ -182,26 +213,39 @@ kamal setup -c config/deploy.api.yml
 
 ## Pipeline CI/CD
 
-### Workflow: `.github/workflows/ci.yml`
+### Workflows
+
+| Workflow | Trigger | O que faz |
+|----------|---------|-----------|
+| `ci.yml` | push (main + tags `v*`), PR, dispatch | Orquestra quality → build → deploy |
+| `ci-quality.yml` | chamado por ci.yml | lint + typecheck + test + Discord notifications |
+| `ci-build.yml` | chamado por ci.yml | Docker build + push GHCR (api + web) |
+| `ci-deploy.yml` | chamado por ci.yml | Tailscale + SSH + Kamal deploy |
+| `auto-tag.yml` | merge de PR `release/*` | Cria tag `vX.Y.Z` via GH_PAT |
+| `release.yml` | push de tag `v*` | GitHub Release com changelog (git-cliff) |
+
+### Fluxo por evento
 
 ```
-push/PR (qualquer branch)     push na main
-         |                         |
-      quality                   quality → build → deploy
-   (lint, typecheck, test)         |         |         |
-                                   |     2 imagens   Tailscale
-                                   |     arm64       + SSH
-                                   |     → GHCR      + kamal deploy x2
+PR (qualquer branch)          Push na main              Tag v*
+        |                         |                       |
+     quality                   quality              quality → build → deploy
+                                                          |
+                                                     GitHub Release
 ```
+
+- **PRs**: apenas quality checks (validam código)
+- **Push na main**: apenas quality checks (validam código)
+- **Tag `v*`**: quality → build → deploy + GitHub Release
 
 ### Job: quality
 
-- Roda em **todo push e PR**
+- Roda em **todo push, PR e tag**
 - `bun install --frozen-lockfile` → `bun run lint` → `bun run typecheck` → `bun run test`
 
 ### Job: build
 
-- Roda **apenas em push na main**, apos quality passar
+- Roda **apenas em push de tag `v*`**, apos quality passar
 - Runner nativo arm64 (`ubuntu-24.04-arm`) — sem QEMU, sem emulacao
 - Builds sequenciais (api → web) no mesmo job para evitar cancelamentos por concurrency
 - Docker Buildx com cache GHA (scope por app)
@@ -211,7 +255,7 @@ push/PR (qualquer branch)     push na main
 
 ### Job: deploy
 
-- Roda **apenas em push na main**, apos build
+- Roda **apenas em push de tag `v*`**, apos build
 - `tailscale/github-action@v4` com OAuth client (tag:ci, efemero)
 - SSH key setup (`~/.ssh/deploy_key`) com `StrictHostKeyChecking accept-new`
 - Instala Kamal via `gem install kamal`
@@ -237,6 +281,7 @@ push/PR (qualquer branch)     push na main
 | `DEPLOY_HOST`            | `colima.tail2ee1d6.ts.net` (VM Colima — kamal + docker)      |
 | `MAC_HOST`               | `nitoba-mac.tail2ee1d6.ts.net` (MacBook host — cloudflared)  |
 | `DEPLOY_USER`            | `nitoba`                                                     |
+| `GH_PAT`                 | Personal Access Token com scope `repo` para auto-tag disparar workflows |
 
 ### App secrets
 
