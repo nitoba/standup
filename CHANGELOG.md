@@ -1,10 +1,11 @@
- WARN  git_cliff_core::changelog > 65 commit(s) were skipped due to parse error(s) (run with `-vv` for details)
 # Changelog
 
 ## Unreleased
 
 
 ### Bug Fixes
+
+- Trigger build and deploy only on release tags, not on every push to main (#42) (`80966b9`)
 
 - Improve standup generation accuracy (#38) (`d47a54a`)
 
@@ -104,7 +105,7 @@
 
 ### Chores
 
-- Add .worktrees to gitignore (`62c9503`)
+- Make release.sh executable (`f97f379`)
 
 - Merge chore/ci into main (#40) (`6ffa554`)
 
@@ -161,6 +162,8 @@
 
 
 ### Features
+
+- Add release strategy with versioning, changelogs, and auto-tagging (#41) (`56d9a48`)
 
 - Add sorting, real metric changes, and settings improvements (TAS-87 to TAS-93) (#32) (`2907728`)
 
