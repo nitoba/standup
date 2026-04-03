@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { Cron, CronExpression } from '@nestjs/schedule'
 import { JobRunRepository } from '../../../../platform/database/repositories/job-run.repository'
+import { StandupReadRepository } from '../../../../platform/database/repositories/standup-read.repository'
 import { UserRepository } from '../../../../platform/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../../platform/database/repositories/user-settings.repository'
 import { userSettings } from '../../../../platform/database/schema'
@@ -28,6 +29,7 @@ export class WorkerSchedulerService {
     private readonly userSettingsRepository: UserSettingsRepository,
     private readonly userRepository: UserRepository,
     private readonly jobRunRepository: JobRunRepository,
+    private readonly standupReadRepository: StandupReadRepository,
     private readonly standupDispatch: StandupDispatchService,
     private readonly weeklyDigestDispatch: WeeklyDigestDispatchService,
     private readonly reminderActions: ReminderActionsService,
@@ -88,12 +90,18 @@ export class WorkerSchedulerService {
     }
 
     if (isCronDueNow(settings.reminderCron, timezone, now)) {
-      const nextRunAt = new Date(now.getTime() + 10 * 60_000).toISOString()
-      this.reminderActions.notifyReminder(
+      const hasApproved = await this.hasApprovedStandupToday(
         settings.userId,
-        discordResult.value,
-        nextRunAt,
+        today.iso,
       )
+      if (!hasApproved) {
+        const nextRunAt = new Date(now.getTime() + 10 * 60_000).toISOString()
+        this.reminderActions.notifyReminder(
+          settings.userId,
+          discordResult.value,
+          nextRunAt,
+        )
+      }
     }
 
     if (isCronDueNow(settings.standupCron, timezone, now)) {
@@ -156,5 +164,21 @@ export class WorkerSchedulerService {
         userId: settings.userId,
       })
     }
+  }
+
+  private async hasApprovedStandupToday(
+    userId: string,
+    dateIso: string,
+  ): Promise<boolean> {
+    const result = await this.standupReadRepository.findLatestByUserAndDate(
+      userId,
+      dateIso,
+    )
+    if (result.isErr() || !result.value) {
+      return false
+    }
+    return (
+      result.value.status === 'approved' || result.value.status === 'published'
+    )
   }
 }

@@ -2,15 +2,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { userSettings } from '../../../../platform/database/schema'
 import { Result } from '../../../../shared/domain'
 
-const { isCronDueNowMock } = vi.hoisted(() => ({
-  isCronDueNowMock: vi.fn(),
-}))
+function isCronDueNowMockFn() {
+  return vi.fn()
+}
 
 vi.mock('./is-cron-due-now', () => ({
-  isCronDueNow: isCronDueNowMock,
+  isCronDueNow: isCronDueNowMockFn(),
 }))
 
 import { WorkerSchedulerService } from './worker-scheduler.service'
+
+const isCronDueNowMock = vi.mocked(
+  (await import('./is-cron-due-now')).isCronDueNow,
+)
 
 type ActiveUserSettings = typeof userSettings.$inferSelect
 
@@ -51,6 +55,15 @@ describe('WorkerSchedulerService', () => {
     }
   }
 
+  function makeStandupReadRepository(
+    findLatestByUserAndDate?: ReturnType<typeof vi.fn>,
+  ) {
+    return {
+      findLatestByUserAndDate:
+        findLatestByUserAndDate ?? vi.fn().mockResolvedValue(Result.ok(null)),
+    }
+  }
+
   afterEach(() => {
     vi.clearAllMocks()
   })
@@ -60,6 +73,7 @@ describe('WorkerSchedulerService', () => {
       (expression: string) => expression === 'reminder-cron',
     )
 
+    const standupRead = makeStandupReadRepository()
     const userSettingsRepository = {
       clearExpiredSnoozes: vi.fn().mockResolvedValue(Result.ok(0)),
       findAllActive: vi.fn().mockResolvedValue(Result.ok([makeSettings()])),
@@ -82,6 +96,7 @@ describe('WorkerSchedulerService', () => {
         findByJobAndDate: vi.fn().mockResolvedValue(Result.ok(null)),
         releaseLock: vi.fn(),
       } as never,
+      standupRead as never,
       { dispatchStandupJob: vi.fn() } as never,
       { dispatchWeeklyDigestJob: vi.fn() } as never,
       reminderActions as never,
@@ -97,6 +112,130 @@ describe('WorkerSchedulerService', () => {
 
     expect(reminderActions.notifyReminder).toHaveBeenCalledTimes(1)
     expect(userSettingsRepository.clearExpiredSnoozes).toHaveBeenCalledTimes(1)
+  })
+
+  it('skips reminder when standup is already approved', async () => {
+    isCronDueNowMock.mockImplementation(
+      (expression: string) => expression === 'reminder-cron',
+    )
+
+    const standupRead = makeStandupReadRepository(
+      vi.fn().mockResolvedValue(
+        Result.ok({
+          id: 'standup-1',
+          userId: 'user-1',
+          date: '2026-03-13',
+          status: 'approved',
+          content: '',
+          sourceData: '{}',
+          meetingType: 'daily',
+          customEntries: null,
+          dmMessageId: null,
+          createdAt: 0,
+          updatedAt: 0,
+          sentToDiscordAt: null,
+        }),
+      ),
+    )
+    const userSettingsRepository = {
+      clearExpiredSnoozes: vi.fn().mockResolvedValue(Result.ok(0)),
+      findAllActive: vi.fn().mockResolvedValue(Result.ok([makeSettings()])),
+    }
+    const userRepository = {
+      findDiscordIdByUserId: vi.fn().mockResolvedValue(Result.ok('discord-1')),
+    }
+    const reminderActions = {
+      notifyReminder: vi.fn(),
+    }
+    const service = new WorkerSchedulerService(
+      makeLoggerFactory() as never,
+      {
+        config: { REPOS_ROOT_PATH: '/repos', SCHEDULER_ENABLED: true },
+      } as never,
+      userSettingsRepository as never,
+      userRepository as never,
+      {
+        findStaleRuns: vi.fn().mockResolvedValue(Result.ok([])),
+        findByJobAndDate: vi.fn().mockResolvedValue(Result.ok(null)),
+        releaseLock: vi.fn(),
+      } as never,
+      standupRead as never,
+      { dispatchStandupJob: vi.fn() } as never,
+      { dispatchWeeklyDigestJob: vi.fn() } as never,
+      reminderActions as never,
+      {
+        fromDate: vi.fn().mockReturnValue({
+          iso: '2026-03-13',
+          display: '13/03/2026',
+        }),
+      } as never,
+    )
+
+    await service.handleSchedulerTick()
+
+    expect(reminderActions.notifyReminder).not.toHaveBeenCalled()
+  })
+
+  it('skips reminder when standup is already published', async () => {
+    isCronDueNowMock.mockImplementation(
+      (expression: string) => expression === 'reminder-cron',
+    )
+
+    const standupRead = makeStandupReadRepository(
+      vi.fn().mockResolvedValue(
+        Result.ok({
+          id: 'standup-1',
+          userId: 'user-1',
+          date: '2026-03-13',
+          status: 'published',
+          content: '',
+          sourceData: '{}',
+          meetingType: 'daily',
+          customEntries: null,
+          dmMessageId: null,
+          createdAt: 0,
+          updatedAt: 0,
+          sentToDiscordAt: Date.now(),
+        }),
+      ),
+    )
+    const userSettingsRepository = {
+      clearExpiredSnoozes: vi.fn().mockResolvedValue(Result.ok(0)),
+      findAllActive: vi.fn().mockResolvedValue(Result.ok([makeSettings()])),
+    }
+    const userRepository = {
+      findDiscordIdByUserId: vi.fn().mockResolvedValue(Result.ok('discord-1')),
+    }
+    const reminderActions = {
+      notifyReminder: vi.fn(),
+    }
+    const service = new WorkerSchedulerService(
+      makeLoggerFactory() as never,
+      {
+        config: { REPOS_ROOT_PATH: '/repos', SCHEDULER_ENABLED: true },
+      } as never,
+      userSettingsRepository as never,
+      userRepository as never,
+      {
+        findStaleRuns: vi.fn().mockResolvedValue(Result.ok([])),
+        findByJobAndDate: vi.fn().mockResolvedValue(Result.ok(null)),
+        releaseLock: vi.fn(),
+      } as never,
+      standupRead as never,
+      { dispatchStandupJob: vi.fn() } as never,
+      { dispatchWeeklyDigestJob: vi.fn() } as never,
+      reminderActions as never,
+      {
+        fromDate: vi.fn().mockReturnValue({
+          iso: '2026-03-13',
+          display: '13/03/2026',
+        }),
+      } as never,
+    )
+
+    await service.handleSchedulerTick()
+
+    expect(reminderActions.notifyReminder).not.toHaveBeenCalled()
   })
 
   it('dispatches standup jobs when standup cron is due', async () => {
@@ -126,6 +265,7 @@ describe('WorkerSchedulerService', () => {
         findByJobAndDate: vi.fn().mockResolvedValue(Result.ok(null)),
         releaseLock: vi.fn(),
       } as never,
+      makeStandupReadRepository() as never,
       standupDispatch as never,
       { dispatchWeeklyDigestJob: vi.fn() } as never,
       { notifyReminder: vi.fn() } as never,
@@ -183,6 +323,7 @@ describe('WorkerSchedulerService', () => {
         findByJobAndDate: vi.fn().mockResolvedValue(Result.ok(null)),
         releaseLock: vi.fn(),
       } as never,
+      makeStandupReadRepository() as never,
       standupDispatch as never,
       { dispatchWeeklyDigestJob: vi.fn() } as never,
       { notifyReminder: vi.fn() } as never,
@@ -238,6 +379,7 @@ describe('WorkerSchedulerService', () => {
         findByJobAndDate: vi.fn().mockResolvedValue(Result.ok(null)),
         releaseLock: vi.fn(),
       } as never,
+      makeStandupReadRepository() as never,
       standupDispatch as never,
       { dispatchWeeklyDigestJob: vi.fn() } as never,
       { notifyReminder: vi.fn() } as never,
@@ -287,6 +429,7 @@ describe('WorkerSchedulerService', () => {
         findByJobAndDate: vi.fn().mockResolvedValue(Result.ok(null)),
         releaseLock,
       } as never,
+      makeStandupReadRepository() as never,
       standupDispatch as never,
       { dispatchWeeklyDigestJob: vi.fn() } as never,
       { notifyReminder: vi.fn() } as never,
