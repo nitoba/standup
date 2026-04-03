@@ -1,19 +1,25 @@
 # Kamal deploy config — standup-api
 #
-# Hono HTTP API: health checks, standup CRUD, manual triggers.
-# This is the only service with a public-facing kamal-proxy (api.nitoba.com.br).
-# Port 3333 is also published on the host for internal container-to-container traffic.
+# Monólito NestJS: HTTP, scheduler, gateway Discord, jobs e email.
+# Este é o único backend público via kamal-proxy (api.nitodev.com.br).
 #
 # Usage:
 #   kamal deploy -c config/deploy.api.yml
 #   kamal app logs -c config/deploy.api.yml
 
 service: standup-api
-image: ghcr.io/nitoba/standup-api
+image: nitoba/standup-api
 
 servers:
   web:
-    - nitoba-mac.tail2ee1d6.ts.net
+    hosts:
+      - colima.tail2ee1d6.ts.net
+    options:
+      network-alias:
+        - standup-api
+
+volumes:
+  - /Users/nitoba/repos:/repos
 
 registry:
   server: ghcr.io
@@ -27,7 +33,7 @@ builder:
   arch: arm64
 
 proxy:
-  host: api.nitoba.com.br
+  host: api.nitodev.com.br
   app_port: 3333
   forward_headers: true
   healthcheck:
@@ -39,20 +45,40 @@ ssh:
   keys:
     - ~/.ssh/deploy_key
 
-volumes:
-  # Shared SQLite data directory — same path across all 3 services.
-  # Create /opt/standup/data on the host before first deploy.
-  - /opt/standup/data:/app/data
-
 env:
   clear:
     NODE_ENV: production
     PORT: "3333"
-    DATABASE_URL: /app/data/standup.db
-    # Internal communication: bot and worker publish ports directly on the host.
-    # From inside a Docker container, host.docker.internal resolves to the Docker host.
-    BOT_INTERNAL_URL: http://host.docker.internal:3334
-    WORKER_INTERNAL_URL: http://host.docker.internal:3335
+    REPOS_ROOT_PATH: /repos
+    BETTER_AUTH_URL: https://api.nitodev.com.br
+    APP_URL: https://standup.nitodev.com.br
+    CORS_ORIGIN: https://standup.nitodev.com.br
+    DISCORD_GATEWAY_ENABLED: "true"
+    SCHEDULER_ENABLED: "true"
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://host.docker.internal:4318
+    DISCORD_AUTOMATION_URL: http://host.docker.internal:4000
+    DISCORD_SEND_TIMEOUT_MS: "60000"
   secret:
-    - DISCORD_USER_ID
-    - INTERNAL_SECRET
+    - DATABASE_URL
+    - DATABASE_AUTH_TOKEN
+    - DISCORD_CLIENT_ID
+    - DISCORD_CLIENT_SECRET
+    - BETTER_AUTH_SECRET
+    - DISCORD_BOT_TOKEN
+    - DISCORD_CHANNEL_ID
+    - DISCORD_GUILD_ID
+    - GOOGLE_API_KEY
+    - GROQ_API_KEY
+    - OPENROUTER_API_KEY
+    - LLM_PROVIDERS_CONFIG
+    - AZURE_DEVOPS_ORG
+    - AZURE_DEVOPS_PAT
+    - AZURE_DEVOPS_DEFAULT_PROJECT
+    - SMTP_HOST
+    - SMTP_PORT
+    - SMTP_SECURE
+    - SMTP_FROM
+    - SMTP_USER
+    - SMTP_PASS
+    - DISCORD_AUTOMATION_CHANNEL_URL
+    - DISCORD_AUTOMATION_WEBHOOK_SECRET

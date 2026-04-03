@@ -6,248 +6,27 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Cancel in-progress runs for the same branch/PR
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# ---------------------------------------------------------------------------
-# Required GitHub Secrets (configure in Settings > Secrets and variables > Actions):
-#
-# Registry & Build:
-#   (none — uses the automatic GITHUB_TOKEN for GHCR)
-#
-# Tailscale (for deploy job to SSH into the server):
-#   TS_OAUTH_CLIENT_ID    — Tailscale OAuth client ID (tag: tag:ci)
-#   TS_OAUTH_SECRET       — Tailscale OAuth client secret
-#
-# SSH:
-#   SSH_PRIVATE_KEY       — Private key for SSH into the deploy host
-#   DEPLOY_HOST           — Tailscale hostname/IP of the MacBook
-#   DEPLOY_USER           — macOS username on the deploy host
-#
-# App secrets (injected into Kamal env):
-#   DISCORD_BOT_TOKEN
-#   DISCORD_CHANNEL_ID
-#   DISCORD_USER_ID
-#   ANTHROPIC_AUTH_TOKEN
-#   AZURE_DEVOPS_ORG
-#   AZURE_DEVOPS_PAT
-#   INTERNAL_SECRET
-# ---------------------------------------------------------------------------
-
 jobs:
-  # =========================================================================
-  # Job 1: Quality — lint, typecheck, test
-  # Runs on every push and every PR.
-  # =========================================================================
   quality:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+    uses: ./.github/workflows/ci-quality.yml
+    secrets: inherit
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Lint
-        run: bun run lint
-
-      - name: Typecheck
-        run: bun run typecheck
-
-      - name: Test
-        run: bun run test
-
-  # =========================================================================
-  # Job 2: Build — Docker images → GHCR (arm64)
-  # Only runs on push to main, after quality passes.
-  # Uses QEMU to cross-compile arm64 images on the amd64 runner.
-  # =========================================================================
   build:
     needs: quality
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - app: api
-            dockerfile: apps/api/Dockerfile
-            image: ghcr.io/nitoba/standup-api
-          - app: discord-bot
-            dockerfile: apps/discord-bot/Dockerfile
-            image: ghcr.io/nitoba/standup-bot
-          - app: worker
-            dockerfile: apps/worker/Dockerfile
-            image: ghcr.io/nitoba/standup-worker
-          - app: migrate
-            dockerfile: packages/db/Dockerfile
-            image: ghcr.io/nitoba/standup-migrate
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci-build.yml
+    with:
+      message_id: ${{ needs.quality.outputs.message_id }}
+    secrets: inherit
 
-      - name: Set up QEMU (arm64 emulation)
-        uses: docker/setup-qemu-action@v4
-        with:
-          platforms: arm64
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Docker metadata (tags + labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ matrix.image }}
-          tags: |
-            # Git SHA (short) — used by Kamal to identify the version
-            type=sha,format=long
-            # Latest — convenience tag for manual pulls
-            type=raw,value=latest
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ${{ matrix.dockerfile }}
-          platforms: linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.app }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
-
-  # =========================================================================
-  # Job 3: Deploy — Kamal over Tailscale SSH
-  # Only runs after images are built and pushed.
-  # Connects to the MacBook via Tailscale and runs kamal deploy for each app.
-  #
-  # Uses --skip-push because images are already in GHCR from the build job.
-  # Uses --version to pin the exact git SHA that was built.
-  # =========================================================================
   deploy:
-    needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: read
-    # Uncomment to require manual approval before deploying:
-    # environment: production
-    env:
-      # The git SHA tag format used by docker/metadata-action (type=sha,format=long)
-      # produces tags like "sha-abc123def456...". Kamal uses the full git SHA as version.
-      DEPLOY_VERSION: ${{ github.sha }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up Tailscale
-        uses: tailscale/github-action@v4
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
-
-      - name: Set up SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          # Pre-trust the deploy host to skip interactive prompt
-          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
-
-      - name: Install Kamal
-        run: |
-          sudo gem install kamal --no-document
-
-      # ------------------------------------------------------------------
-      # Run migrations before deploying new app versions.
-      # The migrate container runs once and exits.
-      # ------------------------------------------------------------------
-      - name: Run database migrations
-        env:
-          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          # Secrets needed by loadEnv() in the migrate container
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
-          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
-          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
-          AZURE_DEVOPS_ORG: ${{ secrets.AZURE_DEVOPS_ORG }}
-          AZURE_DEVOPS_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
-          INTERNAL_SECRET: ${{ secrets.INTERNAL_SECRET }}
-        run: |
-          # Pull and run the migrate image on the deploy host via SSH
-          ssh -i ~/.ssh/deploy_key ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "docker pull ghcr.io/nitoba/standup-migrate:sha-${DEPLOY_VERSION} && \
-             docker run --rm \
-               -v /opt/standup/data:/app/data \
-               -e DATABASE_URL=/app/data/standup.db \
-               -e NODE_ENV=production \
-               ghcr.io/nitoba/standup-migrate:sha-${DEPLOY_VERSION}"
-
-      # ------------------------------------------------------------------
-      # Deploy each app sequentially via Kamal.
-      # --skip-push: images are already in GHCR from the build job.
-      # --version: pins the exact git SHA for the deploy.
-      # --skip-hooks: no hook scripts needed in CI.
-      # ------------------------------------------------------------------
-      - name: Deploy API
-        env:
-          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
-          INTERNAL_SECRET: ${{ secrets.INTERNAL_SECRET }}
-        run: |
-          kamal deploy \
-            -c config/deploy.api.yml \
-            --skip-push \
-            --version "sha-${DEPLOY_VERSION}" \
-            --skip-hooks
-
-      - name: Deploy Discord Bot
-        env:
-          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
-          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
-          INTERNAL_SECRET: ${{ secrets.INTERNAL_SECRET }}
-        run: |
-          kamal deploy \
-            -c config/deploy.bot.yml \
-            --skip-push \
-            --version "sha-${DEPLOY_VERSION}" \
-            --skip-hooks
-
-      - name: Deploy Worker
-        env:
-          KAMAL_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
-          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
-          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
-          AZURE_DEVOPS_ORG: ${{ secrets.AZURE_DEVOPS_ORG }}
-          AZURE_DEVOPS_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
-          INTERNAL_SECRET: ${{ secrets.INTERNAL_SECRET }}
-        run: |
-          kamal deploy \
-            -c config/deploy.worker.yml \
-            --skip-push \
-            --version "sha-${DEPLOY_VERSION}" \
-            --skip-hooks
+    needs: [quality, build]
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci-deploy.yml
+    with:
+      message_id: ${{ needs.quality.outputs.message_id }}
+    secrets: inherit

@@ -17,7 +17,7 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 3. **Geracao**: LLM gera o standup formatado em portugues
 4. **Revisao**: Bot do Discord envia DM com preview + botoes (Aprovar/Rejeitar/Regenerar)
 5. **Publicacao**: Standup aprovado e publicado no canal do Discord
-6. **Persistencia**: Todos os standups ficam salvos no SQLite para busca/filtro/resumos
+6. **Persistencia**: Todos os standups ficam salvos em banco SQLite/libSQL (local ou Turso) para busca/filtro/resumos
 
 ### Modos de Operacao
 
@@ -31,11 +31,11 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 - Linguagem: TypeScript (strict mode)
 - Testes: Vitest (pacotes com mocks complexos) + bun test (pacotes simples)
 - Linter/Formatter: Biome
-- ORM: Drizzle ORM + SQLite (WAL mode)
+- ORM: Drizzle ORM + SQLite/libSQL (Turso-ready)
 - HTTP Server: Hono
 - Validacao: Zod
 - Error Handling: better-result (Result + TaggedError)
-- LLM: AI SDK da Vercel (@ai-sdk/anthropic)
+- LLM: AI SDK da Vercel (provider configuravel)
 - Azure DevOps: MCP client para work items e PRs
 - Discord: discord.js (bot com botoes + DM)
 - Scheduler: croner (cron expressions em Bun)
@@ -57,6 +57,22 @@ num servico persistente com agendamento, lembretes e publicacao automatizada.
 - Prefira composicao sobre heranca
 - Estado de standups via state machine simples: draft -> pending_review -> approved -> published (ou rejected -> draft)
 
+## Configuracao de Ambiente
+
+- `packages/config` nao usa mais um schema global unico para o monorepo
+- Sempre modelar env por contexto de app, com `baseEnvSchema` compartilhado
+- Loaders atuais:
+  - `loadApiEnv()`
+  - `loadBotEnv()`
+  - `loadWorkerEnv()`
+- Tipos atuais:
+  - `ApiEnv`
+  - `BotEnv`
+  - `WorkerEnv`
+- Cada entrypoint valida apenas as vars que o proprio processo usa
+- Nao reintroduzir `loadEnv()` global ou um `AppEnv` monolitico
+- Se uma nova env for necessaria, adicionar no schema do app correto; so promover para `baseEnvSchema` se for realmente compartilhada
+
 ## Arquitetura de Comunicacao
 
 ```
@@ -72,7 +88,7 @@ api ──POST /internal/trigger/standup─────────────�
 
 - Worker nao sabe que Discord existe — apenas faz POST HTTP generico
 - API nao executa job inline — apenas encaminha trigger manual para o worker
-- `POST /standups/trigger` no API valida `discordUserId === DISCORD_USER_ID`
+- `POST /standups/trigger` no API valida autenticacao via session ou internal secret
 - discord-bot sobe **dois servidores** na mesma instancia:
   - Hono na `BOT_INTERNAL_PORT` (3334) para rotas internas
   - Gateway Discord (discord.js) para interacoes com botoes
@@ -211,12 +227,12 @@ standup/
           notify-job-failed.ts        # POST /internal/notify/job-failed
           notify-job-failed.test.ts
         scheduler.ts        # startScheduler() — setup de cron jobs
-        index.ts            # Entrypoint: loadEnv → startScheduler + HTTP interno
+        index.ts            # Entrypoint: loadWorkerEnv → startScheduler + HTTP interno
         vitest.setup.ts     # Shim Bun.randomUUIDv7 para Vitest
       vitest.config.ts      # Config Vitest local (aponta setupFiles)
 
   packages/
-    config/           # Env vars e configuracao tipada (loadEnv, AppEnv)
+    config/           # Env vars e configuracao tipada (loadApiEnv/loadBotEnv/loadWorkerEnv)
     domain/           # Types, schemas, errors, state machine
     db/               # Drizzle schema, conexao, StandupRepository
     git-collector/    # Coleta de commits dos repositorios
@@ -234,9 +250,9 @@ standup/
         types.ts                # tipos internos (usado por azure/ e prompt/)
         index.ts                # barrel de exports publicos
 
-  data/               # SQLite files (gitignored)
+  data/               # SQLite files locais para dev (gitignored)
   drizzle/            # Migration files gerados
-  turbo.json          # Pipeline monorepo
+  turbo.json          # Pipeline monorepos
 ```
 
 ## Ordem de Implementacao (Obrigatoria)
@@ -259,50 +275,53 @@ standup/
 ## Env Vars Necessarias
 
 ```
-# Discord
+# Base (compartilhado entre apps quando aplicavel)
+NODE_ENV=development
+DATABASE_URL=file:./data/standup.db
+DATABASE_AUTH_TOKEN=
+INTERNAL_SECRET=change-me-in-production
+REPOS_ROOT_PATH=/home/nitoba/Documents/repos/ibs/repos
+
+# API (loadApiEnv)
+PORT=3333
+DISCORD_CLIENT_ID=
+DISCORD_CLIENT_SECRET=
+BETTER_AUTH_SECRET=
+BETTER_AUTH_URL=http://localhost:3333
+WORKER_INTERNAL_URL=http://localhost:3335
+
+# Discord Bot (loadBotEnv)
+BOT_INTERNAL_PORT=3334
+API_BASE_URL=http://localhost:3333
 DISCORD_BOT_TOKEN=
 DISCORD_CHANNEL_ID=       # Canal onde publica standups
-DISCORD_USER_ID=          # Seu user ID para DMs
 DISCORD_GUILD_ID=         # Opcional: guild commands (dev) vs global (prod)
 
-# LLM
-ANTHROPIC_AUTH_TOKEN=
-
-
-# Azure DevOps (via MCP)
+# Worker (loadWorkerEnv)
+# Nota: timezone, crons, gitAuthor, gitSincePeriod e repos subpath
+# agora vem da tabela user_settings (configuravel via /standup settings)
+WORKER_INTERNAL_PORT=3335
+BOT_INTERNAL_URL=http://localhost:3334
+AI_PROVIDER_API_KEY=
 AZURE_DEVOPS_ORG=
 AZURE_DEVOPS_PAT=
+AZURE_DEVOPS_DEFAULT_PROJECT=AGROTRACE
 
-# Git
-REPOS_BASE_PATH=/home/nitoba/Documents/repos/ibs/repos
-GIT_AUTHOR=bruno.alves@biosistemico.com.br
-GIT_SINCE_PERIOD=16 hours ago
-
-# App
-DATABASE_URL=./data/standup.db
-PORT=3333
-NODE_ENV=development
-
-# Comunicacao interna worker→bot
-BOT_INTERNAL_URL=http://localhost:3334
-BOT_INTERNAL_PORT=3334
-
-# Comunicacao interna api→worker
-WORKER_INTERNAL_URL=http://localhost:3335
-WORKER_INTERNAL_PORT=3335
-
-# URL publica/interna do API (usada pelo discord-bot em /standup trigger)
-API_BASE_URL=http://localhost:3333
-
-# Segredo compartilhado para rotas internas
-INTERNAL_SECRET=change-me-in-production
+# Docker Compose (infra, opcional)
+HOST_REPOS_ROOT_PATH=/home/nitoba/Documents/repos/ibs/repos
 ```
+
+Cada processo deve chamar apenas seu loader:
+
+- API: `loadApiEnv()`
+- Bot: `loadBotEnv()`
+- Worker: `loadWorkerEnv()`
 
 ## Hurdles (Barreiras Conhecidas)
 
 - discord.js com Bun: funciona nativamente desde Bun 1.1+
-- SQLite WAL mode: necessario para leitura concorrente (bot + scheduler + API)
-- AI SDK: usar `@ai-sdk/anthropic` com `generateObject` para geracao de standups
+- Desenvolvimento local pode usar `DATABASE_URL=file:./data/standup.db` (SQLite), `turso dev --db-file ./data/standup.db` com `DATABASE_URL=http://127.0.0.1:8080`, ou `DATABASE_URL=libsql://...` com `DATABASE_AUTH_TOKEN`
+- AI SDK: usar provider configuravel com `generateObject` para geracao de standups
 - croner: alternativa leve ao node-cron, funciona bem com Bun
 
 ### Vitest + Bun globals (oven-sh/bun#4145)
@@ -376,10 +395,10 @@ vi.mock("../notifications/notify-standup-ready.js", () => ({
 }));
 ```
 
-### Vitest + import transitive de router (bun:sqlite)
+### Vitest + import transitive de router (driver de banco)
 
 Quando um teste importa `router.ts`, ele carrega handlers e services transitivamente.
-Se algum service importa `@standup/db`, o Vitest (Node) tenta resolver `bun:sqlite` e falha.
+Se algum service importa `@standup/db`, o Vitest (Node) pode carregar o driver real de banco transitivamente e quebrar o teste/unit boundary.
 
 Padrao para testes de router: mockar **todos** os services importados pelo router,
 mesmo os nao usados diretamente no teste.
@@ -531,7 +550,7 @@ Implementados em `apps/worker/src/job/standup-job.ts` e `packages/db`:
 
 **Padrao 5 — Recovery Cron:**
 
-- `recoveryCron` em `scheduler.ts` — executado 30 min apos cron principal (`STANDUP_RECOVERY_CRON`)
+- `recoveryCron` em `scheduler.ts` — executado 30 min apos o cron principal salvo em `user_settings`
 - Busca runs em `running` com mais de 1h → marca como `failed`
 - Verifica se existe `success` para hoje → se nao, re-executa o job
 
@@ -559,7 +578,7 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
 ### Pacotes completos (com testes)
 
 - `packages/domain` — types, schemas Zod, state machine, TaggedErrors (incl. 4 novos erros de job)
-- `packages/config` — `loadEnv()` com todas as env vars (incl. `WORKER_INTERNAL_URL`, `WORKER_INTERNAL_PORT` e `API_BASE_URL`)
+- `packages/config` — `baseEnvSchema` + loaders por app (`loadApiEnv()`, `loadBotEnv()`, `loadWorkerEnv()`) e tipos dedicados (`ApiEnv`, `BotEnv`, `WorkerEnv`)
 - `packages/logger` — Winston estruturado
 - `packages/git-collector` — 29 testes (bun test)
 - `packages/db` — StandupRepository + JobRunRepository, 31 testes (bun test)
@@ -572,7 +591,7 @@ Schema `job_runs` atualizado com campo `date TEXT NOT NULL` para scope do lock p
     - `GET /standups` — lista com filtros opcionais `?status=&date=`
     - `GET /standups/:id` — detalhe por ID
     - `PATCH /standups/:id/status` — atualiza status (state machine valida transições)
-    - `POST /standups/trigger` — trigger manual validando `discordUserId === DISCORD_USER_ID`
+    - `POST /standups/trigger` — trigger manual com auth via session ou internal secret
   - handlers por responsabilidade: `standup/list.ts`, `standup/get-by-id.ts`, `standup/update-status.ts`
   - handler de trigger: `standup/trigger.ts`
   - service isolado: `services/standup-service.ts`

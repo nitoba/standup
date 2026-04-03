@@ -1,0 +1,50 @@
+name: CI Metadata
+description: Expose common GitHub Actions metadata as outputs
+
+inputs:
+  branch:
+    description: Branch name override
+    required: false
+    default: ""
+
+outputs:
+  short_sha:
+    description: Short commit SHA
+    value: ${{ steps.collect.outputs.short_sha }}
+  run_url:
+    description: Workflow run URL
+    value: ${{ steps.collect.outputs.run_url }}
+  commit_url:
+    description: Commit URL
+    value: ${{ steps.collect.outputs.commit_url }}
+  branch:
+    description: Branch name
+    value: ${{ steps.collect.outputs.branch }}
+  actor:
+    description: GitHub actor
+    value: ${{ steps.collect.outputs.actor }}
+  timestamp:
+    description: UTC timestamp
+    value: ${{ steps.collect.outputs.timestamp }}
+
+runs:
+  using: composite
+  steps:
+    - id: collect
+      shell: bash
+      env:
+        INPUT_BRANCH: ${{ inputs.branch }}
+      run: |
+        BRANCH="$INPUT_BRANCH"
+        if [ -z "$BRANCH" ]; then
+          BRANCH="${GITHUB_REF_NAME}"
+        fi
+
+        {
+          echo "short_sha=${GITHUB_SHA::7}"
+          echo "run_url=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          echo "commit_url=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          echo "branch=$BRANCH"
+          echo "actor=${GITHUB_ACTOR}"
+          echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        } >> "$GITHUB_OUTPUT"

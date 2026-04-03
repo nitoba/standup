@@ -1,51 +1,90 @@
-# Stage 1: install + compile — produces a single standalone binary
-FROM oven/bun:1.3.9 AS builder
+# Stage 1: install dependencies and compile the monolith into a standalone binary
+FROM oven/bun:1.3.10 AS builder
 WORKDIR /app
 
-# Root manifest + lockfile — lockfile is used as resolution baseline even without --frozen-lockfile
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  python3 \
+  make \
+  g++ \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY package.json bun.lock ./
+COPY tsconfig.base.json ./
 
-# Only the manifests needed by this app and its workspace deps.
-# bun install --filter installs deps for a single workspace without requiring
-# all other workspace members to be present.
 COPY apps/api/package.json apps/api/
-COPY packages/config/package.json packages/config/
-COPY packages/db/package.json packages/db/
-COPY packages/domain/package.json packages/domain/
-COPY packages/logger/package.json packages/logger/
+COPY apps/api/tsconfig.json apps/api/
+COPY apps/api/tsconfig.build.json apps/api/
+COPY apps/api/nest-cli.json apps/api/
+COPY apps/web/package.json apps/web/
 
-# --filter restricts installation to @standup/api and its workspace dependencies.
-# --frozen-lockfile is incompatible with partial workspace installs (Bun removes
-# absent workspace members from the lockfile, which counts as a change).
-# The bun.lock still pins all versions for reproducible builds.
-RUN bun install --filter './apps/api'
+RUN bun install --production --filter './apps/api'
 
-# Copy source for the app and all packages it imports
-COPY packages/config/src packages/config/src
-COPY packages/db/src packages/db/src
-COPY packages/domain/src packages/domain/src
-COPY packages/logger/src packages/logger/src
 COPY apps/api/src apps/api/src
+COPY apps/api/drizzle.config.ts apps/api/drizzle.config.ts
+COPY apps/api/docker-entrypoint.sh apps/api/docker-entrypoint.sh
 
-RUN bun build \
-  --compile \
-  --minify \
-  --sourcemap \
-  --bytecode \
-  --target=bun-linux-arm64 \
-  --no-compile-autoload-dotenv \
-  apps/api/src/index.ts \
-  --outfile /app/bin/api
+ARG TARGETARCH
+RUN set -eux; \
+  BUN_TARGET_ARCH="$([ "${TARGETARCH:-}" = "amd64" ] && echo "x64" || echo "${TARGETARCH:-arm64}")"; \
+  bun build \
+    --compile \
+    --minify \
+    --sourcemap \
+    --bytecode \
+    --target="bun-linux-${BUN_TARGET_ARCH}" \
+    --no-compile-autoload-dotenv \
+    --external @nestjs/graphql \
+    --external @nestjs/graphql/* \
+    --external @nestjs/apollo \
+    --external @nestjs/apollo/* \
+    --external @nestjs/microservices \
+    --external @nestjs/microservices/* \
+    --external @nestjs/websockets \
+    --external @nestjs/websockets/* \
+    --external @apollo/subgraph \
+    --external @apollo/subgraph/* \
+    --external ts-morph \
+    --external class-transformer/storage \
+    apps/api/src/main.ts \
+    --outfile /app/bin/api
 
-# Stage 2: minimal runtime — only the compiled binary.
-# distroless/cc provides glibc + libstdc++ only (~24 MB vs debian-slim's 75 MB).
-# The Bun standalone binary only needs glibc to run.
-FROM gcr.io/distroless/cc-debian12 AS runtime
-
+# Stage 2: runtime image with Bun CLI, git/ssh tooling and the compiled binary
+FROM debian:bookworm-slim AS runtime
+LABEL service="standup-api"
 WORKDIR /app
 
-COPY --from=builder /app/bin/api ./api
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  git \
+  ca-certificates \
+  openssh-client \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=builder /app/package.json /app/package.json
+COPY --from=builder /app/bun.lock /app/bun.lock
+COPY --from=builder /app/node_modules /app/node_modules
+COPY --from=builder /app/apps/api/package.json /app/apps/api/package.json
+COPY --from=builder /app/apps/api/node_modules /app/apps/api/node_modules
+COPY --from=builder /app/apps/api/src /app/apps/api/src
+COPY --from=builder /app/apps/api/docker-entrypoint.sh /usr/local/bin/start-api
+COPY --from=builder /app/bin/api /app/bin/api
+
+ARG TARGETARCH
+RUN set -eux; \
+  LIBSQL_TARGET="$([ "${TARGETARCH:-}" = "amd64" ] && echo "linux-x64-gnu" || echo "linux-${TARGETARCH:-arm64}-gnu")"; \
+  mkdir -p /app/node_modules/@libsql; \
+  cp -RL "/app/node_modules/.bun/node_modules/@libsql/${LIBSQL_TARGET}" "/app/node_modules/@libsql/${LIBSQL_TARGET}"; \
+  chmod +x /usr/local/bin/start-api /app/bin/api; \
+  # Create empty stubs for --external NestJS optional deps resolved at runtime
+  for pkg in @nestjs/graphql @nestjs/apollo @nestjs/microservices @nestjs/websockets @apollo/subgraph ts-morph; do \
+    mkdir -p "/app/node_modules/${pkg}"; \
+    echo '{"name":"'"${pkg}"'","version":"0.0.0","main":"index.js"}' > "/app/node_modules/${pkg}/package.json"; \
+    echo 'module.exports = {};' > "/app/node_modules/${pkg}/index.js"; \
+  done; \
+  mkdir -p /app/node_modules/class-transformer; \
+  echo 'module.exports = {};' > /app/node_modules/class-transformer/storage.js
 
 EXPOSE 3333
 
-CMD ["/app/api"]
+ENTRYPOINT ["/usr/local/bin/start-api"]
+CMD ["/app/bin/api"]

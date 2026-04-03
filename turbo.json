@@ -3,17 +3,32 @@
   "globalEnv": [
     "NODE_ENV",
     "PORT",
+    "DATABASE_URL",
+    "DATABASE_AUTH_TOKEN",
+    "REPOS_ROOT_PATH",
+    "CORS_ORIGIN",
+    "APP_URL",
+    "DISCORD_CLIENT_ID",
+    "DISCORD_CLIENT_SECRET",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
     "DISCORD_BOT_TOKEN",
     "DISCORD_CHANNEL_ID",
-    "DISCORD_USER_ID",
-    "ANTHROPIC_AUTH_TOKEN",
+    "DISCORD_GUILD_ID",
+    "DISCORD_GATEWAY_ENABLED",
+    "SCHEDULER_ENABLED",
+    "AI_PROVIDER_API_KEY",
     "AZURE_DEVOPS_ORG",
     "AZURE_DEVOPS_PAT",
     "AZURE_DEVOPS_DEFAULT_PROJECT",
-    "REPOS_BASE_PATH",
-    "GIT_AUTHOR",
-    "GIT_SINCE_PERIOD",
-    "DATABASE_URL"
+    "AZURE_DEVOPS_PROJECTS",
+    "SMTP_HOST",
+    "SMTP_PORT",
+    "SMTP_SECURE",
+    "SMTP_FROM",
+    "SMTP_USER",
+    "SMTP_PASS",
+    "OTEL_EXPORTER_OTLP_ENDPOINT"
   ],
   "tasks": {
     "build": {
@@ -21,6 +36,10 @@
       "outputs": ["dist/**"]
     },
     "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "dev:local": {
       "cache": false,
       "persistent": true
     },
@@ -37,6 +56,16 @@
       "cache": false
     },
     "db:migrate": {
+      "cache": false
+    },
+    "db:studio": {
+      "cache": false
+    },
+    "openapi:export": {
+      "cache": false
+    },
+    "generate-api": {
+      "dependsOn": ["@standup-api#openapi:export"],
       "cache": false
     }
   }

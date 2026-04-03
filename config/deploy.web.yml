@@ -1,0 +1,44 @@
+# Kamal deploy config — standup-web (Angular SPA)
+#
+# Angular frontend served via nginx with reverse proxy to the API.
+# Public-facing via kamal-proxy at standup.nitodev.com.br.
+# API routes are proxied internally to standup-api via Docker network alias.
+#
+# Usage:
+#   kamal deploy -c config/deploy.web.yml
+#   kamal app logs -c config/deploy.web.yml
+
+service: standup-web
+image: nitoba/standup-web
+
+servers:
+  web:
+    - colima.tail2ee1d6.ts.net
+
+registry:
+  server: ghcr.io
+  username: nitoba
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  context: .
+  dockerfile: apps/web/Dockerfile
+  arch: arm64
+
+proxy:
+  host: standup.nitodev.com.br
+  app_port: 80
+  forward_headers: true
+  healthcheck:
+    path: /
+    interval: 3
+
+ssh:
+  user: nitoba
+  keys:
+    - ~/.ssh/deploy_key
+
+env:
+  clear:
+    NODE_ENV: production

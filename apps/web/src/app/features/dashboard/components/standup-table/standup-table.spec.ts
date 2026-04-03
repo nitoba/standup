@@ -1,0 +1,235 @@
+import { TestBed } from '@angular/core/testing'
+import { describe, expect, it, vi } from 'vitest'
+
+import type { Standup } from '../../../../shared/models/standup-models'
+import { StandupTable } from './standup-table'
+
+function findButtonByAriaLabel(
+  element: HTMLElement,
+  label: string,
+): HTMLButtonElement | undefined {
+  return Array.from(
+    element.querySelectorAll('button') as NodeListOf<HTMLButtonElement>,
+  ).find((btn) => btn.getAttribute('aria-label') === label)
+}
+
+function findSpanByText(
+  element: HTMLElement,
+  text: string,
+): HTMLSpanElement | undefined {
+  return Array.from(
+    element.querySelectorAll('span') as NodeListOf<HTMLSpanElement>,
+  ).find((span) => span.textContent?.trim() === text)
+}
+
+describe('StandupTable', () => {
+  it('renders rows and emits selected standup ids', async () => {
+    await TestBed.configureTestingModule({
+      imports: [StandupTable],
+    }).compileComponents()
+
+    const fixture = TestBed.createComponent(StandupTable)
+    const emitSpy = vi.fn()
+    const standups: Standup[] = [
+      {
+        id: '7f3a2b1c',
+        date: '09/03/2026',
+        status: 'pending_review',
+        createdAt: '17:32',
+        contentPreview: 'implemented retry logic...',
+        sections: [],
+        sources: [],
+      },
+    ]
+
+    fixture.componentRef.setInput('standups', standups)
+    fixture.componentRef.setInput('total', 1)
+    fixture.componentRef.setInput('page', 1)
+    fixture.componentRef.setInput('pageSize', 20)
+    fixture.componentRef.setInput('totalPages', 1)
+    fixture.componentInstance.viewStandup.subscribe(emitSpy)
+    fixture.detectChanges()
+
+    const button = Array.from(
+      fixture.nativeElement.querySelectorAll(
+        'button',
+      ) as NodeListOf<HTMLButtonElement>,
+    ).find((element) =>
+      element.textContent?.includes('$ ver >>'),
+    ) as HTMLButtonElement
+    button.click()
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'implemented retry logic',
+    )
+    expect(fixture.nativeElement.textContent).toContain('página 1 de 1')
+    expect(fixture.nativeElement.textContent).toContain('1 no total')
+    expect(emitSpy).toHaveBeenCalledWith('7f3a2b1c')
+  })
+
+  it('renders clickable page numbers and emits page changes', async () => {
+    await TestBed.configureTestingModule({
+      imports: [StandupTable],
+    }).compileComponents()
+
+    const fixture = TestBed.createComponent(StandupTable)
+    const pageChangeSpy = vi.fn()
+
+    fixture.componentRef.setInput('standups', [])
+    fixture.componentRef.setInput('total', 142)
+    fixture.componentRef.setInput('page', 4)
+    fixture.componentRef.setInput('pageSize', 20)
+    fixture.componentRef.setInput('totalPages', 8)
+    fixture.componentInstance.pageChange.subscribe(pageChangeSpy)
+    fixture.detectChanges()
+
+    const pageFiveButton = Array.from(
+      fixture.nativeElement.querySelectorAll(
+        'button',
+      ) as NodeListOf<HTMLButtonElement>,
+    ).find(
+      (element) => element.textContent?.trim() === '5',
+    ) as HTMLButtonElement
+
+    expect(fixture.nativeElement.textContent).toContain('1')
+    expect(fixture.nativeElement.textContent).toContain('4')
+    expect(fixture.nativeElement.textContent).toContain('8')
+    expect(fixture.nativeElement.textContent).toContain('...')
+    expect(fixture.nativeElement.textContent).toContain('página 4 de 8')
+    expect(fixture.nativeElement.textContent).toContain('142 no total')
+
+    pageFiveButton.click()
+
+    expect(pageChangeSpy).toHaveBeenCalledWith(5)
+  })
+
+  it('shows copy button only for approved standups with content', async () => {
+    await TestBed.configureTestingModule({
+      imports: [StandupTable],
+    }).compileComponents()
+
+    const fixture = TestBed.createComponent(StandupTable)
+    const standups: Standup[] = [
+      {
+        id: 'approved-1',
+        date: '10/03/2026',
+        status: 'approved',
+        createdAt: '17:00',
+        content: '## Atividades\n- Fez algo',
+        contentPreview: 'Fez algo',
+        sections: [],
+        sources: [],
+      },
+      {
+        id: 'pending-1',
+        date: '10/03/2026',
+        status: 'pending_review',
+        createdAt: '17:30',
+        contentPreview: 'Algo pendente',
+        sections: [],
+        sources: [],
+      },
+    ]
+
+    fixture.componentRef.setInput('standups', standups)
+    fixture.componentRef.setInput('total', 2)
+    fixture.componentRef.setInput('page', 1)
+    fixture.componentRef.setInput('pageSize', 20)
+    fixture.componentRef.setInput('totalPages', 1)
+    fixture.detectChanges()
+
+    const copyButtons = Array.from(
+      fixture.nativeElement.querySelectorAll(
+        'button',
+      ) as NodeListOf<HTMLButtonElement>,
+    ).filter((btn) => btn.getAttribute('aria-label') === 'Copiar standup')
+
+    // One copy button per approved row (desktop + mobile = 2)
+    expect(copyButtons.length).toBe(2)
+  })
+
+  it('copies approved content to clipboard on click', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.assign(globalThis.navigator, {
+      clipboard: { writeText },
+    })
+
+    await TestBed.configureTestingModule({
+      imports: [StandupTable],
+    }).compileComponents()
+
+    const fixture = TestBed.createComponent(StandupTable)
+    const standups: Standup[] = [
+      {
+        id: 'approved-1',
+        date: '10/03/2026',
+        status: 'approved',
+        createdAt: '17:00',
+        content: '## Atividades\n- Fez algo',
+        contentPreview: 'Fez algo',
+        sections: [],
+        sources: [],
+      },
+    ]
+
+    fixture.componentRef.setInput('standups', standups)
+    fixture.componentRef.setInput('total', 1)
+    fixture.componentRef.setInput('page', 1)
+    fixture.componentRef.setInput('pageSize', 20)
+    fixture.componentRef.setInput('totalPages', 1)
+    fixture.detectChanges()
+
+    const copyBtn = findButtonByAriaLabel(
+      fixture.nativeElement,
+      'Copiar standup',
+    )!
+    copyBtn.click()
+    await fixture.whenStable()
+
+    expect(writeText).toHaveBeenCalledWith('## Atividades\n- Fez algo')
+  })
+
+  it('renders published and draft statuses with canonical labels and classes', async () => {
+    await TestBed.configureTestingModule({
+      imports: [StandupTable],
+    }).compileComponents()
+
+    const fixture = TestBed.createComponent(StandupTable)
+    const standups: Standup[] = [
+      {
+        id: 'published-1',
+        date: '10/03/2026',
+        status: 'published',
+        createdAt: '17:00',
+        contentPreview: 'Publicado',
+        sections: [],
+        sources: [],
+      },
+      {
+        id: 'draft-1',
+        date: '11/03/2026',
+        status: 'draft',
+        createdAt: '18:00',
+        contentPreview: 'Rascunho',
+        sections: [],
+        sources: [],
+      },
+    ]
+
+    fixture.componentRef.setInput('standups', standups)
+    fixture.componentRef.setInput('total', 2)
+    fixture.componentRef.setInput('page', 1)
+    fixture.componentRef.setInput('pageSize', 20)
+    fixture.componentRef.setInput('totalPages', 1)
+    fixture.detectChanges()
+
+    const element = fixture.nativeElement as HTMLElement
+    const publishedStatus = findSpanByText(element, '[publicado]')
+    const draftStatus = findSpanByText(element, '[rascunho]')
+
+    expect(publishedStatus).toBeDefined()
+    expect(publishedStatus?.className).toContain('text-cyan-400')
+    expect(draftStatus).toBeDefined()
+    expect(draftStatus?.className).toContain('text-muted-foreground')
+  })
+})

@@ -1,0 +1,49 @@
+# Kamal deploy config — infrastructure accessories
+#
+# Long-lived services that don't need build/push cycles.
+# Boot once, update only when changing versions or config.
+#
+# Usage:
+#   kamal accessory boot jaeger -c config/deploy.infra.yml     # first time
+#   kamal accessory reboot jaeger -c config/deploy.infra.yml   # update/restart
+#   kamal accessory logs jaeger -c config/deploy.infra.yml     # view logs
+#   kamal accessory stop jaeger -c config/deploy.infra.yml     # stop
+#   kamal accessory remove jaeger -c config/deploy.infra.yml   # remove container + data
+
+# Kamal requires a service name and image even for accessory-only configs.
+# These are never built or deployed — only the accessories section is used.
+service: standup-infra
+image: nitoba/standup-infra
+
+servers:
+  web:
+    - colima.tail2ee1d6.ts.net
+
+# Kamal requires a registry section even for accessory-only configs.
+# This registry is used for the root service image (never built/deployed here).
+# Accessories default to Docker Hub automatically — no prefix needed on their images.
+registry:
+  server: ghcr.io
+  username: nitoba
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: arm64
+
+ssh:
+  user: nitoba
+  keys:
+    - ~/.ssh/deploy_key
+
+accessories:
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    host: colima.tail2ee1d6.ts.net
+    port: "16686:16686"   # Jaeger UI
+    env:
+      clear:
+        COLLECTOR_OTLP_ENABLED: "true"
+    options:
+      memory: 512m
+      publish: "4318:4318"  # OTLP HTTP receiver (used by apps via host.docker.internal)

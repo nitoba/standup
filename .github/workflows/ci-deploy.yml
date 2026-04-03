@@ -1,0 +1,153 @@
+name: CI Deploy
+
+on:
+  workflow_call:
+    inputs:
+      message_id:
+        description: Discord message id for pipeline updates
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    env:
+      DEPLOY_VERSION: ${{ github.sha }}
+      KAMAL_REGISTRY_PASSWORD: ${{ secrets.GHCR_PAT }}
+      DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
+      DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
+      BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+      DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+      DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+      DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      LLM_PROVIDERS_CONFIG: ${{ secrets.LLM_PROVIDERS_CONFIG }}
+      AZURE_DEVOPS_ORG: ${{ secrets.AZURE_DEVOPS_ORG }}
+      AZURE_DEVOPS_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
+      AZURE_DEVOPS_DEFAULT_PROJECT: ${{ secrets.AZURE_DEVOPS_DEFAULT_PROJECT }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
+      SMTP_FROM: ${{ secrets.SMTP_FROM }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
+      DISCORD_AUTOMATION_CHANNEL_URL: ${{ secrets.DISCORD_AUTOMATION_CHANNEL_URL }}
+      DISCORD_AUTOMATION_WEBHOOK_SECRET: ${{ secrets.DISCORD_AUTOMATION_WEBHOOK_SECRET }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+
+      - name: Set up SSH key and known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          cat > ~/.ssh/deploy_key <<'EOF'
+          ${{ secrets.SSH_PRIVATE_KEY }}
+          EOF
+          chmod 600 ~/.ssh/deploy_key
+
+          touch ~/.ssh/known_hosts
+
+          # Retry ssh-keyscan with backoff — Tailscale routes may need time to propagate
+          for i in 1 2 3 4; do
+            if ssh-keyscan -H -t ed25519 "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>&1; then
+              echo "ssh-keyscan succeeded on attempt $i"
+              break
+            fi
+            if [ "$i" -lt 4 ]; then
+              echo "ssh-keyscan attempt $i failed, retrying in $((i * 2))s..."
+              sleep $((i * 2))
+            else
+              echo "ssh-keyscan failed after $i attempts — continuing with StrictHostKeyChecking accept-new"
+            fi
+          done
+
+      - name: Create SSH config for deploy
+        run: |
+          cat > ~/.ssh/config <<EOF
+          Host *
+            IdentityFile ~/.ssh/deploy_key
+            UserKnownHostsFile ~/.ssh/known_hosts
+            StrictHostKeyChecking accept-new
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Install Kamal
+        run: sudo gem install kamal --no-document
+
+      - name: Create Kamal secrets file
+        run: |
+          mkdir -p .kamal
+          cat > .kamal/secrets-common <<'EOF'
+          KAMAL_REGISTRY_PASSWORD=$KAMAL_REGISTRY_PASSWORD
+          DISCORD_CLIENT_ID=$DISCORD_CLIENT_ID
+          DISCORD_CLIENT_SECRET=$DISCORD_CLIENT_SECRET
+          BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+          DISCORD_BOT_TOKEN=$DISCORD_BOT_TOKEN
+          DISCORD_CHANNEL_ID=$DISCORD_CHANNEL_ID
+          DISCORD_GUILD_ID=$DISCORD_GUILD_ID
+          GOOGLE_API_KEY=$GOOGLE_API_KEY
+          GROQ_API_KEY=$GROQ_API_KEY
+          OPENROUTER_API_KEY=$OPENROUTER_API_KEY
+          LLM_PROVIDERS_CONFIG=$LLM_PROVIDERS_CONFIG
+          AZURE_DEVOPS_ORG=$AZURE_DEVOPS_ORG
+          AZURE_DEVOPS_PAT=$AZURE_DEVOPS_PAT
+          AZURE_DEVOPS_DEFAULT_PROJECT=$AZURE_DEVOPS_DEFAULT_PROJECT
+          SMTP_HOST=$SMTP_HOST
+          SMTP_PORT=$SMTP_PORT
+          SMTP_SECURE=$SMTP_SECURE
+          SMTP_FROM=$SMTP_FROM
+          SMTP_USER=$SMTP_USER
+          SMTP_PASS=$SMTP_PASS
+          DATABASE_URL=$DATABASE_URL
+          DATABASE_AUTH_TOKEN=$DATABASE_AUTH_TOKEN
+          DISCORD_AUTOMATION_CHANNEL_URL=$DISCORD_AUTOMATION_CHANNEL_URL
+          DISCORD_AUTOMATION_WEBHOOK_SECRET=$DISCORD_AUTOMATION_WEBHOOK_SECRET
+          EOF
+
+      - name: Validate Kamal config (API)
+        run: kamal config -c config/deploy.api.yml
+
+      - name: Validate Kamal config (Web)
+        run: kamal config -c config/deploy.web.yml
+
+      - name: Validate Kamal config (Infra)
+        run: kamal config -c config/deploy.infra.yml
+
+      - name: Ensure Jaeger accessory is running
+        continue-on-error: true
+        run: |
+          kamal accessory boot jaeger \
+            -c config/deploy.infra.yml \
+            || echo "Jaeger accessory already booted"
+
+      - name: Deploy API
+        run: |
+          kamal deploy \
+            -c config/deploy.api.yml \
+            --skip-push \
+            --version "sha-${DEPLOY_VERSION}" \
+            --skip-hooks
+
+      - name: Deploy Web
+        run: |
+          kamal deploy \
+            -c config/deploy.web.yml \
+            --skip-push \
+            --version "sha-${DEPLOY_VERSION}" \
+            --skip-hooks
