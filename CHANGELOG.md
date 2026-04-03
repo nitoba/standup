@@ -5,9 +5,28 @@
 
 ### Bug Fixes
 
+- Fix: skip reminder DM when standup already approved or published (`c91876d`)
+
+
+## 0.1.3 — 2026-04-03
+
+
+### Bug Fixes
+
 - Fix: skip lifecycle scripts during Docker install to prevent better-sqlite3 hang (`af02e35`)
 
 - Fix: explicitly trigger CI/CD workflow after auto-tag creation (`2a53039`)
+
+
+### Chores
+
+- Chore: bump version to v0.1.3 (#46) (`47498b5`)
+
+
+## 0.1.2 — 2026-04-03
+
+
+### Bug Fixes
 
 - Fix: disable lifecycle scripts to prevent better-sqlite3 build hang (`ebbfdbe`)
 
