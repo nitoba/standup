@@ -452,7 +452,6 @@ describe('StandupService', () => {
     expect(request.request.body).toEqual({
       forceRegenerate: true,
       replaceStandupId: '7f3a2b1c',
-      reuseExistingSource: true,
     })
     request.flush(
       { ok: true, accepted: true },
