@@ -35,7 +35,6 @@
     "db:studio": "bun run --bun turbo run db:studio --filter=@standup-api",
     "generate-api": "turbo run generate-api --filter=@standup/web"
   },
-  "trustedDependencies": [],
   "devDependencies": {
     "@biomejs/biome": "^2.4.5",
     "@types/bun": "catalog:tooling",
