@@ -5,10 +5,20 @@
 
 ### Bug Fixes
 
+- Fix: disable lifecycle scripts to prevent better-sqlite3 build hang (`ebbfdbe`)
+
+
+## 0.1.1 — 2026-04-03
+
+
+### Bug Fixes
+
 - Fix: cache bun install packages in Docker build to prevent CI hangs (`6ed7cc0`)
 
 
 ### Chores
+
+- Chore: bump version to v0.1.1 (#44) (`370a026`)
 
 - Chore: update IA files (`30003ba`)
 
