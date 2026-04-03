@@ -379,8 +379,20 @@ describe('StandupAgentService', () => {
 
   describe('generateWeeklyInsights()', () => {
     const mockStandups = [
-      { id: '1', content: 'day 1', summary: 's1', date: '2026-03-30', meetingType: 'daily' },
-      { id: '2', content: 'day 2', summary: 's2', date: '2026-03-31', meetingType: 'daily' },
+      {
+        id: '1',
+        content: 'day 1',
+        summary: 's1',
+        date: '2026-03-30',
+        meetingType: 'daily',
+      },
+      {
+        id: '2',
+        content: 'day 2',
+        summary: 's2',
+        date: '2026-03-31',
+        meetingType: 'daily',
+      },
     ] as never
 
     it('returns text from last assistant message on success', async () => {

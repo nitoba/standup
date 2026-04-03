@@ -29,5 +29,4 @@ export class TriggerStandupDto {
   @IsString()
   @MinLength(1)
   replaceStandupId?: string
-
 }

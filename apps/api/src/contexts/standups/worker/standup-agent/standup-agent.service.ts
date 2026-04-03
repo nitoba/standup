@@ -549,8 +549,17 @@ export class StandupAgentService {
   private extractLastAssistantText(messages: AgentMessage[]): string | null {
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i]
-      if (msg && 'role' in msg && (msg as { role: string }).role === 'assistant') {
-        const content = (msg as { role: string; content: Array<{ type: string; text?: string }> }).content
+      if (
+        msg &&
+        'role' in msg &&
+        (msg as { role: string }).role === 'assistant'
+      ) {
+        const content = (
+          msg as {
+            role: string
+            content: Array<{ type: string; text?: string }>
+          }
+        ).content
         const textParts = content
           .filter((c) => c.type === 'text' && typeof c.text === 'string')
           .map((c) => c.text as string)
