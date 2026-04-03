@@ -9,7 +9,7 @@ export const DISCORD_LOGIN_SUCCESS_REQUESTED_EVENT =
 export const USER_DM_REQUESTED_EVENT = 'notification.user-dm.requested'
 export const JOB_FAILED_NOTIFICATION_EVENT = 'notification.job-failed.requested'
 
-export type StandupRunMode = 'generate' | 'regenerate' | 'adjust'
+export type StandupRunMode = 'generate' | 'adjust'
 
 export type StandupProgressStep =
   | 'queued'
@@ -17,6 +17,7 @@ export type StandupProgressStep =
   | 'collecting_board'
   | 'enriching_data'
   | 'generating_standup'
+  | 'streaming_content'
   | 'saving_draft'
   | 'notifying_review'
   | 'completed'
@@ -30,6 +31,7 @@ export type StandupProgressEvent = {
   step: StandupProgressStep
   message: string
   standupId?: string
+  partialContent?: string
 }
 
 export type StandupGeneratedEvent = {

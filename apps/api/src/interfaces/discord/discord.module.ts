@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { StandupsModule } from '../../contexts/standups/standups.module'
+import { StandupAgentModule } from '../../contexts/standups/worker/standup-agent/standup-agent.module'
 import { DatabaseModule } from '../../platform/database/database.module'
 import { CommandRegistrationService } from './commands/command-registration.service'
 import { DiscordClientService } from './discord-client.service'
@@ -13,6 +14,7 @@ import { SlashCommandHandlerService } from './handlers/slash-command-handler.ser
 import { StandupInteractionService } from './handlers/standup-interaction.service'
 import { TriggerConfirmationService } from './handlers/trigger-confirmation.service'
 import { DiscordGatewayService } from './listeners/discord-gateway.service'
+import { DiscordStreamingListener } from './listeners/discord-streaming.listener'
 import { DiscordMessagesService } from './notifications/discord-messages.service'
 import { DiscordAuthService } from './services/discord-auth.service'
 import { DiscordAvailableReposService } from './services/discord-available-repos.service'
@@ -22,7 +24,7 @@ import { StandupNotificationService } from './services/standup-notification.serv
 import { StandupStatusSyncService } from './services/standup-status-sync.service'
 
 @Module({
-  imports: [DatabaseModule, StandupsModule],
+  imports: [DatabaseModule, StandupsModule, StandupAgentModule],
   providers: [
     DiscordClientService,
     DiscordMessagesService,
@@ -43,6 +45,7 @@ import { StandupStatusSyncService } from './services/standup-status-sync.service
     ModalInteractionService,
     SlashCommandHandlerService,
     DiscordGatewayService,
+    DiscordStreamingListener,
   ],
   exports: [
     DiscordClientService,

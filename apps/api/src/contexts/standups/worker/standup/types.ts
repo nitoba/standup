@@ -1,3 +1,4 @@
+import type { Agent } from '@mariozechner/pi-agent-core'
 import type { Result } from '../../../../shared/domain'
 
 export interface StandupJobOptions {
@@ -14,7 +15,6 @@ export interface StandupJobOptions {
   rewriteFromStandupId?: string
   rewriteInstruction?: string
   replaceStandupId?: string
-  reuseExistingSource?: boolean
 }
 
 export type StrategyProgressStep =
@@ -22,10 +22,12 @@ export type StrategyProgressStep =
   | 'collecting_board'
   | 'enriching_data'
   | 'generating_standup'
+  | 'streaming_content'
 
 export interface StrategyProgressUpdate {
   step: StrategyProgressStep
   message: string
+  partialContent?: string
 }
 
 export type StrategyProgressReporter = (
@@ -37,6 +39,8 @@ export interface GeneratedContent {
   meetingType: string
   sourceData: string
   replaceStandupId?: string
+  /** Transient — used to create session after persistence, not serialized to DB */
+  agent?: Agent
 }
 
 export interface StrategyExecutionInput {

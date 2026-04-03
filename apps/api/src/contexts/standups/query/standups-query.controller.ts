@@ -15,6 +15,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger'
+import { SkipThrottle } from '@nestjs/throttler'
 import { Session } from '@thallesp/nestjs-better-auth'
 import type { AuthSession } from '../../../shared/auth/auth-session'
 import { requireSessionUserId } from '../../../shared/auth/require-session-user-id'
@@ -45,6 +46,7 @@ const STANDUP_SORT_DIR_QUERY = {
 } as const
 
 @ApiTags('standups')
+@SkipThrottle({ strict: true, auth: true })
 @Controller('standups')
 export class StandupsQueryController {
   constructor(private readonly standupsQuery: StandupsQueryService) {}

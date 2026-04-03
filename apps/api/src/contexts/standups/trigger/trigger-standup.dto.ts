@@ -29,9 +29,4 @@ export class TriggerStandupDto {
   @IsString()
   @MinLength(1)
   replaceStandupId?: string
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  reuseExistingSource?: boolean
 }

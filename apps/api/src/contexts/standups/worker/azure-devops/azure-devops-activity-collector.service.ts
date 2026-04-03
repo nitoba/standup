@@ -31,6 +31,27 @@ const NOISE_FIELDS = new Set([
   'System.PersonId',
 ])
 
+function extractDisplayName(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'object' && 'displayName' in value) {
+    return String((value as { displayName: unknown }).displayName ?? '')
+  }
+  return String(value)
+}
+
+/**
+ * Identity fields that indicate who actually performed a state change.
+ * When these fields appear in an update and point to a different user,
+ * the update was NOT performed by the revisedBy user — it was likely
+ * a bulk sprint close or board automation attributed to the assignee.
+ */
+const ACTOR_IDENTITY_FIELDS = new Set([
+  'Microsoft.VSTS.Common.ClosedBy',
+  'Microsoft.VSTS.Common.ResolvedBy',
+  'Microsoft.VSTS.Common.ActivatedBy',
+])
+
 @Injectable()
 export class AzureDevopsActivityCollectorService {
   private readonly logger: ReturnType<AppLoggerFactory['create']>
@@ -170,11 +191,24 @@ export class AzureDevopsActivityCollectorService {
         continue
       }
 
-      if (update.revisedDate < sinceDate) {
+      // Determine when this change actually happened (not when Azure DevOps recorded it).
+      // Priority: StateChangeDate.newValue > ChangedDate.newValue > revisedDate
+      // Azure DevOps can re-record old revisions (e.g. sprint close sync) with today's
+      // revisedDate, so we need the actual timestamp of the state change.
+      const effectiveDate = this.resolveEffectiveDate(update)
+
+      if (effectiveDate < sinceDate) {
         continue
       }
 
       if (!update.fields) {
+        continue
+      }
+
+      // Check if an actor identity field (ClosedBy, ResolvedBy, ActivatedBy)
+      // indicates a different user actually performed this action.
+      // This catches sprint closes and board automations attributed to the assignee.
+      if (this.isActorMismatch(update.fields, user)) {
         continue
       }
 
@@ -209,7 +243,7 @@ export class AzureDevopsActivityCollectorService {
         actions.push({
           type: 'assigned',
           timestamp,
-          details: `Assigned to ${String(change.newValue ?? 'unassigned')}`,
+          details: `Assigned to ${extractDisplayName(change.newValue) || 'unassigned'}`,
         })
       } else if (fieldName === 'System.History') {
         actions.push({
@@ -221,18 +255,76 @@ export class AzureDevopsActivityCollectorService {
         actions.push({
           type: 'created',
           timestamp,
-          details: `Created by ${String(change.newValue ?? 'unknown')}`,
+          details: `Created by ${extractDisplayName(change.newValue) || 'unknown'}`,
         })
       } else {
+        // Use extractDisplayName for identity fields to avoid [object Object]
+        const oldVal = ACTOR_IDENTITY_FIELDS.has(fieldName)
+          ? extractDisplayName(change.oldValue) || 'none'
+          : String(change.oldValue ?? 'none')
+        const newVal = ACTOR_IDENTITY_FIELDS.has(fieldName)
+          ? extractDisplayName(change.newValue) || 'none'
+          : String(change.newValue ?? 'none')
         actions.push({
           type: 'field_changed',
           timestamp,
-          details: `${fieldName}: ${String(change.oldValue ?? 'none')} → ${String(change.newValue ?? 'none')}`,
+          details: `${fieldName}: ${oldVal} → ${newVal}`,
         })
       }
     }
 
     return actions
+  }
+
+  /**
+   * Returns true if an actor identity field (ClosedBy, ResolvedBy, ActivatedBy)
+   * exists in this update and its newValue points to a different user.
+   * This means the action was performed by someone else (e.g. sprint close by manager).
+   */
+  private isActorMismatch(
+    fields: Record<string, WorkItemUpdateFieldChange>,
+    user: string,
+  ): boolean {
+    for (const fieldName of ACTOR_IDENTITY_FIELDS) {
+      const change = fields[fieldName]
+      if (!change?.newValue) continue
+
+      const actorName = extractDisplayName(change.newValue)
+      if (actorName && actorName !== user) {
+        return true
+      }
+    }
+    return false
+  }
+
+  /**
+   * Resolves the actual date when the change happened.
+   * Azure DevOps can re-record old revisions with today's revisedDate
+   * (e.g. sprint close sync), so we prefer StateChangeDate or ChangedDate.
+   * Falls back to revisedDate when no better signal exists.
+   * Skips 9999 sentinel dates (used for the latest revision).
+   */
+  private resolveEffectiveDate(update: WorkItemUpdate): string {
+    // Skip 9999 sentinel — use field dates instead
+    const revisedDate = update.revisedDate.startsWith('9999')
+      ? undefined
+      : update.revisedDate
+
+    const stateChangeDate =
+      update.fields?.['Microsoft.VSTS.Common.StateChangeDate']?.newValue
+    if (
+      typeof stateChangeDate === 'string' &&
+      !stateChangeDate.startsWith('9999')
+    ) {
+      return stateChangeDate
+    }
+
+    const changedDate = update.fields?.['System.ChangedDate']?.newValue
+    if (typeof changedDate === 'string' && !changedDate.startsWith('9999')) {
+      return changedDate
+    }
+
+    return revisedDate ?? update.revisedDate
   }
 
   private buildWiql(sinceDate: string): string {
@@ -254,7 +346,7 @@ export class AzureDevopsActivityCollectorService {
       title: String(item.fields['System.Title'] ?? ''),
       type: String(item.fields['System.WorkItemType'] ?? ''),
       state: String(item.fields['System.State'] ?? ''),
-      assignedTo: String(item.fields['System.AssignedTo'] ?? ''),
+      assignedTo: extractDisplayName(item.fields['System.AssignedTo']),
       project: projectFromArea ?? project,
       actions,
     }

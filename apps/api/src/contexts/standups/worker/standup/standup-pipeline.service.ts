@@ -6,10 +6,10 @@ import type {
 } from '../../../../platform/events/standup-events'
 import { AppLoggerFactory } from '../../../../platform/logger'
 import { DbError, NotFoundError, Result } from '../../../../shared/domain'
+import { AgentSessionManager } from '../standup-agent/agent-session-manager'
 import { WorkerEventPublisherService } from '../worker-event-publisher.service'
 import { ExecuteAdjustStrategy } from './strategies/execute-adjust-strategy'
 import { ExecuteGenerateStrategy } from './strategies/execute-generate-strategy'
-import { ExecuteRegenerateStrategy } from './strategies/execute-regenerate-strategy'
 import type { StandupJobOptions, StrategyProgressUpdate } from './types'
 
 interface PipelineContext {
@@ -28,8 +28,8 @@ export class StandupPipelineService {
     private readonly standupRepository: StandupWriteRepository,
     private readonly notifications: WorkerEventPublisherService,
     private readonly generateStrategy: ExecuteGenerateStrategy,
-    private readonly regenerateStrategy: ExecuteRegenerateStrategy,
     private readonly adjustStrategy: ExecuteAdjustStrategy,
+    private readonly sessionManager: AgentSessionManager,
   ) {
     this.logger = this.loggerFactory.create('standup-pipeline')
   }
@@ -115,6 +115,12 @@ export class StandupPipelineService {
     const standupId = saveResult.value.id
     this.logger.info('Standup draft saved', { standupId })
 
+    // Create agent session if agent instance was returned by strategy
+    if (generated.agent) {
+      this.sessionManager.create(standupId, generated.agent)
+      this.logger.info('Agent session created', { standupId })
+    }
+
     await this.emitProgress({
       userId: options.userId,
       runId,
@@ -166,8 +172,6 @@ export class StandupPipelineService {
     switch (mode) {
       case 'adjust':
         return this.adjustStrategy.execute(executionInput)
-      case 'regenerate':
-        return this.regenerateStrategy.execute(executionInput)
       default:
         return this.generateStrategy.execute(executionInput)
     }
@@ -215,6 +219,7 @@ export class StandupPipelineService {
     step: StandupProgressStep
     message: string
     standupId?: string
+    partialContent?: string
   }) {
     this.notifications.emitStandupProgress({
       userId: event.userId,
@@ -224,6 +229,7 @@ export class StandupPipelineService {
       step: event.step,
       message: event.message,
       ...(event.standupId ? { standupId: event.standupId } : {}),
+      ...(event.partialContent ? { partialContent: event.partialContent } : {}),
     })
   }
 
@@ -233,7 +239,7 @@ export class StandupPipelineService {
     date: string,
     mode: StandupRunMode,
   ) {
-    return async ({ step, message }: StrategyProgressUpdate) =>
+    return async ({ step, message, partialContent }: StrategyProgressUpdate) =>
       this.emitProgress({
         userId,
         runId,
@@ -241,6 +247,7 @@ export class StandupPipelineService {
         mode,
         step,
         message,
+        ...(partialContent ? { partialContent } : {}),
       })
   }
 }

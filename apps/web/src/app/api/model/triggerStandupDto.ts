@@ -12,5 +12,4 @@ export interface TriggerStandupDto {
   rewriteFromStandupId?: string;
   rewriteInstruction?: string;
   replaceStandupId?: string;
-  reuseExistingSource?: boolean;
 }

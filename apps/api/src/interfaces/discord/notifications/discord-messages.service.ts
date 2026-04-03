@@ -277,6 +277,25 @@ export class DiscordMessagesService implements OnModuleDestroy {
     })
   }
 
+  async sendPlaceholderDm(opts: {
+    discordUserId: string
+    content: string
+  }): Promise<Result<{ messageId: string }, ExternalServiceError>> {
+    return ResultFactory.tryPromise({
+      try: async () => {
+        const client = this.requireClient()
+        const user = await client.users.fetch(opts.discordUserId)
+        const message = await user.send({ content: opts.content })
+        return { messageId: message.id }
+      },
+      catch: (error) =>
+        new DiscordError({
+          service: 'discord',
+          message: `Failed to send placeholder DM: ${error instanceof Error ? error.message : String(error)}`,
+        }),
+    })
+  }
+
   async sendLoginSuccessDm(
     discordUserId: string,
   ): Promise<Result<{ messageId: string }, ExternalServiceError>> {

@@ -26,6 +26,7 @@ export class StandupSseListener {
       step: event.step,
       message: event.message,
       standupId: event.standupId,
+      ...(event.partialContent ? { partialContent: event.partialContent } : {}),
     })
   }
 

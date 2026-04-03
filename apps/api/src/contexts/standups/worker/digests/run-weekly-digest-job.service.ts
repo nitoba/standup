@@ -10,7 +10,7 @@ import { AppLoggerFactory } from '../../../../platform/logger'
 import { AppTracingService } from '../../../../platform/observability/app-tracing.service'
 import { LocalDateService } from '../../../../platform/time/local-date.service'
 import type { StandupRecord } from '../../../../shared/domain'
-import { StandupGeneratorService } from '../standup-generator/standup-generator.service'
+import { StandupAgentService } from '../standup-agent/standup-agent.service'
 
 export interface WeeklyDigestJobOptions {
   userId: string
@@ -28,7 +28,7 @@ export class RunWeeklyDigestJobService {
     private readonly standupRepository: StandupReadRepository,
     private readonly userRepository: UserRepository,
     private readonly userSettingsRepository: UserSettingsRepository,
-    private readonly standupGenerator: StandupGeneratorService,
+    private readonly standupAgent: StandupAgentService,
     private readonly tracing: AppTracingService,
     private readonly localDateService: LocalDateService,
   ) {
@@ -160,7 +160,7 @@ export class RunWeeklyDigestJobService {
         'digest.week_start': weekStart,
         'digest.week_end': weekEnd,
       },
-      () => this.standupGenerator.generateWeeklyInsights(standupsResult.value),
+      () => this.standupAgent.generateWeeklyInsights(standupsResult.value),
     )
 
     if (insightsResult.isErr()) {

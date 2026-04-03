@@ -1,15 +1,12 @@
-import type { StrategyExecutionInput } from '../types'
+import type { StrategyExecutionInput, StrategyProgressStep } from '../types'
 
 export abstract class StandupStrategyBase {
   protected async reportStage(
     reportProgress: StrategyExecutionInput['reportProgress'],
-    step:
-      | 'collecting_git'
-      | 'collecting_board'
-      | 'enriching_data'
-      | 'generating_standup',
+    step: StrategyProgressStep,
     message: string,
+    partialContent?: string,
   ): Promise<void> {
-    await reportProgress?.({ step, message })
+    await reportProgress?.({ step, message, partialContent })
   }
 }

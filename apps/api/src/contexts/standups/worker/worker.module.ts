@@ -17,7 +17,7 @@ import { StandupDispatchService } from './standup/standup-dispatch.service'
 import { StandupPipelineService } from './standup/standup-pipeline.service'
 import { ExecuteAdjustStrategy } from './standup/strategies/execute-adjust-strategy'
 import { ExecuteGenerateStrategy } from './standup/strategies/execute-generate-strategy'
-import { ExecuteRegenerateStrategy } from './standup/strategies/execute-regenerate-strategy'
+import { StandupAgentModule } from './standup-agent/standup-agent.module'
 import { StandupGeneratorModule } from './standup-generator/standup-generator.module'
 import { WorkerEventPublisherService } from './worker-event-publisher.service'
 import { WorkerRuntimeConfigModule } from './worker-runtime-config.module'
@@ -31,6 +31,7 @@ import { WorkerRuntimeConfigModule } from './worker-runtime-config.module'
     AzureDevopsModule,
     GitCollectorModule,
     StandupGeneratorModule,
+    StandupAgentModule,
   ],
   controllers: [ReposController, RemindersController, DigestsController],
   providers: [
@@ -38,7 +39,6 @@ import { WorkerRuntimeConfigModule } from './worker-runtime-config.module'
     ReminderActionsService,
     ListWorkerReposService,
     ExecuteGenerateStrategy,
-    ExecuteRegenerateStrategy,
     ExecuteAdjustStrategy,
     StandupPipelineService,
     RunStandupJobService,

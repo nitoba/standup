@@ -24,7 +24,6 @@ describe('DiscordTriggerService', () => {
         rewriteFromStandupId: undefined,
         rewriteInstruction: undefined,
         replaceStandupId: undefined,
-        reuseExistingSource: undefined,
       },
       null,
       { userId: 'user-1', discordUserId: 'discord-1' },

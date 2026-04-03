@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { StandupReadRepository } from '../../../../../platform/database/repositories/standup-read.repository'
 import { Result, ValidationError } from '../../../../../shared/domain'
-import { StandupGeneratorService } from '../../standup-generator/standup-generator.service'
+import { StandupAgentService } from '../../standup-agent/standup-agent.service'
 import type {
   GeneratedContent,
   StrategyExecutionInput,
@@ -13,7 +13,7 @@ import { StandupStrategyBase } from './standup-strategy.base'
 export class ExecuteAdjustStrategy extends StandupStrategyBase {
   constructor(
     private readonly standupRepository: StandupReadRepository,
-    private readonly standupGenerator: StandupGeneratorService,
+    private readonly standupAgent: StandupAgentService,
   ) {
     super()
   }
@@ -49,20 +49,28 @@ export class ExecuteAdjustStrategy extends StandupStrategyBase {
       return baseResult
     }
 
-    const adjusted = await this.standupGenerator.generateAdjustedStandup(
-      {
-        previousContent: baseResult.value.content,
-        instruction,
-        extraContext: options.extraContext?.trim() || undefined,
-      },
-      async () => {
+    const adjusted = await this.standupAgent.adjust({
+      standupId: baseStandupId,
+      instruction,
+      previousContent: baseResult.value.content,
+      previousSummary: undefined,
+      extraContext: options.extraContext?.trim() || undefined,
+      onStageChange: async () => {
         await this.reportStage(
           reportProgress,
           'generating_standup',
-          'Gerando standup ajustado',
+          'Ajustando standup (PI Agent)',
         )
       },
-    )
+      onContentDelta: (partialContent) => {
+        this.reportStage(
+          reportProgress,
+          'streaming_content',
+          'Ajustando conteudo...',
+          partialContent,
+        )
+      },
+    })
 
     if (adjusted.isErr()) {
       return adjusted

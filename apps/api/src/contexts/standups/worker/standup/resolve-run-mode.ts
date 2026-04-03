@@ -6,9 +6,5 @@ export function resolveRunMode(options: StandupJobOptions): StandupRunMode {
     return 'adjust'
   }
 
-  if (options.reuseExistingSource) {
-    return 'regenerate'
-  }
-
   return 'generate'
 }

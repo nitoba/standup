@@ -421,4 +421,242 @@ describe('AzureDevopsActivityCollectorService', () => {
     expect(item.id).toBe(202)
     expect(item.project).toBe('ProjectA')
   })
+
+  it('extracts displayName from object-type AssignedTo field', async () => {
+    const queryWorkItems = vi.fn().mockResolvedValue(Result.ok([301]))
+    const getWorkItemsBatch = vi.fn().mockResolvedValue(
+      Result.ok([
+        {
+          id: 301,
+          fields: {
+            'System.Title': 'Task with object assignee',
+            'System.WorkItemType': 'Task',
+            'System.State': 'Active',
+            'System.AssignedTo': {
+              displayName: 'Bruno Alves',
+              uniqueName: 'bruno@company.com',
+            },
+          },
+        } satisfies WorkItemResponse,
+      ]),
+    )
+    const getWorkItemUpdates = vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok([
+          stateChangeUpdate(
+            1,
+            '2024-06-15T14:00:00Z',
+            'Bruno Alves',
+            'New',
+            'Active',
+          ),
+        ]),
+      )
+
+    const { service } = createService({
+      queryWorkItems,
+      getWorkItemsBatch,
+      getWorkItemUpdates,
+    })
+
+    const result = await service.collect('Bruno Alves', '8 hours ago')
+
+    expect(result).not.toBeNull()
+    if (result === null) throw new Error('Expected non-null result')
+    const item =
+      result.workItems[0] ??
+      (() => {
+        throw new Error('Expected item')
+      })()
+    expect(item.assignedTo).toBe('Bruno Alves')
+  })
+
+  it('skips updates with 9999 sentinel revisedDate when actual change is before sinceDate', async () => {
+    const queryWorkItems = vi.fn().mockResolvedValue(Result.ok([401]))
+    const getWorkItemsBatch = vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok([
+          workItemResponse(401, 'Old task', 'Task', 'Active', 'John Doe'),
+        ]),
+      )
+    const getWorkItemUpdates = vi.fn().mockResolvedValue(
+      Result.ok([
+        {
+          id: 401,
+          rev: 1,
+          revisedDate: '9999-01-01T00:00:00Z',
+          revisedBy: { displayName: 'John Doe' },
+          fields: {
+            'System.State': { oldValue: 'New', newValue: 'Active' },
+            'System.ChangedDate': {
+              oldValue: '2024-06-10T10:00:00Z',
+              newValue: '2024-06-10T10:00:00Z',
+            },
+          },
+        } satisfies WorkItemUpdate,
+      ]),
+    )
+
+    const { service } = createService({
+      queryWorkItems,
+      getWorkItemsBatch,
+      getWorkItemUpdates,
+    })
+
+    // sinceDate is 2024-06-15T09:00:00Z (8 hours before 17:00)
+    // The update's actual ChangedDate is 2024-06-10 — should be excluded
+    const result = await service.collect('John Doe', '8 hours ago')
+
+    expect(result).toBeNull()
+  })
+
+  it('skips updates where ClosedBy points to a different user (sprint close by manager)', async () => {
+    const queryWorkItems = vi.fn().mockResolvedValue(Result.ok([501]))
+    const getWorkItemsBatch = vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok([
+          workItemResponse(
+            501,
+            'Task closed by manager',
+            'User Story',
+            'Done',
+            'John Doe',
+          ),
+        ]),
+      )
+    const getWorkItemUpdates = vi.fn().mockResolvedValue(
+      Result.ok([
+        {
+          id: 501,
+          rev: 1,
+          revisedDate: '2024-06-15T14:00:00Z',
+          revisedBy: { displayName: 'John Doe' },
+          fields: {
+            'System.State': { oldValue: 'Test QA', newValue: 'Done' },
+            'Microsoft.VSTS.Common.ClosedBy': {
+              oldValue: null,
+              newValue: {
+                displayName: 'Manager User',
+                uniqueName: 'manager@company.com',
+              },
+            },
+          },
+        } satisfies WorkItemUpdate,
+      ]),
+    )
+
+    const { service } = createService({
+      queryWorkItems,
+      getWorkItemsBatch,
+      getWorkItemUpdates,
+    })
+
+    const result = await service.collect('John Doe', '8 hours ago')
+
+    // ClosedBy is "Manager User" not "John Doe", so the update should be skipped
+    expect(result).toBeNull()
+  })
+
+  it('keeps updates where ClosedBy matches the user', async () => {
+    const queryWorkItems = vi.fn().mockResolvedValue(Result.ok([601]))
+    const getWorkItemsBatch = vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok([
+          workItemResponse(
+            601,
+            'Task closed by user',
+            'User Story',
+            'Done',
+            'John Doe',
+          ),
+        ]),
+      )
+    const getWorkItemUpdates = vi.fn().mockResolvedValue(
+      Result.ok([
+        {
+          id: 601,
+          rev: 1,
+          revisedDate: '2024-06-15T14:00:00Z',
+          revisedBy: { displayName: 'John Doe' },
+          fields: {
+            'System.State': { oldValue: 'Test QA', newValue: 'Done' },
+            'Microsoft.VSTS.Common.ClosedBy': {
+              oldValue: null,
+              newValue: {
+                displayName: 'John Doe',
+                uniqueName: 'john@company.com',
+              },
+            },
+          },
+        } satisfies WorkItemUpdate,
+      ]),
+    )
+
+    const { service } = createService({
+      queryWorkItems,
+      getWorkItemsBatch,
+      getWorkItemUpdates,
+    })
+
+    const result = await service.collect('John Doe', '8 hours ago')
+
+    expect(result).not.toBeNull()
+    if (result === null) throw new Error('Expected non-null result')
+    expect(result.workItems).toHaveLength(1)
+  })
+
+  it('skips updates where StateChangeDate.newValue is before sinceDate (sprint close reindex)', async () => {
+    const queryWorkItems = vi.fn().mockResolvedValue(Result.ok([701]))
+    const getWorkItemsBatch = vi
+      .fn()
+      .mockResolvedValue(
+        Result.ok([
+          workItemResponse(
+            701,
+            'Old task reindexed today',
+            'User Story',
+            'Done',
+            'John Doe',
+          ),
+        ]),
+      )
+    const getWorkItemUpdates = vi.fn().mockResolvedValue(
+      Result.ok([
+        {
+          id: 701,
+          rev: 1,
+          // revisedDate is today (reindex), but actual state change was in January
+          revisedDate: '2024-06-15T14:00:00Z',
+          revisedBy: { displayName: 'John Doe' },
+          fields: {
+            'System.State': { oldValue: 'Test QA', newValue: 'Done' },
+            'Microsoft.VSTS.Common.StateChangeDate': {
+              oldValue: '2024-01-12T13:27:47.773Z',
+              newValue: '2024-01-26T11:24:47.387Z',
+            },
+            'Microsoft.VSTS.Common.ClosedDate': {
+              oldValue: null,
+              newValue: '2024-01-26T11:24:47.387Z',
+            },
+          },
+        } satisfies WorkItemUpdate,
+      ]),
+    )
+
+    const { service } = createService({
+      queryWorkItems,
+      getWorkItemsBatch,
+      getWorkItemUpdates,
+    })
+
+    // sinceDate is 2024-06-15T09:00:00Z (8 hours before 17:00)
+    // StateChangeDate.newValue is 2024-01-26 — way before sinceDate
+    const result = await service.collect('John Doe', '8 hours ago')
+
+    expect(result).toBeNull()
+  })
 })

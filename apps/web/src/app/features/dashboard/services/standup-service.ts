@@ -359,7 +359,6 @@ export class StandupService {
       data: {
         forceRegenerate: true,
         replaceStandupId: id,
-        reuseExistingSource: true,
       },
     })
   }
