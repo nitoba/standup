@@ -17,7 +17,8 @@ COPY apps/api/tsconfig.build.json apps/api/
 COPY apps/api/nest-cli.json apps/api/
 COPY apps/web/package.json apps/web/
 
-RUN bun install --production --filter './apps/api'
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile --production --filter './apps/api'
 
 COPY apps/api/src apps/api/src
 COPY apps/api/drizzle.config.ts apps/api/drizzle.config.ts
