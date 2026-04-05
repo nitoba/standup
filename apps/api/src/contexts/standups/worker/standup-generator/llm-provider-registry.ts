@@ -85,7 +85,7 @@ export class LlmProviderRegistry implements OnModuleInit {
   onModuleInit() {
     const config = this.runtimeConfig.config
     const providerKeys = {
-      google: config.GOOGLE_API_KEY,
+      google: config.GOOGLE_GENERATIVE_AI_API_KEY,
       groq: config.GROQ_API_KEY,
       openrouter: config.OPENROUTER_API_KEY,
     }

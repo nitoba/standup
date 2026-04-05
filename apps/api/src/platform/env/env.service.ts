@@ -46,7 +46,7 @@ export class EnvService {
     return {
       schedulerEnabled: this.get('SCHEDULER_ENABLED'),
       reposRootPath: this.get('REPOS_ROOT_PATH'),
-      googleApiKey: this.get('GOOGLE_API_KEY'),
+      googleApiKey: this.get('GOOGLE_GENERATIVE_AI_API_KEY'),
       groqApiKey: this.get('GROQ_API_KEY'),
       openrouterApiKey: this.get('OPENROUTER_API_KEY'),
       llmProvidersConfig: this.get('LLM_PROVIDERS_CONFIG'),
