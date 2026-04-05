@@ -107,7 +107,10 @@ export class StandupAgentService {
   async generate(
     input: AgentGenerateInput,
   ): Promise<
-    Result<GeneratedStandup, ExternalServiceError | AllProvidersUnavailableError>
+    Result<
+      GeneratedStandup,
+      ExternalServiceError | AllProvidersUnavailableError
+    >
   > {
     await input.onStageChange?.('generating_standup')
 
@@ -156,11 +159,7 @@ export class StandupAgentService {
           if (hasChunks) {
             const result = await stream.object
             if (result) {
-              return this.validateAndRewrite(
-                result,
-                modelString,
-                systemPrompt,
-              )
+              return this.validateAndRewrite(result, modelString, systemPrompt)
             }
           }
         } catch (streamError) {
@@ -183,7 +182,10 @@ export class StandupAgentService {
   async adjust(
     input: AgentAdjustInput,
   ): Promise<
-    Result<GeneratedStandup, ExternalServiceError | AllProvidersUnavailableError>
+    Result<
+      GeneratedStandup,
+      ExternalServiceError | AllProvidersUnavailableError
+    >
   > {
     await input.onStageChange?.('generating_standup')
 
@@ -297,9 +299,7 @@ export class StandupAgentService {
 
   private async callWithModelFallback<T>(
     fn: (modelString: string) => Promise<T>,
-  ): Promise<
-    Result<T, ExternalServiceError | AllProvidersUnavailableError>
-  > {
+  ): Promise<Result<T, ExternalServiceError | AllProvidersUnavailableError>> {
     const maxAttempts = this.llmRegistry.totalModels
     let lastError: Error | undefined
 

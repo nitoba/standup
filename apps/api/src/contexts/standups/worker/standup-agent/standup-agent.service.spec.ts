@@ -115,7 +115,9 @@ describe('StandupAgentService', () => {
         expect.objectContaining({
           instructions: 'system-prompt',
           model: 'google/gemini-2.5-pro',
-          structuredOutput: expect.objectContaining({ schema: expect.any(Object) }),
+          structuredOutput: expect.objectContaining({
+            schema: expect.any(Object),
+          }),
           memory: expect.objectContaining({
             resource: expect.stringContaining('user-'),
             thread: expect.stringContaining('standup-generate-'),
@@ -158,9 +160,7 @@ describe('StandupAgentService', () => {
         }),
       })
 
-      const result = await service.generate(
-        makeInput({ onContentDelta }),
-      )
+      const result = await service.generate(makeInput({ onContentDelta }))
 
       expect(result.isOk()).toBe(true)
       expect(onContentDelta).toHaveBeenCalledWith('chunk1')

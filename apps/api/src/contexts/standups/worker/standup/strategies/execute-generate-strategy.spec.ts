@@ -151,5 +151,4 @@ describe('ExecuteGenerateStrategy', () => {
       expect.objectContaining({ 'standup.mode': 'agent' }),
     )
   })
-
 })

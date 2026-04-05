@@ -1,8 +1,8 @@
-import type { Provider } from '@nestjs/common'
 import { Mastra } from '@mastra/core'
 import type { Agent } from '@mastra/core/agent'
 import { LibSQLStore } from '@mastra/libsql'
 import { Memory } from '@mastra/memory'
+import type { Provider } from '@nestjs/common'
 import { EnvService } from '../../../../../platform/env/env.service'
 import { createStandupAgent, STANDUP_AGENT_ID } from './standup-agent.def'
 
@@ -56,7 +56,9 @@ export const mastraProviders: Provider[] = [
     provide: MASTRA_STANDUP_AGENT,
     useFactory: ({
       mastra,
-    }: { mastra: InstanceType<typeof Mastra> }): Agent => {
+    }: {
+      mastra: InstanceType<typeof Mastra>
+    }): Agent => {
       return mastra.getAgent(STANDUP_AGENT_ID)
     },
     inject: [MASTRA_INSTANCE],

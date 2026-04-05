@@ -107,7 +107,6 @@ export class StandupInteractionService {
       return approveResult
     }
 
-
     if (!this.env.discord.channelId) {
       return Result.ok({
         action: 'approve',
@@ -186,7 +185,6 @@ export class StandupInteractionService {
     if (result.isErr()) {
       return result
     }
-
 
     return Result.ok({
       action: 'reject',
