@@ -1,4 +1,3 @@
-import type { Agent } from '@mariozechner/pi-agent-core'
 import type { Result } from '../../../../shared/domain'
 
 export interface StandupJobOptions {
@@ -39,8 +38,6 @@ export interface GeneratedContent {
   meetingType: string
   sourceData: string
   replaceStandupId?: string
-  /** Transient — used to create session after persistence, not serialized to DB */
-  agent?: Agent
 }
 
 export interface StrategyExecutionInput {

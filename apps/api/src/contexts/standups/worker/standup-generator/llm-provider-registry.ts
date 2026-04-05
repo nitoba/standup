@@ -232,6 +232,25 @@ export class LlmProviderRegistry implements OnModuleInit {
     return false
   }
 
+  /**
+   * Converts internal modelKey format ("provider:model") to Mastra model router
+   * format ("provider/model"). For openrouter, produces "openrouter/model"
+   * where model already contains the provider prefix (e.g. "google/gemini-2.5-pro").
+   */
+  toMastraModelString(selection: ModelSelection): string {
+    const colonIndex = selection.modelKey.indexOf(':')
+    const modelName =
+      colonIndex >= 0
+        ? selection.modelKey.slice(colonIndex + 1)
+        : selection.modelKey
+
+    if (selection.provider === 'openrouter') {
+      return `openrouter/${modelName}`
+    }
+
+    return `${selection.provider}/${modelName}`
+  }
+
   private getOrCreateState(modelKey: string): ModelState {
     let state = this.modelStates.get(modelKey)
     if (!state) {
