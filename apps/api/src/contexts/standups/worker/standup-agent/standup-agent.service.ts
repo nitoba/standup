@@ -1,5 +1,11 @@
 import type { Agent } from '@mastra/core/agent'
+import type { Memory } from '@mastra/memory'
 import { Inject, Injectable } from '@nestjs/common'
+import { OnEvent } from '@nestjs/event-emitter'
+import {
+  STANDUP_STATUS_CHANGED_EVENT,
+  type StandupStatusChangedEvent,
+} from '../../../../platform/events/standup-events'
 import { AppLoggerFactory } from '../../../../platform/logger'
 import type {
   GeneratedStandup,
@@ -18,7 +24,7 @@ import {
   MAX_STANDUP_CONTENT_CHARS,
   StandupPromptService,
 } from '../standup-generator/standup-prompt.service'
-import { MASTRA_STANDUP_AGENT } from './mastra/mastra.provider'
+import { MASTRA_MEMORY, MASTRA_STANDUP_AGENT } from './mastra/mastra.provider'
 import { standupOutputSchema } from './mastra/standup-output.schema'
 
 export type GeneratorStage = 'enriching_data' | 'generating_standup'
@@ -56,8 +62,34 @@ export class StandupAgentService {
     private readonly standupPrompt: StandupPromptService,
     private readonly llmRegistry: LlmProviderRegistry,
     @Inject(MASTRA_STANDUP_AGENT) private readonly agent: Agent,
+    @Inject(MASTRA_MEMORY) private readonly memory: Memory,
   ) {
     this.logger = this.loggerFactory.create('standup-agent')
+  }
+
+  @OnEvent(STANDUP_STATUS_CHANGED_EVENT)
+  async handleStandupStatusChanged(
+    event: StandupStatusChangedEvent,
+  ): Promise<void> {
+    if (event.newStatus !== 'approved' && event.newStatus !== 'published') {
+      return
+    }
+
+    const threadId = `standup-${event.standupId}`
+    try {
+      await this.memory.deleteThread(threadId)
+      this.logger.info('Memory thread cleaned up after approval', {
+        standupId: event.standupId,
+        threadId,
+      })
+    } catch (error) {
+      // Non-fatal: thread may not exist (e.g., no adjust was done)
+      this.logger.warn('Failed to clean up memory thread', {
+        standupId: event.standupId,
+        threadId,
+        error: String(error),
+      })
+    }
   }
 
   async generate(

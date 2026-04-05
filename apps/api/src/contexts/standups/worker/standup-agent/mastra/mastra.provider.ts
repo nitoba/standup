@@ -8,6 +8,7 @@ import { createStandupAgent, STANDUP_AGENT_ID } from './standup-agent.def'
 
 export const MASTRA_INSTANCE = 'MASTRA_INSTANCE'
 export const MASTRA_STANDUP_AGENT = 'MASTRA_STANDUP_AGENT'
+export const MASTRA_MEMORY = 'MASTRA_MEMORY'
 
 export const mastraProviders: Provider[] = [
   {
@@ -42,18 +43,27 @@ export const mastraProviders: Provider[] = [
 
       const standupAgent = createStandupAgent(memory)
 
-      return new Mastra({
+      const mastra = new Mastra({
         agents: { [STANDUP_AGENT_ID]: standupAgent },
         storage,
       })
+
+      return { mastra, memory }
     },
     inject: [EnvService],
   },
   {
     provide: MASTRA_STANDUP_AGENT,
-    useFactory: (mastra: InstanceType<typeof Mastra>): Agent => {
+    useFactory: ({
+      mastra,
+    }: { mastra: InstanceType<typeof Mastra> }): Agent => {
       return mastra.getAgent(STANDUP_AGENT_ID)
     },
+    inject: [MASTRA_INSTANCE],
+  },
+  {
+    provide: MASTRA_MEMORY,
+    useFactory: ({ memory }: { memory: Memory }): Memory => memory,
     inject: [MASTRA_INSTANCE],
   },
 ]
