@@ -48,6 +48,9 @@ export class ExecuteRegenerateStrategy extends StandupStrategyBase {
       return sourceData
     }
 
+    // Discard previous memory thread — regenerate starts fresh
+    await this.standupAgent.cleanupThread(replaceStandupId)
+
     const regenerated = await this.standupAgent.generate({
       date: today,
       meetingType: existingResult.value.meetingType,

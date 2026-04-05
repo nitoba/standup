@@ -71,16 +71,18 @@ export class StandupAgentService {
   async handleStandupStatusChanged(
     event: StandupStatusChangedEvent,
   ): Promise<void> {
-    if (event.newStatus !== 'approved' && event.newStatus !== 'published') {
+    const terminalStatuses = ['approved', 'published', 'rejected']
+    if (!terminalStatuses.includes(event.newStatus)) {
       return
     }
 
     const threadId = `standup-${event.standupId}`
     try {
       await this.memory.deleteThread(threadId)
-      this.logger.info('Memory thread cleaned up after approval', {
+      this.logger.info('Memory thread cleaned up', {
         standupId: event.standupId,
         threadId,
+        reason: event.newStatus,
       })
     } catch (error) {
       // Non-fatal: thread may not exist (e.g., no adjust was done)
@@ -89,6 +91,16 @@ export class StandupAgentService {
         threadId,
         error: String(error),
       })
+    }
+  }
+
+  async cleanupThread(standupId: string): Promise<void> {
+    const threadId = `standup-${standupId}`
+    try {
+      await this.memory.deleteThread(threadId)
+      this.logger.info('Memory thread cleaned up', { standupId, threadId })
+    } catch {
+      // Non-fatal: thread may not exist
     }
   }
 

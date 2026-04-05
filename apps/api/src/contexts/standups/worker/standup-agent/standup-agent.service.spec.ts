@@ -325,11 +325,23 @@ describe('StandupAgentService', () => {
       expect(mockDeleteThread).toHaveBeenCalledWith('standup-standup-123')
     })
 
-    it('should not delete thread for other status changes', async () => {
+    it('should delete memory thread when standup is rejected', async () => {
+      mockDeleteThread.mockResolvedValue(undefined)
+
       await service.handleStandupStatusChanged({
         userId: 'user-1',
         standupId: 'standup-123',
         newStatus: 'rejected',
+      })
+
+      expect(mockDeleteThread).toHaveBeenCalledWith('standup-standup-123')
+    })
+
+    it('should not delete thread for non-terminal status changes', async () => {
+      await service.handleStandupStatusChanged({
+        userId: 'user-1',
+        standupId: 'standup-123',
+        newStatus: 'pending_review',
       })
 
       expect(mockDeleteThread).not.toHaveBeenCalled()
@@ -345,6 +357,22 @@ describe('StandupAgentService', () => {
           newStatus: 'approved',
         }),
       ).resolves.not.toThrow()
+    })
+  })
+
+  describe('cleanupThread', () => {
+    it('should delete the memory thread for given standupId', async () => {
+      mockDeleteThread.mockResolvedValue(undefined)
+
+      await service.cleanupThread('standup-456')
+
+      expect(mockDeleteThread).toHaveBeenCalledWith('standup-standup-456')
+    })
+
+    it('should not throw if thread does not exist', async () => {
+      mockDeleteThread.mockRejectedValue(new Error('Not found'))
+
+      await expect(service.cleanupThread('standup-456')).resolves.not.toThrow()
     })
   })
 })
