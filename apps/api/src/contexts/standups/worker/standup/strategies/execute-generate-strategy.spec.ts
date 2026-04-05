@@ -38,7 +38,6 @@ function makeStandupAgent() {
       Result.ok({
         content: 'Agent standup content',
         summary: 'Agent summary',
-        agent: {},
       }),
     ),
   }
@@ -73,10 +72,6 @@ function makePromptService() {
   }
 }
 
-function makeSessionManager() {
-  return { create: vi.fn(), get: vi.fn(), destroy: vi.fn(), has: vi.fn() }
-}
-
 function makeDefaultOptions() {
   return {
     userId: 'user-1',
@@ -97,7 +92,7 @@ describe('ExecuteGenerateStrategy', () => {
   let localDateService: ReturnType<typeof makeLocalDateService>
   let promptService: ReturnType<typeof makePromptService>
 
-  function buildStrategy(sessionManager = makeSessionManager()) {
+  function buildStrategy() {
     // biome-ignore lint/suspicious/noExplicitAny: test mock wiring
     const strategy = new (ExecuteGenerateStrategy as any)(
       loggerFactory,
@@ -107,10 +102,9 @@ describe('ExecuteGenerateStrategy', () => {
       standupReadRepo,
       localDateService,
       standupAgent,
-      sessionManager,
       promptService,
     ) as ExecuteGenerateStrategy
-    return { strategy, sessionManager }
+    return { strategy }
   }
 
   beforeEach(() => {
@@ -158,30 +152,4 @@ describe('ExecuteGenerateStrategy', () => {
     )
   })
 
-  it('destroys old session on regenerate', async () => {
-    const sm = makeSessionManager()
-    const { strategy } = buildStrategy(sm)
-
-    await strategy.execute({
-      options: {
-        ...makeDefaultOptions(),
-        replaceStandupId: 'old-standup',
-      } as never,
-      today: '2026-04-02',
-    })
-
-    expect(sm.destroy).toHaveBeenCalledWith('old-standup')
-  })
-
-  it('does not destroy session when replaceStandupId is absent', async () => {
-    const sm = makeSessionManager()
-    const { strategy } = buildStrategy(sm)
-
-    await strategy.execute({
-      options: makeDefaultOptions() as never,
-      today: '2026-04-02',
-    })
-
-    expect(sm.destroy).not.toHaveBeenCalled()
-  })
 })

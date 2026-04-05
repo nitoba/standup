@@ -59,7 +59,7 @@ function makeInput(
   return {
     date: '2026-04-05',
     meetingType: 'daily',
-    gitActivity: { author: 'user', commits: [], repos: [] },
+    gitActivity: { timestamp: '2026-04-05', repos: [] },
     ...overrides,
   }
 }
@@ -93,7 +93,7 @@ describe('StandupAgentService', () => {
       const result = await service.generate(makeInput())
 
       expect(result.isOk()).toBe(true)
-      expect(result.value).toEqual(
+      expect((result as any).value).toEqual(
         expect.objectContaining({
           content: 'standup content',
           summary: 'summary',
@@ -182,7 +182,7 @@ describe('StandupAgentService', () => {
       })
 
       expect(result.isOk()).toBe(true)
-      expect(result.value).toEqual(
+      expect((result as any).value).toEqual(
         expect.objectContaining({ content: 'standup content' }),
       )
     })
@@ -217,7 +217,7 @@ describe('StandupAgentService', () => {
       ])
 
       expect(result.isOk()).toBe(true)
-      expect(result.value).toBe('Weekly insights here')
+      expect((result as any).value).toBe('Weekly insights here')
     })
 
     it('should return error when no standups provided', async () => {

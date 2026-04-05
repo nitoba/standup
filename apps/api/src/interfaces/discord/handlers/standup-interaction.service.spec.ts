@@ -53,7 +53,6 @@ describe('StandupInteractionService', () => {
       { approveResult } as never,
       { publish } as never,
       { transition: vi.fn() } as never,
-      { destroy: vi.fn() } as never,
     )
 
     const result = await service.handle('approve', 'standup-1', 'discord-1')
