@@ -59,7 +59,7 @@ export class EmailClientService {
 
     const configResult = this.getSmtpConfig()
     if (configResult.isErr()) {
-      return configResult
+      return Result.err(configResult.error)
     }
 
     const config = configResult.value

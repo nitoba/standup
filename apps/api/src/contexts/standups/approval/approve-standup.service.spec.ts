@@ -1,4 +1,3 @@
-import { ConflictException, NotFoundException } from '@nestjs/common'
 import { describe, expect, it, vi } from 'vitest'
 import {
   InvalidStateTransitionError,
@@ -154,7 +153,7 @@ describe('ApproveStandupService', () => {
     )
   })
 
-  it('maps repository errors to HTTP exceptions', async () => {
+  it('rethrows repository tagged errors for the HTTP boundary to normalize', async () => {
     const repo = {
       findByIdForUser: vi
         .fn()
@@ -190,11 +189,11 @@ describe('ApproveStandupService', () => {
         scheduledMeetings: ['Retro'],
         directCalls: [],
       }),
-    ).rejects.toThrow(NotFoundException)
+    ).rejects.toSatisfy(NotFoundError.is)
 
     // Second call: approveForUser returns InvalidStateTransitionError
-    await expect(service.approve('user-1', 'standup-1')).rejects.toThrow(
-      ConflictException,
+    await expect(service.approve('user-1', 'standup-1')).rejects.toSatisfy(
+      InvalidStateTransitionError.is,
     )
   })
 })

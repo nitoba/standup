@@ -4,6 +4,7 @@ import { DbError, Result } from '../../../shared/domain'
 import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { userSettings } from '../schema'
+import { createDbError } from './db-error'
 
 export interface UpsertUserSettingsInput {
   userId: string
@@ -189,8 +190,6 @@ export class UserSettingsRepository {
   }
 
   private dbErr(error: unknown, operation: string): DbError {
-    const message = error instanceof Error ? error.message : 'Unknown DB error'
-    this.logger.error(`Failed to ${operation}`, { error: message })
-    return new DbError({ operation, message: `${operation}: ${message}` })
+    return createDbError(this.logger, operation, error)
   }
 }

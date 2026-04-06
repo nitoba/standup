@@ -11,7 +11,6 @@ import {
   type StandupStatus,
 } from '../../../shared/domain'
 import { formatStandupRecord } from '../shared/format-standup-record'
-import { throwStandupHttpError } from '../shared/throw-standup-http-error'
 import { UserTimezoneService } from '../shared/user-timezone.service'
 
 type StandupStatusTransitionError =
@@ -37,7 +36,7 @@ export class StandupStatusService {
     const result = await this.transition(userId, standupId, status, source)
 
     if (result.isErr()) {
-      throwStandupHttpError(result.error)
+      throw result.error
     }
 
     return formatStandupRecord(

@@ -15,7 +15,9 @@ import {
   LlmTemporaryError,
   LockAlreadyHeldError,
   McpConnectionError,
+  matchError,
   NotFoundError,
+  StandupTriggerConflictError,
   ValidationError,
 } from '../../../shared/domain'
 import { AppLoggerFactory } from '../../logger'
@@ -28,6 +30,18 @@ type ErrorResponseBody = {
   path: string
   timestamp: string
 }
+
+type DomainException =
+  | ValidationError
+  | NotFoundError
+  | InvalidStateTransitionError
+  | ExternalServiceError
+  | LlmTemporaryError
+  | McpConnectionError
+  | LockAlreadyHeldError
+  | JobAlreadyCompletedError
+  | StandupTriggerConflictError
+  | DbError
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -111,16 +125,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   }
 
   private normalizeDomainException(
-    exception:
-      | ValidationError
-      | NotFoundError
-      | InvalidStateTransitionError
-      | ExternalServiceError
-      | LlmTemporaryError
-      | McpConnectionError
-      | LockAlreadyHeldError
-      | JobAlreadyCompletedError
-      | DbError,
+    exception: DomainException,
   ): Omit<ErrorResponseBody, 'path' | 'timestamp'> {
     const statusCode = this.getDomainStatus(exception)
     const details = this.extractExceptionDetails(exception)
@@ -191,6 +196,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       'code',
       'param',
       'id',
+      'reason',
+      'standupId',
+      'accepted',
+      'ok',
     ])
 
     const source = exception as Record<string, unknown>
@@ -206,57 +215,22 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     return Object.fromEntries(detailEntries)
   }
 
-  private getDomainStatus(
-    exception:
-      | ValidationError
-      | NotFoundError
-      | InvalidStateTransitionError
-      | ExternalServiceError
-      | LlmTemporaryError
-      | McpConnectionError
-      | LockAlreadyHeldError
-      | JobAlreadyCompletedError
-      | DbError,
-  ): number {
-    if (ValidationError.is(exception)) {
-      return HttpStatus.BAD_REQUEST
-    }
-
-    if (NotFoundError.is(exception)) {
-      return HttpStatus.NOT_FOUND
-    }
-
-    if (
-      InvalidStateTransitionError.is(exception) ||
-      LockAlreadyHeldError.is(exception) ||
-      JobAlreadyCompletedError.is(exception)
-    ) {
-      return HttpStatus.CONFLICT
-    }
-
-    if (
-      ExternalServiceError.is(exception) ||
-      LlmTemporaryError.is(exception) ||
-      McpConnectionError.is(exception)
-    ) {
-      return HttpStatus.SERVICE_UNAVAILABLE
-    }
-
-    return HttpStatus.INTERNAL_SERVER_ERROR
+  private getDomainStatus(exception: DomainException): number {
+    return matchError(exception, {
+      ValidationError: () => HttpStatus.BAD_REQUEST,
+      NotFoundError: () => HttpStatus.NOT_FOUND,
+      InvalidStateTransitionError: () => HttpStatus.CONFLICT,
+      LockAlreadyHeldError: () => HttpStatus.CONFLICT,
+      JobAlreadyCompletedError: () => HttpStatus.CONFLICT,
+      StandupTriggerConflictError: () => HttpStatus.CONFLICT,
+      ExternalServiceError: () => HttpStatus.SERVICE_UNAVAILABLE,
+      LlmTemporaryError: () => HttpStatus.SERVICE_UNAVAILABLE,
+      McpConnectionError: () => HttpStatus.SERVICE_UNAVAILABLE,
+      DbError: () => HttpStatus.INTERNAL_SERVER_ERROR,
+    })
   }
 
-  private isDomainException(
-    exception: unknown,
-  ): exception is
-    | ValidationError
-    | NotFoundError
-    | InvalidStateTransitionError
-    | ExternalServiceError
-    | LlmTemporaryError
-    | McpConnectionError
-    | LockAlreadyHeldError
-    | JobAlreadyCompletedError
-    | DbError {
+  private isDomainException(exception: unknown): exception is DomainException {
     return (
       ValidationError.is(exception) ||
       NotFoundError.is(exception) ||
@@ -266,6 +240,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       McpConnectionError.is(exception) ||
       LockAlreadyHeldError.is(exception) ||
       JobAlreadyCompletedError.is(exception) ||
+      StandupTriggerConflictError.is(exception) ||
       DbError.is(exception)
     )
   }

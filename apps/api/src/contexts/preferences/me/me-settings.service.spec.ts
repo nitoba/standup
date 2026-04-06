@@ -1,9 +1,10 @@
-import {
-  BadRequestException,
-  InternalServerErrorException,
-} from '@nestjs/common'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { DbError, ExternalServiceError, Result } from '../../../shared/domain'
+import {
+  DbError,
+  ExternalServiceError,
+  Result,
+  ValidationError,
+} from '../../../shared/domain'
 import { MeSettingsService } from './me-settings.service'
 
 const emitSettingsReposChanged = vi.fn()
@@ -119,15 +120,13 @@ describe('MeSettingsService', () => {
     })
   })
 
-  it('throws 500 when loading settings fails', async () => {
+  it('rethrows DbError when loading settings fails', async () => {
     const { service, userSettingsRepository } = createService()
     userSettingsRepository.findByUserId.mockResolvedValue(
       Result.err(new DbError({ operation: 'findByUserId', message: 'disk' })),
     )
 
-    await expect(service.get('user-1')).rejects.toThrow(
-      InternalServerErrorException,
-    )
+    await expect(service.get('user-1')).rejects.toSatisfy(DbError.is)
   })
 
   it('persists settings and returns the normalized payload', async () => {
@@ -189,7 +188,7 @@ describe('MeSettingsService', () => {
     })
   })
 
-  it('throws BadRequest when neither git source nor board source is configured', async () => {
+  it('throws ValidationError when neither git source nor board source is configured', async () => {
     const { service } = createService()
 
     await expect(
@@ -199,7 +198,7 @@ describe('MeSettingsService', () => {
         recoveryCron: '3',
         timezone: 'America/Fortaleza',
       }),
-    ).rejects.toThrow(BadRequestException)
+    ).rejects.toSatisfy(ValidationError.is)
   })
 
   it('allows board-only configuration without git repos', async () => {
@@ -288,7 +287,7 @@ describe('MeSettingsService', () => {
       )
     })
 
-    it('should throw BadRequestException when user not found in Azure DevOps', async () => {
+    it('should rethrow ExternalServiceError when user is not found in Azure DevOps', async () => {
       const { service, userSettingsRepository, azureDevopsRestClient } =
         createService()
       azureDevopsRestClient.resolveIdentity.mockResolvedValue(
@@ -303,7 +302,7 @@ describe('MeSettingsService', () => {
 
       await expect(
         service.put(userId, { ...validBody, azureDevopsUser: 'nobody@x.com' }),
-      ).rejects.toThrow(BadRequestException)
+      ).rejects.toSatisfy(ExternalServiceError.is)
     })
 
     it('should clear both fields when azureDevopsUser is empty', async () => {

@@ -141,10 +141,21 @@ export class ModalInteractionService {
       },
     )
 
-    if (triggerResult.isErr() || !triggerResult.value.accepted) {
+    if (triggerResult.isErr()) {
       await updateReviewMessage(interaction, {
         content:
           '❌ Falha ao disparar ajuste do standup. Tente novamente em instantes.',
+        components: [],
+      })
+      return
+    }
+
+    if (!triggerResult.value.accepted) {
+      await updateReviewMessage(interaction, {
+        content:
+          triggerResult.value.reason === 'pending_review_exists'
+            ? '❌ Já existe um standup pendente de revisão para hoje.'
+            : '❌ O standup de hoje já foi aprovado ou publicado.',
         components: [],
       })
       return
@@ -204,10 +215,21 @@ export class ModalInteractionService {
       },
     )
 
-    if (triggerResult.isErr() || !triggerResult.value.accepted) {
+    if (triggerResult.isErr()) {
       await updateReviewMessage(interaction, {
         content:
           '❌ Standup rejeitado, mas falhou ao disparar regeneração. Use `/standup trigger` para tentar novamente.',
+        components: [],
+      })
+      return
+    }
+
+    if (!triggerResult.value.accepted) {
+      await updateReviewMessage(interaction, {
+        content:
+          triggerResult.value.reason === 'pending_review_exists'
+            ? '❌ Standup rejeitado, mas já existe outro pendente de revisão para hoje.'
+            : '❌ Standup rejeitado, mas o standup de hoje já foi aprovado ou publicado.',
         components: [],
       })
       return

@@ -5,6 +5,7 @@ import { StandupWriteRepository } from '../../../platform/database/repositories/
 import { AppLoggerFactory } from '../../../platform/logger'
 import {
   DbError,
+  ExternalServiceError,
   InvalidStateTransitionError,
   NotFoundError,
   Result,
@@ -14,6 +15,7 @@ import {
 export type RetryDmError =
   | NotFoundError
   | DbError
+  | ExternalServiceError
   | ValidationError
   | InvalidStateTransitionError
 
@@ -36,48 +38,43 @@ export class RetryDmService {
   ): Promise<
     Result<{ standupId: string; newStatus: 'pending_review' }, RetryDmError>
   > {
-    const found = await this.standupRead.findById(standupId)
-    if (found.isErr()) {
-      return Result.err(found.error)
-    }
+    const standupRead = this.standupRead
+    const standupWrite = this.standupWrite
+    const messages = this.messages
+    const logger = this.logger
 
-    const record = found.value
-    if (record.status !== 'delivery_pending') {
-      return Result.err(
-        new ValidationError({
-          field: 'status',
-          message: `Standup not in delivery_pending state, current: ${record.status}`,
-        }),
+    return Result.gen(async function* () {
+      const record = yield* Result.await(standupRead.findById(standupId))
+
+      if (record.status !== 'delivery_pending') {
+        return Result.err(
+          new ValidationError({
+            field: 'status',
+            message: `Standup not in delivery_pending state, current: ${record.status}`,
+          }),
+        )
+      }
+
+      const dm = yield* Result.await(
+        messages.sendReviewDm(record, discordUserId),
       )
-    }
 
-    const dmResult = await this.messages.sendReviewDm(record, discordUserId)
-    if (dmResult.isErr()) {
-      return Result.err(
-        new ValidationError({
-          field: 'dm',
-          message: `Failed to send review DM: ${dmResult.error.message}`,
-        }),
+      yield* Result.await(
+        standupWrite.updateDmMessageId(standupId, dm.messageId),
       )
-    }
 
-    await this.standupWrite.updateDmMessageId(
-      standupId,
-      dmResult.value.messageId,
-    )
+      const updated = yield* Result.await(
+        standupWrite.updateStatus(standupId, 'pending_review'),
+      )
 
-    const updateResult = await this.standupWrite.updateStatus(
-      standupId,
-      'pending_review',
-    )
-    if (updateResult.isErr()) {
-      return Result.err(updateResult.error)
-    }
+      logger.info('DM retried and standup transitioned to pending_review', {
+        standupId,
+      })
 
-    this.logger.info('DM retried and standup transitioned to pending_review', {
-      standupId,
+      return Result.ok({
+        standupId: updated.id,
+        newStatus: 'pending_review' as const,
+      })
     })
-
-    return Result.ok({ standupId, newStatus: 'pending_review' })
   }
 }

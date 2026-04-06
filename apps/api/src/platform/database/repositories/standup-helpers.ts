@@ -8,6 +8,7 @@ import { DbError, Result, StandupStatusSchema } from '../../../shared/domain'
 import type { AppLoggerFactory } from '../../logger'
 import { isDisplayDate, toIsoDateFromDisplay } from '../../time/date-only'
 import { standups } from '../schema'
+import { dbErrResult } from './db-error'
 
 // ── Type exports ────────────────────────────────────────────────────────────
 
@@ -113,9 +114,7 @@ export function dbErr(
   operation: string,
   error: unknown,
 ): Result<never, DbError> {
-  const message = error instanceof Error ? error.message : String(error)
-  logger.error('DB operation failed', { operation, error: message })
-  return Result.err(new DbError({ operation, message }))
+  return dbErrResult(logger, operation, error)
 }
 
 export function buildOrderBy(filters?: ListStandupFilters) {

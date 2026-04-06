@@ -1,4 +1,3 @@
-import { ConflictException, NotFoundException } from '@nestjs/common'
 import { describe, expect, it, vi } from 'vitest'
 import {
   InvalidStateTransitionError,
@@ -47,7 +46,7 @@ describe('StandupStatusService', () => {
     })
   })
 
-  it('maps repository errors to HTTP exceptions', async () => {
+  it('rethrows repository tagged errors for the HTTP boundary to normalize', async () => {
     const service = new StandupStatusService(
       {
         updateStatusForUser: vi
@@ -77,9 +76,9 @@ describe('StandupStatusService', () => {
 
     await expect(
       service.update('user-1', 'standup-1', 'draft'),
-    ).rejects.toThrow(NotFoundException)
+    ).rejects.toSatisfy(NotFoundError.is)
     await expect(
       service.update('user-1', 'standup-1', 'rejected'),
-    ).rejects.toThrow(ConflictException)
+    ).rejects.toSatisfy(InvalidStateTransitionError.is)
   })
 })

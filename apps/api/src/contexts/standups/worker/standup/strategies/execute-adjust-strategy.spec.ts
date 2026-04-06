@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { Result } from '../../../../../shared/domain'
+import { NotFoundError, Result } from '../../../../../shared/domain'
 import { ExecuteAdjustStrategy } from './execute-adjust-strategy'
 
 // --- Mock factories ---
@@ -97,11 +97,15 @@ describe('ExecuteAdjustStrategy', () => {
     expect(result.isErr()).toBe(true)
   })
 
-  it('returns error when base standup is not found', async () => {
+  it('preserves tagged repository errors when base standup lookup fails', async () => {
     const repo = makeStandupRepository({
       findByIdForUser: vi
         .fn()
-        .mockResolvedValue(Result.err(new Error('not found'))),
+        .mockResolvedValue(
+          Result.err(
+            new NotFoundError({ resource: 'standup', id: 'standup-1' }),
+          ),
+        ),
     })
     const strategy = buildStrategy({ repo })
 
@@ -111,6 +115,9 @@ describe('ExecuteAdjustStrategy', () => {
     })
 
     expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(NotFoundError.is(result.error)).toBe(true)
+    }
   })
 
   it('passes extraContext to PI Agent when provided', async () => {

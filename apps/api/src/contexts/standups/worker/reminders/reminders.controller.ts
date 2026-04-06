@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Controller,
   HttpCode,
   Post,
@@ -96,7 +95,7 @@ export class RemindersController {
     const result = await this.standupDispatch.dispatchStandupJobForUser(userId)
 
     if (result.isErr()) {
-      throw new BadRequestException(result.error.message)
+      throw result.error
     }
 
     return { ok: true, accepted: true }

@@ -85,7 +85,15 @@ export class WorkerSchedulerService {
     const discordResult = await this.userRepository.findDiscordIdByUserId(
       settings.userId,
     )
-    if (discordResult.isErr() || !discordResult.value) {
+    if (discordResult.isErr()) {
+      this.logger.warn('Failed to resolve Discord account for scheduler user', {
+        userId: settings.userId,
+        error: discordResult.error.message,
+      })
+      return
+    }
+
+    if (!discordResult.value) {
       return
     }
 
@@ -174,7 +182,16 @@ export class WorkerSchedulerService {
       userId,
       dateIso,
     )
-    if (result.isErr() || !result.value) {
+    if (result.isErr()) {
+      this.logger.warn('Failed to evaluate standup approval state', {
+        userId,
+        dateIso,
+        error: result.error.message,
+      })
+      return false
+    }
+
+    if (!result.value) {
       return false
     }
     return result.value.status === 'approved'

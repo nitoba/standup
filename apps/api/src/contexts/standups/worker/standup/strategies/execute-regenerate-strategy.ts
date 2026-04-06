@@ -25,6 +25,9 @@ export class ExecuteRegenerateStrategy extends StandupStrategyBase {
   async execute(input: StrategyExecutionInput): Promise<StrategyResult> {
     const { options, today, reportProgress } = input
     const replaceStandupId = options.replaceStandupId?.trim()
+    const standupRepository = this.standupRepository
+    const standupAgent = this.standupAgent
+    const reportStage = this.reportStage.bind(this)
 
     if (!replaceStandupId) {
       return Result.err(
@@ -35,52 +38,45 @@ export class ExecuteRegenerateStrategy extends StandupStrategyBase {
       )
     }
 
-    const existingResult = await this.standupRepository.findByIdForUser(
-      replaceStandupId,
-      options.userId,
-    )
-    if (existingResult.isErr()) {
-      return existingResult
-    }
+    return Result.gen(async function* () {
+      const existing = yield* Result.await(
+        standupRepository.findByIdForUser(replaceStandupId, options.userId),
+      )
 
-    const sourceData = parseSourceData(existingResult.value.sourceData)
-    if (sourceData.isErr()) {
-      return sourceData
-    }
+      const sourceData = yield* parseSourceData(existing.sourceData)
 
-    const regenerated = await this.standupAgent.generate({
-      date: today,
-      meetingType: existingResult.value.meetingType,
-      gitActivity: sourceData.value.git ?? undefined,
-      boardActivity: sourceData.value.board ?? undefined,
-      extraContext: options.extraContext?.trim() || undefined,
-      onStageChange: async (stage) => {
-        if (stage === 'enriching_data') {
-          await this.reportStage(
-            reportProgress,
-            'enriching_data',
-            'Enriquecendo contexto para o standup',
-          )
-          return
-        }
+      const regenerated = yield* Result.await(
+        standupAgent.generate({
+          date: today,
+          meetingType: existing.meetingType,
+          gitActivity: sourceData.git ?? undefined,
+          boardActivity: sourceData.board ?? undefined,
+          extraContext: options.extraContext?.trim() || undefined,
+          onStageChange: async (stage) => {
+            if (stage === 'enriching_data') {
+              await reportStage(
+                reportProgress,
+                'enriching_data',
+                'Enriquecendo contexto para o standup',
+              )
+              return
+            }
 
-        await this.reportStage(
-          reportProgress,
-          'generating_standup',
-          'Gerando standup a partir da base existente',
-        )
-      },
-    })
+            await reportStage(
+              reportProgress,
+              'generating_standup',
+              'Gerando standup a partir da base existente',
+            )
+          },
+        }),
+      )
 
-    if (regenerated.isErr()) {
-      return regenerated
-    }
-
-    return Result.ok<GeneratedContent>({
-      content: regenerated.value.content,
-      meetingType: existingResult.value.meetingType,
-      sourceData: existingResult.value.sourceData,
-      replaceStandupId,
+      return Result.ok<GeneratedContent>({
+        content: regenerated.content,
+        meetingType: existing.meetingType,
+        sourceData: existing.sourceData,
+        replaceStandupId,
+      })
     })
   }
 }

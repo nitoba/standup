@@ -1,4 +1,4 @@
-import { Controller, Get, ServiceUnavailableException } from '@nestjs/common'
+import { Controller, Get } from '@nestjs/common'
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { RepoListResponseDto } from '../../../../shared/openapi/response-dtos'
 import { ListWorkerReposService } from './list-worker-repos.service'
@@ -21,7 +21,7 @@ export class ReposController {
     const result = await this.listWorkerRepos.listRepos()
 
     if (result.isErr()) {
-      throw new ServiceUnavailableException(result.error.message)
+      throw result.error
     }
 
     return { data: result.value }

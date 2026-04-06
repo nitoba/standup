@@ -5,10 +5,11 @@ import { AppLoggerFactory } from '../../../../../platform/logger'
 import { AppTracingService } from '../../../../../platform/observability/app-tracing.service'
 import { LocalDateService } from '../../../../../platform/time/local-date.service'
 import type {
+  DbError,
   GatheredBoardActivity,
   GatheredGitActivity,
 } from '../../../../../shared/domain'
-import { Result } from '../../../../../shared/domain'
+import { ExternalServiceError, Result } from '../../../../../shared/domain'
 import { AzureDevopsActivityCollectorService } from '../../azure-devops/azure-devops-activity-collector.service'
 import { AzureDevopsEnrichmentService } from '../../azure-devops/azure-devops-enrichment.service'
 import type { EnrichedGitActivity } from '../../azure-devops/types'
@@ -43,48 +44,56 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
   private async computeSinceDate(
     userId: string,
     timezone: string,
-  ): Promise<string> {
+  ): Promise<Result<string, DbError>> {
     // Calculate midnight in user's timezone
     const todayIso = this.localDateService.today(timezone).iso
     const midnightUtc = new Date(`${todayIso}T00:00:00`).toISOString()
+    const standupReadRepo = this.standupReadRepo
+    const logger = this.logger
 
-    // Find last approved/published standup
-    const lastApprovedResult =
-      await this.standupReadRepo.findLastApprovedByUser(userId)
+    return Result.gen(async function* () {
+      const lastApproved = yield* Result.await(
+        standupReadRepo.findLastApprovedByUser(userId),
+      )
 
-    if (lastApprovedResult.isErr() || !lastApprovedResult.value) {
-      this.logger.debug('No previous approved standup found, using midnight', {
+      if (!lastApproved) {
+        logger.debug('No previous approved standup found, using midnight', {
+          userId,
+          midnight: midnightUtc,
+        })
+        return Result.ok(midnightUtc)
+      }
+
+      const lastCreatedAt = new Date(lastApproved.createdAt).toISOString()
+
+      // Use the more recent of midnight and last approved standup
+      const sinceDate =
+        lastCreatedAt > midnightUtc ? lastCreatedAt : midnightUtc
+
+      logger.debug('Computed smart sinceDate', {
         userId,
         midnight: midnightUtc,
+        lastApproved: lastCreatedAt,
+        sinceDate,
       })
-      return midnightUtc
-    }
 
-    const lastCreatedAt = new Date(
-      lastApprovedResult.value.createdAt,
-    ).toISOString()
-
-    // Use the more recent of midnight and last approved standup
-    const sinceDate = lastCreatedAt > midnightUtc ? lastCreatedAt : midnightUtc
-
-    this.logger.debug('Computed smart sinceDate', {
-      userId,
-      midnight: midnightUtc,
-      lastApproved: lastCreatedAt,
-      sinceDate,
+      return Result.ok(sinceDate)
     })
-
-    return sinceDate
   }
 
   @Span('worker.standup.generate.execute')
   async execute(input: StrategyExecutionInput): Promise<StrategyResult> {
     const { options, today, reportProgress } = input
 
-    const sinceDate = await this.computeSinceDate(
+    const sinceDateResult = await this.computeSinceDate(
       options.userId,
       options.timezone,
     )
+    if (sinceDateResult.isErr()) {
+      return Result.err(sinceDateResult.error)
+    }
+
+    const sinceDate = sinceDateResult.value
 
     const hasGitSource =
       options.selectedRepos.length > 0 && options.gitAuthor.trim().length > 0
@@ -125,7 +134,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
             },
           )
         } else {
-          return gitResult
+          return Result.err(gitResult.error)
         }
       } else if (gitResult.value.repos.length > 0) {
         gitActivity = gitResult.value
@@ -165,33 +174,39 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
         'Coletando atividade do board Azure DevOps',
       )
 
-      try {
-        boardActivity = await this.tracing.withSpan(
-          'standup.board.collect',
-          { 'board.user': options.azureDevopsUser },
-          () =>
-            this.boardCollector.collect(
-              // biome-ignore lint/style/noNonNullAssertion: checked via hasBoardSource
-              options.azureDevopsUser!,
-              sinceDate,
-            ),
-        )
-      } catch (error) {
+      const boardResult = await Result.tryPromise({
+        try: () =>
+          this.tracing.withSpan(
+            'standup.board.collect',
+            { 'board.user': options.azureDevopsUser },
+            () =>
+              this.boardCollector.collect(
+                // biome-ignore lint/style/noNonNullAssertion: checked via hasBoardSource
+                options.azureDevopsUser!,
+                sinceDate,
+              ),
+          ),
+        catch: (error) =>
+          new ExternalServiceError({
+            service: 'azure-devops',
+            message: `Board collection failed: ${error instanceof Error ? error.message : String(error)}`,
+          }),
+      })
+
+      if (boardResult.isErr()) {
         if (gitActivity) {
           this.logger.warn(
             'Board collection failed, falling back to git only',
             {
               userId: options.userId,
-              error: error instanceof Error ? error.message : String(error),
+              error: boardResult.error.message,
             },
           )
         } else {
-          return Result.err(
-            error instanceof Error
-              ? error
-              : new Error(`Board collection failed: ${String(error)}`),
-          )
+          return Result.err(boardResult.error)
         }
+      } else {
+        boardActivity = boardResult.value
       }
     }
 
@@ -241,7 +256,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
     )
 
     if (generated.isErr()) {
-      return generated
+      return Result.err(generated.error)
     }
 
     return Result.ok<GeneratedContent>({

@@ -8,6 +8,7 @@ import { DbError, Result } from '../../../shared/domain'
 import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { weeklyDigests } from '../schema'
+import { createDbError, dbMissingRowError } from './db-error'
 
 function parseStandupIds(raw: string): string[] {
   try {
@@ -154,12 +155,7 @@ export class WeeklyDigestRepository {
         .get()
 
       if (!row) {
-        return Result.err(
-          new DbError({
-            operation: 'saveContent',
-            message: `Weekly digest not found: ${id}`,
-          }),
-        )
+        return Result.err(dbMissingRowError('saveContent', 'Weekly digest', id))
       }
 
       return Result.ok(toRecord(row))
@@ -178,12 +174,7 @@ export class WeeklyDigestRepository {
         .get()
 
       if (!row) {
-        return Result.err(
-          new DbError({
-            operation: 'markSent',
-            message: `Weekly digest not found: ${id}`,
-          }),
-        )
+        return Result.err(dbMissingRowError('markSent', 'Weekly digest', id))
       }
 
       return Result.ok(toRecord(row))
@@ -205,12 +196,7 @@ export class WeeklyDigestRepository {
         .get()
 
       if (!row) {
-        return Result.err(
-          new DbError({
-            operation: 'markFailed',
-            message: `Weekly digest not found: ${id}`,
-          }),
-        )
+        return Result.err(dbMissingRowError('markFailed', 'Weekly digest', id))
       }
 
       return Result.ok(toRecord(row))
@@ -229,12 +215,7 @@ export class WeeklyDigestRepository {
         .get()
 
       if (!row) {
-        return Result.err(
-          new DbError({
-            operation: 'markSkipped',
-            message: `Weekly digest not found: ${id}`,
-          }),
-        )
+        return Result.err(dbMissingRowError('markSkipped', 'Weekly digest', id))
       }
 
       return Result.ok(toRecord(row))
@@ -260,12 +241,7 @@ export class WeeklyDigestRepository {
         .get()
 
       if (!row) {
-        return Result.err(
-          new DbError({
-            operation: 'markUnknown',
-            message: `Weekly digest not found: ${id}`,
-          }),
-        )
+        return Result.err(dbMissingRowError('markUnknown', 'Weekly digest', id))
       }
 
       return Result.ok(toRecord(row))
@@ -275,8 +251,6 @@ export class WeeklyDigestRepository {
   }
 
   private dbErr(error: unknown, operation: string): DbError {
-    const message = error instanceof Error ? error.message : 'Unknown DB error'
-    this.logger.error(`Failed to ${operation}`, { error: message })
-    return new DbError({ operation, message: `${operation}: ${message}` })
+    return createDbError(this.logger, operation, error)
   }
 }

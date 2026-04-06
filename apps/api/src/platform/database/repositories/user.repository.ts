@@ -4,6 +4,7 @@ import { DbError, Result } from '../../../shared/domain'
 import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { account, session, user } from '../schema'
+import { dbErrResult } from './db-error'
 
 @Injectable()
 export class UserRepository {
@@ -17,13 +18,7 @@ export class UserRepository {
   }
 
   private dbErr(operation: string, error: unknown): Result<never, DbError> {
-    const message = error instanceof Error ? error.message : 'Unknown DB error'
-
-    this.logger.error(`Failed to ${operation}`, {
-      error: message,
-    })
-
-    return Result.err(new DbError({ operation, message }))
+    return dbErrResult(this.logger, operation, error)
   }
 
   async findUserIdByDiscordId(

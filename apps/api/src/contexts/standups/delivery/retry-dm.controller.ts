@@ -31,7 +31,11 @@ export class RetryDmController {
     const { userId } = body
 
     const discordResult = await this.userRepo.findDiscordIdByUserId(userId)
-    if (discordResult.isErr() || !discordResult.value) {
+    if (discordResult.isErr()) {
+      throw discordResult.error
+    }
+
+    if (!discordResult.value) {
       throw new BadRequestException('Usuario sem Discord vinculado')
     }
 
@@ -42,7 +46,7 @@ export class RetryDmController {
     )
 
     if (result.isErr()) {
-      throw new BadRequestException(result.error.message)
+      throw result.error
     }
 
     return { ok: true, standupId, newStatus: result.value.newStatus }

@@ -142,7 +142,15 @@ export class SettingsInteractionService {
     const findResult = await this.settingsRepository.findByUserId(
       session.userId,
     )
-    if (findResult.isErr() || !findResult.value) {
+    if (findResult.isErr()) {
+      await interaction.editReply({
+        content: '❌ Erro ao carregar configurações atuais.',
+        components: [],
+      })
+      return
+    }
+
+    if (!findResult.value) {
       await interaction.editReply({
         content: '❌ Nenhuma configuração encontrada para alternar.',
         components: [],

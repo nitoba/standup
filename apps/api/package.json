@@ -54,7 +54,7 @@
     "@thallesp/nestjs-better-auth": "^2.5.1",
     "ai": "^6.0.111",
     "better-auth": "^1.5.5",
-    "better-result": "^2.7.0",
+    "better-result": "2.8.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "croner": "^10.0.1",

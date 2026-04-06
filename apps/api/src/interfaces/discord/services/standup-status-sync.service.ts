@@ -65,7 +65,7 @@ export class StandupStatusSyncService {
   ): Promise<Result<void, SyncError>> {
     const found = await this.standupRepository.findById(input.standupId)
     if (found.isErr()) {
-      return found
+      return Result.err(found.error)
     }
 
     const record = found.value
