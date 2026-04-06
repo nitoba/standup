@@ -5,12 +5,17 @@ import { DiscordMessagesService } from '../../../interfaces/discord/notification
 import { AppLoggerFactory } from '../../../platform/logger'
 import {
   DbError,
+  InvalidStateTransitionError,
   NotFoundError,
   Result,
   ValidationError,
 } from '../../../shared/domain'
 
-export type RetryDmError = NotFoundError | DbError | ValidationError
+export type RetryDmError =
+  | NotFoundError
+  | DbError
+  | ValidationError
+  | InvalidStateTransitionError
 
 @Injectable()
 export class RetryDmService {

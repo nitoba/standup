@@ -91,6 +91,7 @@ describe('StandupNotificationService', () => {
       standupId: 'standup-1',
       dmSent: true,
       transitioned: true,
+      newStatus: 'pending_review',
     })
     expect(standupRepository.updateDmMessageId).toHaveBeenCalledWith(
       'standup-1',
@@ -108,7 +109,7 @@ describe('StandupNotificationService', () => {
     })
   })
 
-  it('does not transition when sending the review DM fails', async () => {
+  it('transitions to delivery_pending when DM fails', async () => {
     const standupRepository = {
       findById: vi.fn().mockResolvedValue(
         Result.ok({
@@ -126,7 +127,21 @@ describe('StandupNotificationService', () => {
         }),
       ),
       updateDmMessageId: vi.fn(),
-      updateStatus: vi.fn(),
+      updateStatus: vi.fn().mockResolvedValue(
+        Result.ok({
+          id: 'standup-1',
+          userId: 'user-1',
+          date: '2026-03-13',
+          meetingType: 'daily',
+          content: 'conteudo',
+          sourceData: '{}',
+          customEntries: null,
+          status: 'delivery_pending',
+          dmMessageId: null,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }),
+      ),
     }
 
     const messages = {
@@ -161,10 +176,13 @@ describe('StandupNotificationService', () => {
     expect(result.value).toEqual({
       standupId: 'standup-1',
       dmSent: false,
-      transitioned: false,
+      transitioned: true,
+      newStatus: 'delivery_pending',
     })
-    expect(standupRepository.updateDmMessageId).not.toHaveBeenCalled()
-    expect(standupRepository.updateStatus).not.toHaveBeenCalled()
+    expect(standupRepository.updateStatus).toHaveBeenCalledWith(
+      'standup-1',
+      'delivery_pending',
+    )
     expect(eventBus.emitStandupStatusChanged).not.toHaveBeenCalled()
   })
 })

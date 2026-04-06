@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { StandupReadRepository } from '../../../../platform/database/repositories/standup-read.repository'
 import { StandupWriteRepository } from '../../../../platform/database/repositories/standup-write.repository'
 import type {
   StandupProgressStep,
@@ -25,6 +26,7 @@ export class StandupPipelineService {
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
     private readonly standupRepository: StandupWriteRepository,
+    private readonly standupReadRepository: StandupReadRepository,
     private readonly notifications: WorkerEventPublisherService,
     private readonly generateStrategy: ExecuteGenerateStrategy,
     private readonly adjustStrategy: ExecuteAdjustStrategy,
@@ -184,6 +186,31 @@ export class StandupPipelineService {
     if (replaceId) {
       return this.standupRepository.replaceGeneratedForUser(
         replaceId,
+        options.userId,
+        {
+          meetingType: input.meetingType,
+          content: input.content,
+          sourceData: input.sourceData,
+        },
+      )
+    }
+
+    const existingResult =
+      await this.standupReadRepository.findLatestByUserAndDate(
+        options.userId,
+        input.date,
+      )
+    if (existingResult.isErr()) {
+      return existingResult
+    }
+
+    const existing = existingResult.value
+    if (
+      existing &&
+      (existing.status === 'draft' || existing.status === 'rejected')
+    ) {
+      return this.standupRepository.replaceGeneratedForUser(
+        existing.id,
         options.userId,
         {
           meetingType: input.meetingType,

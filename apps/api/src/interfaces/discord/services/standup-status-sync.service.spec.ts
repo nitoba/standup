@@ -11,15 +11,8 @@ describe('StandupStatusSyncService', () => {
     }
   }
 
-  it('publishes approved standups and delegates the published transition back to standups', async () => {
-    const publish = vi.fn().mockResolvedValue(
-      Result.ok({
-        id: 'standup-1',
-        userId: 'user-1',
-        date: '2026-03-13',
-        status: 'published',
-      }),
-    )
+  it('updates DM message when standup is approved', async () => {
+    const updateDmMessage = vi.fn().mockResolvedValue(Result.ok(undefined))
     const service = new StandupStatusSyncService(
       makeLoggerFactory() as never,
       {
@@ -33,7 +26,6 @@ describe('StandupStatusSyncService', () => {
             status: 'approved',
           }),
         ),
-        updateStatus: vi.fn(),
       } as never,
       {
         findDiscordIdByUserId: vi
@@ -41,11 +33,8 @@ describe('StandupStatusSyncService', () => {
           .mockResolvedValue(Result.ok('discord-1')),
       } as never,
       {
-        updateDmMessage: vi.fn().mockResolvedValue(Result.ok(undefined)),
-        publishStandup: vi.fn().mockResolvedValue(Result.ok(undefined)),
+        updateDmMessage,
       } as never,
-      { discord: { channelId: 'channel-1' } } as never,
-      { publish } as never,
     )
 
     const result = await service.syncStatus({
@@ -55,6 +44,56 @@ describe('StandupStatusSyncService', () => {
     })
 
     expect(result.isOk()).toBe(true)
-    expect(publish).toHaveBeenCalledWith('user-1', 'standup-1', 'web')
+    expect(updateDmMessage).toHaveBeenCalledWith({
+      discordUserId: 'discord-1',
+      messageId: 'dm-1',
+      payload: {
+        content: '✅ Aprovado via web',
+        components: [],
+      },
+    })
+  })
+
+  it('updates DM message when standup is rejected', async () => {
+    const updateDmMessage = vi.fn().mockResolvedValue(Result.ok(undefined))
+    const service = new StandupStatusSyncService(
+      makeLoggerFactory() as never,
+      {
+        findById: vi.fn().mockResolvedValue(
+          Result.ok({
+            id: 'standup-1',
+            userId: 'user-1',
+            dmMessageId: 'dm-1',
+            content: 'conteudo',
+            date: '2026-03-13',
+            status: 'approved',
+          }),
+        ),
+      } as never,
+      {
+        findDiscordIdByUserId: vi
+          .fn()
+          .mockResolvedValue(Result.ok('discord-1')),
+      } as never,
+      {
+        updateDmMessage,
+      } as never,
+    )
+
+    const result = await service.syncStatus({
+      standupId: 'standup-1',
+      newStatus: 'rejected',
+      source: 'discord',
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(updateDmMessage).toHaveBeenCalledWith({
+      discordUserId: 'discord-1',
+      messageId: 'dm-1',
+      payload: {
+        content: '❌ Rejeitado',
+        components: [],
+      },
+    })
   })
 })

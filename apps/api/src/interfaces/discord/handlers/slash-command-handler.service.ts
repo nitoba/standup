@@ -36,11 +36,11 @@ const AUTH_REQUIRED_SUBCOMMANDS = new Set([
 
 function standupStatusLabel(status: StandupStatus): string {
   const labels: Record<StandupStatus, string> = {
-    draft: 'Draft',
+    draft: 'Rascunho',
+    delivery_pending: 'Aguardando DM',
     pending_review: 'Pendente de Revisão',
     approved: 'Aprovado',
     rejected: 'Rejeitado',
-    published: 'Publicado',
   }
 
   return labels[status]
