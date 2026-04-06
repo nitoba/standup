@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common'
+import { forwardRef, Module } from '@nestjs/common'
+import { DiscordModule } from '../../interfaces/discord/discord.module'
 import { DatabaseModule } from '../../platform/database/database.module'
 import { ApproveStandupController } from './approval/approve-standup.controller'
 import { ApproveStandupService } from './approval/approve-standup.service'
@@ -17,7 +18,7 @@ import { TriggerStandupService } from './trigger/trigger-standup.service'
 import { WorkerModule } from './worker/worker.module'
 
 @Module({
-  imports: [DatabaseModule, WorkerModule],
+  imports: [DatabaseModule, WorkerModule, forwardRef(() => DiscordModule)],
   controllers: [
     TriggerStandupController,
     StandupEventsController,
@@ -40,6 +41,7 @@ import { WorkerModule } from './worker/worker.module'
     TriggerStandupService,
     ApproveStandupService,
     StandupStatusService,
+    RetryDmService,
     WorkerModule,
   ],
 })

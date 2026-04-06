@@ -40,7 +40,6 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
     SidebarLayout,
     RouterLink,
     ZardButtonComponent,
-    ZardIconComponent,
     JsonViewerComponent,
     StandupDetailSkeleton,
     DiscordFormatPipe,
