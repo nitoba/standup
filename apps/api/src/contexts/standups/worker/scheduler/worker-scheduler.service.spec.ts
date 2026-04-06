@@ -176,7 +176,7 @@ describe('WorkerSchedulerService', () => {
     expect(reminderActions.notifyReminder).not.toHaveBeenCalled()
   })
 
-  it('skips reminder when standup is already published', async () => {
+  it('skips reminder when standup is already approved', async () => {
     isCronDueNowMock.mockImplementation(
       (expression: string) => expression === 'reminder-cron',
     )
@@ -187,7 +187,7 @@ describe('WorkerSchedulerService', () => {
           id: 'standup-1',
           userId: 'user-1',
           date: '2026-03-13',
-          status: 'published',
+          status: 'approved',
           content: '',
           sourceData: '{}',
           meetingType: 'daily',
@@ -195,7 +195,6 @@ describe('WorkerSchedulerService', () => {
           dmMessageId: null,
           createdAt: 0,
           updatedAt: 0,
-          sentToDiscordAt: Date.now(),
         }),
       ),
     )

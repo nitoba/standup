@@ -151,6 +151,7 @@ export class DashboardPage {
   readonly selectedStatus = computed(
     () =>
       (this.statusFilter() as
+        | 'delivery_pending'
         | 'pending_review'
         | 'approved'
         | 'rejected'

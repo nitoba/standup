@@ -72,7 +72,7 @@ function findNewestPendingId(standups: Standup[]): string | null {
             >
               $ ver >>
             </button>
-            @if ((standup.status === 'approved' || standup.status === 'published') && standup.content) {
+            @if (standup.status === 'approved' && standup.content) {
               <button
                 type="button"
                 z-button
@@ -117,7 +117,7 @@ function findNewestPendingId(standups: Standup[]): string | null {
             >
               $ ver >>
             </button>
-            @if ((standup.status === 'approved' || standup.status === 'published') && standup.content) {
+            @if (standup.status === 'approved' && standup.content) {
               <button
                 type="button"
                 z-button

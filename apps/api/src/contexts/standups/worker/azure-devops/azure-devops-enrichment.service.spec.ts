@@ -43,16 +43,19 @@ function makeActivity(
 }
 
 describe('AzureDevopsEnrichmentService', () => {
-  function createService(mcpOverrides: Record<string, unknown> = {}) {
-    const mcpClient = {
-      getMe: vi.fn(),
-      getWorkItem: vi.fn().mockResolvedValue(
-        Result.ok({
-          id: '123',
-          title: 'Task',
-          state: 'Active',
-          assignedTo: 'user',
-        }),
+  function createService(restOverrides: Record<string, unknown> = {}) {
+    const restClient = {
+      getWorkItemsBatch: vi.fn().mockResolvedValue(
+        Result.ok([
+          {
+            id: 123,
+            fields: {
+              'System.Title': 'Task',
+              'System.State': 'Active',
+              'System.AssignedTo': 'user',
+            },
+          },
+        ]),
       ),
       listPullRequests: vi.fn().mockResolvedValue(
         Result.ok([
@@ -72,22 +75,14 @@ describe('AzureDevopsEnrichmentService', () => {
           },
         ]),
       ),
-      ...mcpOverrides,
+      ...restOverrides,
     }
     const service = new AzureDevopsEnrichmentService(
       makeLoggerFactory() as never,
-      mcpClient as never,
+      restClient as never,
     )
-    return { service, mcpClient }
+    return { service, restClient }
   }
-
-  it('should not call getMe when azureDevopsUuid is provided', async () => {
-    const { service, mcpClient } = createService()
-
-    await service.enrichGitActivity(makeActivity([{}]), 'uuid-match')
-
-    expect(mcpClient.getMe).not.toHaveBeenCalled()
-  })
 
   it('should filter PRs by the provided azureDevopsUuid', async () => {
     const { service } = createService()

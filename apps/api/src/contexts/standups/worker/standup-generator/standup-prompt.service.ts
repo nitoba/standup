@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { LocalDateService } from '../../../../platform/time/local-date.service'
 import type {
   GatheredBoardActivity,
+  GatheredGitActivity,
   GenerateStandupInput,
   StandupRecord,
 } from '../../../../shared/domain'
@@ -72,15 +73,17 @@ export class StandupPromptService {
       '',
     ]
 
-    if (enrichedActivity) {
-      this.appendGitSections(sections, enrichedActivity)
+    const effectiveGitActivity =
+      enrichedActivity ?? this.toEnrichedActivity(input.gitActivity)
+    if (effectiveGitActivity) {
+      this.appendGitSections(sections, effectiveGitActivity)
     }
 
     if (input.boardActivity) {
       this.appendBoardSections(sections, input.boardActivity)
     }
 
-    if (enrichedActivity && input.boardActivity) {
+    if (effectiveGitActivity && input.boardActivity) {
       sections.push(
         '## Nota: os dados acima podem conter informações duplicadas entre commits git e atividade do board. Consolide e evite dados duplicados no relatório final.',
       )
@@ -105,6 +108,20 @@ export class StandupPromptService {
     )
 
     return sections.join('\n')
+  }
+
+  private toEnrichedActivity(
+    gitActivity: GatheredGitActivity | undefined,
+  ): EnrichedGitActivity | undefined {
+    if (!gitActivity) return undefined
+    return {
+      timestamp: gitActivity.timestamp,
+      userUuid: '',
+      repos: gitActivity.repos.map((repo) => ({
+        ...repo,
+        enrichedItems: [],
+      })),
+    }
   }
 
   private appendGitSections(

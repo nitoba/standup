@@ -22,7 +22,7 @@ vi.mock('@openrouter/ai-sdk-provider', () => ({
 
 function makeConfig() {
   return {
-    GOOGLE_API_KEY: 'gk',
+    GOOGLE_GENERATIVE_AI_API_KEY: 'gk',
     GROQ_API_KEY: 'grk',
     OPENROUTER_API_KEY: 'ork',
     LLM_PROVIDERS_CONFIG: JSON.stringify([

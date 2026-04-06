@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { StandupReadRepository } from '../../../../platform/database/repositories/standup-read.repository'
 import { StandupWriteRepository } from '../../../../platform/database/repositories/standup-write.repository'
 import type {
   StandupProgressStep,
@@ -6,7 +7,6 @@ import type {
 } from '../../../../platform/events/standup-events'
 import { AppLoggerFactory } from '../../../../platform/logger'
 import { DbError, NotFoundError, Result } from '../../../../shared/domain'
-import { AgentSessionManager } from '../standup-agent/agent-session-manager'
 import { WorkerEventPublisherService } from '../worker-event-publisher.service'
 import { ExecuteAdjustStrategy } from './strategies/execute-adjust-strategy'
 import { ExecuteGenerateStrategy } from './strategies/execute-generate-strategy'
@@ -26,10 +26,10 @@ export class StandupPipelineService {
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
     private readonly standupRepository: StandupWriteRepository,
+    private readonly standupReadRepository: StandupReadRepository,
     private readonly notifications: WorkerEventPublisherService,
     private readonly generateStrategy: ExecuteGenerateStrategy,
     private readonly adjustStrategy: ExecuteAdjustStrategy,
-    private readonly sessionManager: AgentSessionManager,
   ) {
     this.logger = this.loggerFactory.create('standup-pipeline')
   }
@@ -115,12 +115,6 @@ export class StandupPipelineService {
     const standupId = saveResult.value.id
     this.logger.info('Standup draft saved', { standupId })
 
-    // Create agent session if agent instance was returned by strategy
-    if (generated.agent) {
-      this.sessionManager.create(standupId, generated.agent)
-      this.logger.info('Agent session created', { standupId })
-    }
-
     await this.emitProgress({
       userId: options.userId,
       runId,
@@ -192,6 +186,31 @@ export class StandupPipelineService {
     if (replaceId) {
       return this.standupRepository.replaceGeneratedForUser(
         replaceId,
+        options.userId,
+        {
+          meetingType: input.meetingType,
+          content: input.content,
+          sourceData: input.sourceData,
+        },
+      )
+    }
+
+    const existingResult =
+      await this.standupReadRepository.findLatestByUserAndDate(
+        options.userId,
+        input.date,
+      )
+    if (existingResult.isErr()) {
+      return existingResult
+    }
+
+    const existing = existingResult.value
+    if (
+      existing &&
+      (existing.status === 'draft' || existing.status === 'rejected')
+    ) {
+      return this.standupRepository.replaceGeneratedForUser(
+        existing.id,
         options.userId,
         {
           meetingType: input.meetingType,

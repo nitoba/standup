@@ -68,7 +68,7 @@ describe('WeeklyDigestPage', () => {
     expect(element.textContent).toContain('resumo_semanal')
   })
 
-  it('renderiza published com label publicado e estilo cyan no dom', async () => {
+  it('renderiza approved com label aprovado no dom', async () => {
     await TestBed.configureTestingModule({
       imports: [WeeklyDigestPage],
       providers: [provideRouter([]), provideTanStackQuery(new QueryClient())],
@@ -84,10 +84,10 @@ describe('WeeklyDigestPage', () => {
       },
       weekStandups: () => [
         {
-          id: 'published-1',
+          id: 'approved-1',
           date: '09/03/2026',
-          content: 'standup publicado',
-          status: 'published',
+          content: 'standup aprovado',
+          status: 'approved',
         },
         {
           id: 'draft-1',
@@ -100,12 +100,12 @@ describe('WeeklyDigestPage', () => {
     fixture.detectChanges()
 
     const element = fixture.nativeElement as HTMLElement
-    const publishedStatusLabel = Array.from(
+    const approvedStatusLabel = Array.from(
       element.querySelectorAll('span') as NodeListOf<HTMLSpanElement>,
-    ).find((span) => span.textContent?.includes('[publicado]'))
-    const publishedStatusContainer = publishedStatusLabel?.parentElement
-    const publishedStatusIndicator = Array.from(
-      publishedStatusContainer?.querySelectorAll('span') ?? [],
+    ).find((span) => span.textContent?.includes('[aprovado]'))
+    const approvedStatusContainer = approvedStatusLabel?.parentElement
+    const approvedStatusIndicator = Array.from(
+      approvedStatusContainer?.querySelectorAll('span') ?? [],
     ).find(
       (span) =>
         span.className.includes('h-[6px]') &&
@@ -117,10 +117,10 @@ describe('WeeklyDigestPage', () => {
       element.querySelectorAll('span') as NodeListOf<HTMLSpanElement>,
     ).find((span) => span.textContent?.includes('[rascunho]'))
 
-    expect(element.textContent).toContain('[publicado]')
+    expect(element.textContent).toContain('[aprovado]')
     expect(element.textContent).toContain('[rascunho]')
-    expect(publishedStatusLabel?.className).toContain('text-cyan-400')
-    expect(publishedStatusIndicator?.className).toContain('bg-cyan-400')
+    expect(approvedStatusLabel?.className).toContain('text-primary')
+    expect(approvedStatusIndicator?.className).toContain('bg-primary')
     expect(draftStatusLabel?.className).toContain('text-muted-foreground')
   })
 })

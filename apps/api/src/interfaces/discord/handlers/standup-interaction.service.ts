@@ -1,12 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { ApproveStandupService } from '../../../contexts/standups/approval/approve-standup.service'
-import { PublishStandupService } from '../../../contexts/standups/publication/publish-standup.service'
 import { StandupStatusService } from '../../../contexts/standups/status/standup-status.service'
-import { AgentSessionManager } from '../../../contexts/standups/worker/standup-agent/agent-session-manager'
-import { StandupReadRepository } from '../../../platform/database/repositories/standup-read.repository'
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
-import { EnvService } from '../../../platform/env/env.service'
-import { AppLoggerFactory } from '../../../platform/logger'
 import {
   type CustomEntries,
   type DbError,
@@ -24,7 +19,7 @@ export interface InteractionOutcome {
   action: StandupAction
   standupId: string
   userId: string
-  newStatus: 'approved' | 'rejected' | 'published'
+  newStatus: 'approved' | 'rejected'
   message: string
 }
 
@@ -36,20 +31,12 @@ type InteractionError =
 
 @Injectable()
 export class StandupInteractionService {
-  private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
-    private readonly loggerFactory: AppLoggerFactory,
-    private readonly standupRepository: StandupReadRepository,
     private readonly userRepository: UserRepository,
-    private readonly messages: DiscordMessagesService,
-    private readonly env: EnvService,
+    readonly _messages: DiscordMessagesService,
     private readonly approveStandup: ApproveStandupService,
-    private readonly publishStandup: PublishStandupService,
     private readonly standupStatus: StandupStatusService,
-    private readonly sessionManager: AgentSessionManager,
-  ) {
-    this.logger = this.loggerFactory.create('discord-standup-interaction')
-  }
+  ) {}
 
   async handle(
     action: StandupAction,
@@ -109,70 +96,12 @@ export class StandupInteractionService {
       return approveResult
     }
 
-    this.sessionManager.destroy(standupId)
-
-    if (!this.env.discord.channelId) {
-      return Result.ok({
-        action: 'approve',
-        standupId,
-        userId: actorUserId,
-        newStatus: 'approved',
-        message: 'Standup aprovado!',
-      })
-    }
-
-    const found = await this.standupRepository.findByIdForUser(
-      standupId,
-      actorUserId,
-    )
-    if (found.isErr()) {
-      return found
-    }
-
-    const publishResult = await this.messages.publishStandup(
-      found.value,
-      this.env.discord.channelId,
-    )
-    if (publishResult.isErr()) {
-      this.logger.warn('Failed to publish standup after approval', {
-        standupId,
-        error: publishResult.error.message,
-      })
-      return Result.ok({
-        action: 'approve',
-        standupId,
-        userId: actorUserId,
-        newStatus: 'approved',
-        message:
-          'Standup aprovado! A publicação falhou e pode ser feita manualmente.',
-      })
-    }
-
-    const publishedResult = await this.publishStandup.publish(
-      actorUserId,
-      standupId,
-      'discord',
-    )
-    if (publishedResult.isErr()) {
-      this.logger.warn('Failed to mark standup as published', {
-        standupId,
-        error: publishedResult.error.message,
-      })
-      return Result.ok({
-        action: 'approve',
-        standupId,
-        userId: actorUserId,
-        newStatus: 'approved',
-        message: 'Standup aprovado e publicado no canal!',
-      })
-    }
-
     return Result.ok({
       action: 'approve',
       standupId,
       userId: actorUserId,
-      newStatus: 'published',
-      message: 'Standup aprovado e publicado no canal!',
+      newStatus: 'approved',
+      message: 'Standup aprovado!',
     })
   }
 
@@ -189,8 +118,6 @@ export class StandupInteractionService {
     if (result.isErr()) {
       return result
     }
-
-    this.sessionManager.destroy(standupId)
 
     return Result.ok({
       action: 'reject',

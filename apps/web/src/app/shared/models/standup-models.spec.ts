@@ -35,7 +35,7 @@ describe('standup types', () => {
       content: '## o que foi feito\n- item',
       sourceData: '{"repos":[]}',
       customEntries: null,
-      status: 'published',
+      status: 'approved',
       userId: 'user-1',
       createdAt: 1_741_542_400_000,
       updatedAt: 1_741_542_700_000,
@@ -111,10 +111,10 @@ describe('standup types', () => {
     const settingsResponse: UpdateSettingsResponseDto = { data: settings }
     const statuses: StandupStatus[] = [
       'draft',
+      'delivery_pending',
       'pending_review',
       'approved',
       'rejected',
-      'published',
     ]
 
     const metrics: DashboardMetrics = {
@@ -124,7 +124,7 @@ describe('standup types', () => {
       rejected: { count: 0, change: '0' },
     }
 
-    expect(listResponse.data[0]?.status).toBe('published')
+    expect(listResponse.data[0]?.status).toBe('approved')
     expect(listResponse.pagination.totalPages).toBe(1)
     expect(listResponse.metricChanges.total.delta).toBe(1)
     expect(standup.updatedAt).toContain('17:40')
@@ -134,7 +134,7 @@ describe('standup types', () => {
     expect(accepted.accepted).toBe(true)
     expect(cancelled.cancelledDate).toBe('09/03/2026')
     expect(statuses).toContain('draft')
-    expect(statuses).toContain('published')
+    expect(statuses).toContain('delivery_pending')
     expect(metrics.total.count).toBe(1)
   })
 })

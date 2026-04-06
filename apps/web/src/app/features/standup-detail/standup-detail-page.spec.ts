@@ -64,7 +64,6 @@ function getActionButtons(
     reject: getButtonByText(fixture, '$ rejeitar'),
     adjust: getButtonByText(fixture, '$ ajustar'),
     regenerate: getButtonByText(fixture, '$ regenerar'),
-    sendToDiscord: getButtonByText(fixture, 'Enviar para Discord'),
   }
 }
 
@@ -295,10 +294,10 @@ describe('StandupDetailPage', () => {
     expect(buttons.regenerate.textContent).toContain('$ regenerar')
   })
 
-  it('treats published consistently in labels, classes and actions', async () => {
-    const { fixture } = await createFixture({ status: 'published' })
+  it('treats approved consistently in labels, classes and actions', async () => {
+    const { fixture } = await createFixture({ status: 'approved' })
     const buttons = getActionButtons(fixture)
-    const statusLabel = findSpanByText(fixture, '[publicado]')
+    const statusLabel = findSpanByText(fixture, '[aprovado]')
     const statusContainer = statusLabel?.parentElement
     const statusDot = Array.from(
       statusContainer?.querySelectorAll('span') ?? [],
@@ -310,23 +309,22 @@ describe('StandupDetailPage', () => {
     )
 
     expect(statusLabel).toBeDefined()
-    expect(statusLabel?.className).toContain('text-cyan-400')
-    expect(statusDot?.className).toContain('bg-cyan-400')
+    expect(statusLabel?.className).toContain('text-primary')
+    expect(statusDot?.className).toContain('bg-primary')
     expect(buttons.approve).toBeUndefined()
     expect(buttons.reject).toBeUndefined()
     expect(buttons.adjust).toBeUndefined()
     expect(buttons.regenerate).toBeUndefined()
-    expect(buttons.sendToDiscord).toBeUndefined()
   })
 
-  it('preserves regenerate policy for pending_review, rejected, approved and published', async () => {
+  it('preserves regenerate policy for delivery_pending, pending_review, rejected, approved', async () => {
     const { fixture } = await createFixture()
     const page = fixture.componentInstance
 
+    expect(page.canRegenerate('delivery_pending')).toBe(true)
     expect(page.canRegenerate('pending_review')).toBe(true)
     expect(page.canRegenerate('rejected')).toBe(true)
     expect(page.canRegenerate('approved')).toBe(false)
-    expect(page.canRegenerate('published')).toBe(false)
   })
 
   it('opens the approve dialog when the approve button is clicked', async () => {
@@ -467,31 +465,6 @@ describe('StandupDetailPage', () => {
     expect(reject.disabled).toBe(false)
     expect(adjust.disabled).toBe(false)
     expect(regenerate.disabled).toBe(false)
-  })
-
-  it('shows spinner and loading label while sending standup to Discord', async () => {
-    const sendDeferred = createDeferred<void>()
-    const { fixture, standupService, standupResource } = await createFixture({
-      status: 'approved',
-      sendToDiscordAction: () => sendDeferred.promise,
-    })
-
-    const sendButton = getActionButtons(fixture).sendToDiscord
-
-    sendButton.click()
-    fixture.detectChanges()
-
-    expect(standupService.sendToDiscordAction).toHaveBeenCalledWith(STANDUP_ID)
-    expect(sendButton.disabled).toBe(true)
-    expect(sendButton.textContent).toContain('Enviando...')
-    expect(sendButton.querySelector('svg')).not.toBeNull()
-
-    sendDeferred.resolve()
-    await settleFixture(fixture)
-
-    expect(standupResource.reload).toHaveBeenCalledOnce()
-    expect(sendButton.disabled).toBe(false)
-    expect(sendButton.textContent).toContain('Enviar para Discord')
   })
 
   it('opens the regenerate confirmation modal when the regenerate button is clicked', async () => {

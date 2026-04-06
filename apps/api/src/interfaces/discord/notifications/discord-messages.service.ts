@@ -33,7 +33,6 @@ import {
 } from '../../../shared/domain'
 import { DiscordClientService } from '../discord-client.service'
 import {
-  buildJobFailedEmbed,
   buildPublishedEmbed,
   buildReminderEmbed,
   buildReviewEmbed,
@@ -62,7 +61,7 @@ export class DiscordMessagesService implements OnModuleDestroy {
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
     private readonly discordClient: DiscordClientService,
-    private readonly env: EnvService,
+    readonly _env: EnvService,
   ) {
     this.logger = this.loggerFactory.create('discord-messages')
     // Periodic cleanup of stale reminder entries to prevent memory leak (TAS-68)
@@ -147,20 +146,10 @@ export class DiscordMessagesService implements OnModuleDestroy {
   async handleJobFailedNotification(
     event: JobFailedNotificationEvent,
   ): Promise<void> {
-    if (!this.env.discord.channelId) {
-      return
-    }
-
-    const result = await this.sendChannelNotification(
-      this.env.discord.channelId,
-      buildJobFailedEmbed(event.error, event.context),
-    )
-
-    if (result.isErr()) {
-      this.logger.warn('Failed to send job failed notification', {
-        error: result.error.message,
-      })
-    }
+    this.logger.debug('Job failed notification received', {
+      error: event.error,
+      context: event.context,
+    })
   }
 
   async sendReviewDm(

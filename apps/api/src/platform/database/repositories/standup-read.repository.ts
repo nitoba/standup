@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { and, desc, eq, gte, lte, or, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, lte, sql } from 'drizzle-orm'
 import {
   DbError,
   NotFoundError,
@@ -63,7 +63,7 @@ export class StandupReadRepository {
       const summaryQuery = this.database.db
         .select({
           total: sql<number>`count(*)`,
-          approved: sql<number>`sum(case when ${standups.status} in ('approved', 'published') then 1 else 0 end)`,
+          approved: sql<number>`sum(case when ${standups.status} = 'approved' then 1 else 0 end)`,
           pending: sql<number>`sum(case when ${standups.status} = 'pending_review' then 1 else 0 end)`,
           rejected: sql<number>`sum(case when ${standups.status} = 'rejected' then 1 else 0 end)`,
         })
@@ -118,7 +118,7 @@ export class StandupReadRepository {
         this.database.db
           .select({
             total: sql<number>`count(*)`,
-            approved: sql<number>`sum(case when ${standups.status} in ('approved', 'published') then 1 else 0 end)`,
+            approved: sql<number>`sum(case when ${standups.status} = 'approved' then 1 else 0 end)`,
             pending: sql<number>`sum(case when ${standups.status} = 'pending_review' then 1 else 0 end)`,
             rejected: sql<number>`sum(case when ${standups.status} = 'rejected' then 1 else 0 end)`,
           })
@@ -226,10 +226,7 @@ export class StandupReadRepository {
             eq(standups.userId, userId),
             gte(standups.date, startDate),
             lte(standups.date, endDate),
-            or(
-              eq(standups.status, 'approved'),
-              eq(standups.status, 'published'),
-            ),
+            eq(standups.status, 'approved'),
           ),
         )
         .orderBy(desc(standups.date))
@@ -248,13 +245,7 @@ export class StandupReadRepository {
         .select()
         .from(standups)
         .where(
-          and(
-            eq(standups.userId, userId),
-            or(
-              eq(standups.status, 'approved'),
-              eq(standups.status, 'published'),
-            ),
-          ),
+          and(eq(standups.userId, userId), eq(standups.status, 'approved')),
         )
         .orderBy(desc(standups.createdAt))
         .limit(1)

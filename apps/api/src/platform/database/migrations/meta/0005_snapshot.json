@@ -1,0 +1,341 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "tables": {
+    "account": {
+      "name": "account",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true },
+        "userId": { "name": "user_id", "type": "text", "notNull": true },
+        "accountId": { "name": "account_id", "type": "text", "notNull": true },
+        "provider": { "name": "provider", "type": "text", "notNull": true },
+        "accessToken": { "name": "access_token", "type": "text" },
+        "refreshToken": { "name": "refresh_token", "type": "text" },
+        "idToken": { "name": "id_token", "type": "text" },
+        "accessTokenExpiresAt": {
+          "name": "access_token_expires_at",
+          "type": "integer"
+        },
+        "refreshTokenExpiresAt": {
+          "name": "refresh_token_expires_at",
+          "type": "integer"
+        },
+        "scope": { "name": "scope", "type": "text" },
+        "password": { "name": "password", "type": "text" },
+        "confirm": { "name": "confirm", "type": "text" },
+        "createdAt": {
+          "name": "created_at",
+          "type": "integer",
+          "notNull": true
+        },
+        "updatedAt": {
+          "name": "updated_at",
+          "type": "integer",
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "account_user_id_fk": {
+          "name": "account_user_id_fk",
+          "columns": ["userId"],
+          "referencedTable": "user",
+          "referencedColumns": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "job_runs": {
+      "name": "job_runs",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true },
+        "jobName": { "name": "job_name", "type": "text", "notNull": true },
+        "date": { "name": "date", "type": "text", "notNull": true },
+        "userId": { "name": "user_id", "type": "text", "notNull": true },
+        "status": { "name": "status", "type": "text", "notNull": true },
+        "error": { "name": "error", "type": "text" },
+        "createdAt": {
+          "name": "created_at",
+          "type": "integer",
+          "notNull": true
+        },
+        "updatedAt": {
+          "name": "updated_at",
+          "type": "integer",
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "job_runs_job_date_user_unique": {
+          "name": "job_runs_job_date_user_unique",
+          "columns": ["jobName", "date", "userId"],
+          "unique": true
+        }
+      },
+      "foreignKeys": {
+        "job_runs_user_id_fk": {
+          "name": "job_runs_user_id_fk",
+          "columns": ["userId"],
+          "referencedTable": "user",
+          "referencedColumns": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "session": {
+      "name": "session",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true },
+        "expiresAt": {
+          "name": "expires_at",
+          "type": "integer",
+          "notNull": true
+        },
+        "token": { "name": "token", "type": "text", "notNull": true },
+        "createdAt": {
+          "name": "created_at",
+          "type": "integer",
+          "notNull": true
+        },
+        "updatedAt": {
+          "name": "updated_at",
+          "type": "integer",
+          "notNull": true
+        },
+        "ipAddress": { "name": "ip_address", "type": "text" },
+        "userAgent": { "name": "user_agent", "type": "text" },
+        "userId": { "name": "user_id", "type": "text", "notNull": true }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "session_user_id_fk": {
+          "name": "session_user_id_fk",
+          "columns": ["userId"],
+          "referencedTable": "user",
+          "referencedColumns": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "standups": {
+      "name": "standups",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true },
+        "date": { "name": "date", "type": "text", "notNull": true },
+        "meetingType": {
+          "name": "meeting_type",
+          "type": "text",
+          "notNull": true
+        },
+        "content": { "name": "content", "type": "text", "notNull": true },
+        "sourceData": {
+          "name": "source_data",
+          "type": "text",
+          "notNull": true
+        },
+        "customEntries": { "name": "custom_entries", "type": "text" },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "userId": { "name": "user_id", "type": "text", "notNull": true },
+        "dmMessageId": { "name": "dm_message_id", "type": "text" },
+        "createdAt": {
+          "name": "created_at",
+          "type": "integer",
+          "notNull": true
+        },
+        "updatedAt": {
+          "name": "updated_at",
+          "type": "integer",
+          "notNull": true
+        },
+        "sentToDiscordAt": { "name": "sent_to_discord_at", "type": "integer" }
+      },
+      "indexes": {
+        "standups_user_date_unique": {
+          "name": "standups_user_date_unique",
+          "columns": ["userId", "date"],
+          "unique": true
+        }
+      },
+      "foreignKeys": {
+        "standups_user_id_fk": {
+          "name": "standups_user_id_fk",
+          "columns": ["userId"],
+          "referencedTable": "user",
+          "referencedColumns": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "user": {
+      "name": "user",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true },
+        "name": { "name": "name", "type": "text" },
+        "email": { "name": "email", "type": "text", "notNull": true },
+        "emailVerified": { "name": "email_verified", "type": "integer" },
+        "image": { "name": "image", "type": "text" },
+        "createdAt": {
+          "name": "created_at",
+          "type": "integer",
+          "notNull": true
+        },
+        "updatedAt": {
+          "name": "updated_at",
+          "type": "integer",
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "user_settings": {
+      "name": "user_settings",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true },
+        "userId": { "name": "user_id", "type": "text", "notNull": true },
+        "standupCron": { "name": "standup_cron", "type": "text" },
+        "reminderCron": { "name": "reminder_cron", "type": "text" },
+        "recoveryCron": { "name": "recovery_cron", "type": "text" },
+        "timezone": { "name": "timezone", "type": "text", "notNull": true },
+        "gitAuthor": { "name": "git_author", "type": "text" },
+        "gitSincePeriod": { "name": "git_since_period", "type": "text" },
+        "selectedRepos": { "name": "selected_repos", "type": "text" },
+        "active": {
+          "name": "active",
+          "type": "integer",
+          "notNull": true,
+          "default": 1
+        },
+        "snoozedUntil": { "name": "snoozed_until", "type": "integer" },
+        "cancelledDate": { "name": "cancelled_date", "type": "text" },
+        "createdAt": {
+          "name": "created_at",
+          "type": "integer",
+          "notNull": true
+        },
+        "updatedAt": {
+          "name": "updated_at",
+          "type": "integer",
+          "notNull": true
+        },
+        "llmProvider": { "name": "llm_provider", "type": "text" },
+        "llmModel": { "name": "llm_model", "type": "text" },
+        "preferredLanguage": { "name": "preferred_language", "type": "text" },
+        "includePrivateRepos": {
+          "name": "include_private_repos",
+          "type": "integer"
+        }
+      },
+      "indexes": {
+        "user_settings_user_id_unique": {
+          "name": "user_settings_user_id_unique",
+          "columns": ["userId"],
+          "unique": true
+        }
+      },
+      "foreignKeys": {
+        "user_settings_user_id_fk": {
+          "name": "user_settings_user_id_fk",
+          "columns": ["userId"],
+          "referencedTable": "user",
+          "referencedColumns": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "verification": {
+      "name": "verification",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true },
+        "identifier": { "name": "identifier", "type": "text", "notNull": true },
+        "value": { "name": "value", "type": "text", "notNull": true },
+        "expiresAt": {
+          "name": "expires_at",
+          "type": "integer",
+          "notNull": true
+        },
+        "createdAt": { "name": "created_at", "type": "integer" },
+        "updatedAt": { "name": "updated_at", "type": "integer" }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "weekly_digests": {
+      "name": "weekly_digests",
+      "columns": {
+        "id": { "name": "id", "type": "text", "primaryKey": true },
+        "userId": { "name": "user_id", "type": "text", "notNull": true },
+        "weekStart": { "name": "week_start", "type": "text", "notNull": true },
+        "weekEnd": { "name": "week_end", "type": "text", "notNull": true },
+        "content": { "name": "content", "type": "text", "notNull": true },
+        "standupCount": {
+          "name": "standup_count",
+          "type": "integer",
+          "notNull": true
+        },
+        "status": { "name": "status", "type": "text", "notNull": true },
+        "sentAt": { "name": "sent_at", "type": "integer" },
+        "createdAt": {
+          "name": "created_at",
+          "type": "integer",
+          "notNull": true
+        },
+        "updatedAt": {
+          "name": "updated_at",
+          "type": "integer",
+          "notNull": true
+        },
+        "errorMessage": { "name": "error_message", "type": "text" }
+      },
+      "indexes": {
+        "weekly_digests_user_week_unique": {
+          "name": "weekly_digests_user_week_unique",
+          "columns": ["userId", "weekStart"],
+          "unique": true
+        }
+      },
+      "foreignKeys": {
+        "weekly_digests_user_id_fk": {
+          "name": "weekly_digests_user_id_fk",
+          "columns": ["userId"],
+          "referencedTable": "user",
+          "referencedColumns": ["id"],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "_meta": {
+    "tables": {},
+    "columns": {}
+  }
+}

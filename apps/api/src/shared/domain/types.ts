@@ -24,10 +24,10 @@ export interface WeeklyDigestRecord {
 
 export type StandupStatus =
   | 'draft'
+  | 'delivery_pending'
   | 'pending_review'
   | 'approved'
   | 'rejected'
-  | 'published'
 
 export interface CommitInfo {
   hash: string

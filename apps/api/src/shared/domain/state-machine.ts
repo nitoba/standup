@@ -3,11 +3,11 @@ import { InvalidStateTransitionError } from './errors'
 import type { StandupStatus } from './types'
 
 const ALLOWED_TRANSITIONS: Record<StandupStatus, StandupStatus[]> = {
-  draft: ['pending_review'],
+  draft: ['delivery_pending'],
+  delivery_pending: ['pending_review', 'draft'],
   pending_review: ['approved', 'rejected', 'draft'],
-  approved: ['published'],
+  approved: [],
   rejected: ['draft'],
-  published: [],
 }
 
 export function transitionStandupStatus(

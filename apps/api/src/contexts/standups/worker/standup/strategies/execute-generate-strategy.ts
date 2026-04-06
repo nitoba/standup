@@ -1,4 +1,3 @@
-import type { Agent } from '@mariozechner/pi-agent-core'
 import { Injectable } from '@nestjs/common'
 import { Span } from 'nestjs-otel'
 import { StandupReadRepository } from '../../../../../platform/database/repositories/standup-read.repository'
@@ -11,8 +10,9 @@ import type {
 } from '../../../../../shared/domain'
 import { Result } from '../../../../../shared/domain'
 import { AzureDevopsActivityCollectorService } from '../../azure-devops/azure-devops-activity-collector.service'
+import { AzureDevopsEnrichmentService } from '../../azure-devops/azure-devops-enrichment.service'
+import type { EnrichedGitActivity } from '../../azure-devops/types'
 import { GitCollectorService } from '../../git-collector/git-collector.service'
-import { AgentSessionManager } from '../../standup-agent/agent-session-manager'
 import { StandupAgentService } from '../../standup-agent/standup-agent.service'
 import { StandupPromptService } from '../../standup-generator/standup-prompt.service'
 import type {
@@ -29,11 +29,11 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
     private readonly loggerFactory: AppLoggerFactory,
     private readonly gitCollector: GitCollectorService,
     private readonly boardCollector: AzureDevopsActivityCollectorService,
+    private readonly enrichmentService: AzureDevopsEnrichmentService,
     private readonly tracing: AppTracingService,
     private readonly standupReadRepo: StandupReadRepository,
     private readonly localDateService: LocalDateService,
     private readonly standupAgent: StandupAgentService,
-    private readonly sessionManager: AgentSessionManager,
     private readonly standupPrompt: StandupPromptService,
   ) {
     super()
@@ -132,6 +132,31 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
       }
     }
 
+    // --- Enrich git activity with Azure DevOps work items and PRs ---
+    let enrichedActivity: EnrichedGitActivity | undefined
+    if (gitActivity) {
+      await this.reportStage(
+        reportProgress,
+        'enriching_data',
+        'Enriquecendo commits com dados do Azure DevOps',
+      )
+      const enrichResult = await this.enrichmentService.enrichGitActivity(
+        gitActivity,
+        options.azureDevopsUuid,
+      )
+      if (enrichResult.isOk()) {
+        enrichedActivity = enrichResult.value
+      } else {
+        this.logger.warn(
+          'Azure DevOps enrichment failed, continuing without enrichment',
+          {
+            userId: options.userId,
+            error: enrichResult.error.message,
+          },
+        )
+      }
+    }
+
     // --- Collect board activity ---
     if (hasBoardSource) {
       await this.reportStage(
@@ -181,11 +206,6 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
     // --- Generate standup ---
     const meetingType = this.standupPrompt.determineMeetingType(today)
 
-    // Destroy old agent session on regenerate
-    if (options.replaceStandupId) {
-      this.sessionManager.destroy(options.replaceStandupId)
-    }
-
     const generated = await this.tracing.withSpan(
       'standup.agent.generate',
       { 'standup.meeting_type': meetingType, 'standup.mode': 'agent' },
@@ -194,6 +214,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
           date: today,
           meetingType,
           gitActivity: gitActivity ?? undefined,
+          enrichedActivity,
           boardActivity: boardActivity ?? undefined,
           extraContext: options.extraContext?.trim() || undefined,
           azureDevopsUuid: options.azureDevopsUuid,
@@ -205,7 +226,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
                 : 'generating_standup',
               stage === 'enriching_data'
                 ? 'Enriquecendo contexto para o standup'
-                : 'Gerando texto do standup (PI Agent)',
+                : 'Gerando texto do standup',
             )
           },
           onContentDelta: (partialContent) => {
@@ -227,7 +248,6 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
       content: generated.value.content,
       meetingType,
       sourceData: JSON.stringify({ git: gitActivity, board: boardActivity }),
-      agent: generated.value.agent as Agent,
     })
   }
 }

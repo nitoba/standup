@@ -1,5 +1,5 @@
-import { Agent, type AgentMessage } from '@mariozechner/pi-agent-core'
-import { Injectable } from '@nestjs/common'
+import type { Agent } from '@mastra/core/agent'
+import { Inject, Injectable } from '@nestjs/common'
 import { AppLoggerFactory } from '../../../../platform/logger'
 import type {
   GeneratedStandup,
@@ -12,21 +12,16 @@ import {
   Result,
 } from '../../../../shared/domain'
 import type { EnrichedGitActivity } from '../azure-devops/types'
+import type { ModelSelection } from '../standup-generator/llm-provider-registry'
 import { LlmProviderRegistry } from '../standup-generator/llm-provider-registry'
 import {
   MAX_STANDUP_CONTENT_CHARS,
   StandupPromptService,
 } from '../standup-generator/standup-prompt.service'
-import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
-import { AgentSessionManager } from './agent-session-manager'
-import { buildSeedMessages } from './build-seed-messages'
-import { toPiAiModel } from './pi-ai-model-adapter'
-import {
-  extractSubmitStandupResult,
-  submitStandupTool,
-} from './submit-standup.tool'
+import { MASTRA_STANDUP_AGENT } from './mastra/mastra.provider'
+import { standupOutputSchema } from './mastra/standup-output.schema'
 
-type GeneratorStage = 'enriching_data' | 'generating_standup'
+export type GeneratorStage = 'enriching_data' | 'generating_standup'
 
 export interface AgentGenerateInput {
   date: string
@@ -50,10 +45,6 @@ export interface AgentAdjustInput {
   onContentDelta?: (partialContent: string) => void
 }
 
-export interface AgentGenerateResult extends GeneratedStandup {
-  agent: Agent
-}
-
 const AGENT_TIMEOUT_MS = 60_000
 
 @Injectable()
@@ -64,31 +55,16 @@ export class StandupAgentService {
     private readonly loggerFactory: AppLoggerFactory,
     private readonly standupPrompt: StandupPromptService,
     private readonly llmRegistry: LlmProviderRegistry,
-    private readonly runtimeConfig: WorkerRuntimeConfigService,
-    private readonly sessionManager: AgentSessionManager,
+    @Inject(MASTRA_STANDUP_AGENT) private readonly agent: Agent,
   ) {
     this.logger = this.loggerFactory.create('standup-agent')
-  }
-
-  /**
-   * Resolves API keys for pi-ai providers.
-   * pi-ai expects GEMINI_API_KEY for Google, but our config uses GOOGLE_API_KEY.
-   */
-  private resolveApiKey(provider: string): string | undefined {
-    const config = this.runtimeConfig.config
-    const keyMap: Record<string, string> = {
-      google: config.GOOGLE_API_KEY,
-      groq: config.GROQ_API_KEY,
-      openrouter: config.OPENROUTER_API_KEY,
-    }
-    return keyMap[provider]
   }
 
   async generate(
     input: AgentGenerateInput,
   ): Promise<
     Result<
-      AgentGenerateResult,
+      GeneratedStandup,
       ExternalServiceError | AllProvidersUnavailableError
     >
   > {
@@ -111,143 +87,50 @@ export class StandupAgentService {
       input.enrichedActivity,
     )
 
-    const totalModels = this.llmRegistry.totalModels
-    let lastError: unknown
-
-    // Single attempt per model (no inner retry). Agent calls create stateful sessions
-    // which are more expensive than one-shot generateText. Retry at the model level
-    // (via the outer loop) is sufficient for Phase 1.
-    for (let i = 0; i < totalModels; i++) {
-      let selection: ReturnType<LlmProviderRegistry['getNextModel']>
-      try {
-        selection = this.llmRegistry.getNextModel()
-      } catch (error) {
-        if (error instanceof AllProvidersUnavailableError) {
-          return Result.err(error)
-        }
-        throw error
+    return this.callWithModelFallback(async (modelString) => {
+      const baseOptions = {
+        instructions: systemPrompt,
+        model: modelString,
+        providerOptions: {
+          google: { structuredOutputs: true },
+        },
       }
 
-      const { modelKey, provider, tier } = selection
-
-      try {
-        this.logger.info('Calling PI Agent', {
-          model: modelKey,
-          provider,
-          tier,
-        })
-
-        const piModel = toPiAiModel({ provider, modelKey })
-        const agent = new Agent({
-          initialState: {
-            systemPrompt,
-            model: piModel,
-            tools: [submitStandupTool],
-            messages: [],
-          },
-          getApiKey: (p) => this.resolveApiKey(p),
-        })
-
-        const unsubscribe = this.subscribeToContentDeltas(
-          agent,
-          input.onContentDelta,
-        )
-
+      // Try streaming for content deltas
+      if (input.onContentDelta) {
         try {
-          let timeoutHandle: ReturnType<typeof setTimeout> | undefined
-          await Promise.race([
-            agent.prompt(userMessage),
-            new Promise<never>((_, reject) => {
-              timeoutHandle = setTimeout(
-                () => reject(new Error('Agent prompt timed out')),
-                AGENT_TIMEOUT_MS,
-              )
-            }),
-          ]).finally(() => clearTimeout(timeoutHandle))
+          const stream = await this.agent.stream(userMessage, {
+            ...baseOptions,
+            structuredOutput: { schema: standupOutputSchema },
+          })
+          let hasChunks = false
 
-          const result = extractSubmitStandupResult(agent.state.messages)
-          if (!result) {
-            this.logger.warn('Agent did not call submit_standup tool', {
-              model: modelKey,
-              provider,
-            })
-            lastError = new Error('Agent did not call submit_standup tool')
-            continue
+          for await (const chunk of stream.textStream) {
+            hasChunks = true
+            input.onContentDelta(chunk)
           }
 
-          // Rewrite if content too long
-          if (result.content.length > MAX_STANDUP_CONTENT_CHARS) {
-            this.logger.info('Content exceeds limit, requesting rewrite', {
-              model: modelKey,
-              length: result.content.length,
-              limit: MAX_STANDUP_CONTENT_CHARS,
-            })
-
-            let rewriteTimeoutHandle: ReturnType<typeof setTimeout> | undefined
-            await Promise.race([
-              agent.prompt(
-                this.standupPrompt.buildRewriteUserMessage(
-                  result.content,
-                  result.summary,
-                ),
-              ),
-              new Promise<never>((_, reject) => {
-                rewriteTimeoutHandle = setTimeout(
-                  () => reject(new Error('Agent rewrite timed out')),
-                  AGENT_TIMEOUT_MS,
-                )
-              }),
-            ]).finally(() => clearTimeout(rewriteTimeoutHandle))
-
-            const rewriteResult = extractSubmitStandupResult(
-              agent.state.messages,
-            )
-            if (rewriteResult) {
-              this.llmRegistry.reportSuccess(modelKey)
-              return Result.ok({
-                content: rewriteResult.content.slice(
-                  0,
-                  MAX_STANDUP_CONTENT_CHARS,
-                ),
-                summary: rewriteResult.summary,
-                agent,
-              })
+          if (hasChunks) {
+            const result = await stream.object
+            if (result) {
+              return this.validateAndRewrite(result, modelString, systemPrompt)
             }
           }
-
-          this.llmRegistry.reportSuccess(modelKey)
-          return Result.ok({
-            content:
-              result.content.length > MAX_STANDUP_CONTENT_CHARS
-                ? result.content.slice(0, MAX_STANDUP_CONTENT_CHARS)
-                : result.content,
-            summary: result.summary,
-            agent,
+        } catch (streamError) {
+          this.logger.warn('Streaming failed, falling back to generate', {
+            error: String(streamError),
           })
-        } finally {
-          unsubscribe()
-        }
-      } catch (error) {
-        lastError = error
-        this.logger.warn('PI Agent generation failed', {
-          model: modelKey,
-          provider,
-          tier,
-          error: error instanceof Error ? error.message : String(error),
-        })
-
-        if (this.isRateLimitError(error)) {
-          this.llmRegistry.reportFailure(modelKey, error)
         }
       }
-    }
 
-    return Result.err(
-      new AllProvidersUnavailableError({
-        message: `PI Agent standup generation: all ${totalModels} models failed. Last error: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
-        modelsAttempted: totalModels,
-      }),
-    )
+      // Fallback: non-streaming generate
+      const response = await this.agentGenerate(userMessage, baseOptions)
+      const object = response.object as {
+        content: string
+        summary?: string
+      }
+      return this.validateAndRewrite(object, modelString, systemPrompt)
+    })
   }
 
   async adjust(
@@ -260,192 +143,39 @@ export class StandupAgentService {
   > {
     await input.onStageChange?.('generating_standup')
 
-    const existingAgent = this.sessionManager.get(input.standupId)
-
-    if (existingAgent) {
-      return this.adjustWithExistingAgent(existingAgent, input)
-    }
-
-    return this.adjustWithSeedAgent(input)
-  }
-
-  private async adjustWithExistingAgent(
-    agent: Agent,
-    input: AgentAdjustInput,
-  ): Promise<
-    Result<
-      GeneratedStandup,
-      ExternalServiceError | AllProvidersUnavailableError
-    >
-  > {
-    const adjustPrompt = input.extraContext
-      ? `${input.instruction}\n\nContexto adicional: ${input.extraContext}`
-      : input.instruction
-
-    const unsubscribe = this.subscribeToContentDeltas(
-      agent,
-      input.onContentDelta,
+    const adjustMessage = this.standupPrompt.buildAdjustUserMessage(
+      input.previousContent,
+      input.instruction,
+      input.extraContext,
     )
 
-    try {
-      let timeoutHandle: ReturnType<typeof setTimeout> | undefined
-      await Promise.race([
-        agent.prompt(adjustPrompt),
-        new Promise<never>((_, reject) => {
-          timeoutHandle = setTimeout(
-            () => reject(new Error('Agent adjust timed out')),
-            AGENT_TIMEOUT_MS,
-          )
-        }),
-      ]).finally(() => clearTimeout(timeoutHandle))
-
-      const result = extractSubmitStandupResult(agent.state.messages)
-      if (!result) {
-        return Result.err(
-          new ExternalServiceError({
-            service: 'pi-agent',
-            message: 'Agent did not call submit_standup tool during adjust',
-          }),
-        )
-      }
-
-      return Result.ok({
-        content:
-          result.content.length > MAX_STANDUP_CONTENT_CHARS
-            ? result.content.slice(0, MAX_STANDUP_CONTENT_CHARS)
-            : result.content,
-        summary: result.summary,
-      })
-    } catch (error) {
-      return Result.err(
-        new ExternalServiceError({
-          service: 'pi-agent',
-          message: `Agent adjust failed: ${error instanceof Error ? error.message : String(error)}`,
-        }),
-      )
-    } finally {
-      unsubscribe()
-    }
-  }
-
-  private async adjustWithSeedAgent(
-    input: AgentAdjustInput,
-  ): Promise<
-    Result<
-      GeneratedStandup,
-      ExternalServiceError | AllProvidersUnavailableError
-    >
-  > {
     const systemPrompt = this.standupPrompt.buildSystemPrompt({
       hasGit: true,
       hasBoard: false,
     })
 
-    const seedMessages = buildSeedMessages({
-      content: input.previousContent,
-      summary: input.previousSummary,
+    return this.callWithModelFallback(async (modelString) => {
+      const response = await this.agentGenerate(adjustMessage, {
+        instructions: systemPrompt,
+        model: modelString,
+        providerOptions: {
+          google: { structuredOutputs: true },
+        },
+      })
+
+      const object = response.object as {
+        content: string
+        summary?: string
+      }
+
+      return {
+        content:
+          object.content.length > MAX_STANDUP_CONTENT_CHARS
+            ? object.content.slice(0, MAX_STANDUP_CONTENT_CHARS)
+            : object.content,
+        summary: object.summary ?? '',
+      }
     })
-
-    const adjustPrompt = input.extraContext
-      ? `${input.instruction}\n\nContexto adicional: ${input.extraContext}`
-      : input.instruction
-
-    const totalModels = this.llmRegistry.totalModels
-    let lastError: unknown
-
-    for (let i = 0; i < totalModels; i++) {
-      let selection: ReturnType<LlmProviderRegistry['getNextModel']>
-      try {
-        selection = this.llmRegistry.getNextModel()
-      } catch (error) {
-        if (error instanceof AllProvidersUnavailableError) {
-          return Result.err(error)
-        }
-        throw error
-      }
-
-      const { modelKey, provider, tier } = selection
-
-      try {
-        this.logger.info('Creating seed agent for adjust', {
-          model: modelKey,
-          provider,
-          tier,
-          standupId: input.standupId,
-        })
-
-        const piModel = toPiAiModel({ provider, modelKey })
-        const agent = new Agent({
-          initialState: {
-            systemPrompt,
-            model: piModel,
-            tools: [submitStandupTool],
-            messages: seedMessages as AgentMessage[],
-          },
-          getApiKey: (p) => this.resolveApiKey(p),
-        })
-
-        const unsubscribe = this.subscribeToContentDeltas(
-          agent,
-          input.onContentDelta,
-        )
-
-        try {
-          let timeoutHandle: ReturnType<typeof setTimeout> | undefined
-          await Promise.race([
-            agent.prompt(adjustPrompt),
-            new Promise<never>((_, reject) => {
-              timeoutHandle = setTimeout(
-                () => reject(new Error('Agent seed adjust timed out')),
-                AGENT_TIMEOUT_MS,
-              )
-            }),
-          ]).finally(() => clearTimeout(timeoutHandle))
-
-          const result = extractSubmitStandupResult(agent.state.messages)
-          if (!result) {
-            this.logger.warn('Seed agent did not call submit_standup', {
-              model: modelKey,
-              provider,
-            })
-            lastError = new Error('Agent did not call submit_standup tool')
-            continue
-          }
-
-          this.llmRegistry.reportSuccess(modelKey)
-          this.sessionManager.create(input.standupId, agent)
-
-          return Result.ok({
-            content:
-              result.content.length > MAX_STANDUP_CONTENT_CHARS
-                ? result.content.slice(0, MAX_STANDUP_CONTENT_CHARS)
-                : result.content,
-            summary: result.summary,
-          })
-        } finally {
-          unsubscribe()
-        }
-      } catch (error) {
-        lastError = error
-        this.logger.warn('Seed agent adjust failed', {
-          model: modelKey,
-          provider,
-          tier,
-          error: error instanceof Error ? error.message : String(error),
-        })
-
-        if (this.isRateLimitError(error)) {
-          this.llmRegistry.reportFailure(modelKey, error)
-        }
-      }
-    }
-
-    return Result.err(
-      new AllProvidersUnavailableError({
-        message: `PI Agent adjust: all ${totalModels} models failed. Last error: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
-        modelsAttempted: totalModels,
-      }),
-    )
   }
 
   async generateWeeklyInsights(
@@ -456,7 +186,7 @@ export class StandupAgentService {
     if (standups.length === 0) {
       return Result.err(
         new ExternalServiceError({
-          service: 'pi-agent',
+          service: 'llm',
           message: 'No standups provided for weekly insights generation',
         }),
       )
@@ -466,11 +196,105 @@ export class StandupAgentService {
     const userMessage =
       this.standupPrompt.buildWeeklyInsightsUserMessage(standups)
 
-    const totalModels = this.llmRegistry.totalModels
-    let lastError: unknown
+    return this.callWithModelFallback(async (modelString) => {
+      const response = await this.agent.generate(userMessage, {
+        instructions: systemPrompt,
+        model: modelString,
+      })
 
-    for (let i = 0; i < totalModels; i++) {
-      let selection: ReturnType<LlmProviderRegistry['getNextModel']>
+      return response.text
+    })
+  }
+
+  // --- Private helpers ---
+
+  private isJsonSchemaUnsupportedError(error: unknown): boolean {
+    const msg = error instanceof Error ? error.message : String(error)
+    return (
+      msg.includes('json_schema') &&
+      msg.toLowerCase().includes('response format')
+    )
+  }
+
+  /**
+   * Calls agent.generate with structuredOutput, falling back to jsonPromptInjection
+   * if the model does not support the response_format API parameter.
+   */
+  private async agentGenerate(
+    message: string,
+    options: Record<string, unknown>,
+  ) {
+    try {
+      return await this.agent.generate(message, {
+        ...options,
+        structuredOutput: { schema: standupOutputSchema },
+      })
+    } catch (error) {
+      if (!this.isJsonSchemaUnsupportedError(error)) throw error
+
+      this.logger.warn(
+        'Model does not support json_schema, retrying with jsonPromptInjection',
+        {
+          model: options.model,
+        },
+      )
+      return await this.agent.generate(message, {
+        ...options,
+        structuredOutput: {
+          schema: standupOutputSchema,
+          jsonPromptInjection: true,
+        },
+      })
+    }
+  }
+
+  private async validateAndRewrite(
+    output: { content: string; summary?: string },
+    modelString: string,
+    systemPrompt: string,
+  ): Promise<GeneratedStandup> {
+    let { content } = output
+    let summary = output.summary ?? ''
+
+    if (content.length > MAX_STANDUP_CONTENT_CHARS) {
+      this.logger.info('Content exceeds limit, requesting rewrite', {
+        length: content.length,
+        limit: MAX_STANDUP_CONTENT_CHARS,
+      })
+
+      const rewriteMessage = this.standupPrompt.buildRewriteUserMessage(
+        content,
+        summary,
+      )
+
+      const rewriteResponse = await this.agentGenerate(rewriteMessage, {
+        instructions: systemPrompt,
+        model: modelString,
+        providerOptions: {
+          google: { structuredOutputs: true },
+        },
+      })
+
+      const rewriteObject = rewriteResponse.object as {
+        content: string
+        summary: string
+      }
+      content = rewriteObject.content.slice(0, MAX_STANDUP_CONTENT_CHARS)
+      summary = rewriteObject.summary ?? summary
+    }
+
+    return { content, summary }
+  }
+
+  private async callWithModelFallback<T>(
+    fn: (modelString: string) => Promise<T>,
+  ): Promise<Result<T, ExternalServiceError | AllProvidersUnavailableError>> {
+    const maxAttempts = this.llmRegistry.totalModels
+    let lastError: Error | undefined
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      let selection: ModelSelection
+
       try {
         selection = this.llmRegistry.getNextModel()
       } catch (error) {
@@ -480,179 +304,41 @@ export class StandupAgentService {
         throw error
       }
 
-      const { modelKey, provider, tier } = selection
+      const modelString = this.llmRegistry.toMastraModelString(selection)
+      this.logger.info('Attempting generation', {
+        model: modelString,
+        attempt: attempt + 1,
+      })
 
       try {
-        this.logger.info('Calling PI Agent for weekly insights', {
-          model: modelKey,
-          provider,
-          tier,
-        })
-
-        const piModel = toPiAiModel({ provider, modelKey })
-        const agent = new Agent({
-          initialState: {
-            systemPrompt,
-            model: piModel,
-            tools: [],
-            messages: [],
-          },
-          getApiKey: (p) => this.resolveApiKey(p),
-        })
-
-        let timeoutHandle: ReturnType<typeof setTimeout> | undefined
-        await Promise.race([
-          agent.prompt(userMessage),
-          new Promise<never>((_, reject) => {
-            timeoutHandle = setTimeout(
-              () => reject(new Error('Agent weekly insights timed out')),
+        const result = await Promise.race([
+          fn(modelString),
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () => reject(new Error('Agent timeout')),
               AGENT_TIMEOUT_MS,
-            )
-          }),
-        ]).finally(() => clearTimeout(timeoutHandle))
+            ),
+          ),
+        ])
 
-        const text = this.extractLastAssistantText(agent.state.messages)
-        if (!text) {
-          this.logger.warn('Agent produced no text for weekly insights', {
-            model: modelKey,
-            provider,
-          })
-          lastError = new Error('Agent produced no text')
-          continue
-        }
-
-        this.llmRegistry.reportSuccess(modelKey)
-        return Result.ok(text)
+        this.llmRegistry.reportSuccess(selection.modelKey)
+        return Result.ok(result)
       } catch (error) {
-        lastError = error
-        this.logger.warn('PI Agent weekly insights failed', {
-          model: modelKey,
-          provider,
-          tier,
-          error: error instanceof Error ? error.message : String(error),
+        this.logger.warn('Model attempt failed', {
+          model: modelString,
+          attempt: attempt + 1,
+          error: String(error),
         })
-
-        if (this.isRateLimitError(error)) {
-          this.llmRegistry.reportFailure(modelKey, error)
-        }
+        this.llmRegistry.reportFailure(selection.modelKey, error)
+        lastError = error instanceof Error ? error : new Error(String(error))
       }
     }
 
     return Result.err(
-      new AllProvidersUnavailableError({
-        message: `PI Agent weekly insights: all ${totalModels} models failed. Last error: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
-        modelsAttempted: totalModels,
+      new ExternalServiceError({
+        service: 'llm',
+        message: `All models failed: ${lastError?.message}`,
       }),
     )
-  }
-
-  private extractLastAssistantText(messages: AgentMessage[]): string | null {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i]
-      if (
-        msg &&
-        'role' in msg &&
-        (msg as { role: string }).role === 'assistant'
-      ) {
-        const content = (
-          msg as {
-            role: string
-            content: Array<{ type: string; text?: string }>
-          }
-        ).content
-        const textParts = content
-          .filter((c) => c.type === 'text' && typeof c.text === 'string')
-          .map((c) => c.text as string)
-        const joined = textParts.join('').trim()
-        if (joined) return joined
-      }
-    }
-    return null
-  }
-
-  private subscribeToContentDeltas(
-    agent: Agent,
-    onContentDelta?: (partialContent: string) => void,
-  ): () => void {
-    if (!onContentDelta) return () => {}
-
-    let accumulatedArgs = ''
-    let isSubmitStandupCall = false
-
-    return agent.subscribe((event) => {
-      if (event.type !== 'message_update') return
-
-      const msgEvent = event.assistantMessageEvent
-
-      if (msgEvent.type === 'toolcall_start') {
-        const partial = msgEvent.partial
-        const lastContent = partial.content[msgEvent.contentIndex]
-        if (
-          lastContent &&
-          'name' in lastContent &&
-          lastContent.name === 'submit_standup'
-        ) {
-          isSubmitStandupCall = true
-          accumulatedArgs = ''
-        }
-      }
-
-      if (msgEvent.type === 'toolcall_delta' && isSubmitStandupCall) {
-        accumulatedArgs += msgEvent.delta
-        const content = this.extractPartialContent(accumulatedArgs)
-        if (content) {
-          onContentDelta(content)
-        }
-      }
-
-      if (msgEvent.type === 'toolcall_end') {
-        isSubmitStandupCall = false
-        accumulatedArgs = ''
-      }
-    })
-  }
-
-  private extractPartialContent(partialJson: string): string | null {
-    // Try full parse first
-    try {
-      const parsed = JSON.parse(partialJson)
-      if (typeof parsed.content === 'string') return parsed.content
-    } catch {
-      // Expected — JSON is incomplete
-    }
-
-    // Regex for partial JSON: find "content":"..." even if unclosed
-    const match = partialJson.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)/)
-    if (match?.[1]) {
-      return match[1]
-        .replace(/\\n/g, '\n')
-        .replace(/\\"/g, '"')
-        .replace(/\\\\/g, '\\')
-    }
-
-    return null
-  }
-
-  private isRateLimitError(error: unknown): boolean {
-    if (
-      error != null &&
-      typeof error === 'object' &&
-      'statusCode' in error &&
-      (error as { statusCode: number }).statusCode === 429
-    ) {
-      return true
-    }
-    if (
-      error != null &&
-      typeof error === 'object' &&
-      'cause' in error &&
-      (error as { cause: { status?: number } }).cause?.status === 429
-    ) {
-      return true
-    }
-    if (error instanceof Error && /rate.?limit/i.test(error.message)) {
-      return true
-    }
-    return false
   }
 }

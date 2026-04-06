@@ -6,7 +6,7 @@ export interface WorkerRuntimeConfig {
   DATABASE_AUTH_TOKEN?: string
   REPOS_ROOT_PATH: string
   SCHEDULER_ENABLED: boolean
-  GOOGLE_API_KEY: string
+  GOOGLE_GENERATIVE_AI_API_KEY: string
   GROQ_API_KEY: string
   OPENROUTER_API_KEY: string
   LLM_PROVIDERS_CONFIG: string
@@ -26,7 +26,7 @@ export class WorkerRuntimeConfigService {
       DATABASE_AUTH_TOKEN: this.env.database.authToken,
       REPOS_ROOT_PATH: this.env.worker.reposRootPath,
       SCHEDULER_ENABLED: this.env.worker.schedulerEnabled,
-      GOOGLE_API_KEY: this.env.worker.googleApiKey ?? '',
+      GOOGLE_GENERATIVE_AI_API_KEY: this.env.worker.googleApiKey ?? '',
       GROQ_API_KEY: this.env.worker.groqApiKey ?? '',
       OPENROUTER_API_KEY: this.env.worker.openrouterApiKey ?? '',
       LLM_PROVIDERS_CONFIG: this.env.worker.llmProvidersConfig ?? '[]',

@@ -69,16 +69,12 @@ export class AzureDevopsActivityCollectorService {
     sincePeriod: string,
   ): Promise<GatheredBoardActivity | null> {
     const projects = this.runtimeConfig.config.AZURE_DEVOPS_PROJECTS
-    const allWorkItems: BoardWorkItemActivity[] = []
-
-    for (const project of projects) {
-      const items = await this.collectForProject(
-        project,
-        azureDevopsUser,
-        sincePeriod,
-      )
-      allWorkItems.push(...items)
-    }
+    const projectResults = await Promise.all(
+      projects.map((project) =>
+        this.collectForProject(project, azureDevopsUser, sincePeriod),
+      ),
+    )
+    const allWorkItems = projectResults.flat()
 
     if (allWorkItems.length === 0) {
       return null
@@ -152,10 +148,16 @@ export class AzureDevopsActivityCollectorService {
       return []
     }
 
+    const updatesResults = await Promise.all(
+      itemsResult.value.map(async (item) => {
+        const updatesResult = await this.restClient.getWorkItemUpdates(item.id)
+        return { item, updatesResult }
+      }),
+    )
+
     const workItems: BoardWorkItemActivity[] = []
 
-    for (const item of itemsResult.value) {
-      const updatesResult = await this.restClient.getWorkItemUpdates(item.id)
+    for (const { item, updatesResult } of updatesResults) {
       if (updatesResult.isErr()) {
         this.logger.warn(
           `Failed to fetch updates for work item ${item.id}: ${updatesResult.error.message}`,

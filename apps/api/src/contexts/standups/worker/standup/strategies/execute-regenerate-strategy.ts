@@ -5,7 +5,7 @@ import {
   Result,
   ValidationError,
 } from '../../../../../shared/domain'
-import { StandupGeneratorService } from '../../standup-generator/standup-generator.service'
+import { StandupAgentService } from '../../standup-agent/standup-agent.service'
 import type {
   GeneratedContent,
   StrategyExecutionInput,
@@ -17,7 +17,7 @@ import { StandupStrategyBase } from './standup-strategy.base'
 export class ExecuteRegenerateStrategy extends StandupStrategyBase {
   constructor(
     private readonly standupRepository: StandupReadRepository,
-    private readonly standupGenerator: StandupGeneratorService,
+    private readonly standupAgent: StandupAgentService,
   ) {
     super()
   }
@@ -48,15 +48,13 @@ export class ExecuteRegenerateStrategy extends StandupStrategyBase {
       return sourceData
     }
 
-    const regenerated = await this.standupGenerator.generateStandup(
-      {
-        date: today,
-        meetingType: existingResult.value.meetingType,
-        gitActivity: sourceData.value.git ?? undefined,
-        boardActivity: sourceData.value.board ?? undefined,
-        extraContext: options.extraContext?.trim() || undefined,
-      },
-      async (stage) => {
+    const regenerated = await this.standupAgent.generate({
+      date: today,
+      meetingType: existingResult.value.meetingType,
+      gitActivity: sourceData.value.git ?? undefined,
+      boardActivity: sourceData.value.board ?? undefined,
+      extraContext: options.extraContext?.trim() || undefined,
+      onStageChange: async (stage) => {
         if (stage === 'enriching_data') {
           await this.reportStage(
             reportProgress,
@@ -72,7 +70,7 @@ export class ExecuteRegenerateStrategy extends StandupStrategyBase {
           'Gerando standup a partir da base existente',
         )
       },
-    )
+    })
 
     if (regenerated.isErr()) {
       return regenerated

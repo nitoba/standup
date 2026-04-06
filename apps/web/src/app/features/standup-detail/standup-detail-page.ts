@@ -40,7 +40,6 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
     SidebarLayout,
     RouterLink,
     ZardButtonComponent,
-    ZardIconComponent,
     JsonViewerComponent,
     StandupDetailSkeleton,
     DiscordFormatPipe,
@@ -221,28 +220,6 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
                 (click)="openRegenerateModal(detail.id)"
               >
                 $ regenerar
-              </button>
-            }
-            @if (isApproved(detail.status)) {
-              <button
-                type="button"
-                z-button
-                zType="default"
-                class="w-full md:w-auto"
-                [zLoading]="actionLoading()"
-                [zDisabled]="actionLoading()"
-                (click)="handleSendToDiscord(detail)"
-              >
-                @if (!actionLoading()) {
-                  <z-icon zType="send" zSize="sm" class="mr-2" />
-                }
-                {{
-                  actionLoading()
-                    ? 'Enviando...'
-                    : detail.sentToDiscordAt
-                      ? 'Reenviar para Discord'
-                      : 'Enviar para Discord'
-                }}
               </button>
             }
           </div>

@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common'
 import { ExternalServiceError, Result } from '../../../../shared/domain'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
-import type { WorkItemResponse, WorkItemUpdate } from './types'
+import type {
+  PullRequestDetail,
+  RepoInfo,
+  WorkItemResponse,
+  WorkItemUpdate,
+} from './types'
 
 const BATCH_SIZE = 200
 
@@ -55,30 +60,30 @@ export class AzureDevopsRestClientService {
 
     return Result.tryPromise({
       try: async () => {
-        const allItems: WorkItemResponse[] = []
+        const fieldsParam = fields.join(',')
+        const batches: Promise<WorkItemResponse[]>[] = []
 
         for (let i = 0; i < ids.length; i += BATCH_SIZE) {
           const batchIds = ids.slice(i, i + BATCH_SIZE)
           const idsParam = batchIds.join(',')
-          const fieldsParam = fields.join(',')
           const url = `${this.baseUrl}/_apis/wit/workitems?ids=${idsParam}&fields=${fieldsParam}&api-version=7.1`
 
-          const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-              Authorization: this.authHeader,
-            },
-          })
-
-          await this.assertOk(response)
-
-          const data = (await response.json()) as {
-            value: WorkItemResponse[]
-          }
-          allItems.push(...data.value)
+          batches.push(
+            fetch(url, {
+              method: 'GET',
+              headers: { Authorization: this.authHeader },
+            }).then(async (response) => {
+              await this.assertOk(response)
+              const data = (await response.json()) as {
+                value: WorkItemResponse[]
+              }
+              return data.value
+            }),
+          )
         }
 
-        return allItems
+        const results = await Promise.all(batches)
+        return results.flat()
       },
       catch: (error) => this.toError('getWorkItemsBatch', error),
     })
@@ -106,6 +111,89 @@ export class AzureDevopsRestClientService {
       },
       catch: (error) => this.toError('getWorkItemUpdates', error),
     })
+  }
+
+  async listPullRequests(
+    repositoryId: string,
+  ): Promise<Result<PullRequestDetail[], ExternalServiceError>> {
+    const { AZURE_DEVOPS_DEFAULT_PROJECT } = this.runtimeConfig.config
+
+    return Result.tryPromise({
+      try: async () => {
+        const url = `${this.baseUrl}/${AZURE_DEVOPS_DEFAULT_PROJECT}/_apis/git/repositories/${repositoryId}/pullrequests?searchCriteria.status=all&api-version=7.1`
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: { Authorization: this.authHeader },
+        })
+
+        await this.assertOk(response)
+
+        const data = (await response.json()) as {
+          value: Array<{
+            pullRequestId?: number
+            title?: string
+            status?: string
+            repository?: { id?: string }
+            createdBy?: { id?: string }
+          }>
+        }
+
+        return data.value
+          .filter((pr) => typeof pr.pullRequestId === 'number')
+          .map((pr) => ({
+            id: pr.pullRequestId ?? 0,
+            title: pr.title ?? '',
+            status: this.normalizePullRequestStatus(pr.status),
+            repoId: pr.repository?.id ?? repositoryId,
+            creatorId: pr.createdBy?.id ?? '',
+          }))
+      },
+      catch: (error) => this.toError('listPullRequests', error),
+    })
+  }
+
+  async listRepositories(
+    project: string,
+  ): Promise<Result<RepoInfo[], ExternalServiceError>> {
+    return Result.tryPromise({
+      try: async () => {
+        const url = `${this.baseUrl}/${project}/_apis/git/repositories?api-version=7.1`
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: { Authorization: this.authHeader },
+        })
+
+        await this.assertOk(response)
+
+        const data = (await response.json()) as {
+          value: Array<{
+            id?: string
+            name?: string
+            project?: { name?: string }
+          }>
+        }
+
+        return data.value
+          .filter(
+            (repo) =>
+              typeof repo.id === 'string' && typeof repo.name === 'string',
+          )
+          .map((repo) => ({
+            id: repo.id ?? '',
+            name: repo.name ?? '',
+            project: repo.project?.name ?? project,
+          }))
+      },
+      catch: (error) => this.toError('listRepositories', error),
+    })
+  }
+
+  private normalizePullRequestStatus(
+    status: string | undefined,
+  ): 'active' | 'completed' | 'abandoned' {
+    if (status === 'completed') return 'completed'
+    if (status === 'abandoned') return 'abandoned'
+    return 'active'
   }
 
   async resolveIdentity(

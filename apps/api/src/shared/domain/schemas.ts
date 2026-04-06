@@ -27,10 +27,10 @@ export const WeeklyDigestRecordSchema = z.object({
 
 export const StandupStatusSchema = z.enum([
   'draft',
+  'delivery_pending',
   'pending_review',
   'approved',
   'rejected',
-  'published',
 ])
 
 export const CustomEntriesSchema = z.object({

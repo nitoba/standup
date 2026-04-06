@@ -85,10 +85,6 @@ export class DiscordServiceHealthService {
             throw new Error('DISCORD_BOT_TOKEN not configured')
           }
 
-          if (!this.env.discord.channelId) {
-            throw new Error('DISCORD_CHANNEL_ID not configured')
-          }
-
           if (!this.messages.isReady()) {
             throw new Error('Discord gateway not ready')
           }

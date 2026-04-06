@@ -28,10 +28,10 @@ import { StandupsQueryService } from './standups-query.service'
 
 const STANDUP_STATUS_QUERY = {
   draft: 'draft',
+  delivery_pending: 'delivery_pending',
   pending_review: 'pending_review',
   approved: 'approved',
   rejected: 'rejected',
-  published: 'published',
 } as const
 
 const STANDUP_SORT_QUERY = {
