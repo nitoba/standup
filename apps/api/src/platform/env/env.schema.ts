@@ -28,7 +28,6 @@ export const environmentVariablesSchema = z.object({
   DISCORD_CLIENT_ID: z.string().optional(),
   DISCORD_CLIENT_SECRET: z.string().optional(),
   DISCORD_BOT_TOKEN: z.string().optional(),
-  DISCORD_CHANNEL_ID: z.string().optional(),
   DISCORD_GUILD_ID: z.string().optional(),
   DISCORD_GATEWAY_ENABLED: booleanFromEnv.default(true),
   SCHEDULER_ENABLED: booleanFromEnv.default(true),

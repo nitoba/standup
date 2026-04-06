@@ -37,7 +37,6 @@ export class EnvService {
     return {
       gatewayEnabled: this.get('DISCORD_GATEWAY_ENABLED'),
       token: this.get('DISCORD_BOT_TOKEN'),
-      channelId: this.get('DISCORD_CHANNEL_ID'),
       guildId: this.get('DISCORD_GUILD_ID'),
     }
   }
