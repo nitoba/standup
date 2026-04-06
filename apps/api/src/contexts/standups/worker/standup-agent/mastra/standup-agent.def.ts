@@ -8,7 +8,7 @@ export function createStandupAgent(memory: Memory): Agent {
     id: STANDUP_AGENT_ID,
     name: 'Standup Agent',
     instructions: '', // overridden per-call via generate/stream options
-    model: '', // overridden per-call via LlmProviderRegistry
+    model: 'google/gemini-3.1-flash-lite-preview', // overridden per-call via LlmProviderRegistry
     memory,
   })
 }
