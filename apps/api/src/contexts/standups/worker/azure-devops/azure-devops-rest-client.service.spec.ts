@@ -441,6 +441,106 @@ describe('AzureDevopsRestClientService', () => {
     })
   })
 
+  describe('listPullRequests', () => {
+    it('returns pull requests for a repository', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          value: [
+            {
+              pullRequestId: 1,
+              title: 'Add feature',
+              status: 'active',
+              repository: { id: 'repo-uuid' },
+              createdBy: { id: 'user-uuid' },
+            },
+            {
+              pullRequestId: 2,
+              title: 'Fix bug',
+              status: 'completed',
+              repository: { id: 'repo-uuid' },
+              createdBy: { id: 'other-uuid' },
+            },
+          ],
+        }),
+      })
+
+      const service = createService()
+      const result = await service.listPullRequests('my-repo')
+
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(2)
+        expect(result.value[0]).toEqual({
+          id: 1,
+          title: 'Add feature',
+          status: 'active',
+          repoId: 'repo-uuid',
+          creatorId: 'user-uuid',
+        })
+        expect(result.value[1]?.status).toBe('completed')
+      }
+    })
+
+    it('normalizes unknown status to active', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          value: [
+            {
+              pullRequestId: 3,
+              title: 'Draft',
+              status: 'notSet',
+              repository: { id: 'r' },
+              createdBy: { id: 'u' },
+            },
+          ],
+        }),
+      })
+
+      const service = createService()
+      const result = await service.listPullRequests('my-repo')
+
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value[0]?.status).toBe('active')
+      }
+    })
+
+    it('returns empty array when no pull requests exist', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ value: [] }),
+      })
+
+      const service = createService()
+      const result = await service.listPullRequests('my-repo')
+
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value).toEqual([])
+      }
+    })
+
+    it('returns ExternalServiceError on HTTP error', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        text: async () => 'Access denied',
+      })
+
+      const service = createService()
+      const result = await service.listPullRequests('my-repo')
+
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error._tag).toBe('ExternalServiceError')
+        expect(result.error.message).toContain('listPullRequests')
+      }
+    })
+  })
+
   describe('getWorkItemUpdates', () => {
     it('returns updates for a work item', async () => {
       mockFetch.mockResolvedValueOnce({

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { ExternalServiceError, Result } from '../../../../shared/domain'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
-import type { WorkItemDetail, WorkItemResponse, WorkItemUpdate } from './types'
+import type { PullRequestDetail, WorkItemDetail, WorkItemResponse, WorkItemUpdate } from './types'
 
 const BATCH_SIZE = 200
 
@@ -151,6 +151,53 @@ export class AzureDevopsRestClientService {
       },
       catch: (error) => this.toError('getWorkItem', error),
     })
+  }
+
+  async listPullRequests(
+    repositoryId: string,
+  ): Promise<Result<PullRequestDetail[], ExternalServiceError>> {
+    const { AZURE_DEVOPS_DEFAULT_PROJECT } = this.runtimeConfig.config
+
+    return Result.tryPromise({
+      try: async () => {
+        const url = `${this.baseUrl}/${AZURE_DEVOPS_DEFAULT_PROJECT}/_apis/git/repositories/${repositoryId}/pullrequests?searchCriteria.status=all&api-version=7.1`
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: { Authorization: this.authHeader },
+        })
+
+        await this.assertOk(response)
+
+        const data = (await response.json()) as {
+          value: Array<{
+            pullRequestId?: number
+            title?: string
+            status?: string
+            repository?: { id?: string }
+            createdBy?: { id?: string }
+          }>
+        }
+
+        return data.value
+          .filter((pr) => typeof pr.pullRequestId === 'number')
+          .map((pr) => ({
+            id: pr.pullRequestId ?? 0,
+            title: pr.title ?? '',
+            status: this.normalizePullRequestStatus(pr.status),
+            repoId: pr.repository?.id ?? repositoryId,
+            creatorId: pr.createdBy?.id ?? '',
+          }))
+      },
+      catch: (error) => this.toError('listPullRequests', error),
+    })
+  }
+
+  private normalizePullRequestStatus(
+    status: string | undefined,
+  ): 'active' | 'completed' | 'abandoned' {
+    if (status === 'completed') return 'completed'
+    if (status === 'abandoned') return 'abandoned'
+    return 'active'
   }
 
   async resolveIdentity(
