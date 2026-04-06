@@ -6,6 +6,7 @@ function makeRuntimeConfig(org = 'my-org', pat = 'my-pat') {
     config: {
       AZURE_DEVOPS_ORG: org,
       AZURE_DEVOPS_PAT: pat,
+      AZURE_DEVOPS_DEFAULT_PROJECT: 'MyProject',
     },
   }
 }
@@ -351,6 +352,92 @@ describe('AzureDevopsRestClientService', () => {
       const calledUrl = firstCall?.[0] as string
       expect(calledUrl).toContain('searchFilter=General')
       expect(calledUrl).toContain('filterValue=test%20user')
+    })
+  })
+
+  describe('getWorkItem', () => {
+    it('returns work item detail for a valid ID', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 123,
+          fields: {
+            'System.Title': 'Fix login bug',
+            'System.State': 'Active',
+            'System.AssignedTo': {
+              uniqueName: 'john@company.com',
+            },
+          },
+        }),
+      })
+
+      const service = createService()
+      const result = await service.getWorkItem(123)
+
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value).toEqual({
+          id: '123',
+          title: 'Fix login bug',
+          state: 'Active',
+          assignedTo: 'john@company.com',
+        })
+      }
+    })
+
+    it('handles AssignedTo as plain string', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 456,
+          fields: {
+            'System.Title': 'Task',
+            'System.State': 'New',
+            'System.AssignedTo': 'jane@company.com',
+          },
+        }),
+      })
+
+      const service = createService()
+      const result = await service.getWorkItem(456)
+
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value?.assignedTo).toBe('jane@company.com')
+      }
+    })
+
+    it('returns null when work item has no fields', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 789 }),
+      })
+
+      const service = createService()
+      const result = await service.getWorkItem(789)
+
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value).toBeNull()
+      }
+    })
+
+    it('returns ExternalServiceError on HTTP error', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        text: async () => 'Work item not found',
+      })
+
+      const service = createService()
+      const result = await service.getWorkItem(999)
+
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error._tag).toBe('ExternalServiceError')
+        expect(result.error.message).toContain('getWorkItem')
+      }
     })
   })
 

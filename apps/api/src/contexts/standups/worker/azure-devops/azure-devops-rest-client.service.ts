@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { ExternalServiceError, Result } from '../../../../shared/domain'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
-import type { WorkItemResponse, WorkItemUpdate } from './types'
+import type { WorkItemDetail, WorkItemResponse, WorkItemUpdate } from './types'
 
 const BATCH_SIZE = 200
 
@@ -105,6 +105,51 @@ export class AzureDevopsRestClientService {
         return data.value
       },
       catch: (error) => this.toError('getWorkItemUpdates', error),
+    })
+  }
+
+  async getWorkItem(
+    id: number,
+  ): Promise<Result<WorkItemDetail | null, ExternalServiceError>> {
+    const { AZURE_DEVOPS_DEFAULT_PROJECT } = this.runtimeConfig.config
+
+    return Result.tryPromise({
+      try: async () => {
+        const url = `${this.baseUrl}/${AZURE_DEVOPS_DEFAULT_PROJECT}/_apis/wit/workitems/${id}?fields=System.Title,System.State,System.AssignedTo&api-version=7.1`
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: { Authorization: this.authHeader },
+        })
+
+        await this.assertOk(response)
+
+        const parsed = (await response.json()) as {
+          id?: number
+          fields?: {
+            'System.Title'?: string
+            'System.State'?: string
+            'System.AssignedTo'?: { uniqueName?: string } | string
+          }
+        }
+
+        if (!parsed.fields) {
+          return null
+        }
+
+        const assignedTo = parsed.fields['System.AssignedTo']
+        const assignedToEmail =
+          typeof assignedTo === 'object'
+            ? (assignedTo?.uniqueName ?? '')
+            : (assignedTo ?? '')
+
+        return {
+          id: String(parsed.id ?? id),
+          title: parsed.fields['System.Title'] ?? '',
+          state: parsed.fields['System.State'] ?? '',
+          assignedTo: assignedToEmail,
+        }
+      },
+      catch: (error) => this.toError('getWorkItem', error),
     })
   }
 
