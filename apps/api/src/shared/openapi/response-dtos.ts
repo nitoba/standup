@@ -38,7 +38,13 @@ export class StandupRecordDto {
   customEntries!: CustomEntries | null
 
   @ApiProperty({
-    enum: ['draft', 'pending_review', 'approved', 'rejected', 'published'],
+    enum: [
+      'draft',
+      'delivery_pending',
+      'pending_review',
+      'approved',
+      'rejected',
+    ],
   })
   status!: StandupStatus
 

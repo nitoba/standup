@@ -80,7 +80,13 @@ export const standups = sqliteTable(
     sourceData: text('source_data').notNull(),
     customEntries: text('custom_entries'),
     status: text('status', {
-      enum: ['draft', 'pending_review', 'approved', 'rejected', 'published'],
+      enum: [
+        'draft',
+        'delivery_pending',
+        'pending_review',
+        'approved',
+        'rejected',
+      ],
     })
       .notNull()
       .default('draft'),
