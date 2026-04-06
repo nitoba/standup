@@ -147,20 +147,10 @@ export class DiscordMessagesService implements OnModuleDestroy {
   async handleJobFailedNotification(
     event: JobFailedNotificationEvent,
   ): Promise<void> {
-    if (!this.env.discord.channelId) {
-      return
-    }
-
-    const result = await this.sendChannelNotification(
-      this.env.discord.channelId,
-      buildJobFailedEmbed(event.error, event.context),
-    )
-
-    if (result.isErr()) {
-      this.logger.warn('Failed to send job failed notification', {
-        error: result.error.message,
-      })
-    }
+    this.logger.debug('Job failed notification received', {
+      error: event.error,
+      context: event.context,
+    })
   }
 
   async sendReviewDm(

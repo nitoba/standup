@@ -177,8 +177,6 @@ export class WorkerSchedulerService {
     if (result.isErr() || !result.value) {
       return false
     }
-    return (
-      result.value.status === 'approved' || result.value.status === 'published'
-    )
+    return result.value.status === 'approved'
   }
 }

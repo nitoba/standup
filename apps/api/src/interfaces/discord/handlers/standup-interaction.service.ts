@@ -1,10 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { ApproveStandupService } from '../../../contexts/standups/approval/approve-standup.service'
-import { PublishStandupService } from '../../../contexts/standups/publication/publish-standup.service'
 import { StandupStatusService } from '../../../contexts/standups/status/standup-status.service'
 import { StandupReadRepository } from '../../../platform/database/repositories/standup-read.repository'
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
-import { EnvService } from '../../../platform/env/env.service'
 import { AppLoggerFactory } from '../../../platform/logger'
 import {
   type CustomEntries,
@@ -41,9 +39,7 @@ export class StandupInteractionService {
     private readonly standupRepository: StandupReadRepository,
     private readonly userRepository: UserRepository,
     private readonly messages: DiscordMessagesService,
-    private readonly env: EnvService,
     private readonly approveStandup: ApproveStandupService,
-    private readonly publishStandup: PublishStandupService,
     private readonly standupStatus: StandupStatusService,
   ) {
     this.logger = this.loggerFactory.create('discord-standup-interaction')
@@ -107,68 +103,12 @@ export class StandupInteractionService {
       return approveResult
     }
 
-    if (!this.env.discord.channelId) {
-      return Result.ok({
-        action: 'approve',
-        standupId,
-        userId: actorUserId,
-        newStatus: 'approved',
-        message: 'Standup aprovado!',
-      })
-    }
-
-    const found = await this.standupRepository.findByIdForUser(
-      standupId,
-      actorUserId,
-    )
-    if (found.isErr()) {
-      return found
-    }
-
-    const publishResult = await this.messages.publishStandup(
-      found.value,
-      this.env.discord.channelId,
-    )
-    if (publishResult.isErr()) {
-      this.logger.warn('Failed to publish standup after approval', {
-        standupId,
-        error: publishResult.error.message,
-      })
-      return Result.ok({
-        action: 'approve',
-        standupId,
-        userId: actorUserId,
-        newStatus: 'approved',
-        message:
-          'Standup aprovado! A publicação falhou e pode ser feita manualmente.',
-      })
-    }
-
-    const publishedResult = await this.publishStandup.publish(
-      actorUserId,
-      standupId,
-      'discord',
-    )
-    if (publishedResult.isErr()) {
-      this.logger.warn('Failed to mark standup as published', {
-        standupId,
-        error: publishedResult.error.message,
-      })
-      return Result.ok({
-        action: 'approve',
-        standupId,
-        userId: actorUserId,
-        newStatus: 'approved',
-        message: 'Standup aprovado e publicado no canal!',
-      })
-    }
-
     return Result.ok({
       action: 'approve',
       standupId,
       userId: actorUserId,
-      newStatus: 'published',
-      message: 'Standup aprovado e publicado no canal!',
+      newStatus: 'approved',
+      message: 'Standup aprovado!',
     })
   }
 

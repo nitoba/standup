@@ -94,10 +94,7 @@ export class TriggerStandupService {
       })
     }
 
-    if (
-      todayStandup?.status === 'approved' ||
-      todayStandup?.status === 'published'
-    ) {
+    if (todayStandup?.status === 'approved') {
       throw new ConflictException({
         ok: false,
         accepted: false,

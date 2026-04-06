@@ -144,15 +144,7 @@ export function buildListConditions(
   const conditions: SQL<unknown>[] = []
 
   if (filters?.status) {
-    if (filters.status === 'approved') {
-      const c = or(
-        eq(standups.status, 'approved'),
-        eq(standups.status, 'published'),
-      )
-      if (c) conditions.push(c)
-    } else {
-      conditions.push(eq(standups.status, filters.status))
-    }
+    conditions.push(eq(standups.status, filters.status))
   }
 
   if (filters?.date) {

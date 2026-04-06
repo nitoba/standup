@@ -226,10 +226,7 @@ export class StandupReadRepository {
             eq(standups.userId, userId),
             gte(standups.date, startDate),
             lte(standups.date, endDate),
-            or(
-              eq(standups.status, 'approved'),
-              eq(standups.status, 'published'),
-            ),
+            eq(standups.status, 'approved'),
           ),
         )
         .orderBy(desc(standups.date))
@@ -248,13 +245,7 @@ export class StandupReadRepository {
         .select()
         .from(standups)
         .where(
-          and(
-            eq(standups.userId, userId),
-            or(
-              eq(standups.status, 'approved'),
-              eq(standups.status, 'published'),
-            ),
-          ),
+          and(eq(standups.userId, userId), eq(standups.status, 'approved')),
         )
         .orderBy(desc(standups.createdAt))
         .limit(1)
