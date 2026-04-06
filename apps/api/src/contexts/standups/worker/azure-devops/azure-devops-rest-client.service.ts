@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { ExternalServiceError, Result } from '../../../../shared/domain'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
-import type { PullRequestDetail, WorkItemDetail, WorkItemResponse, WorkItemUpdate } from './types'
+import type { PullRequestDetail, RepoInfo, WorkItemDetail, WorkItemResponse, WorkItemUpdate } from './types'
 
 const BATCH_SIZE = 200
 
@@ -189,6 +189,42 @@ export class AzureDevopsRestClientService {
           }))
       },
       catch: (error) => this.toError('listPullRequests', error),
+    })
+  }
+
+  async listRepositories(
+    project: string,
+  ): Promise<Result<RepoInfo[], ExternalServiceError>> {
+    return Result.tryPromise({
+      try: async () => {
+        const url = `${this.baseUrl}/${project}/_apis/git/repositories?api-version=7.1`
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: { Authorization: this.authHeader },
+        })
+
+        await this.assertOk(response)
+
+        const data = (await response.json()) as {
+          value: Array<{
+            id?: string
+            name?: string
+            project?: { name?: string }
+          }>
+        }
+
+        return data.value
+          .filter(
+            (repo) =>
+              typeof repo.id === 'string' && typeof repo.name === 'string',
+          )
+          .map((repo) => ({
+            id: repo.id ?? '',
+            name: repo.name ?? '',
+            project: repo.project?.name ?? project,
+          }))
+      },
+      catch: (error) => this.toError('listRepositories', error),
     })
   }
 

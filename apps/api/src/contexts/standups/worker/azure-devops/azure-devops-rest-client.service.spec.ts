@@ -541,6 +541,90 @@ describe('AzureDevopsRestClientService', () => {
     })
   })
 
+  describe('listRepositories', () => {
+    it('returns repositories for a project', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          value: [
+            { id: 'repo-1', name: 'frontend', project: { name: 'AGROTRACE' } },
+            { id: 'repo-2', name: 'backend', project: { name: 'AGROTRACE' } },
+          ],
+        }),
+      })
+
+      const service = createService()
+      const result = await service.listRepositories('AGROTRACE')
+
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(2)
+        expect(result.value[0]).toEqual({
+          id: 'repo-1',
+          name: 'frontend',
+          project: 'AGROTRACE',
+        })
+      }
+    })
+
+    it('filters out entries missing id or name', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          value: [
+            { id: 'repo-1', name: 'valid', project: { name: 'P' } },
+            { id: null, name: 'no-id', project: { name: 'P' } },
+            { id: 'repo-3', name: null, project: { name: 'P' } },
+          ],
+        }),
+      })
+
+      const service = createService()
+      const result = await service.listRepositories('P')
+
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(1)
+        expect(result.value[0]?.name).toBe('valid')
+      }
+    })
+
+    it('falls back to project param when project.name is missing', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          value: [{ id: 'repo-1', name: 'app' }],
+        }),
+      })
+
+      const service = createService()
+      const result = await service.listRepositories('FALLBACK')
+
+      expect(result.isOk()).toBe(true)
+      if (result.isOk()) {
+        expect(result.value[0]?.project).toBe('FALLBACK')
+      }
+    })
+
+    it('returns ExternalServiceError on HTTP error', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        text: async () => 'Server error',
+      })
+
+      const service = createService()
+      const result = await service.listRepositories('P')
+
+      expect(result.isErr()).toBe(true)
+      if (result.isErr()) {
+        expect(result.error._tag).toBe('ExternalServiceError')
+        expect(result.error.message).toContain('listRepositories')
+      }
+    })
+  })
+
   describe('getWorkItemUpdates', () => {
     it('returns updates for a work item', async () => {
       mockFetch.mockResolvedValueOnce({
