@@ -4,7 +4,7 @@
 -- It also removes duplicate standups (keeping the one with highest updatedAt).
 
 -- First, convert published to approved
-UPDATE standups SET status = 'approved' WHERE status = 'published';
+UPDATE standups SET status = 'approved' WHERE status = 'published';--> statement-breakpoint
 
 -- Remove duplicates, keeping the record with the highest updatedAt for each user_id/date
 DELETE FROM standups WHERE id IN (

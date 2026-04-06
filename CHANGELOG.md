@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.2.1 — 2026-04-06
+
+
+### Bug Fixes
+
+- Fix(db): split manual status migration into drizzle statement breakpoints for libSQL/Turso deploys (`unreleased`)
 
 
 ### Features
@@ -430,5 +435,4 @@
 - Test(email): add tests for null and undefined email inputs (`6747803`)
 
 - Test: migrate api controller specs to http (`003a5de`)
-
 
