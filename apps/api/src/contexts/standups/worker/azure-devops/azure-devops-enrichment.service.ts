@@ -45,9 +45,7 @@ export class AzureDevopsEnrichmentService {
     const userUuid = azureDevopsUuid ?? 'unknown'
 
     const enrichedRepos = await Promise.all(
-      activeRepos.map((repo) =>
-        this.enrichRepo(repo, azureDevopsUuid),
-      ),
+      activeRepos.map((repo) => this.enrichRepo(repo, azureDevopsUuid)),
     )
 
     return Result.ok({
@@ -85,9 +83,7 @@ export class AzureDevopsEnrichmentService {
         const assignedTo = item.fields['System.AssignedTo']
         const assignedToEmail =
           typeof assignedTo === 'object' && assignedTo !== null
-            ? String(
-                (assignedTo as { uniqueName?: string }).uniqueName ?? '',
-              )
+            ? String((assignedTo as { uniqueName?: string }).uniqueName ?? '')
             : String(assignedTo ?? '')
 
         workItemsMap.set(String(item.id), {
@@ -103,13 +99,11 @@ export class AzureDevopsEnrichmentService {
       )
     }
 
-    const enrichedItems: EnrichedWorkItem[] = cardNumbers.map(
-      (cardNumber) => ({
-        cardNumber,
-        workItem: workItemsMap.get(cardNumber) ?? null,
-        pullRequests: workItemsMap.has(cardNumber) ? pullRequests : [],
-      }),
-    )
+    const enrichedItems: EnrichedWorkItem[] = cardNumbers.map((cardNumber) => ({
+      cardNumber,
+      workItem: workItemsMap.get(cardNumber) ?? null,
+      pullRequests: workItemsMap.has(cardNumber) ? pullRequests : [],
+    }))
 
     return {
       repoName: repo.repoName,
