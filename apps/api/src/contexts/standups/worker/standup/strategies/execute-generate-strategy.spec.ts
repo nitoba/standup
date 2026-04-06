@@ -32,6 +32,18 @@ function makeBoardCollector() {
   }
 }
 
+function makeEnrichmentService() {
+  return {
+    enrichGitActivity: vi.fn().mockResolvedValue(
+      Result.ok({
+        timestamp: '2026-04-01T00:00:00Z',
+        userUuid: 'user-uuid',
+        repos: [],
+      }),
+    ),
+  }
+}
+
 function makeStandupAgent() {
   return {
     generate: vi.fn().mockResolvedValue(
@@ -86,6 +98,7 @@ describe('ExecuteGenerateStrategy', () => {
   let loggerFactory: ReturnType<typeof makeLoggerFactory>
   let gitCollector: ReturnType<typeof makeGitCollector>
   let boardCollector: ReturnType<typeof makeBoardCollector>
+  let enrichmentService: ReturnType<typeof makeEnrichmentService>
   let standupAgent: ReturnType<typeof makeStandupAgent>
   let tracing: ReturnType<typeof makeTracing>
   let standupReadRepo: ReturnType<typeof makeStandupReadRepo>
@@ -98,6 +111,7 @@ describe('ExecuteGenerateStrategy', () => {
       loggerFactory,
       gitCollector,
       boardCollector,
+      enrichmentService,
       tracing,
       standupReadRepo,
       localDateService,
@@ -112,6 +126,7 @@ describe('ExecuteGenerateStrategy', () => {
     loggerFactory = makeLoggerFactory()
     gitCollector = makeGitCollector()
     boardCollector = makeBoardCollector()
+    enrichmentService = makeEnrichmentService()
     standupAgent = makeStandupAgent()
     tracing = makeTracing()
     standupReadRepo = makeStandupReadRepo()

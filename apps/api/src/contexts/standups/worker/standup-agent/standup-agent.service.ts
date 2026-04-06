@@ -210,7 +210,10 @@ export class StandupAgentService {
 
   private isJsonSchemaUnsupportedError(error: unknown): boolean {
     const msg = error instanceof Error ? error.message : String(error)
-    return msg.includes('json_schema') && msg.toLowerCase().includes('response format')
+    return (
+      msg.includes('json_schema') &&
+      msg.toLowerCase().includes('response format')
+    )
   }
 
   /**
@@ -229,12 +232,18 @@ export class StandupAgentService {
     } catch (error) {
       if (!this.isJsonSchemaUnsupportedError(error)) throw error
 
-      this.logger.warn('Model does not support json_schema, retrying with jsonPromptInjection', {
-        model: options.model,
-      })
+      this.logger.warn(
+        'Model does not support json_schema, retrying with jsonPromptInjection',
+        {
+          model: options.model,
+        },
+      )
       return await this.agent.generate(message, {
         ...options,
-        structuredOutput: { schema: standupOutputSchema, jsonPromptInjection: true },
+        structuredOutput: {
+          schema: standupOutputSchema,
+          jsonPromptInjection: true,
+        },
       })
     }
   }

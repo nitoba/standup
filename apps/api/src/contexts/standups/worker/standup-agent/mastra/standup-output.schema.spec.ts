@@ -23,11 +23,12 @@ describe('standupOutputSchema', () => {
     expect(result.success).toBe(false)
   })
 
-  it('should reject missing summary', () => {
+  it('should default summary to empty string when missing', () => {
     const result = standupOutputSchema.safeParse({
       content: 'Standup content here',
     })
 
-    expect(result.success).toBe(false)
+    expect(result.success).toBe(true)
+    expect(result.data?.summary).toBe('')
   })
 })

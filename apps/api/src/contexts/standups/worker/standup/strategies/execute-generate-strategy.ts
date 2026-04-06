@@ -147,10 +147,13 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
       if (enrichResult.isOk()) {
         enrichedActivity = enrichResult.value
       } else {
-        this.logger.warn('Azure DevOps enrichment failed, continuing without enrichment', {
-          userId: options.userId,
-          error: enrichResult.error.message,
-        })
+        this.logger.warn(
+          'Azure DevOps enrichment failed, continuing without enrichment',
+          {
+            userId: options.userId,
+            error: enrichResult.error.message,
+          },
+        )
       }
     }
 
