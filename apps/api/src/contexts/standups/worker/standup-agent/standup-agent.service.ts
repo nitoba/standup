@@ -1,11 +1,5 @@
 import type { Agent } from '@mastra/core/agent'
-import type { Memory } from '@mastra/memory'
 import { Inject, Injectable } from '@nestjs/common'
-import { OnEvent } from '@nestjs/event-emitter'
-import {
-  STANDUP_STATUS_CHANGED_EVENT,
-  type StandupStatusChangedEvent,
-} from '../../../../platform/events/standup-events'
 import { AppLoggerFactory } from '../../../../platform/logger'
 import type {
   GeneratedStandup,
@@ -24,7 +18,7 @@ import {
   MAX_STANDUP_CONTENT_CHARS,
   StandupPromptService,
 } from '../standup-generator/standup-prompt.service'
-import { MASTRA_MEMORY, MASTRA_STANDUP_AGENT } from './mastra/mastra.provider'
+import { MASTRA_STANDUP_AGENT } from './mastra/mastra.provider'
 import { standupOutputSchema } from './mastra/standup-output.schema'
 
 export type GeneratorStage = 'enriching_data' | 'generating_standup'
@@ -62,46 +56,8 @@ export class StandupAgentService {
     private readonly standupPrompt: StandupPromptService,
     private readonly llmRegistry: LlmProviderRegistry,
     @Inject(MASTRA_STANDUP_AGENT) private readonly agent: Agent,
-    @Inject(MASTRA_MEMORY) private readonly memory: Memory,
   ) {
     this.logger = this.loggerFactory.create('standup-agent')
-  }
-
-  @OnEvent(STANDUP_STATUS_CHANGED_EVENT)
-  async handleStandupStatusChanged(
-    event: StandupStatusChangedEvent,
-  ): Promise<void> {
-    const terminalStatuses = ['approved', 'rejected']
-    if (!terminalStatuses.includes(event.newStatus)) {
-      return
-    }
-
-    const threadId = `standup-${event.standupId}`
-    try {
-      await this.memory.deleteThread(threadId)
-      this.logger.info('Memory thread cleaned up', {
-        standupId: event.standupId,
-        threadId,
-        reason: event.newStatus,
-      })
-    } catch (error) {
-      // Non-fatal: thread may not exist (e.g., no adjust was done)
-      this.logger.warn('Failed to clean up memory thread', {
-        standupId: event.standupId,
-        threadId,
-        error: String(error),
-      })
-    }
-  }
-
-  async cleanupThread(standupId: string): Promise<void> {
-    const threadId = `standup-${standupId}`
-    try {
-      await this.memory.deleteThread(threadId)
-      this.logger.info('Memory thread cleaned up', { standupId, threadId })
-    } catch {
-      // Non-fatal: thread may not exist
-    }
   }
 
   async generate(
@@ -171,7 +127,7 @@ export class StandupAgentService {
       const response = await this.agentGenerate(userMessage, baseOptions)
       const object = response.object as {
         content: string
-        summary: string
+        summary?: string
       }
       return this.validateAndRewrite(object, modelString, systemPrompt)
     })
@@ -205,15 +161,11 @@ export class StandupAgentService {
         providerOptions: {
           google: { structuredOutputs: true },
         },
-        memory: {
-          resource: 'user-default',
-          thread: `standup-${input.standupId}`,
-        },
       })
 
       const object = response.object as {
         content: string
-        summary: string
+        summary?: string
       }
 
       return {
@@ -288,11 +240,12 @@ export class StandupAgentService {
   }
 
   private async validateAndRewrite(
-    output: { content: string; summary: string },
+    output: { content: string; summary?: string },
     modelString: string,
     systemPrompt: string,
   ): Promise<GeneratedStandup> {
-    let { content, summary } = output
+    let { content } = output
+    let summary = output.summary ?? ''
 
     if (content.length > MAX_STANDUP_CONTENT_CHARS) {
       this.logger.info('Content exceeds limit, requesting rewrite', {

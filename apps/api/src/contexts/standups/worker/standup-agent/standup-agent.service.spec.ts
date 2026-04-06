@@ -14,11 +14,6 @@ const mockAgent = {
   stream: mockStream,
 }
 
-const mockDeleteThread = vi.fn()
-const mockMemory = {
-  deleteThread: mockDeleteThread,
-}
-
 // --- Factories ---
 function makeLoggerFactory() {
   return {
@@ -75,7 +70,6 @@ function createService(registryOverrides: Record<string, unknown> = {}) {
     makePromptService() as any,
     makeLlmRegistry(registryOverrides) as any,
     mockAgent as any,
-    mockMemory as any,
   )
 }
 
@@ -118,10 +112,6 @@ describe('StandupAgentService', () => {
           structuredOutput: expect.objectContaining({
             schema: expect.any(Object),
           }),
-          memory: expect.objectContaining({
-            resource: expect.stringContaining('user-'),
-            thread: expect.stringContaining('standup-generate-'),
-          }),
         }),
       )
     })
@@ -133,7 +123,6 @@ describe('StandupAgentService', () => {
         makePromptService() as any,
         registry as any,
         mockAgent as any,
-        mockMemory as any,
       )
 
       await service.generate(makeInput())
@@ -180,7 +169,7 @@ describe('StandupAgentService', () => {
   })
 
   describe('adjust', () => {
-    it('should adjust standup using memory thread', async () => {
+    it('should adjust standup content', async () => {
       const result = await service.adjust({
         standupId: 'standup-123',
         instruction: 'Make it shorter',
@@ -194,7 +183,7 @@ describe('StandupAgentService', () => {
       )
     })
 
-    it('should pass standupId as thread for memory continuity', async () => {
+    it('should call agent.generate with adjust message and instructions', async () => {
       await service.adjust({
         standupId: 'standup-123',
         instruction: 'Make it shorter',
@@ -202,11 +191,10 @@ describe('StandupAgentService', () => {
       })
 
       expect(mockGenerate).toHaveBeenCalledWith(
-        expect.any(String),
+        'adjust-message',
         expect.objectContaining({
-          memory: expect.objectContaining({
-            thread: 'standup-standup-123',
-          }),
+          instructions: 'system-prompt',
+          model: 'google/gemini-2.5-pro',
         }),
       )
     })
@@ -249,7 +237,6 @@ describe('StandupAgentService', () => {
         makePromptService() as any,
         registry as any,
         mockAgent as any,
-        mockMemory as any,
       )
 
       const result = await service.generate(makeInput())
@@ -269,7 +256,6 @@ describe('StandupAgentService', () => {
         makePromptService() as any,
         registry as any,
         mockAgent as any,
-        mockMemory as any,
       )
 
       const result = await service.generate(makeInput())
@@ -291,88 +277,11 @@ describe('StandupAgentService', () => {
         makePromptService() as any,
         registry as any,
         mockAgent as any,
-        mockMemory as any,
       )
 
       const result = await service.generate(makeInput())
 
       expect(result.isErr()).toBe(true)
-    })
-  })
-
-  describe('handleStandupStatusChanged', () => {
-    it('should delete memory thread when standup is approved', async () => {
-      mockDeleteThread.mockResolvedValue(undefined)
-
-      await service.handleStandupStatusChanged({
-        userId: 'user-1',
-        standupId: 'standup-123',
-        newStatus: 'approved',
-      })
-
-      expect(mockDeleteThread).toHaveBeenCalledWith('standup-standup-123')
-    })
-
-    it('should delete memory thread when standup is approved', async () => {
-      mockDeleteThread.mockResolvedValue(undefined)
-
-      await service.handleStandupStatusChanged({
-        userId: 'user-1',
-        standupId: 'standup-123',
-        newStatus: 'approved',
-      })
-
-      expect(mockDeleteThread).toHaveBeenCalledWith('standup-standup-123')
-    })
-
-    it('should delete memory thread when standup is rejected', async () => {
-      mockDeleteThread.mockResolvedValue(undefined)
-
-      await service.handleStandupStatusChanged({
-        userId: 'user-1',
-        standupId: 'standup-123',
-        newStatus: 'rejected',
-      })
-
-      expect(mockDeleteThread).toHaveBeenCalledWith('standup-standup-123')
-    })
-
-    it('should not delete thread for non-terminal status changes', async () => {
-      await service.handleStandupStatusChanged({
-        userId: 'user-1',
-        standupId: 'standup-123',
-        newStatus: 'pending_review',
-      })
-
-      expect(mockDeleteThread).not.toHaveBeenCalled()
-    })
-
-    it('should not fail if thread does not exist', async () => {
-      mockDeleteThread.mockRejectedValue(new Error('Thread not found'))
-
-      await expect(
-        service.handleStandupStatusChanged({
-          userId: 'user-1',
-          standupId: 'standup-123',
-          newStatus: 'approved',
-        }),
-      ).resolves.not.toThrow()
-    })
-  })
-
-  describe('cleanupThread', () => {
-    it('should delete the memory thread for given standupId', async () => {
-      mockDeleteThread.mockResolvedValue(undefined)
-
-      await service.cleanupThread('standup-456')
-
-      expect(mockDeleteThread).toHaveBeenCalledWith('standup-standup-456')
-    })
-
-    it('should not throw if thread does not exist', async () => {
-      mockDeleteThread.mockRejectedValue(new Error('Not found'))
-
-      await expect(service.cleanupThread('standup-456')).resolves.not.toThrow()
     })
   })
 })
