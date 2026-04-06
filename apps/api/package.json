@@ -1,6 +1,6 @@
 {
   "name": "@standup-api",
-  "version": "0.1.4",
+  "version": "0.2.1",
   "description": "API monolitica em NestJS para standups",
   "private": true,
   "type": "module",
