@@ -19,6 +19,7 @@ export interface StandupReadyResult {
   standupId: string
   dmSent: boolean
   transitioned: boolean
+  newStatus?: 'pending_review' | 'delivery_pending'
 }
 
 @Injectable()
@@ -66,7 +67,25 @@ export class StandupNotificationService {
         standupId,
         error: dmResult.error.message,
       })
-      return Result.ok({ standupId, dmSent: false, transitioned: false })
+
+      const transitionResult = await this.standupWrite.updateStatus(
+        standupId,
+        'delivery_pending',
+      )
+      if (transitionResult.isErr()) {
+        this.logger.warn('Failed to transition standup to delivery_pending', {
+          standupId,
+          error: transitionResult.error.message,
+        })
+        return Result.ok({ standupId, dmSent: false, transitioned: false })
+      }
+
+      return Result.ok({
+        standupId,
+        dmSent: false,
+        transitioned: true,
+        newStatus: 'delivery_pending',
+      })
     }
 
     const saveMessageIdResult = await this.standupWrite.updateDmMessageId(
@@ -101,6 +120,11 @@ export class StandupNotificationService {
       })
     }
 
-    return Result.ok({ standupId, dmSent: true, transitioned: true })
+    return Result.ok({
+      standupId,
+      dmSent: true,
+      transitioned: true,
+      newStatus: 'pending_review',
+    })
   }
 }
