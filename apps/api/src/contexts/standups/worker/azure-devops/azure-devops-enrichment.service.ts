@@ -43,67 +43,12 @@ export class AzureDevopsEnrichmentService {
     }
 
     const userUuid = azureDevopsUuid ?? 'unknown'
-    const enrichedRepos: EnrichedRepo[] = []
 
-    for (const repo of activeRepos) {
-      const cardNumbers = [...repo.cardNumbers]
-
-      const pullRequestsResult = await this.restClient.listPullRequests(
-        repo.repoName,
-      )
-      const pullRequests = pullRequestsResult.isOk()
-        ? azureDevopsUuid
-          ? pullRequestsResult.value.filter(
-              (pullRequest) => pullRequest.creatorId === azureDevopsUuid,
-            )
-          : pullRequestsResult.value
-        : []
-
-      const workItemsResult = await this.restClient.getWorkItemsBatch(
-        cardNumbers.map(Number),
-        ['System.Title', 'System.State', 'System.AssignedTo'],
-      )
-
-      const workItemsMap = new Map<string, WorkItemDetail>()
-      if (workItemsResult.isOk()) {
-        for (const item of workItemsResult.value) {
-          const assignedTo = item.fields['System.AssignedTo']
-          const assignedToEmail =
-            typeof assignedTo === 'object' && assignedTo !== null
-              ? String(
-                  (assignedTo as { uniqueName?: string }).uniqueName ?? '',
-                )
-              : String(assignedTo ?? '')
-
-          workItemsMap.set(String(item.id), {
-            id: String(item.id),
-            title: String(item.fields['System.Title'] ?? ''),
-            state: String(item.fields['System.State'] ?? ''),
-            assignedTo: assignedToEmail,
-          })
-        }
-      } else {
-        this.logger.warn(
-          `Failed to fetch work items batch: ${workItemsResult.error.message}`,
-        )
-      }
-
-      const enrichedItems: EnrichedWorkItem[] = cardNumbers.map(
-        (cardNumber) => ({
-          cardNumber,
-          workItem: workItemsMap.get(cardNumber) ?? null,
-          pullRequests: workItemsMap.has(cardNumber) ? pullRequests : [],
-        }),
-      )
-
-      enrichedRepos.push({
-        repoName: repo.repoName,
-        repoPath: repo.repoPath,
-        commits: repo.commits,
-        cardNumbers: repo.cardNumbers,
-        enrichedItems,
-      })
-    }
+    const enrichedRepos = await Promise.all(
+      activeRepos.map((repo) =>
+        this.enrichRepo(repo, azureDevopsUuid),
+      ),
+    )
 
     return Result.ok({
       timestamp: activity.timestamp,
@@ -112,20 +57,85 @@ export class AzureDevopsEnrichmentService {
     })
   }
 
+  private async enrichRepo(
+    repo: RepoActivity,
+    azureDevopsUuid?: string,
+  ): Promise<EnrichedRepo> {
+    const cardNumbers = [...repo.cardNumbers]
+
+    const pullRequestsResult = await this.restClient.listPullRequests(
+      repo.repoName,
+    )
+    const pullRequests = pullRequestsResult.isOk()
+      ? azureDevopsUuid
+        ? pullRequestsResult.value.filter(
+            (pullRequest) => pullRequest.creatorId === azureDevopsUuid,
+          )
+        : pullRequestsResult.value
+      : []
+
+    const workItemsResult = await this.restClient.getWorkItemsBatch(
+      cardNumbers.map(Number),
+      ['System.Title', 'System.State', 'System.AssignedTo'],
+    )
+
+    const workItemsMap = new Map<string, WorkItemDetail>()
+    if (workItemsResult.isOk()) {
+      for (const item of workItemsResult.value) {
+        const assignedTo = item.fields['System.AssignedTo']
+        const assignedToEmail =
+          typeof assignedTo === 'object' && assignedTo !== null
+            ? String(
+                (assignedTo as { uniqueName?: string }).uniqueName ?? '',
+              )
+            : String(assignedTo ?? '')
+
+        workItemsMap.set(String(item.id), {
+          id: String(item.id),
+          title: String(item.fields['System.Title'] ?? ''),
+          state: String(item.fields['System.State'] ?? ''),
+          assignedTo: assignedToEmail,
+        })
+      }
+    } else {
+      this.logger.warn(
+        `Failed to fetch work items batch: ${workItemsResult.error.message}`,
+      )
+    }
+
+    const enrichedItems: EnrichedWorkItem[] = cardNumbers.map(
+      (cardNumber) => ({
+        cardNumber,
+        workItem: workItemsMap.get(cardNumber) ?? null,
+        pullRequests: workItemsMap.has(cardNumber) ? pullRequests : [],
+      }),
+    )
+
+    return {
+      repoName: repo.repoName,
+      repoPath: repo.repoPath,
+      commits: repo.commits,
+      cardNumbers: repo.cardNumbers,
+      enrichedItems,
+    }
+  }
+
   async listRepositories(
     projects: string[],
   ): Promise<Result<RepoInfo[], ExternalServiceError>> {
-    const repositories: RepoInfo[] = []
+    const results = await Promise.all(
+      projects.map((project) => this.restClient.listRepositories(project)),
+    )
 
-    for (const project of projects) {
-      const result = await this.restClient.listRepositories(project)
-      if (result.isErr()) {
+    const repositories: RepoInfo[] = []
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i]
+      if (!result || result.isErr()) {
         this.logger.warn(
-          `Failed to list repositories for ${project}: ${result.error.message}`,
+          `Failed to list repositories for ${projects[i]}: ${result?.error.message ?? 'unknown error'}`,
         )
         continue
       }
-
       repositories.push(...result.value)
     }
 
