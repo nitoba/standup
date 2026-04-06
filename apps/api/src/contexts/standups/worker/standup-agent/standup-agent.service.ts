@@ -71,7 +71,7 @@ export class StandupAgentService {
   async handleStandupStatusChanged(
     event: StandupStatusChangedEvent,
   ): Promise<void> {
-    const terminalStatuses = ['approved', 'published', 'rejected']
+    const terminalStatuses = ['approved', 'rejected']
     if (!terminalStatuses.includes(event.newStatus)) {
       return
     }

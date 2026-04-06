@@ -4,9 +4,9 @@ import type { StandupStatus } from '../../../shared/domain'
 
 const ALLOWED_STATUSES = [
   'draft',
+  'delivery_pending',
   'pending_review',
   'rejected',
-  'published',
 ] as const
 
 export class UpdateStandupStatusDto {
@@ -14,6 +14,6 @@ export class UpdateStandupStatusDto {
   @IsIn(ALLOWED_STATUSES)
   status!: Extract<
     StandupStatus,
-    'draft' | 'pending_review' | 'rejected' | 'published'
+    'draft' | 'delivery_pending' | 'pending_review' | 'rejected'
   >
 }

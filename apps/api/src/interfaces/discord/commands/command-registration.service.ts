@@ -5,10 +5,10 @@ import { EnvService } from '../../../platform/env/env.service'
 import { AppLoggerFactory } from '../../../platform/logger'
 
 const STATUS_CHOICES = [
-  { name: 'Draft', value: 'draft' },
+  { name: 'Rascunho', value: 'draft' },
+  { name: 'Aguardando DM', value: 'delivery_pending' },
   { name: 'Pendente de Revisão', value: 'pending_review' },
   { name: 'Aprovado', value: 'approved' },
-  { name: 'Publicado', value: 'published' },
   { name: 'Rejeitado', value: 'rejected' },
 ] as const
 

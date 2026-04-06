@@ -313,13 +313,13 @@ describe('StandupAgentService', () => {
       expect(mockDeleteThread).toHaveBeenCalledWith('standup-standup-123')
     })
 
-    it('should delete memory thread when standup is published', async () => {
+    it('should delete memory thread when standup is approved', async () => {
       mockDeleteThread.mockResolvedValue(undefined)
 
       await service.handleStandupStatusChanged({
         userId: 'user-1',
         standupId: 'standup-123',
-        newStatus: 'published',
+        newStatus: 'approved',
       })
 
       expect(mockDeleteThread).toHaveBeenCalledWith('standup-standup-123')

@@ -19,7 +19,7 @@ export interface InteractionOutcome {
   action: StandupAction
   standupId: string
   userId: string
-  newStatus: 'approved' | 'rejected' | 'published'
+  newStatus: 'approved' | 'rejected'
   message: string
 }
 
