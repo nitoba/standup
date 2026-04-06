@@ -7,12 +7,12 @@
  */
 
 export type StandupRecordDtoStatus =
-  (typeof StandupRecordDtoStatus)[keyof typeof StandupRecordDtoStatus];
+  (typeof StandupRecordDtoStatus)[keyof typeof StandupRecordDtoStatus]
 
 export const StandupRecordDtoStatus = {
   draft: 'draft',
+  delivery_pending: 'delivery_pending',
   pending_review: 'pending_review',
   approved: 'approved',
   rejected: 'rejected',
-  published: 'published',
-} as const;
+} as const

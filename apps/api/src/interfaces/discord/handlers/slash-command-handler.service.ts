@@ -7,6 +7,7 @@ import {
   type Client,
   MessageFlags,
 } from 'discord.js'
+import { RetryDmService } from '../../../contexts/standups/delivery/retry-dm.service'
 import { StandupReadRepository } from '../../../platform/database/repositories/standup-read.repository'
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import {
@@ -32,6 +33,7 @@ const AUTH_REQUIRED_SUBCOMMANDS = new Set([
   'approve',
   'services',
   'settings',
+  'retry',
 ])
 
 function standupStatusLabel(status: StandupStatus): string {
@@ -99,6 +101,7 @@ export class SlashCommandHandlerService {
     private readonly standupInteraction: StandupInteractionService,
     private readonly triggerConfirmation: TriggerConfirmationService,
     private readonly cooldown: CommandCooldownService,
+    private readonly retryDm: RetryDmService,
   ) {}
 
   async handle(
@@ -163,6 +166,74 @@ export class SlashCommandHandlerService {
     if (subcommand === 'services') {
       await this.handleServices(interaction, client)
     }
+
+    if (subcommand === 'retry') {
+      await this.handleRetry(interaction)
+    }
+  }
+
+  private async handleRetry(
+    interaction: ChatInputCommandInteraction,
+  ): Promise<void> {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+
+    const session = await this.auth.resolveActiveSession(interaction.user.id)
+    if (!session?.hasSession || !session.userId) {
+      await interaction.editReply(
+        'Você precisa estar logado para usar este comando. Use `/login`.',
+      )
+      return
+    }
+
+    const todayParts = new Date().toISOString().split('T')
+    const today = todayParts[0]
+    if (!today) {
+      await interaction.editReply('Erro ao obter data atual. Tente novamente.')
+      return
+    }
+    const standupResult = await this.standupRepository.findLatestByUserAndDate(
+      session.userId,
+      today,
+    )
+
+    if (standupResult.isErr()) {
+      await interaction.editReply(
+        'Erro ao buscar standup do dia. Tente novamente.',
+      )
+      return
+    }
+
+    const standup = standupResult.value
+    if (!standup) {
+      await interaction.editReply(
+        'Nenhum standup pendente de entrega encontrado para hoje.',
+      )
+      return
+    }
+
+    if (standup.status !== 'delivery_pending') {
+      await interaction.editReply(
+        `Seu standup está no estado "${standupStatusLabel(standup.status)}", não é possível reenviar a DM.`,
+      )
+      return
+    }
+
+    const retryResult = await this.retryDm.retryDm(
+      standup.id,
+      session.userId,
+      interaction.user.id,
+    )
+
+    if (retryResult.isErr()) {
+      await interaction.editReply(
+        `❌ Erro ao reenviar DM: ${retryResult.error.message}`,
+      )
+      return
+    }
+
+    await interaction.editReply(
+      '✅ DM reenviada com sucesso! Verifique sua caixa de mensagens directas.',
+    )
   }
 
   private async handleLogin(

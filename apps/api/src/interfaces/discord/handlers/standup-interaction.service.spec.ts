@@ -3,14 +3,6 @@ import { Result } from '../../../shared/domain'
 import { StandupInteractionService } from './standup-interaction.service'
 
 describe('StandupInteractionService', () => {
-  function makeLoggerFactory() {
-    return {
-      create: vi.fn(() => ({
-        warn: vi.fn(),
-      })),
-    }
-  }
-
   it('delegates approve to standup-owned approval service without publishing', async () => {
     const approveResult = vi.fn().mockResolvedValue(
       Result.ok({
@@ -21,10 +13,6 @@ describe('StandupInteractionService', () => {
       }),
     )
     const service = new StandupInteractionService(
-      makeLoggerFactory() as never,
-      {
-        findByIdForUser: vi.fn(),
-      } as never,
       {
         hasActiveSession: vi
           .fn()

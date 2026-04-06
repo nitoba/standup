@@ -70,22 +70,16 @@ function makeListResponse(
     },
     summary: overrides?.summary ?? {
       total: data.length,
-      approved: data.filter(
-        (item) => item.status === 'approved' || item.status === 'published',
-      ).length,
+      approved: data.filter((item) => item.status === 'approved').length,
       pending: data.filter((item) => item.status === 'pending_review').length,
       rejected: data.filter((item) => item.status === 'rejected').length,
     },
     metricChanges: overrides?.metricChanges ?? {
       total: { current: data.length, previous: 0, delta: data.length },
       approved: {
-        current: data.filter(
-          (item) => item.status === 'approved' || item.status === 'published',
-        ).length,
+        current: data.filter((item) => item.status === 'approved').length,
         previous: 0,
-        delta: data.filter(
-          (item) => item.status === 'approved' || item.status === 'published',
-        ).length,
+        delta: data.filter((item) => item.status === 'approved').length,
       },
       pending: {
         current: data.filter((item) => item.status === 'pending_review').length,
@@ -363,14 +357,14 @@ describe('StandupService', () => {
       },
     })
     approveRequest.flush({
-      data: makeStandupDto({ id: '7f3a2b1c', status: 'published' }),
+      data: makeStandupDto({ id: '7f3a2b1c', status: 'approved' }),
     })
 
     await expect(approvePromise).resolves.toEqual(
       expect.objectContaining({
         standup: expect.objectContaining({
           id: '7f3a2b1c',
-          status: 'published',
+          status: 'approved',
         }),
       }),
     )
@@ -381,7 +375,7 @@ describe('StandupService', () => {
       .expectOne('/standups?page=1&pageSize=20&sort=date&sortDir=desc')
       .flush(
         makeListResponse([
-          makeStandupDto({ id: '7f3a2b1c', status: 'published' }),
+          makeStandupDto({ id: '7f3a2b1c', status: 'approved' }),
         ]),
       )
     await settleAsyncWork()

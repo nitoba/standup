@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { ApproveStandupService } from '../../../contexts/standups/approval/approve-standup.service'
 import { StandupStatusService } from '../../../contexts/standups/status/standup-status.service'
-import { StandupReadRepository } from '../../../platform/database/repositories/standup-read.repository'
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
-import { AppLoggerFactory } from '../../../platform/logger'
 import {
   type CustomEntries,
   type DbError,
@@ -33,17 +31,12 @@ type InteractionError =
 
 @Injectable()
 export class StandupInteractionService {
-  private readonly logger: ReturnType<AppLoggerFactory['create']>
   constructor(
-    private readonly loggerFactory: AppLoggerFactory,
-    private readonly standupRepository: StandupReadRepository,
     private readonly userRepository: UserRepository,
-    private readonly messages: DiscordMessagesService,
+    readonly _messages: DiscordMessagesService,
     private readonly approveStandup: ApproveStandupService,
     private readonly standupStatus: StandupStatusService,
-  ) {
-    this.logger = this.loggerFactory.create('discord-standup-interaction')
-  }
+  ) {}
 
   async handle(
     action: StandupAction,

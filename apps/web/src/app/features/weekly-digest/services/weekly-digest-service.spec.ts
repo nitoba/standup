@@ -42,8 +42,8 @@ describe('WeeklyDigestService', () => {
     expect(request.request.method).toBe('GET')
     request.flush({
       data: [
-        makeStandupDto({ id: 'published-1', status: 'published' }),
         makeStandupDto({ id: 'approved-1', status: 'approved' }),
+        makeStandupDto({ id: 'approved-2', status: 'approved' }),
       ],
       pagination: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
       summary: { total: 2, approved: 2, pending: 0, rejected: 0 },
@@ -56,8 +56,8 @@ describe('WeeklyDigestService', () => {
     })
 
     await expect(promise).resolves.toEqual([
-      expect.objectContaining({ id: 'published-1', status: 'published' }),
       expect.objectContaining({ id: 'approved-1', status: 'approved' }),
+      expect.objectContaining({ id: 'approved-2', status: 'approved' }),
     ])
   })
 })
@@ -70,7 +70,12 @@ function makeStandupDto(
     content: string
     sourceData: string
     customEntries: null
-    status: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'published'
+    status:
+      | 'draft'
+      | 'delivery_pending'
+      | 'pending_review'
+      | 'approved'
+      | 'rejected'
     userId: string
     createdAt: number
     updatedAt: number

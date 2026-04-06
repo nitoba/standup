@@ -189,7 +189,7 @@ describe('StandupTable', () => {
     expect(writeText).toHaveBeenCalledWith('## Atividades\n- Fez algo')
   })
 
-  it('renders published and draft statuses with canonical labels and classes', async () => {
+  it('renders approved and draft statuses with canonical labels and classes', async () => {
     await TestBed.configureTestingModule({
       imports: [StandupTable],
     }).compileComponents()
@@ -197,11 +197,11 @@ describe('StandupTable', () => {
     const fixture = TestBed.createComponent(StandupTable)
     const standups: Standup[] = [
       {
-        id: 'published-1',
+        id: 'approved-1',
         date: '10/03/2026',
-        status: 'published',
+        status: 'approved',
         createdAt: '17:00',
-        contentPreview: 'Publicado',
+        contentPreview: 'Aprovado',
         sections: [],
         sources: [],
       },
@@ -224,11 +224,11 @@ describe('StandupTable', () => {
     fixture.detectChanges()
 
     const element = fixture.nativeElement as HTMLElement
-    const publishedStatus = findSpanByText(element, '[publicado]')
+    const approvedStatus = findSpanByText(element, '[aprovado]')
     const draftStatus = findSpanByText(element, '[rascunho]')
 
-    expect(publishedStatus).toBeDefined()
-    expect(publishedStatus?.className).toContain('text-cyan-400')
+    expect(approvedStatus).toBeDefined()
+    expect(approvedStatus?.className).toContain('text-primary')
     expect(draftStatus).toBeDefined()
     expect(draftStatus?.className).toContain('text-muted-foreground')
   })

@@ -346,9 +346,7 @@ function makeListResponse(
     },
     summary: {
       total: overrides?.total ?? standups.length,
-      approved: standups.filter(
-        (item) => item.status === 'approved' || item.status === 'published',
-      ).length,
+      approved: standups.filter((item) => item.status === 'approved').length,
       pending: standups.filter((item) => item.status === 'pending_review')
         .length,
       rejected: standups.filter((item) => item.status === 'rejected').length,
@@ -356,13 +354,9 @@ function makeListResponse(
     metricChanges: {
       total: { current: standups.length, previous: 0, delta: standups.length },
       approved: {
-        current: standups.filter(
-          (item) => item.status === 'approved' || item.status === 'published',
-        ).length,
+        current: standups.filter((item) => item.status === 'approved').length,
         previous: 0,
-        delta: standups.filter(
-          (item) => item.status === 'approved' || item.status === 'published',
-        ).length,
+        delta: standups.filter((item) => item.status === 'approved').length,
       },
       pending: {
         current: standups.filter((item) => item.status === 'pending_review')

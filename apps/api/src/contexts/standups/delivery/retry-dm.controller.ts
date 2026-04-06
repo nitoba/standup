@@ -1,13 +1,13 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Param,
-  Body,
   Post,
 } from '@nestjs/common'
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger'
-import { RetryDmService } from './retry-dm.service'
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
+import { RetryDmService } from './retry-dm.service'
 
 @ApiTags('standups')
 @Controller('standups')

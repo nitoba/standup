@@ -18,6 +18,17 @@ describe('standup-status', () => {
     expect(getStandupStatusTextClass('draft')).toBe('text-muted-foreground')
     expect(getStandupStatusBadgeClass('draft')).toBe('text-muted-foreground')
 
+    expect(formatStandupStatus('delivery_pending')).toBe('[aguardo dm]')
+    expect(getStandupStatusDotClass('delivery_pending')).toBe(
+      'bg-[var(--accent-orange)]',
+    )
+    expect(getStandupStatusTextClass('delivery_pending')).toBe(
+      'text-[var(--accent-orange)]',
+    )
+    expect(getStandupStatusBadgeClass('delivery_pending')).toBe(
+      'text-[var(--accent-orange)]',
+    )
+
     expect(formatStandupStatus('pending_review')).toBe('[pendente]')
     expect(getStandupStatusDotClass('pending_review')).toBe(
       'bg-[var(--accent-yellow)]',
@@ -42,29 +53,24 @@ describe('standup-status', () => {
     expect(getStandupStatusBadgeClass('rejected')).toBe(
       'text-[var(--accent-red)]',
     )
-
-    expect(formatStandupStatus('published')).toBe('[publicado]')
-    expect(getStandupStatusDotClass('published')).toBe('bg-cyan-400')
-    expect(getStandupStatusTextClass('published')).toBe('text-cyan-400')
-    expect(getStandupStatusBadgeClass('published')).toBe('text-cyan-400')
   })
 
   it('returns the expected status predicates', () => {
     expect(isPendingReviewStandup('pending_review')).toBe(true)
     expect(isApprovedStandup('approved')).toBe(true)
-    expect(isApprovedStandup('published')).toBe(false)
+    expect(isApprovedStandup('delivery_pending')).toBe(false)
+    expect(canRegenerateStandup('delivery_pending')).toBe(true)
     expect(canRegenerateStandup('pending_review')).toBe(true)
     expect(canRegenerateStandup('rejected')).toBe(true)
     expect(canRegenerateStandup('approved')).toBe(false)
-    expect(canRegenerateStandup('published')).toBe(false)
   })
 
   it('normalizes raw string statuses into canonical StandupStatus values', () => {
     expect(normalizeStandupStatus('draft')).toBe('draft')
+    expect(normalizeStandupStatus('delivery_pending')).toBe('delivery_pending')
     expect(normalizeStandupStatus('pending_review')).toBe('pending_review')
     expect(normalizeStandupStatus('approved')).toBe('approved')
     expect(normalizeStandupStatus('rejected')).toBe('rejected')
-    expect(normalizeStandupStatus('published')).toBe('published')
     expect(normalizeStandupStatus('unknown-status')).toBe('pending_review')
   })
 })

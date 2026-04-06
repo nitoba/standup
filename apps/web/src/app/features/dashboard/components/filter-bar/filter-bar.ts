@@ -17,7 +17,12 @@ import {
 } from '../../../../shared/utils'
 
 type DateSelection = 'all_time' | 'this_week' | 'today' | 'yesterday'
-type StatusSelection = 'all' | 'pending_review' | 'approved' | 'rejected'
+type StatusSelection =
+  | 'all'
+  | 'delivery_pending'
+  | 'pending_review'
+  | 'approved'
+  | 'rejected'
 
 @Component({
   selector: 'app-filter-bar',
@@ -93,6 +98,7 @@ export class FilterBar {
   readonly pageSizeValue = computed(() => `${this.pageSize()}`)
   readonly statusOptions: ZardComboboxOption[] = [
     { value: 'all', label: 'status: todos' },
+    { value: 'delivery_pending', label: 'status: pendentes de DM' },
     { value: 'pending_review', label: 'status: pendentes' },
     { value: 'approved', label: 'status: aprovados' },
     { value: 'rejected', label: 'status: rejeitados' },
@@ -156,6 +162,7 @@ export class FilterBar {
 
     if (
       value !== 'all' &&
+      value !== 'delivery_pending' &&
       value !== 'pending_review' &&
       value !== 'approved' &&
       value !== 'rejected'

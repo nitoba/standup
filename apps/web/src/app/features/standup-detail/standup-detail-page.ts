@@ -223,28 +223,6 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
                 $ regenerar
               </button>
             }
-            @if (isApproved(detail.status)) {
-              <button
-                type="button"
-                z-button
-                zType="default"
-                class="w-full md:w-auto"
-                [zLoading]="actionLoading()"
-                [zDisabled]="actionLoading()"
-                (click)="handleSendToDiscord(detail)"
-              >
-                @if (!actionLoading()) {
-                  <z-icon zType="send" zSize="sm" class="mr-2" />
-                }
-                {{
-                  actionLoading()
-                    ? 'Enviando...'
-                    : detail.sentToDiscordAt
-                      ? 'Reenviar para Discord'
-                      : 'Enviar para Discord'
-                }}
-              </button>
-            }
           </div>
         } @else {
           <div class="text-muted-foreground font-[var(--font-ibm)] text-[13px]">// standup não encontrado</div>

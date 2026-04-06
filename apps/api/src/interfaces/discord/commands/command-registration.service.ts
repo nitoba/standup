@@ -98,6 +98,9 @@ function buildStandupCommand(): SlashCommandBuilder {
       sub
         .setName('settings')
         .setDescription('Ver ou alterar configurações de standup'),
+    )
+    .addSubcommand((sub) =>
+      sub.setName('retry').setDescription('Reenviar DM de standup pendente'),
     ) as SlashCommandBuilder
 }
 

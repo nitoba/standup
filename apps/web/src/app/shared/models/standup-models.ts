@@ -1,9 +1,9 @@
 export type StandupStatus =
   | 'draft'
+  | 'delivery_pending'
   | 'pending_review'
   | 'approved'
   | 'rejected'
-  | 'published'
 
 export interface ApiDataResponseDto<T> {
   data: T

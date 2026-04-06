@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
+import { DiscordMessagesService } from '../../../interfaces/discord/notifications/discord-messages.service'
 import { StandupReadRepository } from '../../../platform/database/repositories/standup-read.repository'
 import { StandupWriteRepository } from '../../../platform/database/repositories/standup-write.repository'
-import { DiscordMessagesService } from '../../../interfaces/discord/notifications/discord-messages.service'
 import { AppLoggerFactory } from '../../../platform/logger'
 import {
   DbError,
@@ -31,7 +31,7 @@ export class RetryDmService {
 
   async retryDm(
     standupId: string,
-    userId: string,
+    _userId: string,
     discordUserId: string,
   ): Promise<
     Result<{ standupId: string; newStatus: 'pending_review' }, RetryDmError>

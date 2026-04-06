@@ -6,12 +6,13 @@
  * OpenAPI spec version: 0.0.1
  */
 
-export type ListStandupsStatus = (typeof ListStandupsStatus)[keyof typeof ListStandupsStatus];
+export type ListStandupsStatus =
+  (typeof ListStandupsStatus)[keyof typeof ListStandupsStatus]
 
 export const ListStandupsStatus = {
   draft: 'draft',
+  delivery_pending: 'delivery_pending',
   pending_review: 'pending_review',
   approved: 'approved',
   rejected: 'rejected',
-  published: 'published',
-} as const;
+} as const
