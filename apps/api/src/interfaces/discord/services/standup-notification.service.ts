@@ -56,7 +56,7 @@ export class StandupNotificationService {
   ): Promise<Result<StandupReadyResult, NotFoundError | DbError>> {
     const found = await this.standupRead.findById(standupId)
     if (found.isErr()) {
-      return found
+      return Result.err(found.error)
     }
 
     const record = found.value

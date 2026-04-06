@@ -1,4 +1,11 @@
-import type { Result } from '../../../../shared/domain'
+import type {
+  AllProvidersUnavailableError,
+  DbError,
+  ExternalServiceError,
+  NotFoundError,
+  Result,
+  ValidationError,
+} from '../../../../shared/domain'
 
 export interface StandupJobOptions {
   userId: string
@@ -46,4 +53,13 @@ export interface StrategyExecutionInput {
   reportProgress?: StrategyProgressReporter
 }
 
-export type StrategyResult = Result<GeneratedContent | null, Error>
+export type StrategyError =
+  | ValidationError
+  | NotFoundError
+  | DbError
+  | ExternalServiceError
+  | AllProvidersUnavailableError
+
+export type StrategyResult = Result<GeneratedContent | null, StrategyError>
+
+export type PipelineResult = Result<string | null, StrategyError>

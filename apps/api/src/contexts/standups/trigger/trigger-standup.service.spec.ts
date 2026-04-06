@@ -1,6 +1,10 @@
-import { BadRequestException, ConflictException } from '@nestjs/common'
 import { describe, expect, it, vi } from 'vitest'
-import { DbError, Result } from '../../../shared/domain'
+import {
+  DbError,
+  Result,
+  StandupTriggerConflictError,
+  ValidationError,
+} from '../../../shared/domain'
 import { TriggerStandupService } from './trigger-standup.service'
 
 describe('TriggerStandupService', () => {
@@ -22,7 +26,9 @@ describe('TriggerStandupService', () => {
       { today: vi.fn() } as never,
     )
 
-    await expect(service.trigger({}, null)).rejects.toThrow(BadRequestException)
+    await expect(service.trigger({}, null)).rejects.toSatisfy(
+      ValidationError.is,
+    )
   })
 
   it('throws when settings are missing', async () => {
@@ -34,8 +40,8 @@ describe('TriggerStandupService', () => {
       { today: vi.fn() } as never,
     )
 
-    await expect(service.trigger({}, null, resolvedIds)).rejects.toThrow(
-      BadRequestException,
+    await expect(service.trigger({}, null, resolvedIds)).rejects.toSatisfy(
+      ValidationError.is,
     )
   })
 
@@ -59,8 +65,8 @@ describe('TriggerStandupService', () => {
       { today: vi.fn() } as never,
     )
 
-    await expect(service.trigger({}, null, resolvedIds)).rejects.toThrow(
-      BadRequestException,
+    await expect(service.trigger({}, null, resolvedIds)).rejects.toSatisfy(
+      ValidationError.is,
     )
   })
 
@@ -172,12 +178,12 @@ describe('TriggerStandupService', () => {
       } as never,
     )
 
-    await expect(service.trigger({}, null, resolvedIds)).rejects.toThrow(
-      ConflictException,
+    await expect(service.trigger({}, null, resolvedIds)).rejects.toSatisfy(
+      StandupTriggerConflictError.is,
     )
   })
 
-  it('throws when today standup status cannot be evaluated', async () => {
+  it('rethrows DbError when today standup status cannot be evaluated', async () => {
     const service = new TriggerStandupService(
       { findDiscordIdByUserId: vi.fn() } as never,
       {
@@ -209,8 +215,8 @@ describe('TriggerStandupService', () => {
       } as never,
     )
 
-    await expect(service.trigger({}, null, resolvedIds)).rejects.toThrow(
-      BadRequestException,
+    await expect(service.trigger({}, null, resolvedIds)).rejects.toSatisfy(
+      DbError.is,
     )
   })
 
@@ -347,8 +353,8 @@ describe('TriggerStandupService', () => {
       { today: vi.fn() } as never,
     )
 
-    await expect(service.trigger({}, null, resolvedIds)).rejects.toThrow(
-      BadRequestException,
+    await expect(service.trigger({}, null, resolvedIds)).rejects.toSatisfy(
+      ValidationError.is,
     )
   })
 })

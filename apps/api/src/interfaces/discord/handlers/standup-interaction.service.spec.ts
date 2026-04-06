@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { Result } from '../../../shared/domain'
+import { DbError, Result, ValidationError } from '../../../shared/domain'
 import { StandupInteractionService } from './standup-interaction.service'
 
 describe('StandupInteractionService', () => {
@@ -38,5 +38,57 @@ describe('StandupInteractionService', () => {
       undefined,
       'discord',
     )
+  })
+
+  it('preserves DbError when actor session lookup fails', async () => {
+    const service = new StandupInteractionService(
+      {
+        hasActiveSession: vi.fn().mockResolvedValue(
+          Result.err(
+            new DbError({
+              operation: 'hasActiveSession',
+              message: 'db down',
+            }),
+          ),
+        ),
+      } as never,
+      {
+        sendReviewDm: vi.fn(),
+        updateDmMessage: vi.fn(),
+      } as never,
+      { approveResult: vi.fn() } as never,
+      { transition: vi.fn() } as never,
+    )
+
+    const result = await service.handle('approve', 'standup-1', 'discord-1')
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(DbError.is(result.error)).toBe(true)
+    }
+  })
+
+  it('returns ValidationError when actor has no active session', async () => {
+    const service = new StandupInteractionService(
+      {
+        hasActiveSession: vi.fn().mockResolvedValue(Result.ok(null)),
+      } as never,
+      {
+        sendReviewDm: vi.fn(),
+        updateDmMessage: vi.fn(),
+      } as never,
+      { approveResult: vi.fn() } as never,
+      { transition: vi.fn() } as never,
+    )
+
+    const result = await service.handle('approve', 'standup-1', 'discord-1')
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(ValidationError.is(result.error)).toBe(true)
+      if (ValidationError.is(result.error)) {
+        expect(result.error.field).toBe('actorDiscordId')
+      }
+    }
   })
 })

@@ -4,7 +4,6 @@ import { StandupReadRepository } from '../../../platform/database/repositories/s
 import { LocalDateService } from '../../../platform/time/local-date.service'
 import type { StandupRecord } from '../../../shared/domain'
 import { formatStandupRecord } from '../shared/format-standup-record'
-import { throwStandupHttpError } from '../shared/throw-standup-http-error'
 import { UserTimezoneService } from '../shared/user-timezone.service'
 
 @Injectable()
@@ -23,7 +22,7 @@ export class StandupsQueryService {
     })
 
     if (result.isErr()) {
-      throwStandupHttpError(result.error)
+      throw result.error
     }
 
     const todayIso = this.localDateService.today(timezone).iso
@@ -37,7 +36,7 @@ export class StandupsQueryService {
       )
 
     if (metricChangesResult.isErr()) {
-      throwStandupHttpError(metricChangesResult.error)
+      throw metricChangesResult.error
     }
 
     return {
@@ -54,7 +53,7 @@ export class StandupsQueryService {
     const result = await this.standupRepository.findByIdForUser(id, userId)
 
     if (result.isErr()) {
-      throwStandupHttpError(result.error)
+      throw result.error
     }
 
     return formatStandupRecord(result.value, this.localDateService, timezone)

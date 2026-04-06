@@ -1,6 +1,9 @@
-import { ConflictException } from '@nestjs/common'
 import { describe, expect, it, vi } from 'vitest'
-import { ExternalServiceError, Result } from '../../../shared/domain'
+import {
+  ExternalServiceError,
+  Result,
+  StandupTriggerConflictError,
+} from '../../../shared/domain'
 import { DiscordTriggerService } from './discord-trigger.service'
 
 describe('DiscordTriggerService', () => {
@@ -33,9 +36,7 @@ describe('DiscordTriggerService', () => {
   it('maps pending review conflicts to a non-accepted outcome', async () => {
     const triggerStandup = {
       trigger: vi.fn().mockRejectedValue(
-        new ConflictException({
-          ok: false,
-          accepted: false,
+        new StandupTriggerConflictError({
           reason: 'pending_review_exists',
           standupId: 'standup-1',
           message: 'Já existe um standup pendente de revisão para hoje.',

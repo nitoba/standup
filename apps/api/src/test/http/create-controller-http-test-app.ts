@@ -1,10 +1,12 @@
 import 'reflect-metadata'
 import { type Type, ValidationPipe } from '@nestjs/common'
 import type { ModuleMetadata } from '@nestjs/common/interfaces/modules/module-metadata.interface'
+import { HttpAdapterHost } from '@nestjs/core'
 import type { TestingModule } from '@nestjs/testing'
 import { Test } from '@nestjs/testing'
 import type { NextFunction, Request, Response } from 'express'
 import request from 'supertest'
+import { GlobalExceptionFilter } from '../../platform/http/filters/global-exception.filter'
 import type { AuthSession } from '../../shared/auth/auth-session'
 
 const TEST_SESSION_HEADER = 'x-test-session'
@@ -106,6 +108,15 @@ export async function createControllerHttpTestApp(
   bindControllerMethods(moduleRef, options.controllers)
 
   const app = moduleRef.createNestApplication()
+  const httpAdapterHost = app.get(HttpAdapterHost)
+  app.useGlobalFilters(
+    new GlobalExceptionFilter(httpAdapterHost, {
+      create: () => ({
+        error: () => undefined,
+        warn: () => undefined,
+      }),
+    } as never),
+  )
 
   app.use((req: TestRequest, _res: Response, next: NextFunction) => {
     const sessionHeader = req.header(TEST_SESSION_HEADER)

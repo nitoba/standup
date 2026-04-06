@@ -1,12 +1,9 @@
-import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { UserSettingsRepository } from '../../../platform/database/repositories/user-settings.repository'
 import { EventBusService } from '../../../platform/events/event-bus.service'
 import { AppLoggerFactory } from '../../../platform/logger'
 import { LocalDateService } from '../../../platform/time/local-date.service'
+import { ValidationError } from '../../../shared/domain'
 import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
 import { AzureDevopsRestClientService } from '../../standups/worker/azure-devops/azure-devops-rest-client.service'
 import type { MeSettingsRecord } from './me-settings.dto'
@@ -57,7 +54,7 @@ export class MeSettingsService {
         userId,
         error: result.error.message,
       })
-      throw new InternalServerErrorException('Internal server error')
+      throw result.error
     }
 
     if (result.value === null) {
@@ -92,43 +89,44 @@ export class MeSettingsService {
       (body.selectedRepos ?? []).length > 0
     const hasBoardSource = (body.azureDevopsUser?.trim() ?? '').length > 0
     if (!hasGitSource && !hasBoardSource) {
-      throw new BadRequestException(
-        'At least one data source must be configured: git repos with git author, or Azure DevOps user',
-      )
+      throw new ValidationError({
+        field: 'sources',
+        message:
+          'At least one data source must be configured: git repos with git author, or Azure DevOps user',
+      })
     }
 
     // Read current settings for repo diff and UUID preservation
     const currentResult = await this.userSettingsRepository.findByUserId(userId)
-    const previousRepos =
-      currentResult.isOk() && currentResult.value
-        ? parseSelectedRepos(currentResult.value.selectedRepos)
-        : []
+    if (currentResult.isErr()) {
+      throw currentResult.error
+    }
+
+    const previousRepos = currentResult.value
+      ? parseSelectedRepos(currentResult.value.selectedRepos)
+      : []
 
     // Resolve Azure DevOps UUID when user changed or newly set
     const trimmedAzureUser = body.azureDevopsUser?.trim() || null
     let azureDevopsUuid: string | null = null
 
     if (trimmedAzureUser) {
-      const currentAzureUser =
-        currentResult.isOk() && currentResult.value
-          ? currentResult.value.azureDevopsUser
-          : null
+      const currentAzureUser = currentResult.value
+        ? currentResult.value.azureDevopsUser
+        : null
 
       if (trimmedAzureUser !== currentAzureUser) {
         const resolveResult =
           await this.azureDevopsRestClient.resolveIdentity(trimmedAzureUser)
 
         if (resolveResult.isErr()) {
-          throw new BadRequestException(resolveResult.error.message)
+          throw resolveResult.error
         }
 
         azureDevopsUuid = resolveResult.value.id
       } else {
         // Preserve existing UUID when user has not changed
-        azureDevopsUuid =
-          currentResult.isOk() && currentResult.value
-            ? (currentResult.value.azureDevopsUuid ?? null)
-            : null
+        azureDevopsUuid = currentResult.value?.azureDevopsUuid ?? null
       }
     }
 
@@ -152,7 +150,7 @@ export class MeSettingsService {
         userId,
         error: result.error.message,
       })
-      throw new InternalServerErrorException('Internal server error')
+      throw result.error
     }
 
     // Emit event if there are new repos

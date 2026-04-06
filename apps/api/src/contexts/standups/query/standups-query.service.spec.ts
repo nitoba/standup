@@ -1,4 +1,3 @@
-import { InternalServerErrorException, NotFoundException } from '@nestjs/common'
 import { describe, expect, it, vi } from 'vitest'
 import { DbError, NotFoundError, Result } from '../../../shared/domain'
 import { StandupsQueryService } from './standups-query.service'
@@ -62,7 +61,7 @@ describe('StandupsQueryService', () => {
     })
   })
 
-  it('maps repository errors for list and getById', async () => {
+  it('rethrows repository tagged errors for the HTTP boundary to normalize', async () => {
     const service = new StandupsQueryService(
       {
         list: vi
@@ -95,11 +94,9 @@ describe('StandupsQueryService', () => {
       } as never,
     )
 
-    await expect(service.list('user-1', {})).rejects.toThrow(
-      InternalServerErrorException,
-    )
-    await expect(service.getById('user-1', 'standup-1')).rejects.toThrow(
-      NotFoundException,
+    await expect(service.list('user-1', {})).rejects.toSatisfy(DbError.is)
+    await expect(service.getById('user-1', 'standup-1')).rejects.toSatisfy(
+      NotFoundError.is,
     )
   })
 })

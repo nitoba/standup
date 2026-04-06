@@ -44,6 +44,11 @@ export class StandupInteractionService {
     actorDiscordId: string,
     customEntries?: CustomEntries | null,
   ): Promise<Result<InteractionOutcome, InteractionError>> {
+    const userRepository = this.userRepository
+    const handleApprove = this.handleApprove.bind(this)
+    const handleReject = this.handleReject.bind(this)
+    const handleRegenerate = this.handleRegenerate.bind(this)
+
     if (
       action !== 'approve' &&
       action !== 'reject' &&
@@ -57,28 +62,43 @@ export class StandupInteractionService {
       )
     }
 
-    const actorResult =
-      await this.userRepository.hasActiveSession(actorDiscordId)
-    if (
-      actorResult.isErr() ||
-      !actorResult.value ||
-      !actorResult.value.hasSession
-    ) {
-      return Result.err(
-        new NotFoundError({ resource: 'standup', id: standupId }),
+    return Result.gen(async function* () {
+      const actor = yield* Result.await(
+        userRepository.hasActiveSession(actorDiscordId),
       )
-    }
 
-    const actorUserId = actorResult.value.userId
+      if (!actor?.hasSession) {
+        return Result.err(
+          new ValidationError({
+            field: 'actorDiscordId',
+            message: 'Discord user does not have an active session',
+          }),
+        )
+      }
 
-    switch (action) {
-      case 'approve':
-        return this.handleApprove(standupId, actorUserId, customEntries)
-      case 'reject':
-        return this.handleReject(standupId, actorUserId)
-      case 'regenerate':
-        return this.handleRegenerate(standupId, actorUserId)
-    }
+      const actorUserId = actor.userId
+
+      switch (action) {
+        case 'approve': {
+          const outcome = yield* Result.await(
+            handleApprove(standupId, actorUserId, customEntries),
+          )
+          return Result.ok(outcome)
+        }
+        case 'reject': {
+          const outcome = yield* Result.await(
+            handleReject(standupId, actorUserId),
+          )
+          return Result.ok(outcome)
+        }
+        case 'regenerate': {
+          const outcome = yield* Result.await(
+            handleRegenerate(standupId, actorUserId),
+          )
+          return Result.ok(outcome)
+        }
+      }
+    })
   }
 
   private async handleApprove(
@@ -93,7 +113,7 @@ export class StandupInteractionService {
       'discord',
     )
     if (approveResult.isErr()) {
-      return approveResult
+      return Result.err(approveResult.error)
     }
 
     return Result.ok({
@@ -116,7 +136,7 @@ export class StandupInteractionService {
       'discord',
     )
     if (result.isErr()) {
-      return result
+      return Result.err(result.error)
     }
 
     return Result.ok({
@@ -140,7 +160,7 @@ export class StandupInteractionService {
       'discord',
     )
     if (result.isErr()) {
-      return result
+      return Result.err(result.error)
     }
 
     return Result.ok({

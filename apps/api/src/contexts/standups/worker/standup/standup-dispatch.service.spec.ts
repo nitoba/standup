@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { Result } from '../../../../shared/domain'
+import { DbError, Result } from '../../../../shared/domain'
 import { StandupDispatchService } from './standup-dispatch.service'
 
 describe('StandupDispatchService', () => {
@@ -27,6 +27,30 @@ describe('StandupDispatchService', () => {
     expect(result.isErr()).toBe(true)
     if (result.isErr()) {
       expect(result.error.message).toBe('User settings not found')
+    }
+  })
+
+  it('preserves DbError when settings lookup fails', async () => {
+    const service = new StandupDispatchService(
+      makeLoggerFactory() as never,
+      { findDiscordIdByUserId: vi.fn() } as never,
+      {
+        findByUserId: vi
+          .fn()
+          .mockResolvedValue(
+            Result.err(
+              new DbError({ operation: 'findByUserId', message: 'db down' }),
+            ),
+          ),
+      } as never,
+      { run: vi.fn() } as never,
+    )
+
+    const result = await service.dispatchStandupJobForUser('user-1')
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(DbError.is(result.error)).toBe(true)
     }
   })
 

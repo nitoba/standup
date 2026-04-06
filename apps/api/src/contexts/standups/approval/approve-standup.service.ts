@@ -15,7 +15,6 @@ import {
   type StandupRecord,
 } from '../../../shared/domain'
 import { formatStandupRecord } from '../shared/format-standup-record'
-import { throwStandupHttpError } from '../shared/throw-standup-http-error'
 import { UserTimezoneService } from '../shared/user-timezone.service'
 
 type ApproveStandupError = NotFoundError | DbError | InvalidStateTransitionError
@@ -44,7 +43,7 @@ export class ApproveStandupService {
     )
 
     if (approvedResult.isErr()) {
-      throwStandupHttpError(approvedResult.error)
+      throw approvedResult.error
     }
 
     return formatStandupRecord(

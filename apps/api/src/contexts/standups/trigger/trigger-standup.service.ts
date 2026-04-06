@@ -1,13 +1,13 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-} from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { StandupReadRepository } from '../../../platform/database/repositories/standup-read.repository'
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import { UserSettingsRepository } from '../../../platform/database/repositories/user-settings.repository'
 import { LocalDateService } from '../../../platform/time/local-date.service'
 import type { AuthSession } from '../../../shared/auth/auth-session'
+import {
+  StandupTriggerConflictError,
+  ValidationError,
+} from '../../../shared/domain'
 import { parseSelectedRepos } from '../../../shared/repos/parse-selected-repos'
 import { StandupDispatchService } from '../worker/standup/standup-dispatch.service'
 import type { TriggerStandupDto } from './trigger-standup.dto'
@@ -35,27 +35,41 @@ export class TriggerStandupService {
     let discordUserId: string | undefined = resolvedIds?.discordUserId
 
     if (!userId) {
-      throw new BadRequestException('Could not resolve userId from session')
+      throw new ValidationError({
+        field: 'userId',
+        message: 'Could not resolve userId from session',
+      })
     }
 
     if (!discordUserId) {
       const discordResult =
         await this.userRepository.findDiscordIdByUserId(userId)
-      discordUserId = discordResult.isOk()
-        ? (discordResult.value ?? undefined)
-        : undefined
+      if (discordResult.isErr()) {
+        throw discordResult.error
+      }
+
+      discordUserId = discordResult.value ?? undefined
     }
 
     if (!discordUserId) {
-      throw new BadRequestException('Could not resolve discordUserId')
+      throw new ValidationError({
+        field: 'discordUserId',
+        message: 'Could not resolve discordUserId',
+      })
     }
 
     const settingsResult =
       await this.userSettingsRepository.findByUserId(userId)
-    if (settingsResult.isErr() || !settingsResult.value) {
-      throw new BadRequestException(
-        'User settings not found. Configure your standup settings first.',
-      )
+    if (settingsResult.isErr()) {
+      throw settingsResult.error
+    }
+
+    if (!settingsResult.value) {
+      throw new ValidationError({
+        field: 'userId',
+        message:
+          'User settings not found. Configure your standup settings first.',
+      })
     }
 
     const settings = settingsResult.value
@@ -63,9 +77,10 @@ export class TriggerStandupService {
     const azureDevopsUser = settings.azureDevopsUser?.trim() || undefined
 
     if (selectedRepos.length === 0 && !azureDevopsUser) {
-      throw new BadRequestException(
-        'No repositories selected. Configure your repositories first.',
-      )
+      throw new ValidationError({
+        field: 'sources',
+        message: 'No repositories selected. Configure your repositories first.',
+      })
     }
 
     const today = this.localDateService.today(settings.timezone)
@@ -73,9 +88,7 @@ export class TriggerStandupService {
       await this.standupRepository.findLatestByUserAndDate(userId, today.iso)
 
     if (todayStandupResult.isErr()) {
-      throw new BadRequestException(
-        'Could not evaluate the current standup status.',
-      )
+      throw todayStandupResult.error
     }
 
     const todayStandup = todayStandupResult.value
@@ -85,9 +98,7 @@ export class TriggerStandupService {
       body.replaceStandupId === todayStandup?.id
 
     if (todayStandup?.status === 'pending_review' && !isExplicitReplace) {
-      throw new ConflictException({
-        ok: false,
-        accepted: false,
+      throw new StandupTriggerConflictError({
         message: 'Já existe um standup pendente de revisão para hoje.',
         reason: 'pending_review_exists',
         standupId: todayStandup.id,
@@ -95,9 +106,7 @@ export class TriggerStandupService {
     }
 
     if (todayStandup?.status === 'approved') {
-      throw new ConflictException({
-        ok: false,
-        accepted: false,
+      throw new StandupTriggerConflictError({
         message: 'O standup de hoje já foi aprovado ou publicado.',
         reason: 'already_approved_today',
         standupId: todayStandup.id,

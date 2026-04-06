@@ -9,6 +9,7 @@ import {
 import { AppLoggerFactory } from '../../logger'
 import { DatabaseService } from '../database.service'
 import { jobRuns } from '../schema'
+import { dbErrResult } from './db-error'
 
 export interface AcquireLockInput {
   id: string
@@ -175,8 +176,6 @@ export class JobRunRepository {
   }
 
   private dbErr(operation: string, error: unknown): Result<never, DbError> {
-    const message = error instanceof Error ? error.message : String(error)
-    this.logger.error('DB operation failed', { operation, error: message })
-    return Result.err(new DbError({ operation, message }))
+    return dbErrResult(this.logger, operation, error)
   }
 }

@@ -93,3 +93,25 @@ export class AllProvidersUnavailableError extends TaggedError(
   message: string
   modelsAttempted: number
 }>() {}
+
+export class StandupTriggerConflictError extends TaggedError(
+  'StandupTriggerConflictError',
+)<{
+  reason: 'pending_review_exists' | 'already_approved_today'
+  message: string
+  standupId?: string
+  accepted: false
+  ok: false
+}>() {
+  constructor(args: {
+    reason: 'pending_review_exists' | 'already_approved_today'
+    message: string
+    standupId?: string
+  }) {
+    super({
+      ...args,
+      accepted: false,
+      ok: false,
+    })
+  }
+}

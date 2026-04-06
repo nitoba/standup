@@ -103,7 +103,12 @@ export class RunWeeklyDigestJobService {
       options.userId,
       weekStart,
     )
-    if (claimResult.isErr() || !claimResult.value) {
+    if (claimResult.isErr()) {
+      jobLogger.error(claimResult.error.message)
+      return
+    }
+
+    if (!claimResult.value) {
       return
     }
 

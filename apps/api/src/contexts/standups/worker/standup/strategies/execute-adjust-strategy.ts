@@ -22,6 +22,9 @@ export class ExecuteAdjustStrategy extends StandupStrategyBase {
     const { options, reportProgress } = input
     const instruction = options.rewriteInstruction?.trim()
     const baseStandupId = options.rewriteFromStandupId?.trim()
+    const standupRepository = this.standupRepository
+    const standupAgent = this.standupAgent
+    const reportStage = this.reportStage.bind(this)
 
     if (!instruction) {
       return Result.err(
@@ -41,46 +44,42 @@ export class ExecuteAdjustStrategy extends StandupStrategyBase {
       )
     }
 
-    const baseResult = await this.standupRepository.findByIdForUser(
-      baseStandupId,
-      options.userId,
-    )
-    if (baseResult.isErr()) {
-      return baseResult
-    }
+    return Result.gen(async function* () {
+      const baseStandup = yield* Result.await(
+        standupRepository.findByIdForUser(baseStandupId, options.userId),
+      )
 
-    const adjusted = await this.standupAgent.adjust({
-      standupId: baseStandupId,
-      instruction,
-      previousContent: baseResult.value.content,
-      previousSummary: undefined,
-      extraContext: options.extraContext?.trim() || undefined,
-      onStageChange: async () => {
-        await this.reportStage(
-          reportProgress,
-          'generating_standup',
-          'Ajustando standup (PI Agent)',
-        )
-      },
-      onContentDelta: (partialContent) => {
-        this.reportStage(
-          reportProgress,
-          'streaming_content',
-          'Ajustando conteudo...',
-          partialContent,
-        )
-      },
-    })
+      const adjusted = yield* Result.await(
+        standupAgent.adjust({
+          standupId: baseStandupId,
+          instruction,
+          previousContent: baseStandup.content,
+          previousSummary: undefined,
+          extraContext: options.extraContext?.trim() || undefined,
+          onStageChange: async () => {
+            await reportStage(
+              reportProgress,
+              'generating_standup',
+              'Ajustando standup (PI Agent)',
+            )
+          },
+          onContentDelta: (partialContent) => {
+            reportStage(
+              reportProgress,
+              'streaming_content',
+              'Ajustando conteudo...',
+              partialContent,
+            )
+          },
+        }),
+      )
 
-    if (adjusted.isErr()) {
-      return adjusted
-    }
-
-    return Result.ok<GeneratedContent>({
-      content: adjusted.value.content,
-      meetingType: baseResult.value.meetingType,
-      sourceData: baseResult.value.sourceData,
-      replaceStandupId: options.replaceStandupId?.trim() || baseStandupId,
+      return Result.ok<GeneratedContent>({
+        content: adjusted.content,
+        meetingType: baseStandup.meetingType,
+        sourceData: baseStandup.sourceData,
+        replaceStandupId: options.replaceStandupId?.trim() || baseStandupId,
+      })
     })
   }
 }

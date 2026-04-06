@@ -1,6 +1,6 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: test assertions after expect().toBeDefined() */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { Result } from '../../../../../shared/domain'
+import { DbError, Result } from '../../../../../shared/domain'
 import { ExecuteGenerateStrategy } from './execute-generate-strategy'
 
 // --- Mock factories ---
@@ -165,5 +165,28 @@ describe('ExecuteGenerateStrategy', () => {
     expect(generationSpanCall![1]).toEqual(
       expect.objectContaining({ 'standup.mode': 'agent' }),
     )
+  })
+
+  it('preserves repository DbError when computing sinceDate', async () => {
+    standupReadRepo.findLastApprovedByUser.mockResolvedValue(
+      Result.err(
+        new DbError({
+          operation: 'findLastApprovedByUser',
+          message: 'db down',
+        }),
+      ),
+    )
+    const { strategy } = buildStrategy()
+
+    const result = await strategy.execute({
+      options: makeDefaultOptions(),
+      today: '2026-04-01',
+    })
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(DbError.is(result.error)).toBe(true)
+      expect(result.error.message).toBe('db down')
+    }
   })
 })

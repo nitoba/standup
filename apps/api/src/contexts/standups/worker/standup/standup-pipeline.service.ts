@@ -10,7 +10,11 @@ import { DbError, NotFoundError, Result } from '../../../../shared/domain'
 import { WorkerEventPublisherService } from '../worker-event-publisher.service'
 import { ExecuteAdjustStrategy } from './strategies/execute-adjust-strategy'
 import { ExecuteGenerateStrategy } from './strategies/execute-generate-strategy'
-import type { StandupJobOptions, StrategyProgressUpdate } from './types'
+import type {
+  PipelineResult,
+  StandupJobOptions,
+  StrategyProgressUpdate,
+} from './types'
 
 interface PipelineContext {
   options: StandupJobOptions
@@ -34,7 +38,7 @@ export class StandupPipelineService {
     this.logger = this.loggerFactory.create('standup-pipeline')
   }
 
-  async execute(ctx: PipelineContext): Promise<Result<string | null, Error>> {
+  async execute(ctx: PipelineContext): Promise<PipelineResult> {
     const { options, runId, todayIso, todayDisplay, runMode } = ctx
 
     await this.emitProgress({
@@ -48,7 +52,7 @@ export class StandupPipelineService {
 
     const strategyResult = await this.runStrategy(runMode, ctx)
     if (strategyResult.isErr()) {
-      return strategyResult
+      return Result.err(strategyResult.error)
     }
 
     const generated = strategyResult.value
@@ -109,7 +113,7 @@ export class StandupPipelineService {
     })
 
     if (saveResult.isErr()) {
-      return saveResult
+      return Result.err(saveResult.error)
     }
 
     const standupId = saveResult.value.id
@@ -201,7 +205,7 @@ export class StandupPipelineService {
         input.date,
       )
     if (existingResult.isErr()) {
-      return existingResult
+      return Result.err(existingResult.error)
     }
 
     const existing = existingResult.value
