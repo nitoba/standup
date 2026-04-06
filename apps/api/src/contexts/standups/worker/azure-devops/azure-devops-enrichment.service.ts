@@ -50,8 +50,9 @@ export class AzureDevopsEnrichmentService {
       const enrichedItems: EnrichedWorkItem[] = []
 
       for (const cardNumber of cardNumbers) {
-        const workItemResult =
-          await this.restClient.getWorkItem(Number(cardNumber))
+        const workItemResult = await this.restClient.getWorkItem(
+          Number(cardNumber),
+        )
 
         if (workItemResult.isErr()) {
           this.logger.warn(
@@ -61,8 +62,9 @@ export class AzureDevopsEnrichmentService {
           continue
         }
 
-        const pullRequestsResult =
-          await this.restClient.listPullRequests(repo.repoName)
+        const pullRequestsResult = await this.restClient.listPullRequests(
+          repo.repoName,
+        )
         const pullRequests = pullRequestsResult.isOk()
           ? azureDevopsUuid
             ? pullRequestsResult.value.filter(

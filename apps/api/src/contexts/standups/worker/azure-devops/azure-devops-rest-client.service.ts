@@ -1,7 +1,13 @@
 import { Injectable } from '@nestjs/common'
 import { ExternalServiceError, Result } from '../../../../shared/domain'
 import { WorkerRuntimeConfigService } from '../worker-runtime-config.service'
-import type { PullRequestDetail, RepoInfo, WorkItemDetail, WorkItemResponse, WorkItemUpdate } from './types'
+import type {
+  PullRequestDetail,
+  RepoInfo,
+  WorkItemDetail,
+  WorkItemResponse,
+  WorkItemUpdate,
+} from './types'
 
 const BATCH_SIZE = 200
 
