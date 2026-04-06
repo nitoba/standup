@@ -45,13 +45,17 @@ function makeActivity(
 describe('AzureDevopsEnrichmentService', () => {
   function createService(restOverrides: Record<string, unknown> = {}) {
     const restClient = {
-      getWorkItem: vi.fn().mockResolvedValue(
-        Result.ok({
-          id: '123',
-          title: 'Task',
-          state: 'Active',
-          assignedTo: 'user',
-        }),
+      getWorkItemsBatch: vi.fn().mockResolvedValue(
+        Result.ok([
+          {
+            id: 123,
+            fields: {
+              'System.Title': 'Task',
+              'System.State': 'Active',
+              'System.AssignedTo': 'user',
+            },
+          },
+        ]),
       ),
       listPullRequests: vi.fn().mockResolvedValue(
         Result.ok([

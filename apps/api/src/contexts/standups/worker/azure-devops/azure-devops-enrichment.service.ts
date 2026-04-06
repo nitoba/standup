@@ -11,6 +11,7 @@ import type {
   EnrichedRepo,
   EnrichedWorkItem,
   RepoInfo,
+  WorkItemDetail,
 } from './types'
 
 @Injectable()
@@ -58,27 +59,42 @@ export class AzureDevopsEnrichmentService {
           : pullRequestsResult.value
         : []
 
-      const enrichedItems: EnrichedWorkItem[] = []
+      const workItemsResult = await this.restClient.getWorkItemsBatch(
+        cardNumbers.map(Number),
+        ['System.Title', 'System.State', 'System.AssignedTo'],
+      )
 
-      for (const cardNumber of cardNumbers) {
-        const workItemResult = await this.restClient.getWorkItem(
-          Number(cardNumber),
-        )
+      const workItemsMap = new Map<string, WorkItemDetail>()
+      if (workItemsResult.isOk()) {
+        for (const item of workItemsResult.value) {
+          const assignedTo = item.fields['System.AssignedTo']
+          const assignedToEmail =
+            typeof assignedTo === 'object' && assignedTo !== null
+              ? String(
+                  (assignedTo as { uniqueName?: string }).uniqueName ?? '',
+                )
+              : String(assignedTo ?? '')
 
-        if (workItemResult.isErr()) {
-          this.logger.warn(
-            `Failed to fetch work item ${cardNumber}: ${workItemResult.error.message}`,
-          )
-          enrichedItems.push({ cardNumber, workItem: null, pullRequests: [] })
-          continue
+          workItemsMap.set(String(item.id), {
+            id: String(item.id),
+            title: String(item.fields['System.Title'] ?? ''),
+            state: String(item.fields['System.State'] ?? ''),
+            assignedTo: assignedToEmail,
+          })
         }
-
-        enrichedItems.push({
-          cardNumber,
-          workItem: workItemResult.value,
-          pullRequests,
-        })
+      } else {
+        this.logger.warn(
+          `Failed to fetch work items batch: ${workItemsResult.error.message}`,
+        )
       }
+
+      const enrichedItems: EnrichedWorkItem[] = cardNumbers.map(
+        (cardNumber) => ({
+          cardNumber,
+          workItem: workItemsMap.get(cardNumber) ?? null,
+          pullRequests: workItemsMap.has(cardNumber) ? pullRequests : [],
+        }),
+      )
 
       enrichedRepos.push({
         repoName: repo.repoName,
