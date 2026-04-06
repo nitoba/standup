@@ -60,6 +60,18 @@ export class StandupNotificationService {
     }
 
     const record = found.value
+    const deliveryTransition = await this.standupWrite.updateStatus(
+      standupId,
+      'delivery_pending',
+    )
+    if (deliveryTransition.isErr()) {
+      this.logger.warn('Failed to transition standup to delivery_pending', {
+        standupId,
+        error: deliveryTransition.error.message,
+      })
+      return Result.ok({ standupId, dmSent: false, transitioned: false })
+    }
+
     const dmResult = await this.messages.sendReviewDm(record, discordUserId)
 
     if (dmResult.isErr()) {
@@ -67,18 +79,6 @@ export class StandupNotificationService {
         standupId,
         error: dmResult.error.message,
       })
-
-      const transitionResult = await this.standupWrite.updateStatus(
-        standupId,
-        'delivery_pending',
-      )
-      if (transitionResult.isErr()) {
-        this.logger.warn('Failed to transition standup to delivery_pending', {
-          standupId,
-          error: transitionResult.error.message,
-        })
-        return Result.ok({ standupId, dmSent: false, transitioned: false })
-      }
 
       return Result.ok({
         standupId,

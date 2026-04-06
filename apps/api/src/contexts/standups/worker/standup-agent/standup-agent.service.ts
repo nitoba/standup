@@ -132,10 +132,9 @@ export class StandupAgentService {
     )
 
     return this.callWithModelFallback(async (modelString) => {
-      const options = {
+      const baseOptions = {
         instructions: systemPrompt,
         model: modelString,
-        structuredOutput: { schema: standupOutputSchema },
         providerOptions: {
           google: { structuredOutputs: true },
         },
@@ -148,7 +147,10 @@ export class StandupAgentService {
       // Try streaming for content deltas
       if (input.onContentDelta) {
         try {
-          const stream = await this.agent.stream(userMessage, options)
+          const stream = await this.agent.stream(userMessage, {
+            ...baseOptions,
+            structuredOutput: { schema: standupOutputSchema },
+          })
           let hasChunks = false
 
           for await (const chunk of stream.textStream) {
@@ -170,7 +172,7 @@ export class StandupAgentService {
       }
 
       // Fallback: non-streaming generate
-      const response = await this.agent.generate(userMessage, options)
+      const response = await this.agentGenerate(userMessage, baseOptions)
       const object = response.object as {
         content: string
         summary: string
@@ -201,10 +203,9 @@ export class StandupAgentService {
     })
 
     return this.callWithModelFallback(async (modelString) => {
-      const response = await this.agent.generate(adjustMessage, {
+      const response = await this.agentGenerate(adjustMessage, {
         instructions: systemPrompt,
         model: modelString,
-        structuredOutput: { schema: standupOutputSchema },
         providerOptions: {
           google: { structuredOutputs: true },
         },
@@ -259,6 +260,37 @@ export class StandupAgentService {
 
   // --- Private helpers ---
 
+  private isJsonSchemaUnsupportedError(error: unknown): boolean {
+    const msg = error instanceof Error ? error.message : String(error)
+    return msg.includes('json_schema') && msg.toLowerCase().includes('response format')
+  }
+
+  /**
+   * Calls agent.generate with structuredOutput, falling back to jsonPromptInjection
+   * if the model does not support the response_format API parameter.
+   */
+  private async agentGenerate(
+    message: string,
+    options: Record<string, unknown>,
+  ) {
+    try {
+      return await this.agent.generate(message, {
+        ...options,
+        structuredOutput: { schema: standupOutputSchema },
+      })
+    } catch (error) {
+      if (!this.isJsonSchemaUnsupportedError(error)) throw error
+
+      this.logger.warn('Model does not support json_schema, retrying with jsonPromptInjection', {
+        model: options.model,
+      })
+      return await this.agent.generate(message, {
+        ...options,
+        structuredOutput: { schema: standupOutputSchema, jsonPromptInjection: true },
+      })
+    }
+  }
+
   private async validateAndRewrite(
     output: { content: string; summary: string },
     modelString: string,
@@ -277,10 +309,9 @@ export class StandupAgentService {
         summary,
       )
 
-      const rewriteResponse = await this.agent.generate(rewriteMessage, {
+      const rewriteResponse = await this.agentGenerate(rewriteMessage, {
         instructions: systemPrompt,
         model: modelString,
-        structuredOutput: { schema: standupOutputSchema },
         providerOptions: {
           google: { structuredOutputs: true },
         },
