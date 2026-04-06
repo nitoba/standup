@@ -47,6 +47,17 @@ export class AzureDevopsEnrichmentService {
     for (const repo of activeRepos) {
       const cardNumbers = [...repo.cardNumbers]
 
+      const pullRequestsResult = await this.restClient.listPullRequests(
+        repo.repoName,
+      )
+      const pullRequests = pullRequestsResult.isOk()
+        ? azureDevopsUuid
+          ? pullRequestsResult.value.filter(
+              (pullRequest) => pullRequest.creatorId === azureDevopsUuid,
+            )
+          : pullRequestsResult.value
+        : []
+
       const enrichedItems: EnrichedWorkItem[] = []
 
       for (const cardNumber of cardNumbers) {
@@ -61,17 +72,6 @@ export class AzureDevopsEnrichmentService {
           enrichedItems.push({ cardNumber, workItem: null, pullRequests: [] })
           continue
         }
-
-        const pullRequestsResult = await this.restClient.listPullRequests(
-          repo.repoName,
-        )
-        const pullRequests = pullRequestsResult.isOk()
-          ? azureDevopsUuid
-            ? pullRequestsResult.value.filter(
-                (pullRequest) => pullRequest.creatorId === azureDevopsUuid,
-              )
-            : pullRequestsResult.value
-          : []
 
         enrichedItems.push({
           cardNumber,
