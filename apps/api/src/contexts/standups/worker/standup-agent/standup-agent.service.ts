@@ -138,10 +138,6 @@ export class StandupAgentService {
         providerOptions: {
           google: { structuredOutputs: true },
         },
-        memory: {
-          resource: `user-${input.azureDevopsUuid ?? 'default'}`,
-          thread: `standup-generate-${input.date}`,
-        },
       }
 
       // Try streaming for content deltas

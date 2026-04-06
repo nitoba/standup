@@ -10,6 +10,8 @@ import type {
 } from '../../../../../shared/domain'
 import { Result } from '../../../../../shared/domain'
 import { AzureDevopsActivityCollectorService } from '../../azure-devops/azure-devops-activity-collector.service'
+import { AzureDevopsEnrichmentService } from '../../azure-devops/azure-devops-enrichment.service'
+import type { EnrichedGitActivity } from '../../azure-devops/types'
 import { GitCollectorService } from '../../git-collector/git-collector.service'
 import { StandupAgentService } from '../../standup-agent/standup-agent.service'
 import { StandupPromptService } from '../../standup-generator/standup-prompt.service'
@@ -27,6 +29,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
     private readonly loggerFactory: AppLoggerFactory,
     private readonly gitCollector: GitCollectorService,
     private readonly boardCollector: AzureDevopsActivityCollectorService,
+    private readonly enrichmentService: AzureDevopsEnrichmentService,
     private readonly tracing: AppTracingService,
     private readonly standupReadRepo: StandupReadRepository,
     private readonly localDateService: LocalDateService,
@@ -129,6 +132,28 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
       }
     }
 
+    // --- Enrich git activity with Azure DevOps work items and PRs ---
+    let enrichedActivity: EnrichedGitActivity | undefined
+    if (gitActivity) {
+      await this.reportStage(
+        reportProgress,
+        'enriching_data',
+        'Enriquecendo commits com dados do Azure DevOps',
+      )
+      const enrichResult = await this.enrichmentService.enrichGitActivity(
+        gitActivity,
+        options.azureDevopsUuid,
+      )
+      if (enrichResult.isOk()) {
+        enrichedActivity = enrichResult.value
+      } else {
+        this.logger.warn('Azure DevOps enrichment failed, continuing without enrichment', {
+          userId: options.userId,
+          error: enrichResult.error.message,
+        })
+      }
+    }
+
     // --- Collect board activity ---
     if (hasBoardSource) {
       await this.reportStage(
@@ -186,6 +211,7 @@ export class ExecuteGenerateStrategy extends StandupStrategyBase {
           date: today,
           meetingType,
           gitActivity: gitActivity ?? undefined,
+          enrichedActivity,
           boardActivity: boardActivity ?? undefined,
           extraContext: options.extraContext?.trim() || undefined,
           azureDevopsUuid: options.azureDevopsUuid,
