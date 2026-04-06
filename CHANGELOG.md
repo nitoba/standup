@@ -3,9 +3,24 @@
 ## Unreleased
 
 
+### Features
+
+- Feat: migrate standup agent to Mastra and DM-only delivery (#49) (`444797d`)
+
+- Feat: migrate pi-agent-core to Mastra agents (#48) (`6eb5a5d`)
+
+
+## 0.1.4 — 2026-04-03
+
+
 ### Bug Fixes
 
 - Fix: skip reminder DM when standup already approved or published (`c91876d`)
+
+
+### Chores
+
+- Chore: bump version to v0.1.4 (#47) (`4d0d7d2`)
 
 
 ## 0.1.3 — 2026-04-03
