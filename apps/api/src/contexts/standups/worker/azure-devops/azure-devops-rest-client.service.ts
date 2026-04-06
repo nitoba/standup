@@ -61,30 +61,30 @@ export class AzureDevopsRestClientService {
 
     return Result.tryPromise({
       try: async () => {
-        const allItems: WorkItemResponse[] = []
+        const fieldsParam = fields.join(',')
+        const batches: Promise<WorkItemResponse[]>[] = []
 
         for (let i = 0; i < ids.length; i += BATCH_SIZE) {
           const batchIds = ids.slice(i, i + BATCH_SIZE)
           const idsParam = batchIds.join(',')
-          const fieldsParam = fields.join(',')
           const url = `${this.baseUrl}/_apis/wit/workitems?ids=${idsParam}&fields=${fieldsParam}&api-version=7.1`
 
-          const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-              Authorization: this.authHeader,
-            },
-          })
-
-          await this.assertOk(response)
-
-          const data = (await response.json()) as {
-            value: WorkItemResponse[]
-          }
-          allItems.push(...data.value)
+          batches.push(
+            fetch(url, {
+              method: 'GET',
+              headers: { Authorization: this.authHeader },
+            }).then(async (response) => {
+              await this.assertOk(response)
+              const data = (await response.json()) as {
+                value: WorkItemResponse[]
+              }
+              return data.value
+            }),
+          )
         }
 
-        return allItems
+        const results = await Promise.all(batches)
+        return results.flat()
       },
       catch: (error) => this.toError('getWorkItemsBatch', error),
     })
