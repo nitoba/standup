@@ -5,7 +5,7 @@ import type {
   RepoActivity,
 } from '../../../../shared/domain'
 import { ExternalServiceError, Result } from '../../../../shared/domain'
-import { AzureDevopsMcpClientService } from './azure-devops-mcp-client.service'
+import { AzureDevopsRestClientService } from './azure-devops-rest-client.service'
 import type {
   EnrichedGitActivity,
   EnrichedRepo,
@@ -19,7 +19,7 @@ export class AzureDevopsEnrichmentService {
 
   constructor(
     private readonly loggerFactory: AppLoggerFactory,
-    private readonly azureDevopsMcpClient: AzureDevopsMcpClientService,
+    private readonly restClient: AzureDevopsRestClientService,
   ) {
     this.logger = this.loggerFactory.create('azure-devops-enrichment')
   }
@@ -51,7 +51,7 @@ export class AzureDevopsEnrichmentService {
 
       for (const cardNumber of cardNumbers) {
         const workItemResult =
-          await this.azureDevopsMcpClient.getWorkItem(cardNumber)
+          await this.restClient.getWorkItem(Number(cardNumber))
 
         if (workItemResult.isErr()) {
           this.logger.warn(
@@ -62,7 +62,7 @@ export class AzureDevopsEnrichmentService {
         }
 
         const pullRequestsResult =
-          await this.azureDevopsMcpClient.listPullRequests(repo.repoName)
+          await this.restClient.listPullRequests(repo.repoName)
         const pullRequests = pullRequestsResult.isOk()
           ? azureDevopsUuid
             ? pullRequestsResult.value.filter(
@@ -97,19 +97,10 @@ export class AzureDevopsEnrichmentService {
   async listRepositories(
     projects: string[],
   ): Promise<Result<RepoInfo[], ExternalServiceError>> {
-    if (!this.azureDevopsMcpClient.isConnected()) {
-      return Result.err(
-        new ExternalServiceError({
-          service: 'azure-devops',
-          message: 'Azure MCP client is not connected',
-        }),
-      )
-    }
-
     const repositories: RepoInfo[] = []
 
     for (const project of projects) {
-      const result = await this.azureDevopsMcpClient.listRepositories(project)
+      const result = await this.restClient.listRepositories(project)
       if (result.isErr()) {
         this.logger.warn(
           `Failed to list repositories for ${project}: ${result.error.message}`,
