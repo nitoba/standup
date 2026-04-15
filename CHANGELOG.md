@@ -1,11 +1,24 @@
 # Changelog
 
+## Unreleased
+
+
+### Chores
+
+- Chore(config): add ATER-DIGITAL to default Azure DevOps projects (`d762c79`)
+
+
 ## 0.2.1 — 2026-04-06
 
 
-### Bug Fixes
+### Chores
 
-- Fix(db): split manual status migration into drizzle statement breakpoints for libSQL/Turso deploys (`unreleased`)
+- Chore(release): prepare v0.2.1 with libsql migration fix (`791d625`)
+
+- Chore: bump version to v0.2.0 (`fab1168`)
+
+
+## 0.2.0 — 2026-04-06
 
 
 ### Features
@@ -435,4 +448,5 @@
 - Test(email): add tests for null and undefined email inputs (`6747803`)
 
 - Test: migrate api controller specs to http (`003a5de`)
+
 
