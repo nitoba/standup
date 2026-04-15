@@ -41,7 +41,7 @@ export const environmentVariablesSchema = z.object({
   AZURE_DEVOPS_PROJECTS: z
     .string()
     .optional()
-    .default('AGROTRACE,CHECKMILK,JASPER-RELATORIOS'),
+    .default('AGROTRACE,CHECKMILK,JASPER-RELATORIOS,ATER-DIGITAL'),
   APP_URL: z.string().default('http://localhost:4200'),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
   SMTP_HOST: z.string().optional(),
