@@ -94,7 +94,7 @@ import { ZardButtonComponent } from '../../shared/components/button'
             // como funciona
           </div>
           <div
-            class="text-center text-muted-foreground/80 font-(--font-ibm) text-[12px] leading-[1.6] w-full"
+            class="text-center text-muted-foreground/80 font-[var(--font-ibm)] text-[12px] leading-[1.6] w-full"
           >
             coleta commits → enriquece com azure devops → gera standup com ia
             → revisa e publica no discord

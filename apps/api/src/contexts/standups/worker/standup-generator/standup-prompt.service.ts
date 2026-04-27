@@ -10,21 +10,20 @@ import type {
   EnrichedGitActivity,
   EnrichedWorkItem,
 } from '../azure-devops/types'
+import { MeetingScheduleService } from './meeting-schedule.service'
 import { loadPromptTemplate } from './prompt-template-loader'
 
 export const MAX_STANDUP_CONTENT_CHARS = 2000
 
 @Injectable()
 export class StandupPromptService {
-  constructor(private readonly localDateService: LocalDateService) {}
+  constructor(
+    private readonly localDateService: LocalDateService,
+    private readonly meetingSchedule: MeetingScheduleService,
+  ) {}
 
   determineMeetingType(dateString: string): string {
-    const weekDay = this.localDateService.getDayOfWeek(dateString)
-
-    if (weekDay === 1) return '📆 (Start of week meeting)'
-    if (weekDay === 3) return '📆 (Planing Web)'
-    if (weekDay === 5) return '📆 (Encerramento semanal)'
-    return ''
+    return this.meetingSchedule.getMeetingType(dateString)
   }
 
   buildSystemPrompt(sources: { hasGit: boolean; hasBoard: boolean }): string {

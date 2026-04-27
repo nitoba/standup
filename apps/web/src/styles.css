@@ -1,11 +1,11 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 @plugin "tailwindcss-animate";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --font-jetbrains: 'JetBrains Mono', monospace;
-  --font-ibm: 'IBM Plex Mono', monospace;
+  --font-jetbrains: "JetBrains Mono", monospace;
+  --font-ibm: "IBM Plex Mono", monospace;
 
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -41,6 +41,7 @@
   --sidebar-ring: oklch(0.708 0 0);
 
   --accent-yellow: #eab308;
+  --accent-orange: #f97316;
   --accent-red: #ef4444;
   --accent-cyan: #06b6d4; /* kept for backwards compat, prefer --accent-yellow for pending */
 }
@@ -126,13 +127,13 @@
     @apply bg-background text-foreground;
   }
 
-  input[type='number']::-webkit-inner-spin-button,
-  input[type='number']::-webkit-outer-spin-button {
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
   }
 
-  input[type='number'] {
+  input[type="number"] {
     -moz-appearance: textfield;
     appearance: textfield; /* Added for general compatibility */
   }

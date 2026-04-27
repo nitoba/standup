@@ -6,12 +6,26 @@ import type {
 import type { EnrichedGitActivity } from '../azure-devops/types'
 import { StandupPromptService } from './standup-prompt.service'
 
-function createService(): StandupPromptService {
+type LocalDateServiceMockOptions = {
+  formattedDateByIso?: Record<string, string>
+  meetingTypeByDate?: Record<string, string>
+}
+
+function createService(
+  options: LocalDateServiceMockOptions = {},
+): StandupPromptService {
   const localDateService = {
-    getDayOfWeek: () => 2,
-    formatIsoForTimezone: (_iso: string, _tz: string) => '16/03/2026',
+    formatIsoForTimezone: (iso: string, _tz: string) =>
+      options.formattedDateByIso?.[iso] ?? '16/03/2026',
   }
-  return new StandupPromptService(localDateService as never)
+  const meetingSchedule = {
+    getMeetingType: (iso: string) => options.meetingTypeByDate?.[iso] ?? '',
+  }
+
+  return new StandupPromptService(
+    localDateService as never,
+    meetingSchedule as never,
+  )
 }
 
 const baseBoardActivity: GatheredBoardActivity = {
@@ -125,6 +139,23 @@ describe('StandupPromptService', () => {
       expect(message).toContain('Implementar filtro avançado')
       expect(message).toContain('#5678')
       expect(message).toContain('Corrigir bug no mapa')
+    })
+
+    it('uses automatic meeting type when input does not provide one', () => {
+      const service = createService({
+        formattedDateByIso: { '2026-05-01': '01/05/2026' },
+        meetingTypeByDate: { '2026-05-01': '📆 (Spotlight - Web)' },
+      })
+      const input: GenerateStandupInput = {
+        date: '2026-05-01',
+        meetingType: '',
+        boardActivity: baseBoardActivity,
+      }
+
+      const message = service.buildUserMessage(input)
+
+      expect(message).toContain('Data: 01/05/2026')
+      expect(message).toContain('Tipo de reunião: 📆 (Spotlight - Web)')
     })
 
     it('includes git section when enrichedActivity is provided', () => {

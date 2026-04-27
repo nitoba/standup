@@ -66,6 +66,17 @@ import { UserPopoverComponent } from './user-popover'
             <span [class]="navPrefixClass(settingsMobile.isActive)">$</span>
             <span [class]="navLabelClass(settingsMobile.isActive)">configurações</span>
           </a>
+          <a
+            routerLink="/weekly-digest"
+            routerLinkActive
+            #digestMobile="routerLinkActive"
+            [class]="navItemClass(digestMobile.isActive)"
+            [attr.aria-current]="digestMobile.isActive ? 'page' : null"
+            (click)="mobileMenuOpen.set(false)"
+          >
+            <span [class]="navPrefixClass(digestMobile.isActive)">$</span>
+            <span [class]="navLabelClass(digestMobile.isActive)">resumo semanal</span>
+          </a>
           <app-theme-toggle showLabel fullWidth class="mt-2" />
           <button
             type="button"
@@ -112,18 +123,16 @@ import { UserPopoverComponent } from './user-popover'
               <span [class]="navLabelClass(settingsActive.isActive)">configurações</span>
             </a>
 
-            <button
-              type="button"
-              z-button
-              zType="outline"
-              zSize="sm"
-              [zDisabled]="true"
-              class="justify-start opacity-50"
-              aria-disabled="true"
+            <a
+              routerLink="/weekly-digest"
+              routerLinkActive
+              #digestActive="routerLinkActive"
+              [class]="navItemClass(digestActive.isActive)"
+              [attr.aria-current]="digestActive.isActive ? 'page' : null"
             >
-              <span>$</span>
-              <span>relatórios</span>
-            </button>
+              <span [class]="navPrefixClass(digestActive.isActive)">$</span>
+              <span [class]="navLabelClass(digestActive.isActive)">resumo semanal</span>
+            </a>
 
             <app-theme-toggle showLabel fullWidth class="pt-2" />
           </nav>

@@ -90,9 +90,6 @@ function formatDisplayDate(dateStr: string): string {
                     <span class="text-primary font-[var(--font-jetbrains)] text-[11px] font-bold uppercase tracking-[0.12em]">
                       {{ formatDisplayDate(standup.date) }}
                     </span>
-                    <span class="text-muted-foreground/60 font-[var(--font-ibm)] text-[11px]">
-                      {{ formatDisplayDate(standup.date) }}
-                    </span>
                   </div>
                   <div class="flex items-center gap-[8px]">
                     <span

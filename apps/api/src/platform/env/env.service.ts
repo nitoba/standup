@@ -37,6 +37,7 @@ export class EnvService {
     return {
       gatewayEnabled: this.get('DISCORD_GATEWAY_ENABLED'),
       token: this.get('DISCORD_BOT_TOKEN'),
+      channelId: this.get('DISCORD_CHANNEL_ID'),
       guildId: this.get('DISCORD_GUILD_ID'),
     }
   }
@@ -56,6 +57,20 @@ export class EnvService {
         ?.split(',')
         .map((value) => value.trim())
         .filter(Boolean) ?? [this.get('AZURE_DEVOPS_DEFAULT_PROJECT')],
+    }
+  }
+
+  get meetings() {
+    return {
+      planningWebCycleStartDate: this.get(
+        'MEETING_PLANNING_WEB_CYCLE_START_DATE',
+      ),
+      spotlightRotationStartDate: this.get(
+        'MEETING_SPOTLIGHT_ROTATION_START_DATE',
+      ),
+      spotlightRotationStartTeam: this.get(
+        'MEETING_SPOTLIGHT_ROTATION_START_TEAM',
+      ),
     }
   }
 

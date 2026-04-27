@@ -64,12 +64,18 @@ function setInputValue(input: HTMLInputElement, value: string) {
   input.dispatchEvent(new Event('input'))
 }
 
+function getRequiredInput(inputs: HTMLInputElement[], index: number) {
+  const input = inputs[index]
+  expect(input).toBeDefined()
+  return input as HTMLInputElement
+}
+
 describe('ApproveDialogContent', () => {
   it('renders one input per optional group', async () => {
     const { fixture } = await createFixture()
 
     expect(getInputs(fixture)).toHaveLength(2)
-    expect(getButtonByText(fixture, '$ aprovar e publicar')).toBeTruthy()
+    expect(getButtonByText(fixture, '$ aprovar')).toBeTruthy()
   })
 
   it('prefills existing custom entries', async () => {
@@ -90,7 +96,7 @@ describe('ApproveDialogContent', () => {
   it('submits null customEntries when all inputs are empty', async () => {
     const { fixture, close, onSubmit } = await createFixture()
 
-    getButtonByText(fixture, '$ aprovar e publicar').click()
+    getButtonByText(fixture, '$ aprovar').click()
     fixture.detectChanges()
 
     expect(onSubmit).toHaveBeenCalledWith({ customEntries: null })
@@ -132,13 +138,13 @@ describe('ApproveDialogContent', () => {
 
     const inputs = getInputs(fixture)
 
-    setInputValue(inputs[0]!, 'Planning Backend')
-    setInputValue(inputs[1]!, 'Refinamento mobile')
-    setInputValue(inputs[2]!, 'Chamada com João')
-    setInputValue(inputs[3]!, 'Sync com QA')
+    setInputValue(getRequiredInput(inputs, 0), 'Planning Backend')
+    setInputValue(getRequiredInput(inputs, 1), 'Refinamento mobile')
+    setInputValue(getRequiredInput(inputs, 2), 'Chamada com João')
+    setInputValue(getRequiredInput(inputs, 3), 'Sync com QA')
     fixture.detectChanges()
 
-    getButtonByText(fixture, '$ aprovar e publicar').click()
+    getButtonByText(fixture, '$ aprovar').click()
 
     expect(onSubmit).toHaveBeenCalledWith({
       customEntries: {

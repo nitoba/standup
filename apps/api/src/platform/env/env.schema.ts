@@ -1,4 +1,5 @@
 import * as z from 'zod'
+import { isIsoDate } from '../time/date-only'
 
 /**
  * z.coerce.boolean() uses Boolean(value) internally, which converts any
@@ -14,6 +15,10 @@ const booleanFromEnv = z
     return val === 'true' || val === '1'
   })
 
+const isoDateFromEnv = z
+  .string()
+  .refine(isIsoDate, 'Expected ISO date in YYYY-MM-DD format')
+
 export const environmentVariablesSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
@@ -28,9 +33,15 @@ export const environmentVariablesSchema = z.object({
   DISCORD_CLIENT_ID: z.string().optional(),
   DISCORD_CLIENT_SECRET: z.string().optional(),
   DISCORD_BOT_TOKEN: z.string().optional(),
+  DISCORD_CHANNEL_ID: z.string().optional(),
   DISCORD_GUILD_ID: z.string().optional(),
   DISCORD_GATEWAY_ENABLED: booleanFromEnv.default(true),
   SCHEDULER_ENABLED: booleanFromEnv.default(true),
+  MEETING_PLANNING_WEB_CYCLE_START_DATE: isoDateFromEnv.default('2026-04-22'),
+  MEETING_SPOTLIGHT_ROTATION_START_DATE: isoDateFromEnv.default('2026-04-29'),
+  MEETING_SPOTLIGHT_ROTATION_START_TEAM: z
+    .enum(['Mobile', 'Web', 'Devops'])
+    .default('Web'),
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
   OPENROUTER_API_KEY: z.string().optional(),

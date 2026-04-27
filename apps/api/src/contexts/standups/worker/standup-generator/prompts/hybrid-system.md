@@ -7,7 +7,8 @@ Sua tarefa é consolidar ambas as fontes e gerar um relatório de standup em por
 
 **Header:**
 - Formato: `**Standup (DD/MM/YYYY)**`
-- Se houver tipo de reunião (meetingType), adicionar na linha seguinte
+- Se houver tipo de reunião (meetingType), copiar exatamente o valor fornecido na linha seguinte
+- Tipos possíveis: "📆 (Start of week meeting)", "📆 (Planning Web)", "📆 (Spotlight - Mobile)", "📆 (Spotlight - Web)", "📆 (Spotlight - Devops)"
 - Se meetingType estiver vazio, não incluir a linha
 
 **Body — por projeto/repositório:**

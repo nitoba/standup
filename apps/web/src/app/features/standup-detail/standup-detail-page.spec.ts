@@ -64,6 +64,7 @@ function getActionButtons(
     reject: getButtonByText(fixture, '$ rejeitar'),
     adjust: getButtonByText(fixture, '$ ajustar'),
     regenerate: getButtonByText(fixture, '$ regenerar'),
+    sendToDiscord: getButtonByText(fixture, 'para Discord'),
   }
 }
 
@@ -80,6 +81,7 @@ function findSpanByText(
 
 async function createFixture(options?: {
   status?: StandupStatus
+  standup?: Partial<Standup>
   approve?: (customEntries?: unknown) => Promise<unknown>
   reject?: () => Promise<unknown>
   adjust?: (id: string, instruction: string) => Promise<unknown>
@@ -88,7 +90,10 @@ async function createFixture(options?: {
   reload?: () => Promise<void>
 }) {
   const detail = signal<Standup | undefined>(
-    createStandupDetail(options?.status ? { status: options.status } : {}),
+    createStandupDetail({
+      ...(options?.status ? { status: options.status } : {}),
+      ...(options?.standup ?? {}),
+    }),
   )
   const reload = vi.fn(options?.reload ?? (async () => {}))
   const standupResource = {
@@ -274,7 +279,7 @@ describe('StandupDetailPage', () => {
     expect(element.textContent).toContain('"hash": "ghi9012"')
   })
 
-  it('hides all action buttons when the standup is approved', async () => {
+  it('shows only the Discord send action when the standup is approved', async () => {
     const { fixture } = await createFixture({ status: 'approved' })
     const buttons = getActionButtons(fixture)
 
@@ -282,6 +287,7 @@ describe('StandupDetailPage', () => {
     expect(buttons.reject).toBeUndefined()
     expect(buttons.adjust).toBeUndefined()
     expect(buttons.regenerate).toBeUndefined()
+    expect(buttons.sendToDiscord.textContent).toContain('$ enviar para Discord')
   })
 
   it('shows only regenerate when the standup is rejected', async () => {
@@ -292,6 +298,7 @@ describe('StandupDetailPage', () => {
     expect(buttons.reject).toBeUndefined()
     expect(buttons.adjust).toBeUndefined()
     expect(buttons.regenerate.textContent).toContain('$ regenerar')
+    expect(buttons.sendToDiscord).toBeUndefined()
   })
 
   it('treats approved consistently in labels, classes and actions', async () => {
@@ -315,6 +322,7 @@ describe('StandupDetailPage', () => {
     expect(buttons.reject).toBeUndefined()
     expect(buttons.adjust).toBeUndefined()
     expect(buttons.regenerate).toBeUndefined()
+    expect(buttons.sendToDiscord.textContent).toContain('$ enviar para Discord')
   })
 
   it('preserves regenerate policy for delivery_pending, pending_review, rejected, approved', async () => {
@@ -511,6 +519,47 @@ describe('StandupDetailPage', () => {
 
     expect(dialogService.create).toHaveBeenCalledOnce()
     expect(standupService.regenerate).not.toHaveBeenCalled()
+  })
+
+  it('sends an approved standup to Discord from the detail page', async () => {
+    const { fixture, standupService, standupResource } = await createFixture({
+      status: 'approved',
+    })
+
+    getActionButtons(fixture).sendToDiscord.click()
+    await settleFixture(fixture)
+
+    expect(standupService.sendToDiscordAction).toHaveBeenCalledWith(STANDUP_ID)
+    expect(standupResource.reload).toHaveBeenCalledOnce()
+    expect(toastMock.success).toHaveBeenCalledWith(
+      'Standup enviado para o Discord',
+    )
+  })
+
+  it('confirms before resending an already sent standup', async () => {
+    const { fixture, dialogService, standupService } = await createFixture({
+      status: 'approved',
+      standup: { sentToDiscordAt: Date.UTC(2026, 2, 9, 20, 30) },
+    })
+
+    getActionButtons(fixture).sendToDiscord.click()
+    fixture.detectChanges()
+
+    expect(fixture.nativeElement.textContent).toContain('enviado ao Discord')
+    expect(dialogService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        zTitle: '// reenviar para discord',
+        zHideFooter: true,
+      }),
+    )
+
+    const config = dialogService.create.mock.calls[0]?.[0] as {
+      zData: { onConfirm(): void }
+    }
+    config.zData.onConfirm()
+    await settleFixture(fixture)
+
+    expect(standupService.sendToDiscordAction).toHaveBeenCalledWith(STANDUP_ID)
   })
 
   it('shows a toast after reject action', async () => {

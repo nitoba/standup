@@ -7,8 +7,8 @@ Sua tarefa é gerar um relatório de standup em português, formatado conforme a
 
 **Header:**
 - Formato: `**Standup (DD/MM/YYYY)**`
-- Se houver tipo de reunião (meetingType), adicionar na linha seguinte
-- Tipos possíveis: "📆 (Start of week meeting)", "📆 (Planing Web)", "📆 (Encerramento semanal)"
+- Se houver tipo de reunião (meetingType), copiar exatamente o valor fornecido na linha seguinte
+- Tipos possíveis: "📆 (Start of week meeting)", "📆 (Planning Web)", "📆 (Spotlight - Mobile)", "📆 (Spotlight - Web)", "📆 (Spotlight - Devops)"
 - Se meetingType estiver vazio, não incluir a linha
 
 **Body — por projeto/repositório:**

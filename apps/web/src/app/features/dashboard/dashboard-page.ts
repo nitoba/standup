@@ -14,6 +14,7 @@ import { ZardDialogService } from '../../shared/components/dialog'
 import { formatLocalDate, minusDays, startOfLocalDay } from '../../shared/utils'
 import { DashboardSkeleton } from './components/dashboard-skeleton/dashboard-skeleton'
 import { FilterBar } from './components/filter-bar/filter-bar'
+import { GenerateDialogContent } from './components/generate-dialog/generate-dialog-content'
 import { MetricCard } from './components/metric-card/metric-card'
 import { StandupTable } from './components/standup-table/standup-table'
 import { StandupService } from './services/standup-service'
@@ -227,20 +228,25 @@ export class DashboardPage {
   openGenerateModal() {
     this.dialogService.create({
       zTitle: '// gerar standup',
-      zDescription:
-        '// isso vai coletar seus commits de hoje, enriquecer com dados do Azure DevOps e gerar o standup via IA',
-      zContent: 'Tem certeza que deseja gerar o standup agora?',
-      zOkText: '$ confirmar',
-      zCancelText: '$ cancelar',
-      zOnOk: () => {
-        void this.triggerGeneration()
+      zContent: GenerateDialogContent,
+      zHideFooter: true,
+      zWidth: '640px',
+      zData: {
+        onSubmit: (extraContext?: string) => {
+          void this.triggerGeneration(extraContext)
+        },
       },
     })
   }
 
-  async triggerGeneration() {
+  async triggerGeneration(extraContext?: string) {
+    if (this.standupService.activeProgress()) {
+      toast.info('Já existe um standup em processamento.')
+      return
+    }
+
     try {
-      const result = await this.standupService.trigger()
+      const result = await this.standupService.trigger(extraContext)
       if (result.accepted && result.ok) {
         toast.success(
           'Solicitação aceita — você será notificado quando o standup estiver pronto.',

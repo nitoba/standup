@@ -159,7 +159,7 @@ function cleanEntries(lines: string[]): string[] {
         </button>
 
         <button type="button" z-button zType="default" class="md:min-w-[180px]" (click)="onSubmit()">
-          $ aprovar e publicar
+          $ aprovar
         </button>
       </div>
     </div>

@@ -28,7 +28,6 @@ import type {
   TriggerStandupDto,
 } from '../../../api/model'
 import type {
-  DashboardMetricChangesDto,
   DashboardMetrics,
   Standup,
   StandupCustomEntriesDto,
@@ -130,9 +129,13 @@ export class StandupService {
       queryKey: getGetStandupByIdQueryKey(id ?? ''),
       enabled: !!id,
       queryFn: async ({ signal: abortSignal }) => {
+        if (!id) {
+          return undefined
+        }
+
         const response: StandupDetailResponseDto = await getStandupById(
           this.http,
-          id!,
+          id,
           { signal: abortSignal },
         )
         return this.mapStandup(response.data)
@@ -373,23 +376,25 @@ export class StandupService {
       })) as TriggerAcceptedDto
       return { ok: result.ok, accepted: result.accepted }
     } catch (error) {
-      const httpError = error as HttpErrorResponse
-      const body = httpError.error as
-        | { message?: string; error?: string }
-        | undefined
       return {
         ok: false,
         accepted: false,
-        error:
-          body?.message ??
-          body?.error ??
+        error: this.extractHttpErrorMessage(
+          error,
           'Falha ao disparar geração do standup',
+        ),
       }
     }
   }
 
   async sendToDiscordAction(id: string) {
-    return this.sendToDiscordMutation.mutateAsync({ id })
+    try {
+      return await this.sendToDiscordMutation.mutateAsync({ id })
+    } catch (error) {
+      throw new Error(
+        this.extractHttpErrorMessage(error, 'Falha ao enviar para o Discord'),
+      )
+    }
   }
 
   // --- Private mapping helpers ---
@@ -405,5 +410,14 @@ export class StandupService {
 
   private mapStandup(dto: StandupRecordDto): Standup {
     return mapStandupRecordDtoToStandup(dto)
+  }
+
+  private extractHttpErrorMessage(error: unknown, fallback: string): string {
+    const httpError = error as HttpErrorResponse
+    const body = httpError.error as
+      | { message?: string; error?: string }
+      | undefined
+
+    return body?.message ?? body?.error ?? fallback
   }
 }

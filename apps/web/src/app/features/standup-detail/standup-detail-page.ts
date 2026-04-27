@@ -11,7 +11,6 @@ import { toast } from 'ngx-sonner'
 import { SidebarLayout } from '../../core/layout/sidebar'
 import { ZardButtonComponent } from '../../shared/components/button'
 import { ZardDialogService } from '../../shared/components/dialog'
-import { ZardIconComponent } from '../../shared/components/icon'
 import { JsonViewerComponent } from '../../shared/components/json-viewer/json-viewer.component'
 import type {
   Standup,
@@ -72,6 +71,11 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
                 </span>
               </div>
               <span class="hidden md:inline text-muted-foreground font-[var(--font-ibm)] text-[12px]">criado em: {{ detail.createdAt }}</span>
+              @if (detail.sentToDiscordAt) {
+                <span class="hidden md:inline text-muted-foreground font-[var(--font-ibm)] text-[12px]">
+                  enviado ao Discord: {{ formatSentAt(detail.sentToDiscordAt) }}
+                </span>
+              }
               <span class="hidden md:inline text-muted-foreground/70 font-[var(--font-ibm)] text-[12px]">id: {{ detail.id }}</span>
             </div>
           </div>
@@ -220,6 +224,18 @@ import { DiscordFormatPipe } from './pipes/discord-format.pipe'
                 (click)="openRegenerateModal(detail.id)"
               >
                 $ regenerar
+              </button>
+            }
+            @if (isApproved(detail.status)) {
+              <button
+                type="button"
+                z-button
+                [zType]="detail.sentToDiscordAt ? 'outline' : 'default'"
+                class="w-full md:w-auto"
+                [zDisabled]="actionLoading()"
+                (click)="handleSendToDiscord(detail)"
+              >
+                {{ detail.sentToDiscordAt ? '$ reenviar para Discord' : '$ enviar para Discord' }}
               </button>
             }
           </div>
@@ -420,6 +436,10 @@ export class StandupDetailPage {
   }
 
   handleSendToDiscord(detail: Standup) {
+    if (this.actionLoading()) {
+      return
+    }
+
     if (detail.sentToDiscordAt) {
       const sentDate = formatTimestampPtBr(detail.sentToDiscordAt)
       this.dialogService.create({
@@ -437,15 +457,27 @@ export class StandupDetailPage {
   }
 
   private async executeSendToDiscord(id: string) {
+    if (this.actionLoading()) {
+      return
+    }
+
     this.actionLoading.set(true)
     try {
       await this.standupService.sendToDiscordAction(id)
       toast.success('Standup enviado para o Discord')
       this.standup.reload()
-    } catch {
-      toast.error('Falha ao enviar para o Discord')
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Falha ao enviar para o Discord',
+      )
     } finally {
       this.actionLoading.set(false)
     }
+  }
+
+  formatSentAt(sentAt: number) {
+    return formatTimestampPtBr(sentAt)
   }
 }

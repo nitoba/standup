@@ -132,6 +132,12 @@ function findNewestPendingId(standups: Standup[]): string | null {
             }
           </div>
         </div>
+      } @empty {
+        <div class="border-b border-border px-[16px] py-[28px] text-center md:px-[20px]">
+          <div class="font-[var(--font-jetbrains)] text-[12px] text-muted-foreground">
+            // nenhum standup encontrado para os filtros atuais
+          </div>
+        </div>
       }
 
       <div class="px-[16px] md:px-[20px] py-[12px] md:py-[16px] flex flex-col gap-[12px] md:flex-row md:items-center md:justify-between">
