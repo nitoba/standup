@@ -1,5 +1,5 @@
 // apps/api/src/test/discord/mock-interaction.ts
-import { vi, type MockInstance } from 'vitest'
+import { vi, type Mock } from 'vitest'
 
 type MockOpts = {
   userId?: string
@@ -7,47 +7,49 @@ type MockOpts = {
   replied?: boolean
 }
 
-type ChatInputInteractionMock = {
+export type ChatInputInteractionMock = {
   user: { id: string }
   deferred: boolean
   replied: boolean
   isRepliable: () => boolean
-  reply: MockInstance
-  deferReply: MockInstance
-  editReply: MockInstance
-  followUp: MockInstance
-  showModal: MockInstance
+  reply: Mock
+  deferReply: Mock
+  editReply: Mock
+  followUp: Mock
+  showModal: Mock
 }
 
-type ButtonInteractionMock = {
+export type ButtonInteractionMock = {
   user: { id: string }
   deferred: boolean
   replied: boolean
   isRepliable: () => boolean
-  deferUpdate: MockInstance
-  update: MockInstance
-  editReply: MockInstance
-  followUp: MockInstance
-  showModal: MockInstance
+  reply: Mock
+  deferUpdate: Mock
+  update: Mock
+  editReply: Mock
+  followUp: Mock
+  showModal: Mock
   message: {
-    react: MockInstance
-    edit: MockInstance
+    react: Mock
+    edit: Mock
   }
 }
 
-type ModalInteractionMock = {
+export type ModalInteractionMock = {
   user: { id: string }
   deferred: boolean
   replied: boolean
   isRepliable: () => boolean
-  deferUpdate: MockInstance
-  editReply: MockInstance
-  followUp: MockInstance
+  deferUpdate: Mock
+  update: Mock
+  editReply: Mock
+  followUp: Mock
   fields: {
-    getTextInputValue: MockInstance
+    getTextInputValue: Mock
   }
   message: {
-    react: MockInstance
+    react: Mock
   }
 }
 
@@ -71,6 +73,7 @@ export function makeButtonInteraction(opts: MockOpts = {}): ButtonInteractionMoc
     deferred: opts.deferred ?? false,
     replied: opts.replied ?? false,
     isRepliable: () => true,
+    reply: vi.fn().mockResolvedValue(undefined),
     deferUpdate: vi.fn().mockResolvedValue(undefined),
     update: vi.fn().mockResolvedValue(undefined),
     editReply: vi.fn().mockResolvedValue(undefined),
@@ -93,6 +96,7 @@ export function makeModalInteraction(
     replied: opts.replied ?? false,
     isRepliable: () => true,
     deferUpdate: vi.fn().mockResolvedValue(undefined),
+    update: vi.fn().mockResolvedValue(undefined),
     editReply: vi.fn().mockResolvedValue(undefined),
     followUp: vi.fn().mockResolvedValue(undefined),
     fields: {
