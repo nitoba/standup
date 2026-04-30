@@ -4,17 +4,10 @@ import {
   type ExceptionFilter,
   Injectable,
 } from '@nestjs/common'
+import type { Interaction, RepliableInteraction } from 'discord.js'
 import { NecordArgumentsHost } from 'necord'
 import { AppLoggerFactory } from '../../../../platform/logger'
 import { TaggedError } from '../../../../shared/domain'
-
-type InteractionLike = {
-  isRepliable: () => boolean
-  deferred?: boolean
-  replied?: boolean
-  reply?: (payload: { content: string; ephemeral: true }) => Promise<unknown>
-  followUp?: (payload: { content: string; ephemeral: true }) => Promise<unknown>
-}
 
 @Catch()
 @Injectable()
@@ -27,7 +20,7 @@ export class DiscordExceptionFilter implements ExceptionFilter {
 
   async catch(err: unknown, host: ArgumentsHost): Promise<void> {
     const [maybeInteraction] = NecordArgumentsHost.create(host).getContext<'interactionCreate'>()
-    const interaction = maybeInteraction as InteractionLike | undefined
+    const interaction = maybeInteraction as Interaction | undefined
 
     if (!TaggedError.is(err)) return
 
@@ -39,11 +32,20 @@ export class DiscordExceptionFilter implements ExceptionFilter {
     if (!interaction || typeof interaction.isRepliable !== 'function') return
     if (!interaction.isRepliable()) return
 
+    const repliable = interaction as RepliableInteraction
     const payload = { content: `Erro: ${err.message}`, ephemeral: true } as const
-    if (interaction.deferred || interaction.replied) {
-      await interaction.followUp?.(payload).catch(() => undefined)
+    if (repliable.deferred || repliable.replied) {
+      await repliable.followUp(payload).catch((replyErr: unknown) => {
+        this.logger.warn('Failed to send ephemeral reply to Discord interaction', {
+          error: replyErr instanceof Error ? replyErr.message : String(replyErr),
+        })
+      })
     } else {
-      await interaction.reply?.(payload).catch(() => undefined)
+      await repliable.reply(payload).catch((replyErr: unknown) => {
+        this.logger.warn('Failed to send ephemeral reply to Discord interaction', {
+          error: replyErr instanceof Error ? replyErr.message : String(replyErr),
+        })
+      })
     }
   }
 }

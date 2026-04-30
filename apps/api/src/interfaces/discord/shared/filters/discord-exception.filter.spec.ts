@@ -61,4 +61,15 @@ describe('DiscordExceptionFilter', () => {
       filter.catch(new TestError(), makeHost(interaction)),
     ).resolves.toBeUndefined()
   })
+
+  it('does nothing when error is not a TaggedError', async () => {
+    const filter = new DiscordExceptionFilter(logger as never)
+    const interaction = makeButtonInteraction({ deferred: false, replied: false })
+    ;(interaction as { reply?: unknown }).reply = vi.fn().mockResolvedValue(undefined)
+
+    await filter.catch(new Error('plain'), makeHost(interaction))
+
+    expect(interaction.reply).not.toHaveBeenCalled()
+    expect(interaction.followUp).not.toHaveBeenCalled()
+  })
 })
