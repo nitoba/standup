@@ -12,6 +12,7 @@ import {
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import { EnvService } from '../../../platform/env/env.service'
 import { AppLoggerFactory } from '../../../platform/logger'
+import { Result } from '../../../shared/domain'
 
 type ReplyCapableInteraction =
   | ChatInputCommandInteraction
@@ -127,5 +128,50 @@ export class DiscordAuthService {
         : 'Sua sessão expirou. Use `/login` ou clique no botão abaixo para reconectar:'
 
     await interaction.editReply({ content, components: [row] })
+  }
+
+  async handleLogoutCommand(
+    interaction: ChatInputCommandInteraction,
+  ): Promise<void> {
+    // Defer immediately before any async DB calls to avoid the 3s Discord timeout (TAS-56).
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+
+    const checkResult = await this.userRepository.hasActiveSession(
+      interaction.user.id,
+    )
+
+    if (Result.isError(checkResult)) {
+      await interaction.editReply(
+        'Erro interno ao verificar sessão. Tente novamente.',
+      )
+      return
+    }
+
+    if (checkResult.value === null) {
+      await interaction.editReply(
+        'Você não está registrado no sistema. Use `/login` para conectar sua conta.',
+      )
+      return
+    }
+
+    if (!checkResult.value.hasSession) {
+      await interaction.editReply(
+        'Você não possui sessão ativa. Use `/login` para reconectar.',
+      )
+      return
+    }
+
+    const deleteResult = await this.userRepository.deleteSessionsByDiscordId(
+      interaction.user.id,
+    )
+
+    if (Result.isError(deleteResult)) {
+      await interaction.editReply('Erro ao encerrar sessão. Tente novamente.')
+      return
+    }
+
+    await interaction.editReply(
+      'Sessão encerrada com sucesso. Use `/login` quando quiser reconectar.',
+    )
   }
 }

@@ -33,6 +33,147 @@ function assertCalledBefore(
   expect(orderA).toBeLessThan(orderB)
 }
 
+describe('DiscordAuthService.handleLogoutCommand', () => {
+  it('defers reply first then replies "Erro interno ao verificar sessão" when hasActiveSession returns error', async () => {
+    const userRepo = {
+      hasActiveSession: vi.fn().mockResolvedValue({ status: 'error', error: new Error('db error') }),
+      deleteSessionsByDiscordId: vi.fn(),
+    }
+
+    const service = new DiscordAuthService(
+      makeLoggerFactory() as never,
+      userRepo as never,
+      makeEnv() as never,
+    )
+
+    const interaction = makeChatInputInteraction({ userId: 'user-1' })
+
+    await service.handleLogoutCommand(interaction as never)
+
+    expect(interaction.deferReply).toHaveBeenCalledWith({
+      flags: MessageFlags.Ephemeral,
+    })
+    expect(interaction.editReply).toHaveBeenCalledWith(
+      'Erro interno ao verificar sessão. Tente novamente.',
+    )
+    expect(userRepo.deleteSessionsByDiscordId).not.toHaveBeenCalled()
+    assertCalledBefore(interaction.deferReply, interaction.editReply)
+  })
+
+  it('defers reply first then replies "Você não está registrado" when hasActiveSession returns null', async () => {
+    const userRepo = {
+      hasActiveSession: vi.fn().mockResolvedValue({ status: 'ok', value: null }),
+      deleteSessionsByDiscordId: vi.fn(),
+    }
+
+    const service = new DiscordAuthService(
+      makeLoggerFactory() as never,
+      userRepo as never,
+      makeEnv() as never,
+    )
+
+    const interaction = makeChatInputInteraction({ userId: 'user-2' })
+
+    await service.handleLogoutCommand(interaction as never)
+
+    expect(interaction.deferReply).toHaveBeenCalledWith({
+      flags: MessageFlags.Ephemeral,
+    })
+    expect(interaction.editReply).toHaveBeenCalledWith(
+      'Você não está registrado no sistema. Use `/login` para conectar sua conta.',
+    )
+    assertCalledBefore(interaction.deferReply, interaction.editReply)
+  })
+
+  it('defers reply first then replies "Você não possui sessão ativa" when hasSession is false', async () => {
+    const userRepo = {
+      hasActiveSession: vi.fn().mockResolvedValue({
+        status: 'ok',
+        value: { userId: 'user-3', hasSession: false },
+      }),
+      deleteSessionsByDiscordId: vi.fn(),
+    }
+
+    const service = new DiscordAuthService(
+      makeLoggerFactory() as never,
+      userRepo as never,
+      makeEnv() as never,
+    )
+
+    const interaction = makeChatInputInteraction({ userId: 'user-3' })
+
+    await service.handleLogoutCommand(interaction as never)
+
+    expect(interaction.deferReply).toHaveBeenCalledWith({
+      flags: MessageFlags.Ephemeral,
+    })
+    expect(interaction.editReply).toHaveBeenCalledWith(
+      'Você não possui sessão ativa. Use `/login` para reconectar.',
+    )
+    assertCalledBefore(interaction.deferReply, interaction.editReply)
+  })
+
+  it('defers reply first then replies "Erro ao encerrar sessão" when deleteSessionsByDiscordId returns error', async () => {
+    const userRepo = {
+      hasActiveSession: vi.fn().mockResolvedValue({
+        status: 'ok',
+        value: { userId: 'user-4', hasSession: true },
+      }),
+      deleteSessionsByDiscordId: vi
+        .fn()
+        .mockResolvedValue({ status: 'error', error: new Error('db error') }),
+    }
+
+    const service = new DiscordAuthService(
+      makeLoggerFactory() as never,
+      userRepo as never,
+      makeEnv() as never,
+    )
+
+    const interaction = makeChatInputInteraction({ userId: 'user-4' })
+
+    await service.handleLogoutCommand(interaction as never)
+
+    expect(interaction.deferReply).toHaveBeenCalledWith({
+      flags: MessageFlags.Ephemeral,
+    })
+    expect(interaction.editReply).toHaveBeenCalledWith(
+      'Erro ao encerrar sessão. Tente novamente.',
+    )
+    assertCalledBefore(interaction.deferReply, interaction.editReply)
+  })
+
+  it('defers reply first then replies success when session exists and delete succeeds', async () => {
+    const userRepo = {
+      hasActiveSession: vi.fn().mockResolvedValue({
+        status: 'ok',
+        value: { userId: 'user-5', hasSession: true },
+      }),
+      deleteSessionsByDiscordId: vi
+        .fn()
+        .mockResolvedValue({ status: 'ok', value: true }),
+    }
+
+    const service = new DiscordAuthService(
+      makeLoggerFactory() as never,
+      userRepo as never,
+      makeEnv() as never,
+    )
+
+    const interaction = makeChatInputInteraction({ userId: 'user-5' })
+
+    await service.handleLogoutCommand(interaction as never)
+
+    expect(interaction.deferReply).toHaveBeenCalledWith({
+      flags: MessageFlags.Ephemeral,
+    })
+    expect(interaction.editReply).toHaveBeenCalledWith(
+      'Sessão encerrada com sucesso. Use `/login` quando quiser reconectar.',
+    )
+    assertCalledBefore(interaction.deferReply, interaction.editReply)
+  })
+})
+
 describe('DiscordAuthService.handleLoginCommand', () => {
   it('defers reply first then responds "Você já está logado" when session is active', async () => {
     const userRepo = {
