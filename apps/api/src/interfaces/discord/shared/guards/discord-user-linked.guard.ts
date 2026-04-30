@@ -19,7 +19,7 @@ export class DiscordUserLinkedGuard implements CanActivate {
     const interaction = maybeInteraction as
       | ChatInputCommandInteraction
       | undefined
-    if (!interaction || !('user' in interaction)) return false
+    if (!interaction || !('commandName' in interaction)) return false
 
     const session = await this.auth.requireChatAuth(interaction)
     return session !== null

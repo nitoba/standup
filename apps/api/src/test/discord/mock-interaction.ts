@@ -5,9 +5,11 @@ type MockOpts = {
   userId?: string
   deferred?: boolean
   replied?: boolean
+  commandName?: string
 }
 
 export type ChatInputInteractionMock = {
+  commandName: string
   user: { id: string }
   deferred: boolean
   replied: boolean
@@ -55,6 +57,7 @@ export type ModalInteractionMock = {
 
 export function makeChatInputInteraction(opts: MockOpts = {}): ChatInputInteractionMock {
   return {
+    commandName: opts.commandName ?? 'test-command',
     user: { id: opts.userId ?? 'user-1' },
     deferred: opts.deferred ?? false,
     replied: opts.replied ?? false,

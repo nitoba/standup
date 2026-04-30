@@ -1,7 +1,10 @@
 // apps/api/src/interfaces/discord/shared/guards/discord-user-linked.guard.spec.ts
 import type { ExecutionContext } from '@nestjs/common'
 import { describe, expect, it, vi } from 'vitest'
-import { makeChatInputInteraction } from '../../../../test/discord/mock-interaction'
+import {
+  makeButtonInteraction,
+  makeChatInputInteraction,
+} from '../../../../test/discord/mock-interaction'
 import { DiscordUserLinkedGuard } from './discord-user-linked.guard'
 
 function makeCtx(interaction: unknown): ExecutionContext {
@@ -39,6 +42,16 @@ describe('DiscordUserLinkedGuard', () => {
     const guard = new DiscordUserLinkedGuard(auth as never)
 
     await expect(guard.canActivate(makeCtx(undefined))).resolves.toBe(false)
+    expect(auth.requireChatAuth).not.toHaveBeenCalled()
+  })
+
+  it('returns false when interaction is not a chat-input command (e.g., button)', async () => {
+    const auth = { requireChatAuth: vi.fn() }
+    const guard = new DiscordUserLinkedGuard(auth as never)
+    // makeButtonInteraction lacks commandName by design
+    const button = makeButtonInteraction()
+
+    await expect(guard.canActivate(makeCtx(button))).resolves.toBe(false)
     expect(auth.requireChatAuth).not.toHaveBeenCalled()
   })
 })
