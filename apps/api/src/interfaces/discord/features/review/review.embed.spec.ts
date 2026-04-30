@@ -3,7 +3,7 @@ import type { StandupRecord } from '../../../../shared/domain'
 import { buildReviewEmbed } from './review.embed'
 
 describe('buildReviewEmbed', () => {
-  const record = {
+  const record: StandupRecord = {
     id: 'std-1',
     userId: 'user-1',
     date: '2026-04-29',
@@ -16,7 +16,7 @@ describe('buildReviewEmbed', () => {
     sentToDiscordAt: null,
     createdAt: 1745928000000,
     updatedAt: 1745928000000,
-  } as unknown as StandupRecord
+  }
 
   it('builds review embed with blue color and meeting type field', () => {
     const embed = buildReviewEmbed(record)
@@ -33,6 +33,7 @@ describe('buildReviewEmbed', () => {
   it('truncates description to 4096 chars', () => {
     const big = { ...record, content: 'x'.repeat(5000) }
     const embed = buildReviewEmbed(big)
-    expect(embed.description?.length).toBeLessThanOrEqual(4096)
+    expect(embed.description).toBeDefined()
+    expect(embed.description!.length).toBeLessThanOrEqual(4096)
   })
 })
