@@ -10,7 +10,7 @@ describe('TriggerSubcommand', () => {
     const cmd = new TriggerSubcommand(triggerSvc as never)
     const interaction = makeChatInputInteraction()
 
-    await cmd.onTrigger(asSlashContext(interaction))
+    await cmd.onTrigger(asSlashContext(interaction), {} as never)
 
     expect(triggerSvc.handleSlashCommand).toHaveBeenCalledWith(interaction)
   })
