@@ -5,13 +5,13 @@ import { asSlashContext } from '../../../../test/discord/make-context'
 import { LoginCommand } from './login.command'
 
 describe('LoginCommand', () => {
-  it('replies with the login button via DiscordAuthService.replyWithLoginLink', async () => {
-    const auth = { replyWithLoginLink: vi.fn().mockResolvedValue(undefined) }
+  it('delegates to DiscordAuthService.handleLoginCommand', async () => {
+    const auth = { handleLoginCommand: vi.fn().mockResolvedValue(undefined) }
     const cmd = new LoginCommand(auth as never)
     const interaction = makeChatInputInteraction()
 
     await cmd.onLogin(asSlashContext(interaction))
 
-    expect(auth.replyWithLoginLink).toHaveBeenCalledWith(interaction)
+    expect(auth.handleLoginCommand).toHaveBeenCalledWith(interaction)
   })
 })

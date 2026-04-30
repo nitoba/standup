@@ -12,6 +12,6 @@ export class LoginCommand {
     description: 'Conectar sua conta Discord ao Standup Bot',
   })
   public async onLogin(@Context() [interaction]: SlashCommandContext) {
-    await this.auth.replyWithLoginLink(interaction)
+    await this.auth.handleLoginCommand(interaction)
   }
 }

@@ -99,4 +99,33 @@ export class DiscordAuthService {
       })
     }
   }
+
+  async handleLoginCommand(
+    interaction: ChatInputCommandInteraction,
+  ): Promise<void> {
+    // Defer immediately before any async DB call to avoid the 3s Discord timeout (TAS-56).
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+
+    const session = await this.resolveActiveSession(interaction.user.id)
+    if (session?.hasSession) {
+      await interaction.editReply(
+        'Você já está logado! Use `/logout` para encerrar sua sessão.',
+      )
+      return
+    }
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setLabel('Login com Discord')
+        .setStyle(ButtonStyle.Link)
+        .setURL(`${this.loginUrl}`),
+    )
+
+    const content =
+      session === null
+        ? 'Você precisa conectar sua conta antes de usar este comando.\nUse `/login` ou clique no botão abaixo:'
+        : 'Sua sessão expirou. Use `/login` ou clique no botão abaixo para reconectar:'
+
+    await interaction.editReply({ content, components: [row] })
+  }
 }
