@@ -21,6 +21,9 @@ function makeEnv(baseUrl = 'http://localhost:3333') {
   }
 }
 
+const okResult = <T>(value: T) => ({ isErr: () => false, isOk: () => true, value })
+const errResult = (message: string) => ({ isErr: () => true, isOk: () => false, error: new Error(message) })
+
 /** Assert that mockA was called before mockB using invocation call orders. */
 function assertCalledBefore(
   // biome-ignore lint/suspicious/noExplicitAny: test helper
@@ -36,7 +39,7 @@ function assertCalledBefore(
 describe('DiscordAuthService.handleLogoutCommand', () => {
   it('defers reply first then replies "Erro interno ao verificar sessão" when hasActiveSession returns error', async () => {
     const userRepo = {
-      hasActiveSession: vi.fn().mockResolvedValue({ status: 'error', error: new Error('db error') }),
+      hasActiveSession: vi.fn().mockResolvedValue(errResult('db error')),
       deleteSessionsByDiscordId: vi.fn(),
     }
 
@@ -62,7 +65,7 @@ describe('DiscordAuthService.handleLogoutCommand', () => {
 
   it('defers reply first then replies "Você não está registrado" when hasActiveSession returns null', async () => {
     const userRepo = {
-      hasActiveSession: vi.fn().mockResolvedValue({ status: 'ok', value: null }),
+      hasActiveSession: vi.fn().mockResolvedValue(okResult(null)),
       deleteSessionsByDiscordId: vi.fn(),
     }
 
@@ -87,10 +90,7 @@ describe('DiscordAuthService.handleLogoutCommand', () => {
 
   it('defers reply first then replies "Você não possui sessão ativa" when hasSession is false', async () => {
     const userRepo = {
-      hasActiveSession: vi.fn().mockResolvedValue({
-        status: 'ok',
-        value: { userId: 'user-3', hasSession: false },
-      }),
+      hasActiveSession: vi.fn().mockResolvedValue(okResult({ userId: 'user-3', hasSession: false })),
       deleteSessionsByDiscordId: vi.fn(),
     }
 
@@ -115,13 +115,8 @@ describe('DiscordAuthService.handleLogoutCommand', () => {
 
   it('defers reply first then replies "Erro ao encerrar sessão" when deleteSessionsByDiscordId returns error', async () => {
     const userRepo = {
-      hasActiveSession: vi.fn().mockResolvedValue({
-        status: 'ok',
-        value: { userId: 'user-4', hasSession: true },
-      }),
-      deleteSessionsByDiscordId: vi
-        .fn()
-        .mockResolvedValue({ status: 'error', error: new Error('db error') }),
+      hasActiveSession: vi.fn().mockResolvedValue(okResult({ userId: 'user-4', hasSession: true })),
+      deleteSessionsByDiscordId: vi.fn().mockResolvedValue(errResult('delete failed')),
     }
 
     const service = new DiscordAuthService(
@@ -145,13 +140,8 @@ describe('DiscordAuthService.handleLogoutCommand', () => {
 
   it('defers reply first then replies success when session exists and delete succeeds', async () => {
     const userRepo = {
-      hasActiveSession: vi.fn().mockResolvedValue({
-        status: 'ok',
-        value: { userId: 'user-5', hasSession: true },
-      }),
-      deleteSessionsByDiscordId: vi
-        .fn()
-        .mockResolvedValue({ status: 'ok', value: true }),
+      hasActiveSession: vi.fn().mockResolvedValue(okResult({ userId: 'user-5', hasSession: true })),
+      deleteSessionsByDiscordId: vi.fn().mockResolvedValue(okResult({ revokedCount: 1 })),
     }
 
     const service = new DiscordAuthService(

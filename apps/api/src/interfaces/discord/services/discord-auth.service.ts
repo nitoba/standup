@@ -12,8 +12,6 @@ import {
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import { EnvService } from '../../../platform/env/env.service'
 import { AppLoggerFactory } from '../../../platform/logger'
-import { Result } from '../../../shared/domain'
-
 type ReplyCapableInteraction =
   | ChatInputCommandInteraction
   | ButtonInteraction
@@ -140,21 +138,23 @@ export class DiscordAuthService {
       interaction.user.id,
     )
 
-    if (Result.isError(checkResult)) {
+    if (checkResult.isErr()) {
       await interaction.editReply(
         'Erro interno ao verificar sessão. Tente novamente.',
       )
       return
     }
 
-    if (checkResult.value === null) {
+    const sessionInfo = checkResult.value
+
+    if (sessionInfo === null) {
       await interaction.editReply(
         'Você não está registrado no sistema. Use `/login` para conectar sua conta.',
       )
       return
     }
 
-    if (!checkResult.value.hasSession) {
+    if (!sessionInfo.hasSession) {
       await interaction.editReply(
         'Você não possui sessão ativa. Use `/login` para reconectar.',
       )
@@ -165,7 +165,7 @@ export class DiscordAuthService {
       interaction.user.id,
     )
 
-    if (Result.isError(deleteResult)) {
+    if (deleteResult.isErr()) {
       await interaction.editReply('Erro ao encerrar sessão. Tente novamente.')
       return
     }
