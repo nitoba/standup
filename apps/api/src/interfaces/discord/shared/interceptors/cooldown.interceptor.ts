@@ -4,11 +4,9 @@ import {
   Injectable,
   type NestInterceptor,
 } from '@nestjs/common'
-import type { ChatInputCommandInteraction } from 'discord.js'
 import { EMPTY, type Observable } from 'rxjs'
+import { NecordExecutionContext } from 'necord'
 import { CommandCooldownService } from '../../handlers/command-cooldown.service'
-
-type Ctx = readonly [ChatInputCommandInteraction]
 
 @Injectable()
 export class CooldownInterceptor implements NestInterceptor {
@@ -18,25 +16,23 @@ export class CooldownInterceptor implements NestInterceptor {
     context: ExecutionContext,
     next: CallHandler,
   ): Observable<unknown> {
-    const args = context.getArgByIndex(0) as Ctx | undefined
-    const interaction = args?.[0]
-    if (!interaction || !('commandName' in interaction)) {
+    const [interaction] = NecordExecutionContext.create(context).getContext<'interactionCreate'>()
+    if (!interaction || !('commandName' in interaction) || !('reply' in interaction)) {
       return next.handle()
     }
 
-    const remaining = this.cooldown.check(
-      interaction.user.id,
-      interaction.commandName,
-    )
+    const cmd = interaction as { user: { id: string }; commandName: string; reply: (opts: unknown) => Promise<unknown> }
+
+    const remaining = this.cooldown.check(cmd.user.id, cmd.commandName)
     if (remaining !== null) {
-      void interaction.reply({
+      void cmd.reply({
         content: `Aguarde ${remaining}s antes de usar este comando novamente.`,
         ephemeral: true,
       })
       return EMPTY
     }
 
-    this.cooldown.record(interaction.user.id, interaction.commandName)
+    this.cooldown.record(cmd.user.id, cmd.commandName)
     return next.handle()
   }
 }
