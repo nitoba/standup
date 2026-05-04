@@ -5,7 +5,7 @@ import {
   toDisplayDateFromIso,
 } from '../../../../platform/time/date-only'
 import type { StandupRecord, StandupStatus } from '../../../../shared/domain'
-import { EMBED_COLORS } from '../../embeds'
+import { EMBED_COLORS } from '../../shared/embeds'
 
 const STATUS_LABELS: Record<StandupStatus, string> = {
   draft: 'Rascunho',

@@ -32,13 +32,13 @@ import {
   Result as ResultFactory,
 } from '../../../shared/domain'
 import { DiscordClientService } from '../discord-client.service'
+import { buildReviewEmbed } from '../features/review/review.embed'
 import {
   buildPublishedEmbed,
   buildReminderEmbed,
-  buildReviewEmbed,
   buildUserDmEmbed,
   EMBED_COLORS,
-} from '../embeds'
+} from '../shared/embeds'
 
 type PendingReminder = {
   discordUserId: string
