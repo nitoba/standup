@@ -2,11 +2,11 @@ import { Injectable } from '@nestjs/common'
 import { type Client, type ModalSubmitInteraction } from 'discord.js'
 import type { CustomEntries } from '../../../shared/domain'
 import { hasCustomEntries } from '../../../shared/domain'
+import { updateReviewMessage } from '../features/review/update-review-message'
 import { DiscordAuthService } from '../services/discord-auth.service'
 import { DiscordTriggerService } from '../services/discord-trigger.service'
 import { SettingsInteractionService } from './settings-interaction.service'
 import { StandupInteractionService } from './standup-interaction.service'
-import { updateReviewMessage } from './update-review-message'
 
 function parseLines(raw: string): string[] {
   return raw

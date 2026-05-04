@@ -6,6 +6,7 @@ import {
   TextInputBuilder,
   TextInputStyle,
 } from 'discord.js'
+import { updateReviewMessage } from '../features/review/update-review-message'
 import {
   COPY_ACTIONS,
   type CopyAction,
@@ -23,7 +24,6 @@ import {
   StandupInteractionService,
 } from './standup-interaction.service'
 import { TriggerConfirmationService } from './trigger-confirmation.service'
-import { updateReviewMessage } from './update-review-message'
 
 const STATUS_EMOJI: Record<string, string> = {
   approve: '✅',
