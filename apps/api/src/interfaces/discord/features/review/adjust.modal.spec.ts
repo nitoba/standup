@@ -1,13 +1,28 @@
 // apps/api/src/interfaces/discord/features/review/adjust.modal.spec.ts
 import { describe, expect, it, vi } from 'vitest'
+import { Result } from '../../../../shared/domain'
 import { asModalContext } from '../../../../test/discord/make-context'
 import { makeModalInteraction } from '../../../../test/discord/mock-interaction'
 import { AdjustModal } from './adjust.modal'
 
 describe('AdjustModal', () => {
-  it('forwards adjust modal submission to legacy modal dispatcher', async () => {
-    const modals = { handle: vi.fn().mockResolvedValue(undefined) }
-    const modal = new AdjustModal(modals as never)
+  it('triggers standup adjustment from adjust modal submission', async () => {
+    const auth = {
+      resolveActiveSession: vi.fn().mockResolvedValue({
+        hasSession: true,
+        userId: 'user-1',
+      }),
+      replySessionExpired: vi.fn(),
+    }
+    const trigger = {
+      trigger: vi.fn().mockResolvedValue(Result.ok({ accepted: true })),
+    }
+    const reviewActions = { handle: vi.fn() }
+    const modal = new AdjustModal(
+      auth as never,
+      trigger as never,
+      reviewActions as never,
+    )
     const interaction = Object.assign(
       makeModalInteraction({ 'adjust-instruction': 'add detail' }),
       {
@@ -16,8 +31,19 @@ describe('AdjustModal', () => {
       },
     )
 
-    await modal.onSubmit(asModalContext(interaction))
+    await modal.onSubmit(asModalContext(interaction), 'std-1')
 
-    expect(modals.handle).toHaveBeenCalledWith(interaction, interaction.client)
+    expect(interaction.deferUpdate).toHaveBeenCalled()
+    expect(trigger.trigger).toHaveBeenCalledWith('user-1', 'user-1', {
+      forceRegenerate: true,
+      rewriteFromStandupId: 'std-1',
+      rewriteInstruction: 'add detail',
+      replaceStandupId: 'std-1',
+    })
+    expect(interaction.editReply).toHaveBeenLastCalledWith({
+      content:
+        '🛠️ Ajuste solicitado com sucesso. Vou gerar uma nova versão baseada no texto anterior.',
+      components: [],
+    })
   })
 })

@@ -8,7 +8,7 @@ import { ApproveSubcommand } from './approve.subcommand'
 
 describe('ApproveSubcommand', () => {
   it('defers reply as ephemeral before approving the standup', async () => {
-    const standupInteraction = {
+    const reviewActions = {
       handle: vi.fn().mockResolvedValue(
         Result.ok({
           action: 'approve',
@@ -19,7 +19,7 @@ describe('ApproveSubcommand', () => {
         }),
       ),
     }
-    const cmd = new ApproveSubcommand(standupInteraction as never)
+    const cmd = new ApproveSubcommand(reviewActions as never)
     const interaction = makeChatInputInteraction({ userId: 'discord-1' })
 
     await cmd.onApprove(asSlashContext(interaction), { id: 'std-1' })
@@ -27,15 +27,15 @@ describe('ApproveSubcommand', () => {
     const deferCallIndex =
       interaction.deferReply.mock.invocationCallOrder[0] ?? 0
     const handleCallIndex =
-      standupInteraction.handle.mock.invocationCallOrder[0] ?? 0
+      reviewActions.handle.mock.invocationCallOrder[0] ?? 0
     expect(deferCallIndex).toBeLessThan(handleCallIndex)
     expect(interaction.deferReply).toHaveBeenCalledWith({
       flags: MessageFlags.Ephemeral,
     })
   })
 
-  it('delegates approve to StandupInteractionService with id from options and actor Discord id', async () => {
-    const standupInteraction = {
+  it('delegates approve to ReviewActionService with id from options and actor Discord id', async () => {
+    const reviewActions = {
       handle: vi.fn().mockResolvedValue(
         Result.ok({
           action: 'approve',
@@ -46,12 +46,12 @@ describe('ApproveSubcommand', () => {
         }),
       ),
     }
-    const cmd = new ApproveSubcommand(standupInteraction as never)
+    const cmd = new ApproveSubcommand(reviewActions as never)
     const interaction = makeChatInputInteraction({ userId: 'discord-1' })
 
     await cmd.onApprove(asSlashContext(interaction), { id: 'std-1' })
 
-    expect(standupInteraction.handle).toHaveBeenCalledWith(
+    expect(reviewActions.handle).toHaveBeenCalledWith(
       'approve',
       'std-1',
       'discord-1',
@@ -59,7 +59,7 @@ describe('ApproveSubcommand', () => {
   })
 
   it('replies with success message when approval succeeds', async () => {
-    const standupInteraction = {
+    const reviewActions = {
       handle: vi.fn().mockResolvedValue(
         Result.ok({
           action: 'approve',
@@ -70,7 +70,7 @@ describe('ApproveSubcommand', () => {
         }),
       ),
     }
-    const cmd = new ApproveSubcommand(standupInteraction as never)
+    const cmd = new ApproveSubcommand(reviewActions as never)
     const interaction = makeChatInputInteraction()
 
     await cmd.onApprove(asSlashContext(interaction), { id: 'std-1' })
@@ -79,12 +79,12 @@ describe('ApproveSubcommand', () => {
   })
 
   it('replies with legacy error message when approval fails', async () => {
-    const standupInteraction = {
+    const reviewActions = {
       handle: vi
         .fn()
         .mockResolvedValue(Result.err(new Error('falha ao aprovar'))),
     }
-    const cmd = new ApproveSubcommand(standupInteraction as never)
+    const cmd = new ApproveSubcommand(reviewActions as never)
     const interaction = makeChatInputInteraction()
 
     await cmd.onApprove(asSlashContext(interaction), { id: 'std-1' })

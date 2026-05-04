@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
-import { ApproveStandupService } from '../../../contexts/standups/approval/approve-standup.service'
-import { StandupStatusService } from '../../../contexts/standups/status/standup-status.service'
-import { UserRepository } from '../../../platform/database/repositories/user.repository'
+import { ApproveStandupService } from '../../../../contexts/standups/approval/approve-standup.service'
+import { StandupStatusService } from '../../../../contexts/standups/status/standup-status.service'
+import { UserRepository } from '../../../../platform/database/repositories/user.repository'
 import {
   type CustomEntries,
   type DbError,
@@ -9,28 +9,28 @@ import {
   NotFoundError,
   Result,
   ValidationError,
-} from '../../../shared/domain'
-import { DiscordMessagesService } from '../notifications/discord-messages.service'
+} from '../../../../shared/domain'
+import { DiscordMessagesService } from '../../notifications/discord-messages.service'
 
-export const STANDUP_ACTIONS = ['approve', 'reject', 'regenerate'] as const
-export type StandupAction = (typeof STANDUP_ACTIONS)[number]
+export const REVIEW_ACTIONS = ['approve', 'reject', 'regenerate'] as const
+export type ReviewAction = (typeof REVIEW_ACTIONS)[number]
 
-export interface InteractionOutcome {
-  action: StandupAction
+export interface ReviewActionOutcome {
+  action: ReviewAction
   standupId: string
   userId: string
   newStatus: 'approved' | 'rejected'
   message: string
 }
 
-type InteractionError =
+type ReviewActionError =
   | NotFoundError
   | InvalidStateTransitionError
   | DbError
   | ValidationError
 
 @Injectable()
-export class StandupInteractionService {
+export class ReviewActionService {
   constructor(
     private readonly userRepository: UserRepository,
     readonly _messages: DiscordMessagesService,
@@ -39,11 +39,11 @@ export class StandupInteractionService {
   ) {}
 
   async handle(
-    action: StandupAction,
+    action: ReviewAction,
     standupId: string,
     actorDiscordId: string,
     customEntries?: CustomEntries | null,
-  ): Promise<Result<InteractionOutcome, InteractionError>> {
+  ): Promise<Result<ReviewActionOutcome, ReviewActionError>> {
     const userRepository = this.userRepository
     const handleApprove = this.handleApprove.bind(this)
     const handleReject = this.handleReject.bind(this)
@@ -105,7 +105,7 @@ export class StandupInteractionService {
     standupId: string,
     actorUserId: string,
     customEntries?: CustomEntries | null,
-  ): Promise<Result<InteractionOutcome, InteractionError>> {
+  ): Promise<Result<ReviewActionOutcome, ReviewActionError>> {
     const approveResult = await this.approveStandup.approveResult(
       actorUserId,
       standupId,
@@ -128,7 +128,7 @@ export class StandupInteractionService {
   private async handleReject(
     standupId: string,
     actorUserId: string,
-  ): Promise<Result<InteractionOutcome, InteractionError>> {
+  ): Promise<Result<ReviewActionOutcome, ReviewActionError>> {
     const result = await this.standupStatus.transition(
       actorUserId,
       standupId,
@@ -152,7 +152,7 @@ export class StandupInteractionService {
   private async handleRegenerate(
     standupId: string,
     actorUserId: string,
-  ): Promise<Result<InteractionOutcome, InteractionError>> {
+  ): Promise<Result<ReviewActionOutcome, ReviewActionError>> {
     const result = await this.standupStatus.transition(
       actorUserId,
       standupId,

@@ -2,15 +2,15 @@
 import { Injectable, UseGuards } from '@nestjs/common'
 import { MessageFlags } from 'discord.js'
 import { Context, Options, type SlashCommandContext, Subcommand } from 'necord'
-import { StandupInteractionService } from '../../handlers/standup-interaction.service'
 import { StandupCommandGroup } from '../../shared/decorators/standup-command-group.decorator'
 import { DiscordUserLinkedGuard } from '../../shared/guards/discord-user-linked.guard'
+import { ReviewActionService } from '../review/review-action.service'
 import { ApproveDto } from './approve.dto'
 
 @Injectable()
 @StandupCommandGroup()
 export class ApproveSubcommand {
-  constructor(private readonly standupInteraction: StandupInteractionService) {}
+  constructor(private readonly reviewActions: ReviewActionService) {}
 
   @Subcommand({
     name: 'approve',
@@ -23,7 +23,7 @@ export class ApproveSubcommand {
   ) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
-    const result = await this.standupInteraction.handle(
+    const result = await this.reviewActions.handle(
       'approve',
       id,
       interaction.user.id,

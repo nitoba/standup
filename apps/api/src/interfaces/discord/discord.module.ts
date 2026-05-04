@@ -17,18 +17,17 @@ import { ReminderButtons } from './features/reminder/reminder.buttons'
 import { RetrySubcommand } from './features/retry/retry.subcommand'
 import { AdjustModal } from './features/review/adjust.modal'
 import { ReviewButtons } from './features/review/review.buttons'
+import { ReviewActionService } from './features/review/review-action.service'
 import { ServicesSubcommand } from './features/services/services.subcommand'
+import { SettingsButtons } from './features/settings/settings.buttons'
 import { SettingsModal } from './features/settings/settings.modal'
 import { SettingsSubcommand } from './features/settings/settings.subcommand'
 import { TriggerSubcommand } from './features/trigger/trigger.subcommand'
 import { TriggerConfirmationButtons } from './features/trigger/trigger-confirmation.buttons'
-import { ButtonInteractionService } from './handlers/button-interaction.service'
 import { CommandCooldownService } from './handlers/command-cooldown.service'
 import { CopyInteractionService } from './handlers/copy-interaction.service'
-import { ModalInteractionService } from './handlers/modal-interaction.service'
 import { ReminderInteractionService } from './handlers/reminder-interaction.service'
 import { SettingsInteractionService } from './handlers/settings-interaction.service'
-import { StandupInteractionService } from './handlers/standup-interaction.service'
 import { TriggerConfirmationService } from './handlers/trigger-confirmation.service'
 import { DiscordStreamingListener } from './listeners/discord-streaming.listener'
 import { DiscordMessagesService } from './notifications/discord-messages.service'
@@ -89,6 +88,7 @@ const necordImports = shouldLoadNecord
     ServicesSubcommand,
     RetrySubcommand,
     TriggerConfirmationButtons,
+    SettingsButtons,
     SettingsModal,
     ReviewButtons,
     AdjustModal,
@@ -111,9 +111,7 @@ const necordImports = shouldLoadNecord
     ReminderInteractionService,
     SettingsInteractionService,
     TriggerConfirmationService,
-    StandupInteractionService,
-    ButtonInteractionService,
-    ModalInteractionService,
+    ReviewActionService,
   ],
   exports: [
     DiscordClientService,
