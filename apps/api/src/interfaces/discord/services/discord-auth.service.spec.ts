@@ -21,8 +21,16 @@ function makeEnv(baseUrl = 'http://localhost:3333') {
   }
 }
 
-const okResult = <T>(value: T) => ({ isErr: () => false, isOk: () => true, value })
-const errResult = (message: string) => ({ isErr: () => true, isOk: () => false, error: new Error(message) })
+const okResult = <T>(value: T) => ({
+  isErr: () => false,
+  isOk: () => true,
+  value,
+})
+const errResult = (message: string) => ({
+  isErr: () => true,
+  isOk: () => false,
+  error: new Error(message),
+})
 
 /** Assert that mockA was called before mockB using invocation call orders. */
 function assertCalledBefore(
@@ -90,7 +98,9 @@ describe('DiscordAuthService.handleLogoutCommand', () => {
 
   it('defers reply first then replies "Você não possui sessão ativa" when hasSession is false', async () => {
     const userRepo = {
-      hasActiveSession: vi.fn().mockResolvedValue(okResult({ userId: 'user-3', hasSession: false })),
+      hasActiveSession: vi
+        .fn()
+        .mockResolvedValue(okResult({ userId: 'user-3', hasSession: false })),
       deleteSessionsByDiscordId: vi.fn(),
     }
 
@@ -115,8 +125,12 @@ describe('DiscordAuthService.handleLogoutCommand', () => {
 
   it('defers reply first then replies "Erro ao encerrar sessão" when deleteSessionsByDiscordId returns error', async () => {
     const userRepo = {
-      hasActiveSession: vi.fn().mockResolvedValue(okResult({ userId: 'user-4', hasSession: true })),
-      deleteSessionsByDiscordId: vi.fn().mockResolvedValue(errResult('delete failed')),
+      hasActiveSession: vi
+        .fn()
+        .mockResolvedValue(okResult({ userId: 'user-4', hasSession: true })),
+      deleteSessionsByDiscordId: vi
+        .fn()
+        .mockResolvedValue(errResult('delete failed')),
     }
 
     const service = new DiscordAuthService(
@@ -140,8 +154,12 @@ describe('DiscordAuthService.handleLogoutCommand', () => {
 
   it('defers reply first then replies success when session exists and delete succeeds', async () => {
     const userRepo = {
-      hasActiveSession: vi.fn().mockResolvedValue(okResult({ userId: 'user-5', hasSession: true })),
-      deleteSessionsByDiscordId: vi.fn().mockResolvedValue(okResult({ revokedCount: 1 })),
+      hasActiveSession: vi
+        .fn()
+        .mockResolvedValue(okResult({ userId: 'user-5', hasSession: true })),
+      deleteSessionsByDiscordId: vi
+        .fn()
+        .mockResolvedValue(okResult({ revokedCount: 1 })),
     }
 
     const service = new DiscordAuthService(

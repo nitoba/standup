@@ -2,8 +2,11 @@
 import type { CallHandler, ExecutionContext } from '@nestjs/common'
 import { defaultIfEmpty, firstValueFrom, of } from 'rxjs'
 import { describe, expect, it, vi } from 'vitest'
+import {
+  makeButtonInteraction,
+  makeChatInputInteraction,
+} from '../../../../test/discord/mock-interaction'
 import { CommandCooldownService } from '../../handlers/command-cooldown.service'
-import { makeChatInputInteraction, makeButtonInteraction } from '../../../../test/discord/mock-interaction'
 import { CooldownInterceptor } from './cooldown.interceptor'
 
 // NecordExecutionContext.create(context) constructs a new ExecutionContextHost
@@ -45,7 +48,9 @@ describe('CooldownInterceptor', () => {
     const next: CallHandler = { handle: vi.fn(() => of('ok')) }
 
     const result = await firstValueFrom(
-      interceptor.intercept(makeCtx(interaction), next).pipe(defaultIfEmpty(null)),
+      interceptor
+        .intercept(makeCtx(interaction), next)
+        .pipe(defaultIfEmpty(null)),
     )
 
     expect(result).toBeNull()

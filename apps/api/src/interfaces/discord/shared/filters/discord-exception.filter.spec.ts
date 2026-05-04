@@ -2,8 +2,8 @@
 import type { ArgumentsHost } from '@nestjs/common'
 import { describe, expect, it, vi } from 'vitest'
 import { TaggedError } from '../../../../shared/domain'
-import { DiscordExceptionFilter } from './discord-exception.filter'
 import { makeButtonInteraction } from '../../../../test/discord/mock-interaction'
+import { DiscordExceptionFilter } from './discord-exception.filter'
 
 class TestError extends TaggedError('TestError')<{ message: string }>() {
   constructor() {
@@ -31,8 +31,13 @@ function makeHost(interaction: unknown): ArgumentsHost {
 describe('DiscordExceptionFilter', () => {
   it('uses reply when interaction is fresh', async () => {
     const filter = new DiscordExceptionFilter(logger as never)
-    const interaction = makeButtonInteraction({ deferred: false, replied: false })
-    ;(interaction as { reply?: unknown }).reply = vi.fn().mockResolvedValue(undefined)
+    const interaction = makeButtonInteraction({
+      deferred: false,
+      replied: false,
+    })
+    ;(interaction as { reply?: unknown }).reply = vi
+      .fn()
+      .mockResolvedValue(undefined)
 
     await filter.catch(new TestError(), makeHost(interaction))
 
@@ -64,8 +69,13 @@ describe('DiscordExceptionFilter', () => {
 
   it('does nothing when error is not a TaggedError', async () => {
     const filter = new DiscordExceptionFilter(logger as never)
-    const interaction = makeButtonInteraction({ deferred: false, replied: false })
-    ;(interaction as { reply?: unknown }).reply = vi.fn().mockResolvedValue(undefined)
+    const interaction = makeButtonInteraction({
+      deferred: false,
+      replied: false,
+    })
+    ;(interaction as { reply?: unknown }).reply = vi
+      .fn()
+      .mockResolvedValue(undefined)
 
     await filter.catch(new Error('plain'), makeHost(interaction))
 

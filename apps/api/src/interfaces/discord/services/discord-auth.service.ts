@@ -12,6 +12,7 @@ import {
 import { UserRepository } from '../../../platform/database/repositories/user.repository'
 import { EnvService } from '../../../platform/env/env.service'
 import { AppLoggerFactory } from '../../../platform/logger'
+
 type ReplyCapableInteraction =
   | ChatInputCommandInteraction
   | ButtonInteraction

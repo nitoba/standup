@@ -34,6 +34,6 @@ describe('buildReviewEmbed', () => {
     const big = { ...record, content: 'x'.repeat(5000) }
     const embed = buildReviewEmbed(big)
     expect(embed.description).toBeDefined()
-    expect(embed.description!.length).toBeLessThanOrEqual(4096)
+    expect(embed.description?.length).toBeLessThanOrEqual(4096)
   })
 })

@@ -1,9 +1,9 @@
 // apps/api/src/interfaces/discord/features/list/list.subcommand.spec.ts
 import { MessageFlags } from 'discord.js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { StandupRecord } from '../../../../shared/domain'
 import { asSlashContext } from '../../../../test/discord/make-context'
 import { makeChatInputInteraction } from '../../../../test/discord/mock-interaction'
-import type { StandupRecord } from '../../../../shared/domain'
 import { buildListEmbeds } from './list.embed'
 import { ListSubcommand } from './list.subcommand'
 
@@ -57,14 +57,19 @@ describe('ListSubcommand', () => {
   it('defers reply as Ephemeral before calling the repository', async () => {
     const interaction = makeChatInputInteraction({ userId: 'user-1' })
     auth.resolveActiveSession.mockResolvedValue(null)
-    repo.list.mockResolvedValue(okResult({ items: [], page: 1, totalPages: 0, total: 0 }))
+    repo.list.mockResolvedValue(
+      okResult({ items: [], page: 1, totalPages: 0, total: 0 }),
+    )
 
     await cmd.onList(asSlashContext(interaction), {})
 
-    const deferCallIndex = interaction.deferReply.mock.invocationCallOrder[0] ?? 0
+    const deferCallIndex =
+      interaction.deferReply.mock.invocationCallOrder[0] ?? 0
     const listCallIndex = repo.list.mock.invocationCallOrder[0] ?? 0
     expect(deferCallIndex).toBeLessThan(listCallIndex)
-    expect(interaction.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral })
+    expect(interaction.deferReply).toHaveBeenCalledWith({
+      flags: MessageFlags.Ephemeral,
+    })
   })
 
   describe('error path', () => {
@@ -121,7 +126,9 @@ describe('ListSubcommand', () => {
 
       await cmd.onList(asSlashContext(interaction), {})
 
-      const call = interaction.editReply.mock.calls[0]?.[0] as { embeds: Array<{ footer: { text: string } }> } | undefined
+      const call = interaction.editReply.mock.calls[0]?.[0] as
+        | { embeds: Array<{ footer: { text: string } }> }
+        | undefined
       expect(call?.embeds[0]?.footer.text).toBe(
         'standup-bot | página 2/5 | 42 standup(s)',
       )
@@ -136,7 +143,9 @@ describe('ListSubcommand', () => {
         okResult({ items: [], page: 1, totalPages: 0, total: 0 }),
       )
 
-      await cmd.onList(asSlashContext(interaction), { status: 'pending_review' })
+      await cmd.onList(asSlashContext(interaction), {
+        status: 'pending_review',
+      })
 
       expect(repo.list).toHaveBeenCalledWith(
         expect.objectContaining({ status: 'pending_review' }),
@@ -231,7 +240,9 @@ describe('ListSubcommand', () => {
         okResult({ items: [], page: 1, totalPages: 0, total: 0 }),
       )
 
-      await cmd.onList(asSlashContext(interaction), { search: '  meu standup  ' })
+      await cmd.onList(asSlashContext(interaction), {
+        search: '  meu standup  ',
+      })
 
       expect(repo.list).toHaveBeenCalledWith(
         expect.objectContaining({ search: 'meu standup' }),

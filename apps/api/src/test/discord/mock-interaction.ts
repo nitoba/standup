@@ -1,5 +1,5 @@
 // apps/api/src/test/discord/mock-interaction.ts
-import { vi, type Mock } from 'vitest'
+import { type Mock, vi } from 'vitest'
 
 type MockOpts = {
   userId?: string
@@ -55,7 +55,9 @@ export type ModalInteractionMock = {
   }
 }
 
-export function makeChatInputInteraction(opts: MockOpts = {}): ChatInputInteractionMock {
+export function makeChatInputInteraction(
+  opts: MockOpts = {},
+): ChatInputInteractionMock {
   return {
     commandName: opts.commandName ?? 'test-command',
     user: { id: opts.userId ?? 'user-1' },
@@ -70,7 +72,9 @@ export function makeChatInputInteraction(opts: MockOpts = {}): ChatInputInteract
   }
 }
 
-export function makeButtonInteraction(opts: MockOpts = {}): ButtonInteractionMock {
+export function makeButtonInteraction(
+  opts: MockOpts = {},
+): ButtonInteractionMock {
   return {
     user: { id: opts.userId ?? 'user-1' },
     deferred: opts.deferred ?? false,

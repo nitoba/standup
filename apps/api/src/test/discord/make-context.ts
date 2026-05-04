@@ -1,9 +1,5 @@
 // apps/api/src/test/discord/make-context.ts
-import type {
-  ButtonContext,
-  ModalContext,
-  SlashCommandContext,
-} from 'necord'
+import type { ButtonContext, ModalContext, SlashCommandContext } from 'necord'
 
 export function asSlashContext(interaction: unknown): SlashCommandContext {
   return [interaction] as unknown as SlashCommandContext

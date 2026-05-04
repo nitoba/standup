@@ -13,9 +13,8 @@ export class DiscordUserLinkedGuard implements CanActivate {
   constructor(private readonly auth: DiscordAuthService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const [maybeInteraction] = NecordExecutionContext.create(
-      context,
-    ).getContext<'interactionCreate'>()
+    const [maybeInteraction] =
+      NecordExecutionContext.create(context).getContext<'interactionCreate'>()
     const interaction = maybeInteraction as
       | ChatInputCommandInteraction
       | undefined
