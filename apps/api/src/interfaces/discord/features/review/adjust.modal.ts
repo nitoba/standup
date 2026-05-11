@@ -1,11 +1,12 @@
+// apps/api/src/interfaces/discord/features/review/adjust.modal.ts
 import { Injectable } from '@nestjs/common'
-import { type Client, type ModalSubmitInteraction } from 'discord.js'
-import type { CustomEntries } from '../../../shared/domain'
-import { hasCustomEntries } from '../../../shared/domain'
-import { DiscordAuthService } from '../services/discord-auth.service'
-import { DiscordTriggerService } from '../services/discord-trigger.service'
-import { SettingsInteractionService } from './settings-interaction.service'
-import { StandupInteractionService } from './standup-interaction.service'
+import type { ModalSubmitInteraction } from 'discord.js'
+import { ComponentParam, Context, Modal, type ModalContext } from 'necord'
+import type { CustomEntries } from '../../../../shared/domain'
+import { hasCustomEntries } from '../../../../shared/domain'
+import { DiscordAuthService } from '../../services/discord-auth.service'
+import { DiscordTriggerService } from '../../services/discord-trigger.service'
+import { ReviewActionService } from './review-action.service'
 import { updateReviewMessage } from './update-review-message'
 
 function parseLines(raw: string): string[] {
@@ -16,46 +17,41 @@ function parseLines(raw: string): string[] {
 }
 
 @Injectable()
-export class ModalInteractionService {
+export class AdjustModal {
   constructor(
     private readonly auth: DiscordAuthService,
     private readonly trigger: DiscordTriggerService,
-    private readonly settings: SettingsInteractionService,
-    private readonly standupInteraction: StandupInteractionService,
+    private readonly reviewActions: ReviewActionService,
   ) {}
 
-  async handle(
-    interaction: ModalSubmitInteraction,
-    _client: Client,
-  ): Promise<void> {
-    if (interaction.customId === 'settings-modal:edit') {
-      await this.settings.handleModal(interaction)
-      return
-    }
+  @Modal('standup-approve-modal\\::standupId')
+  public async onApprove(
+    @Context() [interaction]: ModalContext,
+    @ComponentParam('standupId') standupId: string,
+  ) {
+    await this.handleApproveModal(interaction, standupId)
+  }
 
-    if (interaction.customId.startsWith('standup-approve-modal:')) {
-      await this.handleApproveModal(interaction)
-      return
-    }
+  @Modal('standup-adjust-modal\\::standupId')
+  public async onSubmit(
+    @Context() [interaction]: ModalContext,
+    @ComponentParam('standupId') standupId: string,
+  ) {
+    await this.handleAdjustModal(interaction, standupId)
+  }
 
-    if (interaction.customId.startsWith('standup-adjust-modal:')) {
-      await this.handleAdjustModal(interaction)
-      return
-    }
-
-    if (interaction.customId.startsWith('standup-regenerate-modal:')) {
-      await this.handleRegenerateModal(interaction)
-    }
+  @Modal('standup-regenerate-modal\\::standupId')
+  public async onRegenerate(
+    @Context() [interaction]: ModalContext,
+    @ComponentParam('standupId') standupId: string,
+  ) {
+    await this.handleRegenerateModal(interaction, standupId)
   }
 
   private async handleApproveModal(
     interaction: ModalSubmitInteraction,
+    standupId: string,
   ): Promise<void> {
-    const [, standupId] = interaction.customId.split(':')
-    if (!standupId) {
-      return
-    }
-
     await interaction.deferUpdate()
     await updateReviewMessage(interaction, {
       content: '⏳ Processando aprovação do standup...',
@@ -78,7 +74,7 @@ export class ModalInteractionService {
       ),
     }
 
-    const result = await this.standupInteraction.handle(
+    const result = await this.reviewActions.handle(
       'approve',
       standupId,
       interaction.user.id,
@@ -100,12 +96,8 @@ export class ModalInteractionService {
 
   private async handleAdjustModal(
     interaction: ModalSubmitInteraction,
+    standupId: string,
   ): Promise<void> {
-    const [, standupId] = interaction.customId.split(':')
-    if (!standupId) {
-      return
-    }
-
     const rewriteInstruction =
       interaction.fields.getTextInputValue('adjust-instruction')?.trim() || ''
 
@@ -170,12 +162,8 @@ export class ModalInteractionService {
 
   private async handleRegenerateModal(
     interaction: ModalSubmitInteraction,
+    standupId: string,
   ): Promise<void> {
-    const [, standupId] = interaction.customId.split(':')
-    if (!standupId) {
-      return
-    }
-
     const extraContext =
       interaction.fields.getTextInputValue('regenerate-context')?.trim() || ''
 
@@ -186,7 +174,7 @@ export class ModalInteractionService {
       components: [],
     })
 
-    const rejectResult = await this.standupInteraction.handle(
+    const rejectResult = await this.reviewActions.handle(
       'regenerate',
       standupId,
       interaction.user.id,

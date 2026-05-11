@@ -9,13 +9,13 @@ import {
   MessageFlags,
 } from 'discord.js'
 import { AppLoggerFactory } from '../../../platform/logger'
-import { DiscordAuthService } from '../services/discord-auth.service'
-import { DiscordTriggerService } from '../services/discord-trigger.service'
 import {
   consumePendingTriggerRequest,
   createPendingTriggerRequest,
   type TriggerRequestOptions,
-} from './trigger-request-store'
+} from '../features/trigger/trigger-request.store'
+import { DiscordAuthService } from '../services/discord-auth.service'
+import { DiscordTriggerService } from '../services/discord-trigger.service'
 
 type TriggerAction = 'confirm' | 'cancel'
 

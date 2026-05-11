@@ -99,4 +99,80 @@ export class DiscordAuthService {
       })
     }
   }
+
+  async handleLoginCommand(
+    interaction: ChatInputCommandInteraction,
+  ): Promise<void> {
+    // Defer immediately before any async DB call to avoid the 3s Discord timeout (TAS-56).
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+
+    const session = await this.resolveActiveSession(interaction.user.id)
+    if (session?.hasSession) {
+      await interaction.editReply(
+        'Você já está logado! Use `/logout` para encerrar sua sessão.',
+      )
+      return
+    }
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setLabel('Login com Discord')
+        .setStyle(ButtonStyle.Link)
+        .setURL(`${this.loginUrl}`),
+    )
+
+    const content =
+      session === null
+        ? 'Você precisa conectar sua conta antes de usar este comando.\nUse `/login` ou clique no botão abaixo:'
+        : 'Sua sessão expirou. Use `/login` ou clique no botão abaixo para reconectar:'
+
+    await interaction.editReply({ content, components: [row] })
+  }
+
+  async handleLogoutCommand(
+    interaction: ChatInputCommandInteraction,
+  ): Promise<void> {
+    // Defer immediately before any async DB calls to avoid the 3s Discord timeout (TAS-56).
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+
+    const checkResult = await this.userRepository.hasActiveSession(
+      interaction.user.id,
+    )
+
+    if (checkResult.isErr()) {
+      await interaction.editReply(
+        'Erro interno ao verificar sessão. Tente novamente.',
+      )
+      return
+    }
+
+    const sessionInfo = checkResult.value
+
+    if (sessionInfo === null) {
+      await interaction.editReply(
+        'Você não está registrado no sistema. Use `/login` para conectar sua conta.',
+      )
+      return
+    }
+
+    if (!sessionInfo.hasSession) {
+      await interaction.editReply(
+        'Você não possui sessão ativa. Use `/login` para reconectar.',
+      )
+      return
+    }
+
+    const deleteResult = await this.userRepository.deleteSessionsByDiscordId(
+      interaction.user.id,
+    )
+
+    if (deleteResult.isErr()) {
+      await interaction.editReply('Erro ao encerrar sessão. Tente novamente.')
+      return
+    }
+
+    await interaction.editReply(
+      'Sessão encerrada com sucesso. Use `/login` quando quiser reconectar.',
+    )
+  }
 }
