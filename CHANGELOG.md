@@ -3,7 +3,102 @@
 ## Unreleased
 
 
+### Bug Fixes
+
+- Fix(discord): preserve legacy /login behavior (defer + session check) (`a8d045a`)
+
+- Fix(discord): restore commandName discriminator on user-linked guard (`631483d`)
+
+- Fix(discord): log reply failures and tighten exception filter types (`0ebd358`)
+
+- Fix(discord): use NecordExecutionContext to read interaction tuple (`6f700ae`)
+
+
 ### Chores
+
+- Chore(api): wire unplugin-swc for Vitest decorator metadata (`c556f12`)
+
+- Chore(api): add necord and @necord/pagination (`4f8af55`)
+
+
+### Documentation
+
+- Docs: add Necord migration implementation plan (`c29121b`)
+
+- Docs: add Necord migration design spec (`a8e841b`)
+
+
+### Features
+
+- Feat(discord): wire Necord module and feature handlers (`dd78e8f`)
+
+- Feat(discord): add copy button on Necord (`a63abb0`)
+
+- Feat(discord): add trigger confirmation buttons on Necord (`19661ba`)
+
+- Feat(discord): add reminder buttons on Necord (`8687e92`)
+
+- Feat(discord): add adjust modal handler on Necord (`85ccfea`)
+
+- Feat(discord): add review buttons on Necord (`4df48e3`)
+
+- Feat(discord): add /standup retry subcommand on Necord (`b6c24e7`)
+
+- Feat(discord): add /standup services subcommand on Necord (`72ee272`)
+
+- Feat(discord): add /standup settings subcommand and modal on Necord (`beef451`)
+
+- Feat(discord): add /standup approve subcommand on Necord (`044b571`)
+
+- Feat(discord): add /standup list subcommand on Necord (`3da8e65`)
+
+- Feat(discord): add /standup trigger subcommand on Necord (`64d56ea`)
+
+- Feat(discord): add /logout Necord command preserving legacy behavior (`6858d2c`)
+
+- Feat(discord): add /login Necord command (`768e166`)
+
+- Feat(discord): add user-linked guard delegating to DiscordAuthService (`07b8ad8`)
+
+- Feat(discord): add TaggedError exception filter for Necord (`0b01c53`)
+
+- Feat(discord): add Necord cooldown interceptor (`5db2307`)
+
+- Feat(discord): expose shared embed builders (`6544905`)
+
+- Feat(discord): expose review embed under features/review (`c034b7c`)
+
+- Feat(discord): add standup command group decorator (`517a202`)
+
+- Feat: improve standup UX and meeting tags (`d82769f`)
+
+
+### Refactoring
+
+- Refactor(discord): split embeds into focused builders (`3255f09`)
+
+- Refactor(discord): remove legacy dispatcher and gateway services (`ae38cc4`)
+
+- Refactor(discord): relocate trigger and review helpers (`b692ad5`)
+
+- Refactor(discord): use Result.isErr() instance method for logout consistency (`08cfe28`)
+
+
+### Tests
+
+- Test(discord): tighten review embed spec types and assertions (`215b5b3`)
+
+- Test(discord): export interaction mock types and add reply/update spies (`a6cd03b`)
+
+- Test(discord): add interaction mock factories (`9e59fd1`)
+
+
+## 0.2.2 — 2026-04-15
+
+
+### Chores
+
+- Chore: bump version to v0.2.2 (`7e7d610`)
 
 - Chore(config): add ATER-DIGITAL to default Azure DevOps projects (`d762c79`)
 
