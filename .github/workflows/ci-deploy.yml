@@ -13,33 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read
     env:
-      DEPLOY_VERSION: ${{ github.sha }}
-      KAMAL_REGISTRY_PASSWORD: ${{ secrets.GHCR_PAT }}
-      DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
-      DISCORD_CLIENT_SECRET: ${{ secrets.DISCORD_CLIENT_SECRET }}
-      BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-      DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-      DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
-      DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
-      GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
-      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      LLM_PROVIDERS_CONFIG: ${{ secrets.LLM_PROVIDERS_CONFIG }}
-      AZURE_DEVOPS_ORG: ${{ secrets.AZURE_DEVOPS_ORG }}
-      AZURE_DEVOPS_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
-      AZURE_DEVOPS_DEFAULT_PROJECT: ${{ secrets.AZURE_DEVOPS_DEFAULT_PROJECT }}
-      SMTP_HOST: ${{ secrets.SMTP_HOST }}
-      SMTP_PORT: ${{ secrets.SMTP_PORT }}
-      SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
-      SMTP_FROM: ${{ secrets.SMTP_FROM }}
-      SMTP_USER: ${{ secrets.SMTP_USER }}
-      SMTP_PASS: ${{ secrets.SMTP_PASS }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
-      DISCORD_AUTOMATION_CHANNEL_URL: ${{ secrets.DISCORD_AUTOMATION_CHANNEL_URL }}
-      DISCORD_AUTOMATION_WEBHOOK_SECRET: ${{ secrets.DISCORD_AUTOMATION_WEBHOOK_SECRET }}
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DOKPLOY_API_DEPLOY_WEBHOOK: ${{ secrets.DOKPLOY_API_DEPLOY_WEBHOOK }}
+      DOKPLOY_WEB_DEPLOY_WEBHOOK: ${{ secrets.DOKPLOY_WEB_DEPLOY_WEBHOOK }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -65,7 +42,7 @@ jobs:
 
           # Retry ssh-keyscan with backoff — Tailscale routes may need time to propagate
           for i in 1 2 3 4; do
-            if ssh-keyscan -H -t ed25519 "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>&1; then
+            if ssh-keyscan -H -t ed25519 "${DEPLOY_HOST}" >> ~/.ssh/known_hosts 2>&1; then
               echo "ssh-keyscan succeeded on attempt $i"
               break
             fi
@@ -87,67 +64,92 @@ jobs:
           EOF
           chmod 600 ~/.ssh/config
 
-      - name: Install Kamal
-        run: sudo gem install kamal --no-document
-
-      - name: Create Kamal secrets file
+      - name: Deploy with Dokploy webhooks
         run: |
-          mkdir -p .kamal
-          cat > .kamal/secrets-common <<'EOF'
-          KAMAL_REGISTRY_PASSWORD=$KAMAL_REGISTRY_PASSWORD
-          DISCORD_CLIENT_ID=$DISCORD_CLIENT_ID
-          DISCORD_CLIENT_SECRET=$DISCORD_CLIENT_SECRET
-          BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
-          DISCORD_BOT_TOKEN=$DISCORD_BOT_TOKEN
-          DISCORD_CHANNEL_ID=$DISCORD_CHANNEL_ID
-          DISCORD_GUILD_ID=$DISCORD_GUILD_ID
-          GOOGLE_GENERATIVE_AI_API_KEY=$GOOGLE_GENERATIVE_AI_API_KEY
-          GROQ_API_KEY=$GROQ_API_KEY
-          OPENROUTER_API_KEY=$OPENROUTER_API_KEY
-          LLM_PROVIDERS_CONFIG=$LLM_PROVIDERS_CONFIG
-          AZURE_DEVOPS_ORG=$AZURE_DEVOPS_ORG
-          AZURE_DEVOPS_PAT=$AZURE_DEVOPS_PAT
-          AZURE_DEVOPS_DEFAULT_PROJECT=$AZURE_DEVOPS_DEFAULT_PROJECT
-          SMTP_HOST=$SMTP_HOST
-          SMTP_PORT=$SMTP_PORT
-          SMTP_SECURE=$SMTP_SECURE
-          SMTP_FROM=$SMTP_FROM
-          SMTP_USER=$SMTP_USER
-          SMTP_PASS=$SMTP_PASS
-          DATABASE_URL=$DATABASE_URL
-          DATABASE_AUTH_TOKEN=$DATABASE_AUTH_TOKEN
-          DISCORD_AUTOMATION_CHANNEL_URL=$DISCORD_AUTOMATION_CHANNEL_URL
-          DISCORD_AUTOMATION_WEBHOOK_SECRET=$DISCORD_AUTOMATION_WEBHOOK_SECRET
-          EOF
+          ssh "nitoba@${DEPLOY_HOST}" \
+            DOKPLOY_API_DEPLOY_WEBHOOK="${DOKPLOY_API_DEPLOY_WEBHOOK}" \
+            DOKPLOY_WEB_DEPLOY_WEBHOOK="${DOKPLOY_WEB_DEPLOY_WEBHOOK}" \
+            DEPLOY_REF="${GITHUB_REF_NAME}" \
+            DEPLOY_SHA="${GITHUB_SHA}" \
+            'bash -s' <<'REMOTE'
+          set -euo pipefail
 
-      - name: Validate Kamal config (API)
-        run: kamal config -c config/deploy.api.yml
+          dokploy_postgres_container() {
+            docker ps --format '{{.Names}}' | grep '^dokploy-postgres\.1\.' | head -1
+          }
 
-      - name: Validate Kamal config (Web)
-        run: kamal config -c config/deploy.web.yml
+          trigger_webhook() {
+            local name="$1"
+            local webhook_path="$2"
 
-      - name: Validate Kamal config (Infra)
-        run: kamal config -c config/deploy.infra.yml
+            echo "Triggering ${name} deployment webhook"
+            curl --fail --show-error --silent \
+              --request POST "http://127.0.0.1:3000${webhook_path}" \
+              --header "content-type: application/json" \
+              --header "x-github-event: push" \
+              --data "{\"ref\":\"refs/heads/main\",\"head_commit\":{\"message\":\"Release ${DEPLOY_REF}\",\"id\":\"${DEPLOY_SHA}\"},\"commits\":[{\"modified\":[\".github/workflows/ci-deploy.yml\"]}]}"
+          }
 
-      - name: Ensure Jaeger accessory is running
-        continue-on-error: true
+          wait_deployment() {
+            local name="$1"
+            local app_id="$2"
+
+            echo "Waiting for ${name} deployment to finish"
+            for _ in $(seq 1 120); do
+              status=$(docker exec "$(dokploy_postgres_container)" \
+                psql -U dokploy -d dokploy -At \
+                -c "select status from deployment where \"applicationId\"='${app_id}' order by \"createdAt\" desc limit 1;")
+
+              case "${status}" in
+                done)
+                  echo "${name} deployment completed"
+                  return 0
+                  ;;
+                running|pending|queued|building|deploying|"")
+                  sleep 5
+                  ;;
+                *)
+                  echo "${name} deployment failed with status: ${status}" >&2
+                  docker exec "$(dokploy_postgres_container)" \
+                    psql -U dokploy -d dokploy -c \
+                    "select \"deploymentId\", status, \"errorMessage\", \"logPath\" from deployment where \"applicationId\"='${app_id}' order by \"createdAt\" desc limit 1;" >&2
+                  return 1
+                  ;;
+              esac
+            done
+
+            echo "Timed out waiting for ${name} deployment" >&2
+            return 1
+          }
+
+          wait_health() {
+            local name="$1"
+            local host="$2"
+            local path="$3"
+
+            echo "Waiting for ${name} health"
+            for _ in $(seq 1 60); do
+              if curl --fail --show-error --silent --header "Host: ${host}" "http://127.0.0.1${path}" >/dev/null; then
+                echo "${name} is healthy"
+                return 0
+              fi
+              sleep 5
+            done
+
+            echo "${name} did not become healthy in time" >&2
+            return 1
+          }
+
+          trigger_webhook "standup-api" "${DOKPLOY_API_DEPLOY_WEBHOOK}"
+          wait_deployment "standup-api" "B8XzWxS01Qk54Z8pPqt3q"
+          wait_health "standup-api" "api.nitodev.com.br" "/health"
+
+          trigger_webhook "standup-web" "${DOKPLOY_WEB_DEPLOY_WEBHOOK}"
+          wait_deployment "standup-web" "67aOyQ5LfN6q4kTavReTb"
+          wait_health "standup-web" "standup.nitodev.com.br" "/"
+          REMOTE
+
+      - name: Verify public routes
         run: |
-          kamal accessory boot jaeger \
-            -c config/deploy.infra.yml \
-            || echo "Jaeger accessory already booted"
-
-      - name: Deploy API
-        run: |
-          kamal deploy \
-            -c config/deploy.api.yml \
-            --skip-push \
-            --version "sha-${DEPLOY_VERSION}" \
-            --skip-hooks
-
-      - name: Deploy Web
-        run: |
-          kamal deploy \
-            -c config/deploy.web.yml \
-            --skip-push \
-            --version "sha-${DEPLOY_VERSION}" \
-            --skip-hooks
+          curl --fail --show-error --silent https://api.nitodev.com.br/health >/dev/null
+          curl --fail --show-error --silent https://standup.nitodev.com.br/ >/dev/null

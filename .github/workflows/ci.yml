@@ -16,16 +16,8 @@ jobs:
     uses: ./.github/workflows/ci-quality.yml
     secrets: inherit
 
-  build:
-    needs: quality
-    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
-    uses: ./.github/workflows/ci-build.yml
-    with:
-      message_id: ${{ needs.quality.outputs.message_id }}
-    secrets: inherit
-
   deploy:
-    needs: [quality, build]
+    needs: quality
     if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
     uses: ./.github/workflows/ci-deploy.yml
     with:

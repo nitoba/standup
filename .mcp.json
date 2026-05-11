@@ -8,6 +8,11 @@
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@mastra/mcp-docs-server@latest"]
+    },
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest", "--no-usage-statistics"]
     }
   }
 }
