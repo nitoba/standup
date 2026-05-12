@@ -61,12 +61,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/bin/bun /usr/local/bin/bun
-COPY --from=builder /app/package.json /app/package.json
-COPY --from=builder /app/bun.lock /app/bun.lock
 COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=builder /app/apps/api/package.json /app/apps/api/package.json
 COPY --from=builder /app/apps/api/node_modules /app/apps/api/node_modules
-COPY --from=builder /app/apps/api/src /app/apps/api/src
+# Keep only the runtime-read source assets: DB migrations, migrator imports,
+# and LLM prompt files loaded from disk by the compiled binary.
+COPY --from=builder /app/apps/api/src/platform/database/migrate.ts /app/apps/api/src/platform/database/migrate.ts
+COPY --from=builder /app/apps/api/src/platform/database/migrations /app/apps/api/src/platform/database/migrations
+COPY --from=builder /app/apps/api/src/platform/logger /app/apps/api/src/platform/logger
+COPY --from=builder /app/apps/api/src/contexts/standups/worker/standup-generator/prompts /app/apps/api/src/contexts/standups/worker/standup-generator/prompts
 COPY --from=builder /app/apps/api/docker-entrypoint.sh /usr/local/bin/start-api
 COPY --from=builder /app/bin/api /app/bin/api
 
@@ -82,6 +85,7 @@ RUN set -eux; \
     echo '{"name":"'"${pkg}"'","version":"0.0.0","main":"index.js"}' > "/app/node_modules/${pkg}/package.json"; \
     echo 'module.exports = {};' > "/app/node_modules/${pkg}/index.js"; \
   done; \
+  rm -f /app/apps/api/src/platform/database/migrations/*.spec.ts; \
   mkdir -p /app/node_modules/class-transformer; \
   echo 'module.exports = {};' > /app/node_modules/class-transformer/storage.js
 
