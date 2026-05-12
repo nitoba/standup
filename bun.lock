@@ -16,7 +16,7 @@
     },
     "apps/api": {
       "name": "@standup-api",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "dependencies": {
         "@ai-sdk/google": "^3.0.43",
         "@ai-sdk/groq": "^3.0.31",
@@ -92,7 +92,7 @@
     },
     "apps/web": {
       "name": "@standup/web",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "dependencies": {
         "@angular/cdk": "^21",
         "@angular/common": "^21.2.0",
@@ -101,7 +101,7 @@
         "@angular/forms": "^21.2.0",
         "@angular/platform-browser": "^21.2.0",
         "@angular/router": "^21.2.0",
-        "@tanstack/angular-query-experimental": "^5.90.25",
+        "@tanstack/angular-query-experimental": "5.90.25",
         "better-auth": "^1.5.4",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
